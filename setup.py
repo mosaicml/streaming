@@ -9,5 +9,5 @@ setup(
     author_email='team@mosaicml.com',
     url='https://github.com/mosaicml/streaming/',
     packages=['streaming'],
-    insatll_requires=open('requirements.txt').readlines(),
+    install_requires=open('requirements.txt').readlines(),
 )
