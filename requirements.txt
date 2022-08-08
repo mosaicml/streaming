@@ -1,0 +1,7 @@
+boto3==1.24.37
+Brotli==1.0.9
+pytest==7.1.2
+python-snappy==0.6.1
+tqdm==4.64.0
+xxhash==3.0.0
+zstd==1.5.2.5
