@@ -99,7 +99,8 @@ class MDSReader(JointReader):
         args['dirname'] = dirname
         args['split'] = split
         for key in ['raw_data', 'zip_data']:
-            args[key] = FileInfo(**args[key])
+            arg = args[key]
+            args[key] = FileInfo(**arg) if arg else None
         return cls(**args)
 
     def _decode_sample(self, data: bytes) -> dict[str, Any]:

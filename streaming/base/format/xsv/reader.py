@@ -120,7 +120,8 @@ class XSVReader(SplitReader):
         args['dirname'] = dirname
         args['split'] = split
         for key in ['raw_data', 'raw_meta', 'zip_data', 'zip_meta']:
-            args[key] = FileInfo(**args[key])
+            arg = args[key]
+            args[key] = FileInfo(**arg) if arg else None
         return cls(**args)
 
     def _decode_sample(self, data: bytes) -> dict[str, Any]:
@@ -198,7 +199,8 @@ class CSVReader(XSVReader):
         args['dirname'] = dirname
         args['split'] = split
         for key in ['raw_data', 'raw_meta', 'zip_data', 'zip_meta']:
-            args[key] = FileInfo(**args[key])
+            arg = args[key]
+            args[key] = FileInfo(**arg) if arg else None
         return cls(**args)
 
 
@@ -254,5 +256,6 @@ class TSVReader(XSVReader):
         args['dirname'] = dirname
         args['split'] = split
         for key in ['raw_data', 'raw_meta', 'zip_data', 'zip_meta']:
-            args[key] = FileInfo(**args[key])
+            arg = args[key]
+            args[key] = FileInfo(**arg) if arg else None
         return cls(**args)
