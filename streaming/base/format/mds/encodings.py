@@ -6,8 +6,8 @@ from typing import Any, Optional
 import numpy as np
 from PIL import Image
 
-__all__ = ['get_mds_encodings', 'is_mds_encoding', 'mds_encode', 'mds_decode',
-           'get_mds_encoded_size']
+__all__ = ['get_mds_encoded_size', 'get_mds_encodings', 'is_mds_encoding', 'mds_decode',
+           'mds_encode']
 
 
 class Encoding(object):

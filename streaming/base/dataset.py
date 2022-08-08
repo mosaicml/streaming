@@ -52,7 +52,7 @@ class Dataset(IterableDataset):
         >>> import numpy as np
         >>> from PIL import Image
         >>> from uuid import uuid4
-        >>> from streaming.base import MDSWriter
+        >>> from streaming import MDSWriter
         >>> dirname = 'dirname'
         >>> columns = {
         ...     'uuid': 'str',
@@ -74,13 +74,13 @@ class Dataset(IterableDataset):
         ...         out.write(sample)
 
         To read the dataset:
-        >>> from streaming.base import Dataset
+        >>> from streaming import Dataset
         >>> dataset = Dataset(dirname)
         >>> for sample in dataset:
         ...     print(sample)
 
         To read the dataset (with all optional arguments):
-        >>> from streaming.base import Dataset
+        >>> from streaming import Dataset
         >>> dataset = Dataset(local=dirname, remote=None, split=None, shuffle=True,
         ...                   prefetch=100_000, keep_zip=None, retry=2, timeout=60, hash=None,
         ...                   batch_size=None)
