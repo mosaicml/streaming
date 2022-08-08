@@ -1,10 +1,10 @@
-from io import BytesIO
 import json
-import numpy as np
-from PIL import Image
 import pickle
+from io import BytesIO
 from typing import Any, Optional
 
+import numpy as np
+from PIL import Image
 
 __all__ = ['get_mds_encodings', 'is_mds_encoding', 'mds_encode', 'mds_decode',
            'get_mds_encoded_size']

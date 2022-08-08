@@ -1,4 +1,5 @@
 from argparse import ArgumentParser, Namespace
+
 from torchvision.datasets import CIFAR10
 
 from .base import convert_image_class_dataset, get_list_arg

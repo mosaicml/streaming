@@ -1,9 +1,9 @@
 from argparse import ArgumentParser, Namespace
 from collections import defaultdict
-from matplotlib import pyplot as plt
-import numpy as np
 from typing import Optional
 
+import numpy as np
+from matplotlib import pyplot as plt
 
 algo2color: dict[str, Optional[str]] = {
     'blake2b': 'purple',

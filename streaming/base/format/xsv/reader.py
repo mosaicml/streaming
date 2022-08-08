@@ -1,8 +1,9 @@
-from copy import deepcopy
 import json
-import numpy as np
 import os
+from copy import deepcopy
 from typing import Any, Optional
+
+import numpy as np
 from typing_extensions import Self
 
 from ..base.reader import FileInfo, SplitReader

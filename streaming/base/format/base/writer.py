@@ -2,6 +2,7 @@ import json
 import os
 from types import TracebackType
 from typing import Any, Optional, Type
+
 from typing_extensions import Self
 
 from ...compression import compress, get_compression_extension, is_compression

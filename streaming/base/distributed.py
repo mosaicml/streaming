@@ -1,6 +1,5 @@
 import os
 
-
 __all__ = ['get_global_rank', 'get_local_rank', 'get_local_world_size', 'get_world_size']
 
 

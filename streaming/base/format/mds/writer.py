@@ -1,6 +1,7 @@
 import json
-import numpy as np
 from typing import Any, Optional
+
+import numpy as np
 
 from ..base.writer import JointWriter
 from .encodings import get_mds_encoded_size, is_mds_encoding, mds_encode

@@ -1,9 +1,8 @@
 import os
 import shutil
-from time import sleep, time
 import urllib.parse
+from time import sleep, time
 from typing import Optional
-
 
 __all__ = ['download_or_wait']
 

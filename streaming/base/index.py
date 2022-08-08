@@ -1,7 +1,8 @@
 from math import ceil
+from typing import Optional
+
 import numpy as np
 from torch.utils.data import get_worker_info
-from typing import Optional
 
 from . import distributed as dist
 

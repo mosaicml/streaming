@@ -1,7 +1,8 @@
 import json
 import os
-from torch.utils.data import Dataset
 from typing import Any, Optional
+
+from torch.utils.data import Dataset
 
 from .format import reader_from_json
 from .index import Index

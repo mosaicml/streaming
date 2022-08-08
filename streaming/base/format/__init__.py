@@ -5,7 +5,6 @@ from .json import JSONReader, JSONWriter
 from .mds import MDSReader, MDSWriter
 from .xsv import CSVReader, CSVWriter, TSVReader, TSVWriter, XSVReader, XSVWriter
 
-
 _readers = {
     'csv': CSVReader,
     'json': JSONReader,

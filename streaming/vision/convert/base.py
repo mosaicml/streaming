@@ -1,9 +1,10 @@
-import numpy as np
 import os
+from typing import Optional, Union
+
+import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset
 from tqdm import tqdm
-from typing import Optional, Union
 
 from ...base import MDSWriter
 

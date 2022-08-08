@@ -1,8 +1,8 @@
-import numpy as np
 from shutil import rmtree
 
-from streaming.base import CSVWriter, Dataset, JSONWriter, MDSWriter, TSVWriter
+import numpy as np
 
+from streaming.base import CSVWriter, Dataset, JSONWriter, MDSWriter, TSVWriter
 
 ones = ('zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen ' +
         'fifteen sixteen seventeen eighteen nineteen').split()

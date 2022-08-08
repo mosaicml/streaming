@@ -1,6 +1,5 @@
 from typing import Any
 
-
 __all__ = ['is_json_encoded', 'is_json_encoding']
 
 

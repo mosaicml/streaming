@@ -1,7 +1,7 @@
 import hashlib
 from typing import Any, Callable
-import xxhash
 
+import xxhash
 
 __all__ = ['get_hash', 'get_hashes', 'is_hash']
 

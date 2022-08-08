@@ -1,10 +1,11 @@
+import os
 from argparse import ArgumentParser, Namespace
 from glob import glob
+from typing import Optional
+
 import numpy as np
-import os
 from PIL import Image
 from tqdm import tqdm
-from typing import Optional
 
 from ...base import MDSWriter
 from .base import get_list_arg

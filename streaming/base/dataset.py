@@ -1,19 +1,20 @@
-from enum import IntEnum
 import json
-from multiprocessing import Pool
-import numpy as np
 import os
+from enum import IntEnum
+from multiprocessing import Pool
 from threading import RLock, Thread
 from time import sleep
-from torch.utils.data import IterableDataset
 from typing import Any, Iterator, Optional
 
-from .compression import decompress
+import numpy as np
+from torch.utils.data import IterableDataset
+
 from . import distributed as dist
+from .compression import decompress
 from .download import download_or_wait
 from .format import reader_from_json
 from .hashing import get_hash
-from .index import get_index_basename, Index, Partition
+from .index import Index, Partition, get_index_basename
 
 
 class DownloadStatus(IntEnum):

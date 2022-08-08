@@ -1,6 +1,7 @@
 import json
-import numpy as np
 from typing import Any, Optional
+
+import numpy as np
 
 from ..base.writer import SplitWriter
 from .encodings import is_json_encoded, is_json_encoding

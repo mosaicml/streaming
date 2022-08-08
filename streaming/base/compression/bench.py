@@ -1,7 +1,8 @@
 from argparse import ArgumentParser, Namespace
-import numpy as np
 from time import time
 from typing import Iterator
+
+import numpy as np
 
 from .compression import compress, decompress, get_compressions
 

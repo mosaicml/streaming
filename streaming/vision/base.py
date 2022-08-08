@@ -1,5 +1,6 @@
-from torchvision.transforms.functional import to_tensor
 from typing import Any, Callable, Optional
+
+from torchvision.transforms.functional import to_tensor
 
 from ..base import Dataset
 

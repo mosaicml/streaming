@@ -1,6 +1,5 @@
 from typing import Any
 
-
 __all__ = ['is_xsv_encoding', 'xsv_decode', 'xsv_encode']
 
 

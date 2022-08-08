@@ -1,11 +1,11 @@
-import brotli
 import bz2
 import gzip
-import snappy
 from typing import Iterator, Optional, Type
-from typing_extensions import Self
-import zstd
 
+import brotli
+import snappy
+import zstd
+from typing_extensions import Self
 
 __all__ = ['compress', 'decompress', 'get_compression_extension', 'get_compressions',
            'is_compression']

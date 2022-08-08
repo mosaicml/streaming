@@ -1,6 +1,5 @@
 from distutils.core import setup
 
-
 setup(
     name='streaming',
     version='2.0.0',  # Format.Feature.Bugfix
