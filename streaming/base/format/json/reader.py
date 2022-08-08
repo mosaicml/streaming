@@ -76,8 +76,8 @@ class JSONReader(SplitReader):
         samples (int): Number of samples in this shard.
         size_limit (Optional[int]): Optional shard size limit, after which point to start a new
             shard. If None, puts everything in one shard.
-        zip_data (FileInfo): Compressed data file info.
-        zip_meta (FileInfo): Compressed meta file info.
+        zip_data (Optional[FileInfo]): Compressed data file info.
+        zip_meta (Optional[FileInfo]): Compressed meta file info.
     """
 
     def __init__(
@@ -92,8 +92,8 @@ class JSONReader(SplitReader):
         raw_meta: FileInfo,
         samples: int,
         size_limit: Optional[int],
-        zip_data: FileInfo,
-        zip_meta: FileInfo
+        zip_data: Optional[FileInfo],
+        zip_meta: Optional[FileInfo]
     ) -> None:
         super().__init__(dirname, split, compression, hashes, raw_data, raw_meta, samples,
                          size_limit, zip_data, zip_meta)

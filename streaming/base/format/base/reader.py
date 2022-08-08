@@ -111,7 +111,7 @@ class JointReader(Reader):
         samples (int): Number of samples in this shard.
         size_limit (Optional[int]): Optional shard size limit, after which point to start a new
             shard. If None, puts everything in one shard.
-        zip_data (FileInfo): Compressed data file info.
+        zip_data (Optional[FileInfo]): Compressed data file info.
     """
     def __init__(
         self,
@@ -143,8 +143,8 @@ class SplitReader(Reader):
         samples (int): Number of samples in this shard.
         size_limit (Optional[int]): Optional shard size limit, after which point to start a new
             shard. If None, puts everything in one shard.
-        zip_data (FileInfo): Compressed data file info.
-        zip_meta (FileInfo): Compressed meta file info.
+        zip_data (Optional[FileInfo]): Compressed data file info.
+        zip_meta (Optional[FileInfo]): Compressed meta file info.
     """
     def __init__(
         self,

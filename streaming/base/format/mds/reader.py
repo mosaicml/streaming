@@ -66,7 +66,7 @@ class MDSReader(JointReader):
         samples (int): Number of samples in this shard.
         size_limit (Optional[int]): Optional shard size limit, after which point to start a new
             shard. If None, puts everything in one shard.
-        zip_data (FileInfo): Compressed data file info.
+        zip_data (Optional[FileInfo]): Compressed data file info.
     """
 
     def __init__(
@@ -81,7 +81,7 @@ class MDSReader(JointReader):
         raw_data: FileInfo,
         samples: int,
         size_limit: Optional[int],
-        zip_data: FileInfo
+        zip_data: Optional[FileInfo]
     ) -> None:
         super().__init__(dirname, split, compression, hashes, raw_data, samples, size_limit,
                          zip_data)
