@@ -175,7 +175,7 @@ def _collect(families: dict[str, type[Compression]]) -> dict[str, Compression]:
 
 
 # Compression algorithms (extension:level -> instance).
-_algorithms = _collect(_families)
+_algorithms: dict[str, Compression] = _collect(_families)
 
 
 def get_compressions() -> set[str]:
