@@ -1,8 +1,7 @@
 import os
-from typing import List, Optional, Union
+from typing import List, Optional
 
 import numpy as np
-from PIL import Image
 from torch.utils.data import Dataset
 from tqdm import tqdm
 

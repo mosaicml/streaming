@@ -105,7 +105,7 @@ def plot_hash_rates(data: List[Tuple[str, int, float]], algo2color: Dict[str, Op
     plt.clf()
 
 
-def main(args) -> None:
+def main(args: Namespace) -> None:
     """Plot info about hashing.
 
     Args:

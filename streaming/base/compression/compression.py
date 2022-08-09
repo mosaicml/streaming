@@ -144,7 +144,7 @@ class Zstandard(LevelledCompression):
         assert level in self.levels
         self.level = level
 
-    def compress(self, data) -> bytes:
+    def compress(self, data: bytes) -> bytes:
         return zstd.compress(data, self.level)
 
     def decompress(self, data: bytes) -> bytes:

@@ -1,4 +1,5 @@
 from shutil import rmtree
+from typing import Any, Dict, List
 
 import numpy as np
 
@@ -10,7 +11,7 @@ ones = ('zero one two three four five six seven eight nine ten eleven twelve thi
 tens = 'twenty thirty forty fifty sixty seventy eighty ninety'.split()
 
 
-def say(i):
+def say(i: int) -> List[str]:
     if i < 0:
         return ['negative'] + say(-i)
     elif i <= 19:
@@ -27,15 +28,15 @@ def say(i):
         assert False
 
 
-def get_number():
+def get_number() -> int:
     sign = (np.random.random() < 0.8) * 2 - 1
     mag = 10**np.random.uniform(1, 4) - 10
     return sign * int(mag**2)
 
 
-def get_dataset(num_samples):
+def get_dataset(num_samples: int) -> List[Dict[str, Any]]:
     samples = []
-    for i in range(num_samples):
+    for _ in range(num_samples):
         number = get_number()
         words = ' '.join(say(number))
         sample = {'number': number, 'words': words}
@@ -43,7 +44,7 @@ def get_dataset(num_samples):
     return samples
 
 
-def test():
+def test() -> None:
     samples = get_dataset(50_000)
 
     columns = {
@@ -51,7 +52,7 @@ def test():
         'words': 'str',
     }
     compression = 'zstd:7'
-    hashes = 'sha1', 'xxh3_64'
+    hashes = ['sha1', 'xxh3_64']
     size_limit = 1 << 16
 
     with MDSWriter('/tmp/mds', columns, compression, hashes, size_limit) as out:
