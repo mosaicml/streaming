@@ -27,13 +27,8 @@ class Partition(object):
         max_id (int): The highest sample ID of this partition.
     """
 
-    def __init__(
-        self,
-        shards: list[int],
-        shards_to_download: list[int],
-        min_sample_id: int,
-        max_sample_id: int
-    ) -> None:
+    def __init__(self, shards: list[int], shards_to_download: list[int], min_sample_id: int,
+                 max_sample_id: int) -> None:
         self.shards = shards
         self.shards_to_download = shards_to_download
         self.min_sample_id = min_sample_id
@@ -43,8 +38,9 @@ class Partition(object):
 class Index(object):
     """An index of sample ranges (corresponding to shards).
 
-    Enables (a) finding the shard for a given sample, (b) getting the per-device dataset size, and
-    (c) getting this device/worker's sample range of the dataset.
+    Enables (a) finding the shard for a given sample, (b) getting the
+    per-device dataset size, and (c) getting this device/worker's sample
+    range of the dataset.
     """
 
     def __init__(self, samples_per_shard: list[int], batch_size: Optional[int] = None) -> None:
@@ -93,7 +89,7 @@ class Index(object):
         return ceil(self.total_samples / dist.get_world_size())
 
     def get_partition(self) -> Partition:
-        """Get the shards and sample range of this device/worker's partition of the dataset.
+        """Get the shards and sample range of this device/worker's partition.
 
         When ``batch_size`` is provided, worker indices will be constructed so that there is at
         most one incomplete batch at the end of each epoch. For example, if the DataLoader is
@@ -162,8 +158,8 @@ class Index(object):
             part_size = sizes[part]
             return part_min_id, part_max_id, part_size
 
-        device_min_id, _, device_samples = _get_min_max_size(
-            0, self.total_samples, global_device, global_num_devices)
+        device_min_id, _, device_samples = _get_min_max_size(0, self.total_samples, global_device,
+                                                             global_num_devices)
 
         # Some devices may have 1 fewer sample, so repeat some samples at boundaries
         expected_device_samples = ceil(self.total_samples / global_num_devices)
@@ -174,8 +170,8 @@ class Index(object):
             device_samples += 1
 
         if not self.batch_size:
-            worker_min_id, worker_max_id, _ = _get_min_max_size(
-                device_min_id, device_samples, device_worker, device_num_workers)
+            worker_min_id, worker_max_id, _ = _get_min_max_size(device_min_id, device_samples,
+                                                                device_worker, device_num_workers)
         else:
             device_batches = ceil(device_samples / self.batch_size)
             samples_missing = device_batches * self.batch_size - device_samples

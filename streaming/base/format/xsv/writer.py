@@ -10,16 +10,14 @@ from .encodings import is_xsv_encoding, xsv_encode
 class XSVWriter(SplitWriter):
     format = 'xsv'
 
-    def __init__(
-        self,
-        dirname: str,
-        columns: dict[str, str],
-        separator: str,
-        compression: Optional[str] = None,
-        hashes: Optional[list[str]] = None,
-        size_limit: Optional[int] = 1 << 26,
-        newline: str = '\n'
-    ) -> None:
+    def __init__(self,
+                 dirname: str,
+                 columns: dict[str, str],
+                 separator: str,
+                 compression: Optional[str] = None,
+                 hashes: Optional[list[str]] = None,
+                 size_limit: Optional[int] = 1 << 26,
+                 newline: str = '\n') -> None:
         super().__init__(dirname, compression, hashes, size_limit)
 
         self.columns = columns
@@ -76,15 +74,13 @@ class CSVWriter(XSVWriter):
     format = 'csv'
     separator = ','
 
-    def __init__(
-        self,
-        dirname: str,
-        columns: dict[str, str],
-        compression: Optional[str] = None,
-        hashes: Optional[list[str]] = None,
-        size_limit: Optional[int] = 1 << 26,
-        newline: str = '\n'
-    ) -> None:
+    def __init__(self,
+                 dirname: str,
+                 columns: dict[str, str],
+                 compression: Optional[str] = None,
+                 hashes: Optional[list[str]] = None,
+                 size_limit: Optional[int] = 1 << 26,
+                 newline: str = '\n') -> None:
         super().__init__(dirname, columns, self.separator, compression, hashes, size_limit, newline)
 
     def _get_config(self) -> dict[str, Any]:
@@ -98,15 +94,13 @@ class TSVWriter(XSVWriter):
     format = 'tsv'
     separator = '\t'
 
-    def __init__(
-        self,
-        dirname: str,
-        columns: dict[str, str],
-        compression: Optional[str] = None,
-        hashes: Optional[list[str]] = None,
-        size_limit: Optional[int] = 1 << 26,
-        newline: str = '\n'
-    ) -> None:
+    def __init__(self,
+                 dirname: str,
+                 columns: dict[str, str],
+                 compression: Optional[str] = None,
+                 hashes: Optional[list[str]] = None,
+                 size_limit: Optional[int] = 1 << 26,
+                 newline: str = '\n') -> None:
         super().__init__(dirname, columns, self.separator, compression, hashes, size_limit, newline)
 
     def _get_config(self) -> dict[str, Any]:

@@ -6,7 +6,6 @@ from typing import Optional
 
 __all__ = ['download_or_wait']
 
-
 S3_NOT_FOUND_CODES = {'403', '404', 'NoSuchKey'}
 
 
@@ -105,7 +104,7 @@ def download_from_local(remote: str, local: str) -> None:
 
 
 def download(remote: Optional[str], local: str, timeout: float):
-    """Use the correct download handler to download the file
+    """Use the correct download handler to download the file.
 
     Args:
         remote (Optional[str]): Remote path (local filesystem).

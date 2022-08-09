@@ -10,15 +10,13 @@ from .encodings import is_json_encoded, is_json_encoding
 class JSONWriter(SplitWriter):
     format = 'json'
 
-    def __init__(
-        self,
-        dirname: str,
-        columns: dict[str, str],
-        compression: Optional[str] = None,
-        hashes: Optional[list[str]] = None,
-        size_limit: Optional[int] = 1 << 26,
-        newline: str = '\n'
-    ) -> None:
+    def __init__(self,
+                 dirname: str,
+                 columns: dict[str, str],
+                 compression: Optional[str] = None,
+                 hashes: Optional[list[str]] = None,
+                 size_limit: Optional[int] = 1 << 26,
+                 newline: str = '\n') -> None:
         super().__init__(dirname, compression, hashes, size_limit)
 
         for encoding in columns.values():
@@ -38,10 +36,7 @@ class JSONWriter(SplitWriter):
 
     def _get_config(self) -> dict[str, Any]:
         obj = super()._get_config()
-        obj.update({
-            'columns': self.columns,
-            'newline': self.newline
-        })
+        obj.update({'columns': self.columns, 'newline': self.newline})
         return obj
 
     def _encode_split_shard(self) -> tuple[bytes, bytes]:

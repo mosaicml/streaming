@@ -86,19 +86,17 @@ class Dataset(IterableDataset):
         ...                   batch_size=None)
     """
 
-    def __init__(
-        self,
-        local: str,
-        remote: Optional[str] = None,
-        split: Optional[str] = None,
-        shuffle: bool = True,
-        prefetch: Optional[int] = 100_000,
-        keep_zip: Optional[bool] = None,
-        retry: int = 2,
-        timeout: float = 60,
-        hash: Optional[str] = None,
-        batch_size: Optional[int] = None
-    ) -> None:
+    def __init__(self,
+                 local: str,
+                 remote: Optional[str] = None,
+                 split: Optional[str] = None,
+                 shuffle: bool = True,
+                 prefetch: Optional[int] = 100_000,
+                 keep_zip: Optional[bool] = None,
+                 retry: int = 2,
+                 timeout: float = 60,
+                 hash: Optional[str] = None,
+                 batch_size: Optional[int] = None) -> None:
         keep_zip = (remote == local) if keep_zip is None else keep_zip
         hash = hash or None
 
@@ -137,7 +135,7 @@ class Dataset(IterableDataset):
         self._download_exception: Exception
 
     def __len__(self) -> int:
-        """Get the length as an IterableDataset (ie, divided by number of devices).
+        """Get the length as an IterableDataset (ie, divided by num devices).
 
         Returns:
             int: Dataset length.
@@ -145,7 +143,7 @@ class Dataset(IterableDataset):
         return self.index.get_samples_per_device()
 
     def _load_shards(self, shards: list[int], partition: Partition) -> None:
-        """Load the samples belonging to our partition from the given locally cached shards.
+        """Load our partition's samples from the given locally cached shards.
 
         Every time you call __iter__ on this dataset, it registers the list of samples you have
         left, which will not be the full epoch if the dataset isn't finished loaded when you start
@@ -191,7 +189,7 @@ class Dataset(IterableDataset):
                 self._has_shard[shard] = True
 
     def _load_shard(self, shard: int, partition: Partition) -> None:
-        """Load the samples belonging to our partition from the given locally cached shard.
+        """Load our partition's samples from the given locally cached shard.
 
         For performance reasons, prefer _load_shards() where possible.
 
@@ -202,7 +200,7 @@ class Dataset(IterableDataset):
         self._load_shards([shard], partition)
 
     def _preload_shard(self, shard: int) -> bool:
-        """Attempt to decompress and validate a single shard, returning whether it is present.
+        """Decompress and validate a single shard, returning whether present.
 
         Args:
             shard (int): Which shard.
@@ -235,7 +233,7 @@ class Dataset(IterableDataset):
         return True
 
     def _preload(self, partition: Partition) -> list[int]:
-        """Load any shards that are cached locally, returning the list of missing shards.
+        """Load any shards that are cached locally, returning missing shards.
 
         Args:
             partition (Partition): Our rank and worker's partition of the dataset.
@@ -339,7 +337,9 @@ class Dataset(IterableDataset):
                         assert get_hash(self.hash, data) == raw_info.hashes[self.hash]
         return shard
 
-    def _download_shards_via_pool(self, shards: list[int], partition: Partition,
+    def _download_shards_via_pool(self,
+                                  shards: list[int],
+                                  partition: Partition,
                                   num_processes: Optional[int] = None) -> None:
         """Download and load the given missing shards.
 
@@ -373,7 +373,7 @@ class Dataset(IterableDataset):
         return min_size or 0
 
     def _wait_until_few_todo_samples(self):
-        """Block until the available samples are low enough to download another shard."""
+        """Block until the samples are low enough to download another shard."""
         if self.prefetch is None:
             return
         while True:
@@ -407,7 +407,7 @@ class Dataset(IterableDataset):
             self._download_status = DownloadStatus.DONE
 
     def download(self, num_processes: Optional[int] = None) -> None:
-        """Load all shards, downloading if not local.
+        """Load all shards, downloading if not local (blocking).
 
         Args:
             num_processes (Optional[int], default None): Number of concurrent shard downloads (ie,
@@ -419,7 +419,7 @@ class Dataset(IterableDataset):
             self._download_shards_via_pool(shards, partition, num_processes)
 
     def _start_downloading(self) -> bool:
-        """Start loading all shards, downloading in a thread, returning whether done immediately.
+        """Load shards in a thread, returning whether done immediately.
 
         Returns:
             bool: Whether all the shards were already local (are now loaded).
@@ -427,7 +427,8 @@ class Dataset(IterableDataset):
         partition = self.index.get_partition()
         missing_shards = self._preload(partition)
         if missing_shards:
-            Thread(target=self._download_shards_via_loop, args=(missing_shards, partition),
+            Thread(target=self._download_shards_via_loop,
+                   args=(missing_shards, partition),
                    daemon=True).start()
         with self._lock:
             return self._download_status == DownloadStatus.DONE
@@ -487,7 +488,7 @@ class Dataset(IterableDataset):
             yield from self._iter_ids_dynamic()
 
     def __getitem__(self, idx: int) -> Any:
-        """Get sample by global index, blocking to load its shard if not loaded.
+        """Get sample by global index, blocking to load its shard if missing.
 
         Args:
             idx (int): Sample index.

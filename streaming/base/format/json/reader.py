@@ -7,8 +7,9 @@ import numpy as np
 from typing_extensions import Self
 
 from ..base.reader import FileInfo, SplitReader
-
 '''
+Example:
+
     {
       "columns": {
         "number": "int",
@@ -93,7 +94,7 @@ class JSONReader(SplitReader):
         samples: int,
         size_limit: Optional[int],
         zip_data: Optional[FileInfo],
-        zip_meta: Optional[FileInfo]
+        zip_meta: Optional[FileInfo],
     ) -> None:
         super().__init__(dirname, split, compression, hashes, raw_data, raw_meta, samples,
                          size_limit, zip_data, zip_meta)

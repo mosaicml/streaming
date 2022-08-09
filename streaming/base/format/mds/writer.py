@@ -11,14 +11,12 @@ class MDSWriter(JointWriter):
     format = 'mds'
     extra_bytes_per_sample = 4
 
-    def __init__(
-        self,
-        dirname: str,
-        columns: dict[str, str],
-        compression: Optional[str] = None,
-        hashes: Optional[list[str]] = None,
-        size_limit: Optional[int] = 1 << 26
-    ) -> None:
+    def __init__(self,
+                 dirname: str,
+                 columns: dict[str, str],
+                 compression: Optional[str] = None,
+                 hashes: Optional[list[str]] = None,
+                 size_limit: Optional[int] = 1 << 26) -> None:
         super().__init__(dirname, compression, hashes, size_limit, 0, self.extra_bytes_per_sample)
 
         self.columns = columns

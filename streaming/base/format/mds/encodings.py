@@ -6,15 +6,16 @@ from typing import Any, Optional
 import numpy as np
 from PIL import Image
 
-__all__ = ['get_mds_encoded_size', 'get_mds_encodings', 'is_mds_encoding', 'mds_decode',
-           'mds_encode']
+__all__ = [
+    'get_mds_encoded_size', 'get_mds_encodings', 'is_mds_encoding', 'mds_decode', 'mds_encode'
+]
 
 
 class Encoding(object):
-    """Encodes and decodes between objects of a certain type and serialized bytes."""
+    """Encodes and decodes between objects of a certain type and raw bytes."""
 
     size: Optional[int] = None  # Fixed size in bytes of encoded data (None if variable size).
-    
+
     def encode(self, obj: Any) -> bytes:
         """Encode the given data from the original object to bytes.
 
@@ -25,7 +26,7 @@ class Encoding(object):
             bytes: Encoded data.
         """
         raise NotImplementedError
-    
+
     def decode(self, data: bytes) -> Any:
         """Decode the given data from bytes to the original object.
 
@@ -80,7 +81,7 @@ class PIL(Encoding):
         mode = obj.mode.encode('utf-8')
         width, height = obj.size
         raw = obj.tobytes()
-        ints = np.array([width, height, len(mode)], np.uint32) 
+        ints = np.array([width, height, len(mode)], np.uint32)
         return ints.tobytes() + mode + raw
 
     def decode(self, data: bytes) -> Image.Image:
@@ -104,7 +105,7 @@ class JPEG(Encoding):
     def decode(self, data: bytes) -> Image.Image:
         inp = BytesIO(data)
         return Image.open(inp)
-        
+
 
 class PNG(Encoding):
     """Store PIL image as PNG."""
@@ -204,7 +205,7 @@ def mds_decode(encoding: str, data: bytes) -> Any:
 
 
 def get_mds_encoded_size(encoding: str) -> Optional[int]:
-    """Get the fixed size of all encodings of this type, or None if variable size.
+    """Get the fixed size of all encodings of this type, or None if N/A.
 
     Args:
         encoding (str): Encoding.

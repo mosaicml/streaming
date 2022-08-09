@@ -33,9 +33,8 @@ def main(args: Namespace) -> None:
     hashes = get_list_arg(args.hashes)
     for split in splits:
         dataset = CIFAR10(root=getattr(args, 'in'), train=(split == 'train'), download=True)
-        convert_image_class_dataset(
-            dataset, args.out, split, args.compression, hashes, args.limit, args.progbar,
-            args.leave, 'pil')
+        convert_image_class_dataset(dataset, args.out, split, args.compression, hashes, args.limit,
+                                    args.progbar, args.leave, 'pil')
 
 
 if __name__ == '__main__':

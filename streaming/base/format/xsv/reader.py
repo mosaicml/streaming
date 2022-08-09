@@ -8,8 +8,9 @@ from typing_extensions import Self
 
 from ..base.reader import FileInfo, SplitReader
 from .encodings import xsv_decode
-
 '''
+Example:
+
     {
       "column_encodings": [
         "int",
@@ -102,7 +103,7 @@ class XSVReader(SplitReader):
         separator: str,
         size_limit: Optional[int],
         zip_data: Optional[FileInfo],
-        zip_meta: Optional[FileInfo]
+        zip_meta: Optional[FileInfo],
     ) -> None:
         super().__init__(dirname, split, compression, hashes, raw_data, raw_meta, samples,
                          size_limit, zip_data, zip_meta)
@@ -184,7 +185,7 @@ class CSVReader(XSVReader):
         samples: int,
         size_limit: Optional[int],
         zip_data: Optional[FileInfo],
-        zip_meta: Optional[FileInfo]
+        zip_meta: Optional[FileInfo],
     ) -> None:
         super().__init__(dirname, split, column_encodings, column_names, compression, hashes,
                          newline, raw_data, raw_meta, samples, self.separator, size_limit, zip_data,
@@ -241,7 +242,7 @@ class TSVReader(XSVReader):
         samples: int,
         size_limit: Optional[int],
         zip_data: Optional[FileInfo],
-        zip_meta: Optional[FileInfo]
+        zip_meta: Optional[FileInfo],
     ) -> None:
         super().__init__(dirname, split, column_encodings, column_names, compression, hashes,
                          newline, raw_data, raw_meta, samples, self.separator, size_limit, zip_data,

@@ -7,8 +7,9 @@ import snappy
 import zstd
 from typing_extensions import Self
 
-__all__ = ['compress', 'decompress', 'get_compression_extension', 'get_compressions',
-           'is_compression']
+__all__ = [
+    'compress', 'decompress', 'get_compression_extension', 'get_compressions', 'is_compression'
+]
 
 
 class Compression(object):
@@ -119,7 +120,7 @@ class Gzip(LevelledCompression):
 
 
 class Snappy(Compression):
-    "Snappy compression."""
+    """Snappy compression."""
 
     extension = 'snappy'
 

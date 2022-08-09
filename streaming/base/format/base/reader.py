@@ -36,7 +36,7 @@ class Reader(object):
         compression: Optional[str],
         hashes: list[str],
         samples: int,
-        size_limit: Optional[int]
+        size_limit: Optional[int],
     ) -> None:
         self.dirname = dirname
         self.split = split or ''
@@ -113,6 +113,7 @@ class JointReader(Reader):
             shard. If None, puts everything in one shard.
         zip_data (Optional[FileInfo]): Compressed data file info.
     """
+
     def __init__(
         self,
         dirname: str,
@@ -122,7 +123,7 @@ class JointReader(Reader):
         raw_data: FileInfo,
         samples: int,
         size_limit: Optional[int],
-        zip_data: Optional[FileInfo]
+        zip_data: Optional[FileInfo],
     ) -> None:
         super().__init__(dirname, split, compression, hashes, samples, size_limit)
         self.raw_data = raw_data
@@ -146,6 +147,7 @@ class SplitReader(Reader):
         zip_data (Optional[FileInfo]): Compressed data file info.
         zip_meta (Optional[FileInfo]): Compressed meta file info.
     """
+
     def __init__(
         self,
         dirname: str,
@@ -157,7 +159,7 @@ class SplitReader(Reader):
         samples: int,
         size_limit: Optional[int],
         zip_data: Optional[FileInfo],
-        zip_meta: Optional[FileInfo]
+        zip_meta: Optional[FileInfo],
     ) -> None:
         super().__init__(dirname, split, compression, hashes, samples, size_limit)
         self.raw_data = raw_data

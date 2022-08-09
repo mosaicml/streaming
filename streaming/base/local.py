@@ -9,6 +9,7 @@ from .index import Index
 
 
 class LocalDataset(Dataset):
+
     def __init__(self, dirname: str, split: Optional[str] = None):
         split = split or ''
 

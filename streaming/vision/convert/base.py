@@ -21,19 +21,16 @@ def get_list_arg(text: str) -> list[str]:
     return text.split(',') if text else []
 
 
-def convert_image_class_dataset(
-    dataset: Dataset,
-    root: str,
-    split: Optional[str] = None,
-    compression: Optional[str] = None,
-    hashes: Optional[list[str]] = None,
-    size_limit: int = 1 << 24,
-    progbar: bool = True,
-    leave: bool = False,
-    encoding: str = 'pil'
-) -> None:
-    """
-    Convert an image classification Dataset.
+def convert_image_class_dataset(dataset: Dataset,
+                                root: str,
+                                split: Optional[str] = None,
+                                compression: Optional[str] = None,
+                                hashes: Optional[list[str]] = None,
+                                size_limit: int = 1 << 24,
+                                progbar: bool = True,
+                                leave: bool = False,
+                                encoding: str = 'pil') -> None:
+    """Convert an image classification Dataset.
 
     Args:
         dataset (Dataset): The dataset object to convert.

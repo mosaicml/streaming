@@ -43,11 +43,7 @@ class Float(Encoding):
         return isinstance(obj, float)
 
 
-_encodings = {
-    'str': Str,
-    'int': Int,
-    'float': Float
-}
+_encodings = {'str': Str, 'int': Int, 'float': Float}
 
 
 def is_json_encoded(encoding: str, value: Any) -> bool:

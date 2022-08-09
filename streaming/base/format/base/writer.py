@@ -28,15 +28,13 @@ class Writer(object):
 
     format: str  # Name of the format (like "mds", "csv", "json", etc).
 
-    def __init__(
-        self,
-        dirname: str,
-        compression: Optional[str] = None,
-        hashes: Optional[list[str]] = None,
-        size_limit: Optional[int] = 1 << 26,
-        extra_bytes_per_shard: int = 0,
-        extra_bytes_per_sample: int = 0
-    ) -> None:
+    def __init__(self,
+                 dirname: str,
+                 compression: Optional[str] = None,
+                 hashes: Optional[list[str]] = None,
+                 size_limit: Optional[int] = 1 << 26,
+                 extra_bytes_per_shard: int = 0,
+                 extra_bytes_per_sample: int = 0) -> None:
         compression = compression or None
         if compression:
             assert is_compression(compression)
@@ -118,11 +116,7 @@ class Writer(object):
         hashes = {}
         for algo in self.hashes:
             hashes[algo] = get_hash(algo, data)
-        return {
-            'basename': basename,
-            'bytes': len(data),
-            'hashes': hashes
-        }
+        return {'basename': basename, 'bytes': len(data), 'hashes': hashes}
 
     def _process_file(self, raw_data: bytes, raw_basename: str,
                       zip_basename: Optional[str]) -> tuple[dict, Optional[dict]]:
@@ -219,8 +213,7 @@ class Writer(object):
 
 
 class JointWriter(Writer):
-    """
-    Writes a streaming dataset with joint shards.
+    """Writes a streaming dataset with joint shards.
 
     Args:
         dirname (str): Local dataset directory.
@@ -235,15 +228,13 @@ class JointWriter(Writer):
             shard size while writing).
     """
 
-    def __init__(
-        self,
-        dirname: str,
-        compression: Optional[str] = None,
-        hashes: Optional[list[str]] = None,
-        size_limit: Optional[int] = 1 << 26,
-        extra_bytes_per_shard: int = 0,
-        extra_bytes_per_sample: int = 0
-    ) -> None:
+    def __init__(self,
+                 dirname: str,
+                 compression: Optional[str] = None,
+                 hashes: Optional[list[str]] = None,
+                 size_limit: Optional[int] = 1 << 26,
+                 extra_bytes_per_shard: int = 0,
+                 extra_bytes_per_sample: int = 0) -> None:
         super().__init__(dirname, compression, hashes, size_limit, extra_bytes_per_shard,
                          extra_bytes_per_sample)
 
@@ -282,22 +273,20 @@ class SplitWriter(Writer):
         size_limit (Optional[int], default: 1 << 26): Optional shard size limit, after which point
             to start a new shard. If None, puts everything in one shard.
     """
-    
+
     extra_bytes_per_shard = 0
     extra_bytes_per_sample = 0
 
-    def __init__(
-        self,
-        dirname: str,
-        compression: Optional[str] = None,
-        hashes: Optional[list[str]] = None,
-        size_limit: Optional[int] = 1 << 26
-    ) -> None:
+    def __init__(self,
+                 dirname: str,
+                 compression: Optional[str] = None,
+                 hashes: Optional[list[str]] = None,
+                 size_limit: Optional[int] = 1 << 26) -> None:
         super().__init__(dirname, compression, hashes, size_limit, self.extra_bytes_per_shard,
                          self.extra_bytes_per_sample)
 
     def _encode_split_shard(self) -> tuple[bytes, bytes]:
-        """Encode a split shard out of the cached samples (data file, meta file).
+        """Encode a split shard out of the cached samples (data, meta files).
 
         Returns:
             tuple[bytes, bytes]: Data file, meta file.

@@ -70,11 +70,7 @@ class Float(Encoding):
         return float(obj)
 
 
-_encodings = {
-    'str': Str,
-    'int': Int,
-    'float': Float
-}
+_encodings = {'str': Str, 'int': Int, 'float': Float}
 
 
 def is_xsv_encoding(encoding: str) -> bool:

@@ -78,11 +78,7 @@ def main(args: Namespace) -> None:
         args (Namespace): Commandline arguments.
     """
     splits = get_list_arg(args.splits)
-    columns = {
-        'i': 'int',
-        'x': 'jpeg',
-        'y': 'int'
-    }
+    columns = {'i': 'int', 'x': 'jpeg', 'y': 'int'}
     hashes = get_list_arg(args.hashes)
     extensions = set(get_list_arg(args.extensions))
     class_names = None

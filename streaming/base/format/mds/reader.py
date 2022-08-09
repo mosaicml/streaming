@@ -7,8 +7,9 @@ from typing_extensions import Self
 
 from ..base.reader import FileInfo, JointReader
 from .encodings import mds_decode
-
 '''
+Example:
+
     {
       "column_encodings": [
         "int",
@@ -81,7 +82,7 @@ class MDSReader(JointReader):
         raw_data: FileInfo,
         samples: int,
         size_limit: Optional[int],
-        zip_data: Optional[FileInfo]
+        zip_data: Optional[FileInfo],
     ) -> None:
         super().__init__(dirname, split, compression, hashes, raw_data, samples, size_limit,
                          zip_data)
