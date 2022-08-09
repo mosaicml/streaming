@@ -1,3 +1,4 @@
+from abc import abstractmethod
 import json
 import pickle
 from io import BytesIO
@@ -16,6 +17,7 @@ class Encoding(object):
 
     size: Optional[int] = None  # Fixed size in bytes of encoded data (None if variable size).
 
+    @abstractmethod
     def encode(self, obj: Any) -> bytes:
         """Encode the given data from the original object to bytes.
 
@@ -27,6 +29,7 @@ class Encoding(object):
         """
         raise NotImplementedError
 
+    @abstractmethod
     def decode(self, data: bytes) -> Any:
         """Decode the given data from bytes to the original object.
 

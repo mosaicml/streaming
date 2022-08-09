@@ -1,3 +1,4 @@
+from abc import abstractmethod
 import bz2
 import gzip
 from typing import Iterator, Optional
@@ -26,6 +27,7 @@ class Compression(object):
         """
         yield cls.extension, cls()
 
+    @abstractmethod
     def compress(self, data: bytes) -> bytes:
         """Compress arbitrary data.
 
@@ -37,6 +39,7 @@ class Compression(object):
         """
         raise NotImplementedError
 
+    @abstractmethod
     def decompress(self, data: bytes) -> bytes:
         """Decompress data compressed by this algorithm.
 

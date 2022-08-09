@@ -35,7 +35,7 @@ class JSONWriter(SplitWriter):
         return text.encode('utf-8')
 
     def get_config(self) -> dict[str, Any]:
-        obj = super()._get_config()
+        obj = super().get_config()
         obj.update({'columns': self.columns, 'newline': self.newline})
         return obj
 
@@ -45,7 +45,7 @@ class JSONWriter(SplitWriter):
         num_samples = np.uint32(len(self.new_samples))
         sizes = list(map(len, self.new_samples))
         offsets = np.array([0] + sizes).cumsum().astype(np.uint32)
-        obj = self._get_config()
+        obj = self.get_config()
         text = json.dumps(obj, sort_keys=True)
         meta = num_samples.tobytes() + offsets.tobytes() + text.encode('utf-8')
 

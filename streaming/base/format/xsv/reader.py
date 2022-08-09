@@ -126,7 +126,7 @@ class XSVReader(SplitReader):
             args[key] = FileInfo(**arg) if arg else None
         return cls(**args)
 
-    def _decode_sample(self, data: bytes) -> dict[str, Any]:
+    def decode_sample(self, data: bytes) -> dict[str, Any]:
         text = data.decode('utf-8')
         text = text[:-len(self.newline)]
         parts = text.split(self.separator)
@@ -135,7 +135,7 @@ class XSVReader(SplitReader):
             sample[name] = xsv_decode(encoding, part)
         return sample
 
-    def _get_sample_data(self, idx: int) -> bytes:
+    def get_sample_data(self, idx: int) -> bytes:
         meta_filename = os.path.join(self.dirname, self.split, self.raw_meta.basename)
         offset = (1 + idx) * 4
         with open(meta_filename, 'rb', 0) as fp:

@@ -104,7 +104,7 @@ class MDSReader(JointReader):
             args[key] = FileInfo(**arg) if arg else None
         return cls(**args)
 
-    def _decode_sample(self, data: bytes) -> dict[str, Any]:
+    def decode_sample(self, data: bytes) -> dict[str, Any]:
         sizes = []
         idx = 0
         for key, size in zip(self.column_names, self.column_sizes):
@@ -121,7 +121,7 @@ class MDSReader(JointReader):
             idx += size
         return sample
 
-    def _get_sample_data(self, idx: int) -> bytes:
+    def get_sample_data(self, idx: int) -> bytes:
         filename = os.path.join(self.dirname, self.split, self.raw_data.basename)
         offset = (1 + idx) * 4
         with open(filename, 'rb', 0) as fp:

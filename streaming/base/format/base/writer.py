@@ -1,3 +1,4 @@
+from abc import abstractmethod
 import json
 import os
 from types import TracebackType
@@ -70,6 +71,7 @@ class Writer(object):
         self.new_samples = []
         self.new_shard_size = self.extra_bytes_per_shard
 
+    @abstractmethod
     def encode_sample(self, sample: dict[str, Any]) -> bytes:
         """Encode a sample dict to bytes.
 
@@ -154,6 +156,7 @@ class Writer(object):
             'size_limit': self.size_limit
         }
 
+    @abstractmethod
     def flush_shard(self) -> None:
         """Flush cached samples to storage, creating a new shard."""
         raise NotImplementedError
@@ -238,6 +241,7 @@ class JointWriter(Writer):
         super().__init__(dirname, compression, hashes, size_limit, extra_bytes_per_shard,
                          extra_bytes_per_sample)
 
+    @abstractmethod
     def encode_joint_shard(self) -> bytes:
         """Encode a joint shard out of the cached samples (single file).
 
@@ -256,7 +260,7 @@ class JointWriter(Writer):
             'raw_data': raw_data_info,
             'zip_data': zip_data_info
         }
-        obj.update(self._get_config())
+        obj.update(self.get_config())
         self.shards.append(obj)
 
 
@@ -285,6 +289,7 @@ class SplitWriter(Writer):
         super().__init__(dirname, compression, hashes, size_limit, self.extra_bytes_per_shard,
                          self.extra_bytes_per_sample)
 
+    @abstractmethod
     def encode_split_shard(self) -> tuple[bytes, bytes]:
         """Encode a split shard out of the cached samples (data, meta files).
 
@@ -308,5 +313,5 @@ class SplitWriter(Writer):
             'raw_meta': raw_meta_info,
             'zip_meta': zip_meta_info
         }
-        obj.update(self._get_config())
+        obj.update(self.get_config())
         self.shards.append(obj)

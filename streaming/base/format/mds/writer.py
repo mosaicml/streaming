@@ -31,7 +31,7 @@ class MDSWriter(JointWriter):
             self.column_encodings.append(encoding)
             self.column_sizes.append(size)
 
-        obj = self._get_config()
+        obj = self.get_config()
         text = json.dumps(obj, sort_keys=True)
         self.config_data = text.encode('utf-8')
         self.extra_bytes_per_shard = 4 + 4 + len(self.config_data)
@@ -54,7 +54,7 @@ class MDSWriter(JointWriter):
         return head + body
 
     def get_config(self) -> dict[str, Any]:
-        obj = super()._get_config()
+        obj = super().get_config()
         obj.update({
             'column_names': self.column_names,
             'column_encodings': self.column_encodings,

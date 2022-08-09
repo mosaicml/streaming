@@ -1,3 +1,4 @@
+from abc import abstractmethod
 from dataclasses import dataclass
 from typing import Any, Iterator, Optional
 
@@ -55,7 +56,8 @@ class Reader(object):
         """
         return self.samples
 
-    def _decode_sample(self, data: bytes) -> dict[str, Any]:
+    @abstractmethod
+    def decode_sample(self, data: bytes) -> dict[str, Any]:
         """Decode a sample dict from bytes.
 
         Args:
@@ -66,7 +68,8 @@ class Reader(object):
         """
         raise NotImplementedError
 
-    def _get_sample_data(self, idx: int) -> bytes:
+    @abstractmethod
+    def get_sample_data(self, idx: int) -> bytes:
         """Get the raw sample data at the index.
 
         Args:
@@ -86,8 +89,8 @@ class Reader(object):
         Returns:
             dict[str, Any]: Sample dict.
         """
-        data = self._get_sample_data(idx)
-        return self._decode_sample(data)
+        data = self.get_sample_data(idx)
+        return self.decode_sample(data)
 
     def __iter__(self) -> Iterator[dict[str, Any]]:
         """Iterate over the samples of this shard.
