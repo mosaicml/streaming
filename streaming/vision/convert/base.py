@@ -1,5 +1,5 @@
 import os
-from typing import Optional, Union
+from typing import List, Optional, Union
 
 import numpy as np
 from PIL import Image
@@ -9,14 +9,14 @@ from tqdm import tqdm
 from ...base import MDSWriter
 
 
-def get_list_arg(text: str) -> list[str]:
+def get_list_arg(text: str) -> List[str]:
     """Pass a list as a commandline flag.
 
     Args:
         text (str): Text to split.
 
     Returns:
-        list[str]: Splits, if any.
+        List[str]: Splits, if any.
     """
     return text.split(',') if text else []
 
@@ -25,7 +25,7 @@ def convert_image_class_dataset(dataset: Dataset,
                                 root: str,
                                 split: Optional[str] = None,
                                 compression: Optional[str] = None,
-                                hashes: Optional[list[str]] = None,
+                                hashes: Optional[List[str]] = None,
                                 size_limit: int = 1 << 24,
                                 progbar: bool = True,
                                 leave: bool = False,
@@ -37,7 +37,7 @@ def convert_image_class_dataset(dataset: Dataset,
         root (str): Local dataset directory where shards are cached by split.
         split (Optional[str], default: None): Which dataset split to use, if any.
         compression (Optional[str], default: None): Optional compression.
-        hashes (Optional[list[str]], default: None): Optional list of hash algorithms to apply to
+        hashes (Optional[List[str]], default: None): Optional list of hash algorithms to apply to
             shard files.
         size_limit (int, default: 1 << 26): Uncompressed shard size limit, at which point it flushes
             the shard and starts a new one.

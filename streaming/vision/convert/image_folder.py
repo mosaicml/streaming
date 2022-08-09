@@ -1,7 +1,7 @@
 import os
 from argparse import ArgumentParser, Namespace
 from glob import glob
-from typing import Optional
+from typing import List, Optional, Set, Tuple
 
 import numpy as np
 from PIL import Image
@@ -31,12 +31,12 @@ def parse_args() -> Namespace:
     return args.parse_args()
 
 
-def check_extensions(filenames: list[str], extensions: set[str]) -> None:
+def check_extensions(filenames: Liststr], extensions: Set[str]) -> None:
     """Validate filename extensions.
 
     Args:
-        filenames (list[str]): List of files.
-        extensions (set[str]): Acceptable extensions.
+        filenames (Liststr]): List of files.
+        extensions (Set[str]): Acceptable extensions.
     """
     for f in filenames:
         idx = f.rindex('.')
@@ -44,17 +44,17 @@ def check_extensions(filenames: list[str], extensions: set[str]) -> None:
         assert ext.lower() in extensions
 
 
-def get_classes(filenames: list[str],
-                class_names: Optional[list[str]] = None) -> tuple[list[int], list[str]]:
+def get_classes(filenames: Liststr],
+                class_names: Optional[Liststr]] = None) -> Tuple[Listint], Liststr]]:
     """Get the classes for a dataset split of sample image filenames.
 
     Args:
-        filenames (list[str]): Files, in the format "root/split/class/sample.jpeg".
-        class_names (Optional[list[str]], default: None): List of class names from the other splits
+        filenames (Liststr]): Files, in the format "root/split/class/sample.jpeg".
+        class_names (Optional[Liststr]], default: None): List of class names from the other splits
             that we must macth.
 
     Returns:
-        tuple[list[int], list[str]]: Class ID per sample, and the list of unique class names.
+        Tuple[Listint], Liststr]]: Class ID per sample, and the list of unique class names.
     """
     classes = []
     dirname2class = {}

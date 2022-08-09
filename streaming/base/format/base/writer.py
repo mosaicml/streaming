@@ -2,7 +2,7 @@ import json
 import os
 from abc import ABC, abstractmethod
 from types import TracebackType
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional, Tuple, Type
 
 from typing_extensions import Self
 
@@ -17,7 +17,7 @@ class Writer(ABC):
     Args:
         dirname (str): Local dataset directory.
         compression (Optional[str], default: None): Optional compression or compression:level.
-        hashes (Optional[list[str]], default: None): Optional list of hash algorithms to apply to
+        hashes (Optional[List[str]], default: None): Optional list of hash algorithms to apply to
             shard files.
         size_limit (Optional[int], default: 1 << 26): Optional shard size limit, after which point
             to start a new shard. If None, puts everything in one shard.
@@ -32,7 +32,7 @@ class Writer(ABC):
     def __init__(self,
                  dirname: str,
                  compression: Optional[str] = None,
-                 hashes: Optional[list[str]] = None,
+                 hashes: Optional[List[str]] = None,
                  size_limit: Optional[int] = 1 << 26,
                  extra_bytes_per_shard: int = 0,
                  extra_bytes_per_sample: int = 0) -> None:
@@ -72,25 +72,25 @@ class Writer(ABC):
         self.new_shard_size = self.extra_bytes_per_shard
 
     @abstractmethod
-    def encode_sample(self, sample: dict[str, Any]) -> bytes:
+    def encode_sample(self, sample: Dict[str, Any]) -> bytes:
         """Encode a sample dict to bytes.
 
         Args:
-            sample (dict[str, Any]): Sample dict.
+            sample (Dict[str, Any]): Sample dict.
 
         Returns:
             bytes: Sample encoded as bytes.
         """
         raise NotImplementedError
 
-    def _name_next_shard(self, extension: Optional[str] = None) -> tuple[str, Optional[str]]:
+    def _name_next_shard(self, extension: Optional[str] = None) -> Tuple[str, Optional[str]]:
         """Get the filenames of the next shard to be created.
 
         Args:
             extension (str): Optional additional extension (eg, "meta" files).
 
         Returns:
-            tuple[str, str]: Pair of (decompressed, compressed) filenames.
+            Tuple[str, str]: Pair of (decompressed, compressed) filenames.
         """
         shard = len(self.shards)
         parts = ['shard', f'{shard:05}', self.format]
@@ -105,7 +105,7 @@ class Writer(ABC):
             zip_basename = None
         return raw_basename, zip_basename
 
-    def _hash(self, data: bytes, basename: str) -> dict[str, Any]:
+    def _hash(self, data: bytes, basename: str) -> Dict[str, Any]:
         """Generate file metadata.
 
         Args:
@@ -113,7 +113,7 @@ class Writer(ABC):
             basename (str): The file's basename.
 
         Returns:
-            dict[str, Any]: File metadata.
+            Dict[str, Any]: File metadata.
         """
         hashes = {}
         for algo in self.hashes:
@@ -121,7 +121,7 @@ class Writer(ABC):
         return {'basename': basename, 'bytes': len(data), 'hashes': hashes}
 
     def _process_file(self, raw_data: bytes, raw_basename: str,
-                      zip_basename: Optional[str]) -> tuple[dict, Optional[dict]]:
+                      zip_basename: Optional[str]) -> Tuple[dict, Optional[dict]]:
         """Process and save a shard file (hash, compress, hash, write).
 
         Args:
@@ -130,7 +130,7 @@ class Writer(ABC):
             zip_basename (str): Compressed basename.
 
         Returns:
-            dict[str, Any]: Metadata containing basename, size, and hashes.
+            Dict[str, Any]: Metadata containing basename, size, and hashes.
         """
         raw_info = self._hash(raw_data, raw_basename)
         if zip_basename:
@@ -147,7 +147,7 @@ class Writer(ABC):
             out.write(data)
         return raw_info, zip_info
 
-    def get_config(self) -> dict[str, Any]:
+    def get_config(self) -> Dict[str, Any]:
         return {
             'version': 2,
             'format': self.format,
@@ -161,13 +161,13 @@ class Writer(ABC):
         """Flush cached samples to storage, creating a new shard."""
         raise NotImplementedError
 
-    def write(self, sample: dict[str, Any]) -> None:
+    def write(self, sample: Dict[str, Any]) -> None:
         """Write a sample.
 
         May flush an entire new shard, then caches the sample.
 
         Args:
-            sample (dict[str, Any]): Sample dict.
+            sample (Dict[str, Any]): Sample dict.
         """
         new_sample = self.encode_sample(sample)
         new_sample_size = len(new_sample) + self.extra_bytes_per_sample
@@ -203,12 +203,12 @@ class Writer(ABC):
         """
         return self
 
-    def __exit__(self, exc_type: Optional[type[BaseException]], exc: Optional[BaseException],
+    def __exit__(self, exc_type: Optional[Type[BaseException]], exc: Optional[BaseException],
                  traceback: Optional[TracebackType]) -> None:
         """Exit context manager.
 
         Args:
-            exc_type (Optional[type[BaseException]]): Exc type.
+            exc_type (Optional[Type[BaseException]]): Exc type.
             exc (Optional[BaseException]): Exc.
             traceback (Optional[TracebackType]): Traceback.
         """
@@ -221,7 +221,7 @@ class JointWriter(Writer):
     Args:
         dirname (str): Local dataset directory.
         compression (Optional[str], default: None): Optional compression or compression:level.
-        hashes (Optional[list[str]], default: None): Optional list of hash algorithms to apply to
+        hashes (Optional[List[str]], default: None): Optional list of hash algorithms to apply to
             shard files.
         size_limit (Optional[int], default: 1 << 26): Optional shard size limit, after which point
             to start a new shard. If None, puts everything in one shard.
@@ -234,7 +234,7 @@ class JointWriter(Writer):
     def __init__(self,
                  dirname: str,
                  compression: Optional[str] = None,
-                 hashes: Optional[list[str]] = None,
+                 hashes: Optional[List[str]] = None,
                  size_limit: Optional[int] = 1 << 26,
                  extra_bytes_per_shard: int = 0,
                  extra_bytes_per_sample: int = 0) -> None:
@@ -272,7 +272,7 @@ class SplitWriter(Writer):
     Args:
         dirname (str): Local dataset directory.
         compression (Optional[str], default: None): Optional compression or compression:level.
-        hashes (Optional[list[str]], default: None): Optional list of hash algorithms to apply to
+        hashes (Optional[List[str]], default: None): Optional list of hash algorithms to apply to
             shard files.
         size_limit (Optional[int], default: 1 << 26): Optional shard size limit, after which point
             to start a new shard. If None, puts everything in one shard.
@@ -284,17 +284,17 @@ class SplitWriter(Writer):
     def __init__(self,
                  dirname: str,
                  compression: Optional[str] = None,
-                 hashes: Optional[list[str]] = None,
+                 hashes: Optional[List[str]] = None,
                  size_limit: Optional[int] = 1 << 26) -> None:
         super().__init__(dirname, compression, hashes, size_limit, self.extra_bytes_per_shard,
                          self.extra_bytes_per_sample)
 
     @abstractmethod
-    def encode_split_shard(self) -> tuple[bytes, bytes]:
+    def encode_split_shard(self) -> Tuple[bytes, bytes]:
         """Encode a split shard out of the cached samples (data, meta files).
 
         Returns:
-            tuple[bytes, bytes]: Data file, meta file.
+            Tuple[bytes, bytes]: Data file, meta file.
         """
         raise NotImplementedError
 

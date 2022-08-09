@@ -1,5 +1,5 @@
 from math import ceil
-from typing import Optional
+from typing import List, Optional, Tuple
 
 import numpy as np
 from torch.utils.data import get_worker_info
@@ -20,14 +20,14 @@ class Partition(object):
     """A worker's partition of the dataset.
 
     Args:
-        shards (list[int]): The shards that this partition overlaps.
-        shards_to_download (list[int]): The shards that this worker should download (subset of
+        shards (List[int]): The shards that this partition overlaps.
+        shards_to_download (List[int]): The shards that this worker should download (subset of
             ``shards``).
         min_id (int): The lowest sample ID of this partition.
         max_id (int): The highest sample ID of this partition.
     """
 
-    def __init__(self, shards: list[int], shards_to_download: list[int], min_sample_id: int,
+    def __init__(self, shards: List[int], shards_to_download: List[int], min_sample_id: int,
                  max_sample_id: int) -> None:
         self.shards = shards
         self.shards_to_download = shards_to_download
@@ -43,21 +43,21 @@ class Index(object):
     range of the dataset.
     """
 
-    def __init__(self, samples_per_shard: list[int], batch_size: Optional[int] = None) -> None:
+    def __init__(self, samples_per_shard: List[int], batch_size: Optional[int] = None) -> None:
         self.total_samples = sum(samples_per_shard)
         self.samples_per_shard = samples_per_shard
         self.shard_offsets = np.array([0] + samples_per_shard).cumsum().tolist()
 
         self.batch_size = batch_size
 
-    def find_sample(self, idx: int) -> tuple[int, int]:
+    def find_sample(self, idx: int) -> Tuple[int, int]:
         """Get the shard and offset where a sample will be found.
 
         Args:
             idx (int): Global sample index.
 
         Returns:
-            tuple[int, int]: Shard and sample index within that shard.
+            Tuple[int, int]: Shard and sample index within that shard.
         """
         low = 0
         high = len(self.shard_offsets) - 1

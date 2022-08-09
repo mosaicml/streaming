@@ -1,16 +1,16 @@
 import hashlib
-from typing import Any, Callable
+from typing import Any, Callable, Dict, Set
 
 import xxhash
 
 __all__ = ['get_hash', 'get_hashes', 'is_hash']
 
 
-def _collect() -> dict[str, Callable[[bytes], Any]]:
+def _collect() -> Dict[str, Callable[[bytes], Any]]:
     """Get all supported hash algorithms.
 
     Returns:
-        dict[str, Callable[[bytes], Any]]: Mapping of name to hash.
+        Dict[str, Callable[[bytes], Any]]: Mapping of name to hash.
     """
     hashes = {}
     for algo in hashlib.algorithms_available:
@@ -26,11 +26,11 @@ def _collect() -> dict[str, Callable[[bytes], Any]]:
 _hashes = _collect()
 
 
-def get_hashes() -> set[str]:
+def get_hashes() -> Set[str]:
     """List supported hash algorithms.
 
     Returns:
-        set[str]: Hash algorithm names.
+        Set[str]: Hash algorithm names.
     """
     return set(_hashes)
 

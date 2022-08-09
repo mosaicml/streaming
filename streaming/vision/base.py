@@ -1,4 +1,4 @@
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Tuple
 
 from torchvision.transforms.functional import to_tensor
 
@@ -13,7 +13,7 @@ class StandardTransform(object):
         self.transform = transform
         self.target_transform = target_transform
 
-    def __call__(self, x: Any, y: Any) -> tuple[Any, Any]:
+    def __call__(self, x: Any, y: Any) -> Tuple[Any, Any]:
         if self.transform:
             x = self.transform(x)
         else:

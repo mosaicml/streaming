@@ -1,7 +1,7 @@
 import json
 import os
 from copy import deepcopy
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 from typing_extensions import Self
@@ -16,10 +16,10 @@ class XSVReader(SplitReader):
     Args:
         dirname (str): Local dataset directory.
         split (Optional[str]): Which dataset split to use, if any.
-        column_encodings (list[str]): Column encodings.
-        column_names (list[str]): Column names.
+        column_encodings (List[str]): Column encodings.
+        column_names (List[str]): Column names.
         compression (Optional[str]): Optional compression or compression:level.
-        hashes (list[str]): Optional list of hash algorithms to apply to shard files.
+        hashes (List[str]): Optional list of hash algorithms to apply to shard files.
         newline (str): Newline character(s).
         raw_data (FileInfo): Uncompressed data file info.
         raw_meta (FileInfo): Uncompressed meta file info.
@@ -35,10 +35,10 @@ class XSVReader(SplitReader):
         self,
         dirname: str,
         split: Optional[str],
-        column_encodings: list[str],
-        column_names: list[str],
+        column_encodings: List[str],
+        column_names: List[str],
         compression: Optional[str],
-        hashes: list[str],
+        hashes: List[str],
         newline: str,
         raw_data: FileInfo,
         raw_meta: FileInfo,
@@ -56,7 +56,7 @@ class XSVReader(SplitReader):
         self.separator = separator
 
     @classmethod
-    def from_json(cls, dirname: str, split: Optional[str], obj: dict[str, Any]) -> Self:
+    def from_json(cls, dirname: str, split: Optional[str], obj: Dict[str, Any]) -> Self:
         args = deepcopy(obj)
         assert args['version'] == 2
         del args['version']
@@ -69,7 +69,7 @@ class XSVReader(SplitReader):
             args[key] = FileInfo(**arg) if arg else None
         return cls(**args)
 
-    def decode_sample(self, data: bytes) -> dict[str, Any]:
+    def decode_sample(self, data: bytes) -> Dict[str, Any]:
         text = data.decode('utf-8')
         text = text[:-len(self.newline)]
         parts = text.split(self.separator)
@@ -98,10 +98,10 @@ class CSVReader(XSVReader):
     Args:
         dirname (str): Local dataset directory.
         split (Optional[str]): Which dataset split to use, if any.
-        column_encodings (list[str]): Column encodings.
-        column_names (list[str]): Column names.
+        column_encodings (List[str]): Column encodings.
+        column_names (List[str]): Column names.
         compression (Optional[str]): Optional compression or compression:level.
-        hashes (list[str]): Optional list of hash algorithms to apply to shard files.
+        hashes (List[str]): Optional list of hash algorithms to apply to shard files.
         newline (str): Newline character(s).
         raw_data (FileInfo): Uncompressed data file info.
         raw_meta (FileInfo): Uncompressed meta file info.
@@ -118,10 +118,10 @@ class CSVReader(XSVReader):
         self,
         dirname: str,
         split: Optional[str],
-        column_encodings: list[str],
-        column_names: list[str],
+        column_encodings: List[str],
+        column_names: List[str],
         compression: Optional[str],
-        hashes: list[str],
+        hashes: List[str],
         newline: str,
         raw_data: FileInfo,
         raw_meta: FileInfo,
@@ -135,7 +135,7 @@ class CSVReader(XSVReader):
                          zip_meta)
 
     @classmethod
-    def from_json(cls, dirname: str, split: Optional[str], obj: dict[str, Any]) -> Self:
+    def from_json(cls, dirname: str, split: Optional[str], obj: Dict[str, Any]) -> Self:
         args = deepcopy(obj)
         assert args['version'] == 2
         del args['version']
@@ -155,10 +155,10 @@ class TSVReader(XSVReader):
     Args:
         dirname (str): Local dataset directory.
         split (Optional[str]): Which dataset split to use, if any.
-        column_encodings (list[str]): Column encodings.
-        column_names (list[str]): Column names.
+        column_encodings (List[str]): Column encodings.
+        column_names (List[str]): Column names.
         compression (Optional[str]): Optional compression or compression:level.
-        hashes (list[str]): Optional list of hash algorithms to apply to shard files.
+        hashes (List[str]): Optional list of hash algorithms to apply to shard files.
         newline (str): Newline character(s).
         raw_data (FileInfo): Uncompressed data file info.
         raw_meta (FileInfo): Uncompressed meta file info.
@@ -175,10 +175,10 @@ class TSVReader(XSVReader):
         self,
         dirname: str,
         split: Optional[str],
-        column_encodings: list[str],
-        column_names: list[str],
+        column_encodings: List[str],
+        column_names: List[str],
         compression: Optional[str],
-        hashes: list[str],
+        hashes: List[str],
         newline: str,
         raw_data: FileInfo,
         raw_meta: FileInfo,
@@ -192,7 +192,7 @@ class TSVReader(XSVReader):
                          zip_meta)
 
     @classmethod
-    def from_json(cls, dirname: str, split: Optional[str], obj: dict[str, Any]) -> Self:
+    def from_json(cls, dirname: str, split: Optional[str], obj: Dict[str, Any]) -> Self:
         args = deepcopy(obj)
         assert args['version'] == 2
         del args['version']

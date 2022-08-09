@@ -1,5 +1,5 @@
 import json
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -12,9 +12,9 @@ class JSONWriter(SplitWriter):
 
     def __init__(self,
                  dirname: str,
-                 columns: dict[str, str],
+                 columns: Dict[str, str],
                  compression: Optional[str] = None,
-                 hashes: Optional[list[str]] = None,
+                 hashes: Optional[List[str]] = None,
                  size_limit: Optional[int] = 1 << 26,
                  newline: str = '\n') -> None:
         super().__init__(dirname, compression, hashes, size_limit)
@@ -25,7 +25,7 @@ class JSONWriter(SplitWriter):
         self.columns = columns
         self.newline = newline
 
-    def encode_sample(self, sample: dict[str, Any]) -> bytes:
+    def encode_sample(self, sample: Dict[str, Any]) -> bytes:
         obj = {}
         for key, encoding in self.columns.items():
             value = sample[key]
@@ -34,12 +34,12 @@ class JSONWriter(SplitWriter):
         text = json.dumps(obj, sort_keys=True) + self.newline
         return text.encode('utf-8')
 
-    def get_config(self) -> dict[str, Any]:
+    def get_config(self) -> Dict[str, Any]:
         obj = super().get_config()
         obj.update({'columns': self.columns, 'newline': self.newline})
         return obj
 
-    def encode_split_shard(self) -> tuple[bytes, bytes]:
+    def encode_split_shard(self) -> Tuple[bytes, bytes]:
         data = b''.join(self.new_samples)
 
         num_samples = np.uint32(len(self.new_samples))

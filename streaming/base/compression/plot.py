@@ -1,7 +1,7 @@
 from argparse import ArgumentParser, Namespace
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Optional
+from typing import Dict, List, Optional
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -96,7 +96,7 @@ class Datum(object):
     dec_time: float
 
 
-def load(f: str, min_dec_size: int) -> list[Datum]:
+def load(f: str, min_dec_size: int) -> List[Datum]:
     """Load data CSV.
 
     Args:
@@ -105,7 +105,7 @@ def load(f: str, min_dec_size: int) -> list[Datum]:
             the highest spurious variability).
 
     Returns:
-        list[Datum]: List of data points.
+        List[Datum]: List of data points.
     """
     fp = open(f)
     next(fp)
@@ -123,13 +123,13 @@ def load(f: str, min_dec_size: int) -> list[Datum]:
     return rr
 
 
-def plot_compression_rates(data: list[Datum], algo2color: dict[str, Optional[str]], dpi: int,
+def plot_compression_rates(data: List[Datum], algo2color: Dict[str, Optional[str]], dpi: int,
                            font_size: float, line_width: float, filename: str) -> None:
     """Plot compression rate by size.
 
     Args:
-        data (list[Datum]): List of data points.
-        algo2color (dict[str, Optional[str]): Color of algo in plots, or None to omit.
+        data (List[Datum]): List of data points.
+        algo2color (Dict[str, Optional[str]): Color of algo in plots, or None to omit.
         dpi (int): DPI of plots.
         font_size (float): Font size of plots.
         line_width (float): Line width of plots.
@@ -164,13 +164,13 @@ def plot_compression_rates(data: list[Datum], algo2color: dict[str, Optional[str
     plt.clf()
 
 
-def plot_compressed_sizes(data: list[Datum], algo2color: dict[str, Optional[str]], dpi: int,
+def plot_compressed_sizes(data: List[Datum], algo2color: Dict[str, Optional[str]], dpi: int,
                           font_size: float, line_width: float, filename: str) -> None:
     """Plot compressed size by size.
 
     Args:
-        data (list[Datum]): List of data points.
-        algo2color (dict[str, Optional[str]): Color of algo in plots, or None to omit.
+        data (List[Datum]): List of data points.
+        algo2color (Dict[str, Optional[str]): Color of algo in plots, or None to omit.
         dpi (int): DPI of plots.
         font_size (float): Font size of plots.
         line_width (float): Line width of plots.
@@ -204,13 +204,13 @@ def plot_compressed_sizes(data: list[Datum], algo2color: dict[str, Optional[str]
     plt.clf()
 
 
-def plot_decompression_rates(data: list[Datum], algo2color: dict[str, Optional[str]], dpi: int,
+def plot_decompression_rates(data: List[Datum], algo2color: Dict[str, Optional[str]], dpi: int,
                              font_size: float, line_width: float, filename: str) -> None:
     """Plot decompression rate by size.
 
     Args:
-        data (list[Datum]): List of data points.
-        algo2color (dict[str, Optional[str]): Color of algo in plots, or None to omit.
+        data (List[Datum]): List of data points.
+        algo2color (Dict[str, Optional[str]): Color of algo in plots, or None to omit.
         dpi (int): DPI of plots.
         font_size (float): Font size of plots.
         line_width (float): Line width of plots.

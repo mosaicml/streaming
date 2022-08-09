@@ -1,5 +1,5 @@
 import json
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -12,10 +12,10 @@ class XSVWriter(SplitWriter):
 
     def __init__(self,
                  dirname: str,
-                 columns: dict[str, str],
+                 columns: Dict[str, str],
                  separator: str,
                  compression: Optional[str] = None,
-                 hashes: Optional[list[str]] = None,
+                 hashes: Optional[List[str]] = None,
                  size_limit: Optional[int] = 1 << 26,
                  newline: str = '\n') -> None:
         super().__init__(dirname, compression, hashes, size_limit)
@@ -34,7 +34,7 @@ class XSVWriter(SplitWriter):
         self.separator = separator
         self.newline = newline
 
-    def encode_sample(self, sample: dict[str, Any]) -> bytes:
+    def encode_sample(self, sample: Dict[str, Any]) -> bytes:
         values = []
         for name, encoding in zip(self.column_names, self.column_encodings):
             value = xsv_encode(encoding, sample[name])
@@ -44,7 +44,7 @@ class XSVWriter(SplitWriter):
         text = self.separator.join(values) + self.newline
         return text.encode('utf-8')
 
-    def get_config(self) -> dict[str, Any]:
+    def get_config(self) -> Dict[str, Any]:
         obj = super().get_config()
         obj.update({
             'column_names': self.column_names,
@@ -54,7 +54,7 @@ class XSVWriter(SplitWriter):
         })
         return obj
 
-    def encode_split_shard(self) -> tuple[bytes, bytes]:
+    def encode_split_shard(self) -> Tuple[bytes, bytes]:
         header = self.separator.join(self.column_names) + self.newline
         header = header.encode('utf-8')
         data = b''.join([header] + self.new_samples)
@@ -76,14 +76,14 @@ class CSVWriter(XSVWriter):
 
     def __init__(self,
                  dirname: str,
-                 columns: dict[str, str],
+                 columns: Dict[str, str],
                  compression: Optional[str] = None,
-                 hashes: Optional[list[str]] = None,
+                 hashes: Optional[List[str]] = None,
                  size_limit: Optional[int] = 1 << 26,
                  newline: str = '\n') -> None:
         super().__init__(dirname, columns, self.separator, compression, hashes, size_limit, newline)
 
-    def get_config(self) -> dict[str, Any]:
+    def get_config(self) -> Dict[str, Any]:
         obj = super().get_config()
         obj['format'] = self.format
         del obj['separator']
@@ -96,14 +96,14 @@ class TSVWriter(XSVWriter):
 
     def __init__(self,
                  dirname: str,
-                 columns: dict[str, str],
+                 columns: Dict[str, str],
                  compression: Optional[str] = None,
-                 hashes: Optional[list[str]] = None,
+                 hashes: Optional[List[str]] = None,
                  size_limit: Optional[int] = 1 << 26,
                  newline: str = '\n') -> None:
         super().__init__(dirname, columns, self.separator, compression, hashes, size_limit, newline)
 
-    def get_config(self) -> dict[str, Any]:
+    def get_config(self) -> Dict[str, Any]:
         obj = super().get_config()
         obj['format'] = self.format
         del obj['separator']

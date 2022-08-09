@@ -1,7 +1,7 @@
 import json
 import os
 from copy import deepcopy
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 from typing_extensions import Self
@@ -15,10 +15,10 @@ class JSONReader(SplitReader):
     Args:
         dirname (str): Local dataset directory.
         split (Optional[str]): Which dataset split to use, if any.
-        column_encodings (list[str]): Column encodings.
-        column_names (list[str]): Column names.
+        column_encodings (List[str]): Column encodings.
+        column_names (List[str]): Column names.
         compression (Optional[str]): Optional compression or compression:level.
-        hashes (list[str]): Optional list of hash algorithms to apply to shard files.
+        hashes (List[str]): Optional list of hash algorithms to apply to shard files.
         newline (str): Newline character(s).
         raw_data (FileInfo): Uncompressed data file info.
         raw_meta (FileInfo): Uncompressed meta file info.
@@ -33,9 +33,9 @@ class JSONReader(SplitReader):
         self,
         dirname: str,
         split: Optional[str],
-        columns: dict[str, str],
+        columns: Dict[str, str],
         compression: Optional[str],
-        hashes: list[str],
+        hashes: List[str],
         newline: str,
         raw_data: FileInfo,
         raw_meta: FileInfo,
@@ -50,7 +50,7 @@ class JSONReader(SplitReader):
         self.newline = newline
 
     @classmethod
-    def from_json(cls, dirname: str, split: Optional[str], obj: dict[str, Any]) -> Self:
+    def from_json(cls, dirname: str, split: Optional[str], obj: Dict[str, Any]) -> Self:
         args = deepcopy(obj)
         assert args['version'] == 2
         del args['version']
@@ -63,7 +63,7 @@ class JSONReader(SplitReader):
             args[key] = FileInfo(**arg) if arg else None
         return cls(**args)
 
-    def decode_sample(self, data: bytes) -> dict[str, Any]:
+    def decode_sample(self, data: bytes) -> Dict[str, Any]:
         text = data.decode('utf-8')
         return json.loads(text)
 

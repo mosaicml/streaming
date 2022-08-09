@@ -1,7 +1,7 @@
 import bz2
 import gzip
 from abc import ABC, abstractmethod
-from typing import Iterator, Optional
+from typing import Dict, Iterator, Optional, Set, Tuple, Type
 
 import brotli
 import snappy
@@ -19,11 +19,11 @@ class Compression(ABC):
     extension: str  # Filename extension.
 
     @classmethod
-    def each(cls) -> Iterator[tuple[str, Self]]:
+    def each(cls) -> Iterator[Tuple[str, Self]]:
         """Get each instance of this compression algorithm family.
 
         Returns:
-            Iterator[tuple[str, Self]]: Each level.
+            Iterator[Tuple[str, Self]]: Each level.
         """
         yield cls.extension, cls()
 
@@ -65,7 +65,7 @@ class LevelledCompression(Compression):
         raise NotImplementedError
 
     @classmethod
-    def each(cls) -> Iterator[tuple[str, Self]]:
+    def each(cls) -> Iterator[Tuple[str, Self]]:
         yield cls.extension, cls()
         for level in cls.levels:
             yield f'{cls.extension}:{level}', cls(level)
@@ -152,7 +152,7 @@ class Zstandard(LevelledCompression):
 
 
 # Compression algorithm families (extension -> class).
-_families: dict[str, type[Compression]] = {
+_families: Dict[str, Type[Compression]] = {
     'br': Brotli,
     'bz2': Bzip2,
     'gz': Gzip,
@@ -161,14 +161,14 @@ _families: dict[str, type[Compression]] = {
 }
 
 
-def _collect(families: dict[str, type[Compression]]) -> dict[str, Compression]:
+def _collect(families: Dict[str, Type[Compression]]) -> Dict[str, Compression]:
     """Get each level of each compression type and flatten into a single dict.
 
     Args:
-        dict[str, type[Compression]]: Mapping of extension to class.
+        Dict[str, Type[Compression]]: Mapping of extension to class.
 
     Returns:
-        dict[str, Compression]: Mapping of extension:level to instance.
+        Dict[str, Compression]: Mapping of extension:level to instance.
     """
     algos = {}
     for cls in families.values():
@@ -178,14 +178,14 @@ def _collect(families: dict[str, type[Compression]]) -> dict[str, Compression]:
 
 
 # Compression algorithms (extension:level -> instance).
-_algorithms: dict[str, Compression] = _collect(_families)
+_algorithms: Dict[str, Compression] = _collect(_families)
 
 
-def get_compressions() -> set[str]:
+def get_compressions() -> Set[str]:
     """List supported compression algorithms.
 
     Returns:
-        set[str]: Compression algorithms.
+        Set[str]: Compression algorithms.
     """
     return set(_algorithms)
 

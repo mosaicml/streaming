@@ -1,6 +1,6 @@
 import os
 from copy import deepcopy
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 from typing_extensions import Self
@@ -15,11 +15,11 @@ class MDSReader(JointReader):
     Args:
         dirname (str): Local dataset directory.
         split (Optional[str]): Which dataset split to use, if any.
-        column_encodings (list[str]): Column encodings.
-        column_names (list[str]): Column names.
-        column_sizes (list[Optional[int]]): Column fixed sizes, if any.
+        column_encodings (List[str]): Column encodings.
+        column_names (List[str]): Column names.
+        column_sizes (List[Optional[int]]): Column fixed sizes, if any.
         compression (Optional[str]): Optional compression or compression:level.
-        hashes (list[str]): Optional list of hash algorithms to apply to shard files.
+        hashes (List[str]): Optional list of hash algorithms to apply to shard files.
         raw_data (FileInfo): Uncompressed data file info.
         samples (int): Number of samples in this shard.
         size_limit (Optional[int]): Optional shard size limit, after which point to start a new
@@ -31,11 +31,11 @@ class MDSReader(JointReader):
         self,
         dirname: str,
         split: Optional[str],
-        column_encodings: list[str],
-        column_names: list[str],
-        column_sizes: list[Optional[int]],
+        column_encodings: List[str],
+        column_names: List[str],
+        column_sizes: List[Optional[int]],
         compression: Optional[str],
-        hashes: list[str],
+        hashes: List[str],
         raw_data: FileInfo,
         samples: int,
         size_limit: Optional[int],
@@ -48,7 +48,7 @@ class MDSReader(JointReader):
         self.column_sizes = column_sizes
 
     @classmethod
-    def from_json(cls, dirname: str, split: Optional[str], obj: dict[str, Any]) -> Self:
+    def from_json(cls, dirname: str, split: Optional[str], obj: Dict[str, Any]) -> Self:
         args = deepcopy(obj)
         assert args['version'] == 2
         del args['version']
@@ -61,7 +61,7 @@ class MDSReader(JointReader):
             args[key] = FileInfo(**arg) if arg else None
         return cls(**args)
 
-    def decode_sample(self, data: bytes) -> dict[str, Any]:
+    def decode_sample(self, data: bytes) -> Dict[str, Any]:
         sizes = []
         idx = 0
         for key, size in zip(self.column_names, self.column_sizes):

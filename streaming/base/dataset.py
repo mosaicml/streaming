@@ -4,7 +4,7 @@ from enum import IntEnum
 from multiprocessing import Pool
 from threading import RLock, Thread
 from time import sleep
-from typing import Any, Iterator, Optional
+from typing import Any, Iterator, List, Optional
 
 import numpy as np
 from torch.utils.data import IterableDataset
@@ -142,7 +142,7 @@ class Dataset(IterableDataset):
         """
         return self.index.get_samples_per_device()
 
-    def _load_shards(self, shards: list[int], partition: Partition) -> None:
+    def _load_shards(self, shards: List[int], partition: Partition) -> None:
         """Load our partition's samples from the given locally cached shards.
 
         Every time you call __iter__ on this dataset, it registers the list of samples you have
@@ -157,7 +157,7 @@ class Dataset(IterableDataset):
         once.
 
         Args:
-            shards (list[int]): Shard IDs.
+            shards (List[int]): Shard IDs.
             partition (Partition): Our rank and worker's partition of the dataset.
         """
         # Get our partition and shards' sample ranges.
@@ -232,14 +232,14 @@ class Dataset(IterableDataset):
                     return False
         return True
 
-    def _preload(self, partition: Partition) -> list[int]:
+    def _preload(self, partition: Partition) -> List[int]:
         """Load any shards that are cached locally, returning missing shards.
 
         Args:
             partition (Partition): Our rank and worker's partition of the dataset.
 
         Returns:
-            list[int]: Missing shards that must be downloaded.
+            List[int]: Missing shards that must be downloaded.
         """
         # Create lock in preload() because we are prevented from putting it in __init__ because of
         # DataLoader num_workers and fork/spawn semantics.
@@ -338,7 +338,7 @@ class Dataset(IterableDataset):
         return shard
 
     def _download_shards_via_pool(self,
-                                  shards: list[int],
+                                  shards: List[int],
                                   partition: Partition,
                                   num_processes: Optional[int] = None) -> None:
         """Download and load the given missing shards.
@@ -346,7 +346,7 @@ class Dataset(IterableDataset):
         This is done in the main thread using a process pool.
 
         Args:
-            shards (list[int]): The missing shards to download.
+            shards (List[int]): The missing shards to download.
             partition (Partition): Our rank and worker's partition of the dataset.
             num_processes (Optional[int], default None): Number of concurrent shard downloads (ie,
                 size of the process pool). If None, uses number of CPUs.
@@ -382,7 +382,7 @@ class Dataset(IterableDataset):
             else:
                 sleep(0.25)
 
-    def _download_shards_via_loop(self, missing_shards: list[int], partition: Partition) -> None:
+    def _download_shards_via_loop(self, missing_shards: List[int], partition: Partition) -> None:
         """Sequentially download and load the given missing shards.
 
         This method is run in a background thread, which cannot use process pools because daemonic
@@ -390,7 +390,7 @@ class Dataset(IterableDataset):
         once, process pool isn't necessary.
 
         Args:
-            missing_shards (list[int]): The missing shards to download.
+            missing_shards (List[int]): The missing shards to download.
             partition (Partition): This rank and worker's part of the dataset.
         """
         for shard in missing_shards:

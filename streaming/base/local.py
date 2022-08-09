@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 from torch.utils.data import Dataset
 
@@ -31,7 +31,7 @@ class LocalDataset(Dataset):
     def __len__(self) -> int:
         return self.index.total_samples
 
-    def __getitem__(self, idx: int) -> dict[str, Any]:
+    def __getitem__(self, idx: int) -> Dict[str, Any]:
         shard_idx, idx_in_shard = self.index.find_sample(idx)
         shard = self.shards[shard_idx]
         return shard[idx_in_shard]

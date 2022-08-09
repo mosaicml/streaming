@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Iterator, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
 
 @dataclass
@@ -10,11 +10,11 @@ class FileInfo(object):
     Args:
         basename (str): File basename.
         bytes (int): File size in bytes.
-        hashes (dict[str, str]): Mapping of hash algorithm to hash value.
+        hashes (Dict[str, str]): Mapping of hash algorithm to hash value.
     """
     basename: str
     bytes: int
-    hashes: dict[str, str]
+    hashes: Dict[str, str]
 
 
 class Reader(ABC):
@@ -24,7 +24,7 @@ class Reader(ABC):
         dirname (str): Local dataset directory.
         split (Optional[str]): Which dataset split to use, if any.
         compression (Optional[str]): Optional compression or compression:level.
-        hashes (list[str]): Optional list of hash algorithms to apply to shard files.
+        hashes (List[str]): Optional list of hash algorithms to apply to shard files.
         samples (int): Number of samples in this shard.
         size_limit (Optional[int]): Optional shard size limit, after which point to start a new
             shard. If None, puts everything in one shard.
@@ -35,7 +35,7 @@ class Reader(ABC):
         dirname: str,
         split: Optional[str],
         compression: Optional[str],
-        hashes: list[str],
+        hashes: List[str],
         samples: int,
         size_limit: Optional[int],
     ) -> None:
@@ -57,14 +57,14 @@ class Reader(ABC):
         return self.samples
 
     @abstractmethod
-    def decode_sample(self, data: bytes) -> dict[str, Any]:
+    def decode_sample(self, data: bytes) -> Dict[str, Any]:
         """Decode a sample dict from bytes.
 
         Args:
             data (bytes): The sample encoded as bytes.
 
         Returns:
-            dict[str, Any]: Sample dict.
+            Dict[str, Any]: Sample dict.
         """
         raise NotImplementedError
 
@@ -80,23 +80,23 @@ class Reader(ABC):
         """
         raise NotImplementedError
 
-    def __getitem__(self, idx: int) -> dict[str, Any]:
+    def __getitem__(self, idx: int) -> Dict[str, Any]:
         """Get the sample at the index.
 
         Args:
             idx (int): Sample index.
 
         Returns:
-            dict[str, Any]: Sample dict.
+            Dict[str, Any]: Sample dict.
         """
         data = self.get_sample_data(idx)
         return self.decode_sample(data)
 
-    def __iter__(self) -> Iterator[dict[str, Any]]:
+    def __iter__(self) -> Iterator[Dict[str, Any]]:
         """Iterate over the samples of this shard.
 
         Returns:
-            Iterator[dict[str, Any]]: Iterator over samples.
+            Iterator[Dict[str, Any]]: Iterator over samples.
         """
         for i in range(len(self)):
             yield self[i]
@@ -109,7 +109,7 @@ class JointReader(Reader):
         dirname (str): Local dataset directory.
         split (Optional[str]): Which dataset split to use, if any.
         compression (Optional[str]): Optional compression or compression:level.
-        hashes (list[str]): Optional list of hash algorithms to apply to shard files.
+        hashes (List[str]): Optional list of hash algorithms to apply to shard files.
         raw_data (FileInfo): Uncompressed data file info.
         samples (int): Number of samples in this shard.
         size_limit (Optional[int]): Optional shard size limit, after which point to start a new
@@ -122,7 +122,7 @@ class JointReader(Reader):
         dirname: str,
         split: Optional[str],
         compression: Optional[str],
-        hashes: list[str],
+        hashes: List[str],
         raw_data: FileInfo,
         samples: int,
         size_limit: Optional[int],
@@ -141,7 +141,7 @@ class SplitReader(Reader):
         dirname (str): Local dataset directory.
         split (Optional[str]): Which dataset split to use, if any.
         compression (Optional[str]): Optional compression or compression:level.
-        hashes (list[str]): Optional list of hash algorithms to apply to shard files.
+        hashes (List[str]): Optional list of hash algorithms to apply to shard files.
         raw_data (FileInfo): Uncompressed data file info.
         raw_meta (FileInfo): Uncompressed meta file info.
         samples (int): Number of samples in this shard.
@@ -156,7 +156,7 @@ class SplitReader(Reader):
         dirname: str,
         split: Optional[str],
         compression: Optional[str],
-        hashes: list[str],
+        hashes: List[str],
         raw_data: FileInfo,
         raw_meta: FileInfo,
         samples: int,

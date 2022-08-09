@@ -2,7 +2,7 @@ import json
 import pickle
 from abc import ABC, abstractmethod
 from io import BytesIO
-from typing import Any, Optional
+from typing import Any, Optional, Set
 
 import numpy as np
 from PIL import Image
@@ -156,11 +156,11 @@ _encodings = {
 }
 
 
-def get_mds_encodings() -> set[str]:
+def get_mds_encodings() -> Set[str]:
     """List supported encodings.
 
     Returns:
-        set[str]: Encoding names.
+        Set[str]: Encoding names.
     """
     return set(_encodings)
 

@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 from .base.reader import Reader
 from .json import JSONReader, JSONWriter
@@ -14,7 +14,7 @@ _readers = {
 }
 
 
-def reader_from_json(dirname: str, split: Optional[str], obj: dict[str, Any]) -> Reader:
+def reader_from_json(dirname: str, split: Optional[str], obj: Dict[str, Any]) -> Reader:
     assert obj['version'] == 2
     cls = _readers[obj['format']]
     return cls.from_json(dirname, split, obj)

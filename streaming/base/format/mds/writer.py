@@ -1,5 +1,5 @@
 import json
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 
@@ -13,9 +13,9 @@ class MDSWriter(JointWriter):
 
     def __init__(self,
                  dirname: str,
-                 columns: dict[str, str],
+                 columns: Dict[str, str],
                  compression: Optional[str] = None,
-                 hashes: Optional[list[str]] = None,
+                 hashes: Optional[List[str]] = None,
                  size_limit: Optional[int] = 1 << 26) -> None:
         super().__init__(dirname, compression, hashes, size_limit, 0, self.extra_bytes_per_sample)
 
@@ -37,7 +37,7 @@ class MDSWriter(JointWriter):
         self.extra_bytes_per_shard = 4 + 4 + len(self.config_data)
         self._reset_cache()
 
-    def encode_sample(self, sample: dict[str, Any]) -> bytes:
+    def encode_sample(self, sample: Dict[str, Any]) -> bytes:
         sizes = []
         data = []
         for key, encoding, size in zip(self.column_names, self.column_encodings, self.column_sizes):
@@ -53,7 +53,7 @@ class MDSWriter(JointWriter):
         body = b''.join(data)
         return head + body
 
-    def get_config(self) -> dict[str, Any]:
+    def get_config(self) -> Dict[str, Any]:
         obj = super().get_config()
         obj.update({
             'column_names': self.column_names,
