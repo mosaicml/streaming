@@ -29,8 +29,8 @@ def say(i):
 
 def get_number():
     sign = (np.random.random() < 0.8) * 2 - 1
-    mag = 10 ** np.random.uniform(1, 4) - 10
-    return sign * int(mag ** 2)
+    mag = 10**np.random.uniform(1, 4) - 10
+    return sign * int(mag**2)
 
 
 def get_dataset(num_samples):
@@ -38,10 +38,7 @@ def get_dataset(num_samples):
     for i in range(num_samples):
         number = get_number()
         words = ' '.join(say(number))
-        sample = {
-            'number': number,
-            'words': words
-        }
+        sample = {'number': number, 'words': words}
         samples.append(sample)
     return samples
 
