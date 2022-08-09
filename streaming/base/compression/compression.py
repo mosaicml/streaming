@@ -16,7 +16,7 @@ __all__ = [
 class Compression(ABC):
     """A compression algorithm family."""
 
-    extension: str  # Filename extension.
+    extension: str = ''  # Filename extension.
 
     @classmethod
     def each(cls) -> Iterator[Tuple[str, Self]]:
@@ -59,7 +59,7 @@ class LevelledCompression(Compression):
         level (Optional[int], default: None): Compression level.
     """
 
-    levels: list  # Compression levels.
+    levels: list = []  # Compression levels.
 
     def __init__(self, level: Optional[int] = None) -> None:
         raise NotImplementedError

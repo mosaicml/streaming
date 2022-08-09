@@ -27,7 +27,7 @@ class Writer(ABC):
             shard size while writing).
     """
 
-    format: str  # Name of the format (like "mds", "csv", "json", etc).
+    format: str = ''  # Name of the format (like "mds", "csv", "json", etc).
 
     def __init__(self,
                  dirname: str,
@@ -56,6 +56,8 @@ class Writer(ABC):
         self.size_limit = size_limit
         self.extra_bytes_per_shard = extra_bytes_per_shard
         self.extra_bytes_per_sample = extra_bytes_per_sample
+        self.new_samples: List[bytes]
+        self.new_shard_size: int
 
         self.shards = []
 
