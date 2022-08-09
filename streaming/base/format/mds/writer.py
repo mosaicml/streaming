@@ -37,7 +37,7 @@ class MDSWriter(JointWriter):
         self.extra_bytes_per_shard = 4 + 4 + len(self.config_data)
         self._reset_cache()
 
-    def _encode_sample(self, sample: dict[str, Any]) -> bytes:
+    def encode_sample(self, sample: dict[str, Any]) -> bytes:
         sizes = []
         data = []
         for key, encoding, size in zip(self.column_names, self.column_encodings, self.column_sizes):
@@ -53,7 +53,7 @@ class MDSWriter(JointWriter):
         body = b''.join(data)
         return head + body
 
-    def _get_config(self) -> dict[str, Any]:
+    def get_config(self) -> dict[str, Any]:
         obj = super()._get_config()
         obj.update({
             'column_names': self.column_names,
@@ -62,7 +62,7 @@ class MDSWriter(JointWriter):
         })
         return obj
 
-    def _encode_joint_shard(self) -> bytes:
+    def encode_joint_shard(self) -> bytes:
         num_samples = np.uint32(len(self.new_samples))
         sizes = list(map(len, self.new_samples))
         offsets = np.array([0] + sizes).cumsum().astype(np.uint32)

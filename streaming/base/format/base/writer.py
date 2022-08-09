@@ -70,7 +70,7 @@ class Writer(object):
         self.new_samples = []
         self.new_shard_size = self.extra_bytes_per_shard
 
-    def _encode_sample(self, sample: dict[str, Any]) -> bytes:
+    def encode_sample(self, sample: dict[str, Any]) -> bytes:
         """Encode a sample dict to bytes.
 
         Args:
@@ -145,7 +145,7 @@ class Writer(object):
             out.write(data)
         return raw_info, zip_info
 
-    def _get_config(self) -> dict[str, Any]:
+    def get_config(self) -> dict[str, Any]:
         return {
             'version': 2,
             'format': self.format,
@@ -154,7 +154,7 @@ class Writer(object):
             'size_limit': self.size_limit
         }
 
-    def _flush_shard(self) -> None:
+    def flush_shard(self) -> None:
         """Flush cached samples to storage, creating a new shard."""
         raise NotImplementedError
 
@@ -166,10 +166,10 @@ class Writer(object):
         Args:
             sample (dict[str, Any]): Sample dict.
         """
-        new_sample = self._encode_sample(sample)
+        new_sample = self.encode_sample(sample)
         new_sample_size = len(new_sample) + self.extra_bytes_per_sample
         if self.size_limit and self.size_limit < self.new_shard_size + new_sample_size:
-            self._flush_shard()
+            self.flush_shard()
             self._reset_cache()
         self.new_samples.append(new_sample)
         self.new_shard_size += new_sample_size
@@ -188,7 +188,7 @@ class Writer(object):
     def finish(self) -> None:
         """Finish writing samples."""
         if self.new_samples:
-            self._flush_shard()
+            self.flush_shard()
             self._reset_cache()
         self._write_index()
 
@@ -238,7 +238,7 @@ class JointWriter(Writer):
         super().__init__(dirname, compression, hashes, size_limit, extra_bytes_per_shard,
                          extra_bytes_per_sample)
 
-    def _encode_joint_shard(self) -> bytes:
+    def encode_joint_shard(self) -> bytes:
         """Encode a joint shard out of the cached samples (single file).
 
         Returns:
@@ -246,9 +246,9 @@ class JointWriter(Writer):
         """
         raise NotImplementedError
 
-    def _flush_shard(self) -> None:
+    def flush_shard(self) -> None:
         raw_data_basename, zip_data_basename = self._name_next_shard()
-        raw_data = self._encode_joint_shard()
+        raw_data = self.encode_joint_shard()
         raw_data_info, zip_data_info = self._process_file(raw_data, raw_data_basename,
                                                           zip_data_basename)
         obj = {
@@ -285,7 +285,7 @@ class SplitWriter(Writer):
         super().__init__(dirname, compression, hashes, size_limit, self.extra_bytes_per_shard,
                          self.extra_bytes_per_sample)
 
-    def _encode_split_shard(self) -> tuple[bytes, bytes]:
+    def encode_split_shard(self) -> tuple[bytes, bytes]:
         """Encode a split shard out of the cached samples (data, meta files).
 
         Returns:
@@ -293,10 +293,10 @@ class SplitWriter(Writer):
         """
         raise NotImplementedError
 
-    def _flush_shard(self) -> None:
+    def flush_shard(self) -> None:
         raw_data_basename, zip_data_basename = self._name_next_shard()
         meta_raw_basename, meta_zip_basename = self._name_next_shard('meta')
-        raw_data, raw_meta = self._encode_split_shard()
+        raw_data, raw_meta = self.encode_split_shard()
         raw_data_info, zip_data_info = self._process_file(raw_data, raw_data_basename,
                                                           zip_data_basename)
         raw_meta_info, zip_meta_info = self._process_file(raw_meta, meta_raw_basename,

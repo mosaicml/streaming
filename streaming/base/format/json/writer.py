@@ -25,7 +25,7 @@ class JSONWriter(SplitWriter):
         self.columns = columns
         self.newline = newline
 
-    def _encode_sample(self, sample: dict[str, Any]) -> bytes:
+    def encode_sample(self, sample: dict[str, Any]) -> bytes:
         obj = {}
         for key, encoding in self.columns.items():
             value = sample[key]
@@ -34,12 +34,12 @@ class JSONWriter(SplitWriter):
         text = json.dumps(obj, sort_keys=True) + self.newline
         return text.encode('utf-8')
 
-    def _get_config(self) -> dict[str, Any]:
+    def get_config(self) -> dict[str, Any]:
         obj = super()._get_config()
         obj.update({'columns': self.columns, 'newline': self.newline})
         return obj
 
-    def _encode_split_shard(self) -> tuple[bytes, bytes]:
+    def encode_split_shard(self) -> tuple[bytes, bytes]:
         data = b''.join(self.new_samples)
 
         num_samples = np.uint32(len(self.new_samples))

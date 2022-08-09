@@ -34,7 +34,7 @@ class XSVWriter(SplitWriter):
         self.separator = separator
         self.newline = newline
 
-    def _encode_sample(self, sample: dict[str, Any]) -> bytes:
+    def encode_sample(self, sample: dict[str, Any]) -> bytes:
         values = []
         for name, encoding in zip(self.column_names, self.column_encodings):
             value = xsv_encode(encoding, sample[name])
@@ -44,7 +44,7 @@ class XSVWriter(SplitWriter):
         text = self.separator.join(values) + self.newline
         return text.encode('utf-8')
 
-    def _get_config(self) -> dict[str, Any]:
+    def get_config(self) -> dict[str, Any]:
         obj = super()._get_config()
         obj.update({
             'column_names': self.column_names,
@@ -54,7 +54,7 @@ class XSVWriter(SplitWriter):
         })
         return obj
 
-    def _encode_split_shard(self) -> tuple[bytes, bytes]:
+    def encode_split_shard(self) -> tuple[bytes, bytes]:
         header = self.separator.join(self.column_names) + self.newline
         header = header.encode('utf-8')
         data = b''.join([header] + self.new_samples)
@@ -83,7 +83,7 @@ class CSVWriter(XSVWriter):
                  newline: str = '\n') -> None:
         super().__init__(dirname, columns, self.separator, compression, hashes, size_limit, newline)
 
-    def _get_config(self) -> dict[str, Any]:
+    def get_config(self) -> dict[str, Any]:
         obj = super()._get_config()
         obj['format'] = self.format
         del obj['separator']
@@ -103,7 +103,7 @@ class TSVWriter(XSVWriter):
                  newline: str = '\n') -> None:
         super().__init__(dirname, columns, self.separator, compression, hashes, size_limit, newline)
 
-    def _get_config(self) -> dict[str, Any]:
+    def get_config(self) -> dict[str, Any]:
         obj = super()._get_config()
         obj['format'] = self.format
         del obj['separator']
