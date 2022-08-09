@@ -1,6 +1,5 @@
 Example:
 
-'''
     {
       "column_encodings": [
         "int",
@@ -40,4 +39,3 @@ Example:
         }
       }
     }
-'''
