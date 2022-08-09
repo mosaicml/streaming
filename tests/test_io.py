@@ -43,7 +43,7 @@ def get_dataset(num_samples):
     return samples
 
 
-def main():
+def test():
     samples = get_dataset(50_000)
 
     columns = {
@@ -77,6 +77,3 @@ def main():
 
     for dirname in ['/tmp/mds', '/tmp/csv', '/tmp/tsv', '/tmp/json']:
         rmtree(dirname)
-
-
-main()
