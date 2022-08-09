@@ -1,6 +1,6 @@
-from abc import abstractmethod
 import json
 import os
+from abc import ABC, abstractmethod
 from types import TracebackType
 from typing import Any, Optional
 
@@ -11,7 +11,7 @@ from ...hashing import get_hash, is_hash
 from ...index import get_index_basename
 
 
-class Writer(object):
+class Writer(ABC):
     """Writes a streaming dataset.
 
     Args:

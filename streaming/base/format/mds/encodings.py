@@ -1,6 +1,6 @@
-from abc import abstractmethod
 import json
 import pickle
+from abc import ABC, abstractmethod
 from io import BytesIO
 from typing import Any, Optional
 
@@ -12,7 +12,7 @@ __all__ = [
 ]
 
 
-class Encoding(object):
+class Encoding(ABC):
     """Encodes and decodes between objects of a certain type and raw bytes."""
 
     size: Optional[int] = None  # Fixed size in bytes of encoded data (None if variable size).

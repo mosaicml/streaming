@@ -1,6 +1,6 @@
-from abc import abstractmethod
 import bz2
 import gzip
+from abc import ABC, abstractmethod
 from typing import Iterator, Optional
 
 import brotli
@@ -13,7 +13,7 @@ __all__ = [
 ]
 
 
-class Compression(object):
+class Compression(ABC):
     """A compression algorithm family."""
 
     extension: str  # Filename extension.

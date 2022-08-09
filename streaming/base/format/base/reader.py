@@ -1,4 +1,4 @@
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Iterator, Optional
 
@@ -17,7 +17,7 @@ class FileInfo(object):
     hashes: dict[str, str]
 
 
-class Reader(object):
+class Reader(ABC):
     """Provides random access to the samples of a shard.
 
     Args:
