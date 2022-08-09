@@ -208,6 +208,8 @@ def get_compression_extension(algo: str) -> str:
     Returns:
         str: Filename extension.
     """
+    if not is_compression(algo):
+        raise ValueError(f'{algo} is not a supported compression algorithm.')
     obj = _algorithms[algo]
     return obj.extension
 
@@ -223,6 +225,8 @@ def compress(algo: Optional[str], data: bytes) -> bytes:
     """
     if algo is None:
         return data
+    if not is_compression(algo):
+        raise ValueError(f'{algo} is not a supported compression algorithm.')
     obj = _algorithms[algo]
     return obj.compress(data)
 
@@ -238,5 +242,7 @@ def decompress(algo: Optional[str], data: bytes) -> bytes:
     """
     if algo is None:
         return data
+    if not is_compression(algo):
+        raise ValueError(f'{algo} is not a supported compression algorithm.')
     obj = _algorithms[algo]
     return obj.decompress(data)
