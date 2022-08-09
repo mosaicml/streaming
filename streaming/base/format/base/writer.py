@@ -1,7 +1,7 @@
 import json
 import os
 from types import TracebackType
-from typing import Any, Optional, Type
+from typing import Any, Optional
 
 from typing_extensions import Self
 
@@ -200,12 +200,12 @@ class Writer(object):
         """
         return self
 
-    def __exit__(self, exc_type: Optional[Type[BaseException]], exc: Optional[BaseException],
+    def __exit__(self, exc_type: Optional[type[BaseException]], exc: Optional[BaseException],
                  traceback: Optional[TracebackType]) -> None:
         """Exit context manager.
 
         Args:
-            exc_type (Optional[Type[BaseException]]): Exc type.
+            exc_type (Optional[type[BaseException]]): Exc type.
             exc (Optional[BaseException]): Exc.
             traceback (Optional[TracebackType]): Traceback.
         """

@@ -1,6 +1,6 @@
 import bz2
 import gzip
-from typing import Iterator, Optional, Type
+from typing import Iterator, Optional
 
 import brotli
 import snappy
@@ -149,7 +149,7 @@ class Zstandard(LevelledCompression):
 
 
 # Compression algorithm families (extension -> class).
-_families = {
+_families: dict[str, type[Compression]] = {
     'br': Brotli,
     'bz2': Bzip2,
     'gz': Gzip,
@@ -158,11 +158,11 @@ _families = {
 }
 
 
-def _collect(families: dict[str, Type[Compression]]) -> dict[str, Compression]:
+def _collect(families: dict[str, type[Compression]]) -> dict[str, Compression]:
     """Instantiate each level of each type of compression.
 
     Args:
-        dict[str, Type[Compression]]: Mapping of extension to class.
+        dict[str, type[Compression]]: Mapping of extension to class.
 
     Returns:
         dict[str, Compression]: Mapping of extension:level to instance.
