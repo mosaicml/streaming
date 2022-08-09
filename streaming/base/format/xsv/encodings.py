@@ -1,12 +1,14 @@
+from abc import ABC, abstractmethod
 from typing import Any
 
 __all__ = ['is_xsv_encoding', 'xsv_decode', 'xsv_encode']
 
 
-class Encoding(object):
+class Encoding(ABC):
     """XSV (e.g. CSV, TSV) types."""
 
     @classmethod
+    @abstractmethod
     def encode(cls, obj: Any) -> str:
         """Encode the object.
 
@@ -19,6 +21,7 @@ class Encoding(object):
         raise NotImplementedError
 
     @classmethod
+    @abstractmethod
     def decode(cls, obj: str) -> Any:
         """Decode the object.
 

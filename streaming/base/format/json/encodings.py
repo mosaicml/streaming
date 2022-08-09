@@ -1,12 +1,14 @@
+from abc import ABC, abstractmethod
 from typing import Any
 
 __all__ = ['is_json_encoded', 'is_json_encoding']
 
 
-class Encoding(object):
+class Encoding(ABC):
     """JSON types."""
 
     @classmethod
+    @abstractmethod
     def is_encoded(cls, obj: Any) -> bool:
         """Get whether the given object is of this type.
 
