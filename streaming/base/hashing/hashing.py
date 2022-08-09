@@ -57,5 +57,7 @@ def get_hash(algo: str, data: bytes) -> str:
     Returns:
         str: Hex digest.
     """
+    if not is_hash(algo):
+        raise ValueError(f'{algo} is not a supported hash algorithm.')
     func = _hashes[algo]
     return func(data).hexdigest()
