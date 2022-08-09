@@ -159,7 +159,7 @@ _families: dict[str, type[Compression]] = {
 
 
 def _collect(families: dict[str, type[Compression]]) -> dict[str, Compression]:
-    """Instantiate each level of each type of compression.
+    """Get each level of each compression type and flatten into a single dict.
 
     Args:
         dict[str, type[Compression]]: Mapping of extension to class.
