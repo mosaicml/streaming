@@ -31,11 +31,11 @@ def parse_args() -> Namespace:
     return args.parse_args()
 
 
-def check_extensions(filenames: Liststr], extensions: Set[str]) -> None:
+def check_extensions(filenames: List[str], extensions: Set[str]) -> None:
     """Validate filename extensions.
 
     Args:
-        filenames (Liststr]): List of files.
+        filenames (List[str]): List of files.
         extensions (Set[str]): Acceptable extensions.
     """
     for f in filenames:
@@ -44,17 +44,17 @@ def check_extensions(filenames: Liststr], extensions: Set[str]) -> None:
         assert ext.lower() in extensions
 
 
-def get_classes(filenames: Liststr],
-                class_names: Optional[Liststr]] = None) -> Tuple[Listint], Liststr]]:
+def get_classes(filenames: List[str],
+                class_names: Optional[List[str]] = None) -> Tuple[List[int], List[str]]:
     """Get the classes for a dataset split of sample image filenames.
 
     Args:
-        filenames (Liststr]): Files, in the format "root/split/class/sample.jpeg".
-        class_names (Optional[Liststr]], default: None): List of class names from the other splits
+        filenames (List[str]): Files, in the format "root/split/class/sample.jpeg".
+        class_names (Optional[List[str]], default: None): List of class names from the other splits
             that we must macth.
 
     Returns:
-        Tuple[Listint], Liststr]]: Class ID per sample, and the list of unique class names.
+        Tuple[List[int], List[str]]: Class ID per sample, and the list of unique class names.
     """
     classes = []
     dirname2class = {}
