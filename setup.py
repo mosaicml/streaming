@@ -5,7 +5,6 @@ import os
 import setuptools
 from setuptools import setup
 
-
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.7",
