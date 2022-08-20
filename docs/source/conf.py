@@ -54,7 +54,10 @@ if not shutil.which('pandoc'):
                 target_folder = '/Applications/pandoc'
             # Not handling windows
 
-        download_pandoc(version='2.18', download_folder=tmpdir, targetfolder=target_folder, delete_installer=True)
+        download_pandoc(version='2.18',
+                        download_folder=tmpdir,
+                        targetfolder=target_folder,
+                        delete_installer=True)
 
 sys.path.insert(0, os.path.abspath('..'))
 
@@ -186,11 +189,9 @@ html_theme_options = {
 html_favicon = 'https://mosaic-ml-staging.cdn.prismic.io/mosaic-ml-staging/b1f1a2a0-2b54-4b43-9b76-bfa2e24d6fdf_favicon.svg'
 
 # Don't unfold our common type aliases
-autodoc_type_aliases = {
-}
+autodoc_type_aliases = {}
 
-autodoc_default_options = {
-}
+autodoc_default_options = {}
 autodoc_inherit_docstrings = False
 
 # Monkeypatch some objects as to exclude their docstrings
@@ -262,7 +263,6 @@ with open(os.path.join(os.path.dirname(__file__), 'doctest_fixtures.py'), 'r') a
 
 with open(os.path.join(os.path.dirname(__file__), 'doctest_cleanup.py'), 'r') as f:
     doctest_global_cleanup = f.read()
-
 
 # ClassDocumenter.add_directive_header uses ClassDocumenter.add_line to
 #   write the class documentation.
@@ -347,7 +347,8 @@ def _auto_rst_for_module(module: types.ModuleType, exclude_members: List[Any]) -
     classes.sort(key=lambda x: x[0])
     attributes.sort(key=lambda x: x[0])
 
-    for category, category_name in ((functions, 'Functions'), (classes, 'Classes'), (exceptions, 'Exceptions')):
+    for category, category_name in ((functions, 'Functions'), (classes, 'Classes'), (exceptions,
+                                                                                     'Exceptions')):
         sphinx_lines = []
         for item_name, _ in category:
             sphinx_lines.append(f'      {item_name}')
@@ -516,10 +517,11 @@ class PatchedHTMLTranslator(HTML5Translator):
             atts['class'] += ' external'
             # ---------------------------------------------------------
             # Customize behavior (open in new tab, secure linking site)
-            if 'refid' not in node and (not any(node['refuri'].startswith(x)
-                                                for x in ('/', 'https://docs.mosaicml.com', '#')) or
-                                        node['refuri'].startswith('https://docs.mosaicml.com/projects/streaming') or
-                                        node['refuri'].startswith('https://docs.mosaicml.com/projects/yahp')):
+            if 'refid' not in node and (
+                    not any(node['refuri'].startswith(x)
+                            for x in ('/', 'https://docs.mosaicml.com', '#')) or
+                    node['refuri'].startswith('https://docs.mosaicml.com/projects/streaming') or
+                    node['refuri'].startswith('https://docs.mosaicml.com/projects/yahp')):
                 # If there's a refid, or the refuri starts with a non-external uri scheme, then it's an internal
                 # (hardcoded) link, so don't open that in a new tab
                 # Treat yahp links as external

@@ -14,7 +14,6 @@ import os
 import sys
 import tempfile
 
-
 # Need to insert the repo root at the beginning of the path, since there may be other modules named `tests`
 # Assuming that docs generation is running from the `docs` directory
 _docs_dir = os.path.abspath('.')
