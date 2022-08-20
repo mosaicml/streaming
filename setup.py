@@ -38,21 +38,21 @@ extra_deps = {
 }
 
 extra_deps['docs'] = [
-        "GitPython==3.1.27",
-        "docutils==0.17.1",
-        "furo==2022.3.4",
-        "myst-parser==0.16.1",
-        "nbsphinx==0.8.8",
-        "pandoc==2.2",
-        "pypandoc==1.8.1",
-        "sphinx-argparse==0.3.1",
-        "sphinx-copybutton==0.5.0",
-        "sphinx==4.4.0",
-        "sphinx_panels==0.6.0",
-        "sphinxcontrib-images==0.9.4",
-        "sphinxcontrib.katex==0.8.6",
-        "sphinxemoji==0.2.0",
-        "sphinxext.opengraph==0.6.1",
+    "GitPython==3.1.27",
+    "docutils==0.17.1",
+    "furo==2022.3.4",
+    "myst-parser==0.16.1",
+    "nbsphinx==0.8.8",
+    "pandoc==2.2",
+    "pypandoc==1.8.1",
+    "sphinx-argparse==0.3.1",
+    "sphinx-copybutton==0.5.0",
+    "sphinx==4.4.0",
+    "sphinx_panels==0.6.0",
+    "sphinxcontrib-images==0.9.4",
+    "sphinxcontrib.katex==0.8.6",
+    "sphinxemoji==0.2.0",
+    "sphinxext.opengraph==0.6.1",
 ]
 
 extra_deps['all'] = set(dep for deps in extra_deps.values() for dep in deps)
