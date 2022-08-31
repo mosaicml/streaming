@@ -15,6 +15,7 @@ classifiers = [
 install_requires = [
     "boto3==1.24.37",
     "Brotli==1.0.9",
+    "datasets==2.4.0",
     "matplotlib==3.5.2",
     "paramiko==2.11.0",
     "python-snappy==0.6.1",
@@ -26,16 +27,16 @@ install_requires = [
     "zstd==1.5.2.5",
 ]
 
-extra_deps = {
-    'dev': [
-        "docformatter==1.4",
-        "isort==5.10.1",
-        "pytest==7.1.2",
-        "toml==0.10.2",
-        "yamllint==1.26.3",
-        "yapf==0.32.0",
-    ]
-}
+extra_deps = {}
+
+extra_deps['dev'] = [
+    "docformatter==1.4",
+    "isort==5.10.1",
+    "pytest==7.1.2",
+    "toml==0.10.2",
+    "yamllint==1.26.3",
+    "yapf==0.32.0",
+]
 
 extra_deps['docs'] = [
     "GitPython==3.1.27",
