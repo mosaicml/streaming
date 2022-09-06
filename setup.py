@@ -23,6 +23,7 @@ install_requires = [
     "torchtext>=0.10",
     "torchvision>=0.10",
     "tqdm==4.64.0",
+    "transformers==4.21.3",
     "xxhash==3.0.0",
     "zstd==1.5.2.5",
 ]
