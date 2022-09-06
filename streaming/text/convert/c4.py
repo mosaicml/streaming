@@ -1,16 +1,18 @@
-from argparse import ArgumentParser, Namespace
-import datasets
-from datasets import Dataset  # pyright: ignore
 import os
-from torch.utils.data import DataLoader, get_worker_info, IterableDataset
-from tqdm import tqdm
+from argparse import ArgumentParser, Namespace
 from typing import Any, Dict, Iterator
+
+import datasets
+from datasets.arrow_dataset import Dataset
+from torch.utils.data import DataLoader, IterableDataset, get_worker_info
+from tqdm import tqdm
 
 from ...base import MDSWriter
 
 
 def parse_args() -> Namespace:
     """Parse commandline arguments.
+
     Args:
         Namespace: Commandline arguments.
     """
@@ -38,20 +40,21 @@ def get(split: str) -> IterableDataset:
     class ShardedC4(IterableDataset):
 
         def __init__(self):
-            self.dataset = datasets.load_dataset(path='c4', name='en', split=split,  # pyright: ignore
-                                                 streaming=True)  # pyright: ignore
+            self.dataset = datasets.load_dataset(  # pyright: ignore
+                path='c4', name='en', split=split, streaming=True)
 
         def num_shards(self):
-            return len(self.dataset._ex_iterable.kwargs['filepaths'])
+            return len(self.dataset._ex_iterable.kwargs['filepaths'])  # pyright: ignore
 
         def __iter__(self):
             worker_info = get_worker_info()
             if worker_info:
                 num_workers = worker_info.num_workers
                 worker_id = worker_info.id
-                shards = self.dataset._ex_iterable.kwargs['filepaths']
+                shards = self.dataset._ex_iterable.kwargs['filepaths']  # pyright: ignore
                 assert len(shards) % num_workers == 0
-                self.dataset._ex_iterable.kwargs['filepaths'] = shards[worker_id::num_workers]
+                self.dataset._ex_iterable.kwargs['filepaths'] = (  # pyright: ignore
+                    shards[worker_id::num_workers])
             return iter(self.dataset)
 
     return ShardedC4()
@@ -59,6 +62,7 @@ def get(split: str) -> IterableDataset:
 
 def each(dataset: Dataset, num_workers: int, batch_size: int) -> Iterator[Dict[str, Any]]:
     """Iterate over each dataset sample.
+
     Args:
         dataset (Dataset): A HuggingFace Dataset locally downloaded.
         num_workers (int): DataLoader number of workers.
@@ -67,10 +71,11 @@ def each(dataset: Dataset, num_workers: int, batch_size: int) -> Iterator[Dict[s
         Iterator[Dict[str, Any]]: Sample dicts.
     """
     prefetch_factor = max(1, 2 * batch_size // num_workers)
-    loader = DataLoader(dataset=dataset,  # pyright: ignore
-                        batch_size=batch_size,
-                        num_workers=num_workers,
-                        prefetch_factor=prefetch_factor)
+    loader = DataLoader(
+        dataset=dataset,  # pyright: ignore
+        batch_size=batch_size,
+        num_workers=num_workers,
+        prefetch_factor=prefetch_factor)
     for batch in loader:
         keys = list(batch.keys())
         current_bs = len(batch[keys[0]])
@@ -87,11 +92,7 @@ def main(args: Namespace) -> None:
         ('train', 'train', 364868892, 64),
         ('validation', 'val', 364608, 8),
     ]
-    fields = {
-        'text': 'str',
-        'timestamp': 'str',
-        'url': 'str'
-    }
+    fields = {'text': 'str', 'timestamp': 'str', 'url': 'str'}
     hashes = args.hashes.split(',') if args.hashes else []
     for old_split, new_split, num_samples, num_workers in splits:
         dataset = get(old_split)
