@@ -2,18 +2,20 @@
 
 """COCO 2017 streaming dataset conversion scripts."""
 
-import os
 import json
-from tqdm import tqdm
-import torch
-import numpy as np
-from PIL import Image
-from torch.utils.data import Dataset
+import os
 from argparse import ArgumentParser, Namespace
 from typing import Dict, Iterable
 
-from streaming.vision.convert.base import get_list_arg
+import numpy as np
+import torch
+from PIL import Image
+from torch.utils.data import Dataset
+from tqdm import tqdm
+
 from streaming.base import MDSWriter
+from streaming.vision.convert.base import get_list_arg
+
 
 class _COCODetection(Dataset):
     """PyTorch Dataset for the COCO dataset.
@@ -105,14 +107,43 @@ def parse_args() -> Namespace:
         Namespace: Command line arguments.
     """
     args = ArgumentParser()
-    args.add_argument('--in', type=str, default='./datasets/coco2017/', help='Location of Input dataset. Default: ./datasets/coco2017/')
-    args.add_argument('--out', type=str, default='./datasets/mds/coco2017/', help='Location to store the compressed dataset. Default: ./datasets/mds/coco2017/')
-    args.add_argument('--splits', type=str, default='train,val', help='Split to use. Default: train,val')
-    args.add_argument('--compression', type=str, default='zstd:7', help='Compression algorithm to use. Default: zstd:7')
-    args.add_argument('--hashes', type=str, default='sha1,xxh64', help='Hashing algorithms to apply to shard files. Default: sha1,xxh64')
-    args.add_argument('--limit', type=int, default=1 << 25, help='Shard size limit, after which point to start a new shard. Default: 33554432')
-    args.add_argument('--progbar', type=bool, default=True, help='tqdm progress bar. Default: True')
-    args.add_argument('--leave', type=bool, default=False, help='Keeps all traces of the progressbar upon termination of iteration. Default: False')
+    args.add_argument('--in_root',
+                      type=str,
+                      default='./datasets/coco/',
+                      help='Location of Input dataset. Default: ./datasets/coco/')
+    args.add_argument(
+        '--out_root',
+        type=str,
+        default='./datasets/mds/coco/',
+        help='Location to store the compressed dataset. Default: ./datasets/mds/coco/')
+    args.add_argument('--splits',
+                      type=str,
+                      default='train,val',
+                      help='Split to use. Default: train,val')
+    args.add_argument('--compression',
+                      type=str,
+                      default='zstd:7',
+                      help='Compression algorithm to use. Default: zstd:7')
+    args.add_argument('--hashes',
+                      type=str,
+                      default='sha1,xxh64',
+                      help='Hashing algorithms to apply to shard files. Default: sha1,xxh64')
+    args.add_argument(
+        '--limit',
+        type=int,
+        default=1 << 25,
+        help='Shard size limit, after which point to start a new shard. Default: 33554432')
+    args.add_argument('--progbar',
+                      type=int,
+                      default=1,
+                      help='tqdm progress bar. Default: 1 (Act as True)')
+    args.add_argument(
+        '--leave',
+        type=int,
+        default=0,
+        help=
+        'Keeps all traces of the progressbar upon termination of iteration. Default: 0 (Act as False)'
+    )
     return args.parse_args()
 
 
@@ -171,16 +202,28 @@ def main(args: Namespace) -> None:
         split_out_dir = os.path.join(args.out_root, split)
 
         split_images_in_dir = os.path.join(args.in_root, f'{split}2017')
-        split_annotations_in_file = os.path.join(args.in_root, 'annotations', f'instances_{split}2017.json')
+        if not os.path.exists(split_images_in_dir):
+            raise FileNotFoundError(f'Images path does not exist: {split_images_in_dir}')
+        split_annotations_in_file = os.path.join(args.in_root, 'annotations',
+                                                 f'instances_{split}2017.json')
+        if not os.path.exists(split_annotations_in_file):
+            raise FileNotFoundError(f'Annotations file does not exist: {split_annotations_in_file}')
         dataset = _COCODetection(split_images_in_dir, split_annotations_in_file)
+
+        if len(dataset) != expected_num_samples:
+            raise ValueError(
+                f'Number of samples in a dataset doesn\'t match. Expected {expected_num_samples}, but got {len(dataset)}'
+            )
 
         hashes = get_list_arg(args.hashes)
 
         if args.progbar:
-            dataset = tqdm(dataset, leave=args.leave)
+            dataset = tqdm(each(dataset, shuffle), leave=args.leave, total=len(dataset))
+        else:
+            dataset = each(dataset, shuffle)
 
         with MDSWriter(split_out_dir, fields, args.compression, hashes, args.limit) as out:
-            for sample in each(dataset, shuffle):
+            for sample in dataset:
                 out.write(sample)
 
 

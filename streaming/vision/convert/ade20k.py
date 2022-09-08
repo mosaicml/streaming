@@ -6,8 +6,9 @@ import os
 import random
 from argparse import ArgumentParser, Namespace
 from glob import glob
-from tqdm import tqdm
 from typing import Any, Dict, Iterable, List, Tuple
+
+from tqdm import tqdm
 
 from streaming.base import MDSWriter
 from streaming.vision.convert.base import get_list_arg
@@ -20,14 +21,43 @@ def parse_args() -> Namespace:
         Namespace: Command line arguments.
     """
     args = ArgumentParser()
-    args.add_argument('--in', type=str, default='./datasets/ade20k/', help='Location of Input dataset. Default: ./datasets/ade20k/')
-    args.add_argument('--out', type=str, default='./datasets/mds/ade20k/', help='Location to store the compressed dataset. Default: ./datasets/mds/ade20k/')
-    args.add_argument('--splits', type=str, default='train,val', help='Split to use. Default: train,val')
-    args.add_argument('--compression', type=str, default='zstd:7', help='Compression algorithm to use. Default: zstd:7')
-    args.add_argument('--hashes', type=str, default='sha1,xxh64', help='Hashing algorithms to apply to shard files. Default: sha1,xxh64')
-    args.add_argument('--limit', type=int, default=1 << 25, help='Shard size limit, after which point to start a new shard. Default: 33554432')
-    args.add_argument('--progbar', type=bool, default=True, help='tqdm progress bar. Default: True')
-    args.add_argument('--leave', type=bool, default=False, help='Keeps all traces of the progressbar upon termination of iteration. Default: False')
+    args.add_argument('--in',
+                      type=str,
+                      default='./datasets/ade20k/',
+                      help='Location of Input dataset. Default: ./datasets/ade20k/')
+    args.add_argument(
+        '--out',
+        type=str,
+        default='./datasets/mds/ade20k/',
+        help='Location to store the compressed dataset. Default: ./datasets/mds/ade20k/')
+    args.add_argument('--splits',
+                      type=str,
+                      default='train,val',
+                      help='Split to use. Default: train,val')
+    args.add_argument('--compression',
+                      type=str,
+                      default='zstd:7',
+                      help='Compression algorithm to use. Default: zstd:7')
+    args.add_argument('--hashes',
+                      type=str,
+                      default='sha1,xxh64',
+                      help='Hashing algorithms to apply to shard files. Default: sha1,xxh64')
+    args.add_argument(
+        '--limit',
+        type=int,
+        default=1 << 25,
+        help='Shard size limit, after which point to start a new shard. Default: 33554432')
+    args.add_argument('--progbar',
+                      type=int,
+                      default=1,
+                      help='tqdm progress bar. Default: 1 (Act as True)')
+    args.add_argument(
+        '--leave',
+        type=int,
+        default=0,
+        help=
+        'Keeps all traces of the progressbar upon termination of iteration. Default: 0 (Act as False)'
+    )
     return args.parse_args()
 
 
@@ -44,7 +74,11 @@ def get(in_root: str, split: str, shuffle: bool) -> List[Tuple[str, str, str]]:
     """
     # Get uids
     split_images_in_dir = os.path.join(in_root, 'images', split)
+    if not os.path.exists(split_images_in_dir):
+        raise FileNotFoundError(f'Images path does not exist: {split_images_in_dir}')
     split_annotations_in_dir = os.path.join(in_root, 'annotations', split)
+    if not os.path.exists(split_annotations_in_dir):
+        raise FileNotFoundError(f'Annotations path does not exist: {split_annotations_in_dir}')
     image_glob_pattern = os.path.join(split_images_in_dir, f'ADE_{split}_*.jpg')
     images = sorted(glob(image_glob_pattern))
     uids = [s.strip('.jpg')[-8:] for s in images]
@@ -65,7 +99,7 @@ def get(in_root: str, split: str, shuffle: bool) -> List[Tuple[str, str, str]]:
     return samples
 
 
-def each(samples: List[Tuple[str, str, str]]) -> Iterable[Dict[str, Any]]:
+def each(samples: Iterable[Tuple[str, str, str]]) -> Iterable[Dict[str, Any]]:
     """Generator over each dataset sample.
 
     Args:
@@ -91,11 +125,7 @@ def main(args: Namespace) -> None:
     Args:
         args (Namespace): Command line arguments.
     """
-    fields = {
-        'uid': 'bytes',
-        'image': 'bytes',
-        'annotation': 'bytes'
-    }
+    fields = {'uid': 'bytes', 'image': 'bytes', 'annotation': 'bytes'}
 
     for (split, expected_num_samples, shuffle) in [
         ('train', 20206, True),
@@ -104,7 +134,9 @@ def main(args: Namespace) -> None:
         # Get samples
         samples = get(in_root=getattr(args, 'in'), split=split, shuffle=shuffle)
         if len(samples) != expected_num_samples:
-            raise ValueError(f'Number of samples in a dataset doesn\'t match. Expected {expected_num_samples}, but got {len(samples)}')
+            raise ValueError(
+                f'Number of samples in a dataset doesn\'t match. Expected {expected_num_samples}, but got {len(samples)}'
+            )
 
         split_images_out_dir = os.path.join(args.out, split)
         hashes = get_list_arg(args.hashes)
@@ -115,6 +147,7 @@ def main(args: Namespace) -> None:
         with MDSWriter(split_images_out_dir, fields, args.compression, hashes, args.limit) as out:
             for sample in each(samples):
                 out.write(sample)
+
 
 if __name__ == '__main__':
     main(parse_args())
