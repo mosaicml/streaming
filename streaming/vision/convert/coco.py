@@ -17,6 +17,65 @@ from streaming.base import MDSWriter
 from streaming.vision.convert.base import get_list_arg
 
 
+def parse_args() -> Namespace:
+    """Parse command line arguments.
+
+    Args:
+        Namespace: Command line arguments.
+    """
+    args = ArgumentParser()
+    args.add_argument(
+        '--in_root',
+        type=str,
+        default='./datasets/coco/',
+        help='Location of Input dataset. Default: ./datasets/coco/',
+    )
+    args.add_argument(
+        '--out_root',
+        type=str,
+        default='./datasets/mds/coco/',
+        help='Location to store the compressed dataset. Default: ./datasets/mds/coco/',
+    )
+    args.add_argument(
+        '--splits',
+        type=str,
+        default='train,val',
+        help='Split to use. Default: train,val',
+    )
+    args.add_argument(
+        '--compression',
+        type=str,
+        default='',
+        help='Compression algorithm to use. Default: None',
+    )
+    args.add_argument(
+        '--hashes',
+        type=str,
+        default='sha1,xxh64',
+        help='Hashing algorithms to apply to shard files. Default: sha1,xxh64',
+    )
+    args.add_argument(
+        '--limit',
+        type=int,
+        default=1 << 25,
+        help='Shard size limit, after which point to start a new shard. Default: 33554432',
+    )
+    args.add_argument(
+        '--progbar',
+        type=int,
+        default=1,
+        help='tqdm progress bar. Default: 1 (Act as True)',
+    )
+    args.add_argument(
+        '--leave',
+        type=int,
+        default=0,
+        help=
+        'Keeps all traces of the progressbar upon termination of iteration. Default: 0 (Act as False)',
+    )
+    return args.parse_args()
+
+
 class _COCODetection(Dataset):
     """PyTorch Dataset for the COCO dataset.
 
@@ -52,7 +111,7 @@ class _COCODetection(Dataset):
             img_name = img['file_name']
             img_size = (img['height'], img['width'])
             if img_id in self.images:
-                raise Exception('dulpicated image record')
+                raise Exception('duplicated image record')
             self.images[img_id] = (img_name, img_size, [])
 
         # read bboxes
@@ -100,53 +159,6 @@ class _COCODetection(Dataset):
         return img, img_id, (htot, wtot), bbox_sizes, bbox_labels
 
 
-def parse_args() -> Namespace:
-    """Parse command line arguments.
-
-    Args:
-        Namespace: Command line arguments.
-    """
-    args = ArgumentParser()
-    args.add_argument('--in_root',
-                      type=str,
-                      default='./datasets/coco/',
-                      help='Location of Input dataset. Default: ./datasets/coco/')
-    args.add_argument(
-        '--out_root',
-        type=str,
-        default='./datasets/mds/coco/',
-        help='Location to store the compressed dataset. Default: ./datasets/mds/coco/')
-    args.add_argument('--splits',
-                      type=str,
-                      default='train,val',
-                      help='Split to use. Default: train,val')
-    args.add_argument('--compression',
-                      type=str,
-                      default='zstd:7',
-                      help='Compression algorithm to use. Default: zstd:7')
-    args.add_argument('--hashes',
-                      type=str,
-                      default='sha1,xxh64',
-                      help='Hashing algorithms to apply to shard files. Default: sha1,xxh64')
-    args.add_argument(
-        '--limit',
-        type=int,
-        default=1 << 25,
-        help='Shard size limit, after which point to start a new shard. Default: 33554432')
-    args.add_argument('--progbar',
-                      type=int,
-                      default=1,
-                      help='tqdm progress bar. Default: 1 (Act as True)')
-    args.add_argument(
-        '--leave',
-        type=int,
-        default=0,
-        help=
-        'Keeps all traces of the progressbar upon termination of iteration. Default: 0 (Act as False)'
-    )
-    return args.parse_args()
-
-
 def each(dataset: _COCODetection, shuffle: bool) -> Iterable[Dict[str, bytes]]:
     """Generator over each dataset sample.
 
@@ -160,7 +172,7 @@ def each(dataset: _COCODetection, shuffle: bool) -> Iterable[Dict[str, bytes]]:
     if shuffle:
         indices = np.random.permutation(len(dataset))
     else:
-        indices = list(range(len(dataset)))
+        indices = np.arange(len(dataset))
     for idx in indices:
         _, img_id, (htot, wtot), bbox_sizes, bbox_labels = dataset[idx]
 

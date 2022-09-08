@@ -2,7 +2,7 @@ from argparse import ArgumentParser, Namespace
 
 from torchvision.datasets import CIFAR10
 
-from .base import convert_image_class_dataset, get_list_arg
+from streaming.vision.convert.base import convert_image_class_dataset, get_list_arg
 
 
 def parse_args() -> Namespace:
@@ -15,7 +15,7 @@ def parse_args() -> Namespace:
     args.add_argument('--in', type=str, default='/datasets/cifar10/')
     args.add_argument('--out', type=str, default='/datasets/mds/cifar10/')
     args.add_argument('--splits', type=str, default='train,val')
-    args.add_argument('--compression', type=str, default='zstd:7')
+    args.add_argument('--compression', type=str, default='')
     args.add_argument('--hashes', type=str, default='sha1,xxh64')
     args.add_argument('--limit', type=int, default=1 << 20)
     args.add_argument('--progbar', type=int, default=1)

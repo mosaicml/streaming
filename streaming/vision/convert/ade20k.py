@@ -21,42 +21,54 @@ def parse_args() -> Namespace:
         Namespace: Command line arguments.
     """
     args = ArgumentParser()
-    args.add_argument('--in',
-                      type=str,
-                      default='./datasets/ade20k/',
-                      help='Location of Input dataset. Default: ./datasets/ade20k/')
     args.add_argument(
-        '--out',
+        '--in_root',
+        type=str,
+        default='./datasets/ade20k/',
+        help='Location of Input dataset. Default: ./datasets/ade20k/',
+    )
+    args.add_argument(
+        '--out_root',
         type=str,
         default='./datasets/mds/ade20k/',
-        help='Location to store the compressed dataset. Default: ./datasets/mds/ade20k/')
-    args.add_argument('--splits',
-                      type=str,
-                      default='train,val',
-                      help='Split to use. Default: train,val')
-    args.add_argument('--compression',
-                      type=str,
-                      default='zstd:7',
-                      help='Compression algorithm to use. Default: zstd:7')
-    args.add_argument('--hashes',
-                      type=str,
-                      default='sha1,xxh64',
-                      help='Hashing algorithms to apply to shard files. Default: sha1,xxh64')
+        help='Location to store the compressed dataset. Default: ./datasets/mds/ade20k/',
+    )
+    args.add_argument(
+        '--splits',
+        type=str,
+        default='train,val',
+        help='Split to use. Default: train,val',
+    )
+    args.add_argument(
+        '--compression',
+        type=str,
+        default='',
+        help='Compression algorithm to use. Default: None',
+    )
+    args.add_argument(
+        '--hashes',
+        type=str,
+        default='sha1,xxh64',
+        help='Hashing algorithms to apply to shard files. Default: sha1,xxh64',
+    )
     args.add_argument(
         '--limit',
         type=int,
-        default=1 << 25,
-        help='Shard size limit, after which point to start a new shard. Default: 33554432')
-    args.add_argument('--progbar',
-                      type=int,
-                      default=1,
-                      help='tqdm progress bar. Default: 1 (Act as True)')
+        default=1 << 22,
+        help='Shard size limit, after which point to start a new shard. Default: 4194304',
+    )
+    args.add_argument(
+        '--progbar',
+        type=int,
+        default=1,
+        help='tqdm progress bar. Default: 1 (Act as True)',
+    )
     args.add_argument(
         '--leave',
         type=int,
         default=0,
         help=
-        'Keeps all traces of the progressbar upon termination of iteration. Default: 0 (Act as False)'
+        'Keeps all traces of the progressbar upon termination of iteration. Default: 0 (Act as False)',
     )
     return args.parse_args()
 
@@ -132,13 +144,13 @@ def main(args: Namespace) -> None:
         ('val', 2000, False),
     ]:
         # Get samples
-        samples = get(in_root=getattr(args, 'in'), split=split, shuffle=shuffle)
+        samples = get(in_root=args.in_root, split=split, shuffle=shuffle)
         if len(samples) != expected_num_samples:
             raise ValueError(
                 f'Number of samples in a dataset doesn\'t match. Expected {expected_num_samples}, but got {len(samples)}'
             )
 
-        split_images_out_dir = os.path.join(args.out, split)
+        split_images_out_dir = os.path.join(args.out_root, split)
         hashes = get_list_arg(args.hashes)
 
         if args.progbar:
