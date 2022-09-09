@@ -48,6 +48,16 @@ repos:
       - id: fix-byte-order-marker
       - id: mixed-line-ending
       - id: trailing-whitespace
+  - repo: https://github.com/Lucas-C/pre-commit-hooks
+    rev: v1.3.1
+    hooks:
+      - id: insert-license
+        args:
+          - --license-filepath
+          - .ci/FILE_HEADER
+          - --comment-style
+          - "#"
+        types: [python]
   - repo: local
     hooks:
       - id: pyright
@@ -58,4 +68,3 @@ repos:
         pass_filenames: false
         args: [--warnings]
         additional_dependencies: ["pyright@1.1.256"]
-
