@@ -6,8 +6,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
-from ..base.writer import SplitWriter
-from .encodings import is_xsv_encoding, xsv_encode
+from streaming.base.format.base.writer import SplitWriter
+from streaming.base.format.xsv.encodings import is_xsv_encoding, xsv_encode
 
 
 class XSVWriter(SplitWriter):

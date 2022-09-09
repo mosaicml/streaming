@@ -5,7 +5,7 @@ from typing import Any, Callable, Optional, Tuple
 
 from torchvision.transforms.functional import to_tensor
 
-from ..base import Dataset
+from streaming.base import Dataset
 
 
 class StandardTransform(object):

@@ -8,8 +8,8 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 from typing_extensions import Self
 
-from ..base.reader import FileInfo, SplitReader
-from .encodings import xsv_decode
+from streaming.base.format.base.reader import FileInfo, SplitReader
+from streaming.base.format.xsv.encodings import xsv_decode
 
 
 class XSVReader(SplitReader):
