@@ -5,7 +5,7 @@ import numpy as np
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
-from ...base import MDSWriter
+from streaming.base import MDSWriter
 
 
 def get_list_arg(text: str) -> List[str]:
