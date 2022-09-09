@@ -15,8 +15,8 @@ def parse_args() -> Namespace:
         Namespace: Commandline arguments.
     """
     args = ArgumentParser()
-    args.add_argument('--in', type=str, default='/datasets/cifar10/')
-    args.add_argument('--out', type=str, default='/datasets/mds/cifar10/')
+    args.add_argument('--in_root', type=str, required=True)
+    args.add_argument('--out_root', type=str, required=True)
     args.add_argument('--splits', type=str, default='train,val')
     args.add_argument('--compression', type=str, default='')
     args.add_argument('--hashes', type=str, default='sha1,xxh64')
@@ -35,8 +35,8 @@ def main(args: Namespace) -> None:
     splits = get_list_arg(args.splits)
     hashes = get_list_arg(args.hashes)
     for split in splits:
-        dataset = CIFAR10(root=getattr(args, 'in'), train=(split == 'train'), download=True)
-        convert_image_class_dataset(dataset, args.out, split, args.compression, hashes, args.limit,
+        dataset = CIFAR10(root=args.in_root, train=(split == 'train'), download=True)
+        convert_image_class_dataset(dataset, args.out_root, split, args.compression, hashes, args.limit,
                                     args.progbar, args.leave, 'pil')
 
 

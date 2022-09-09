@@ -1,3 +1,6 @@
+# Copyright 2022 MosaicML Streaming authors
+# SPDX-License-Identifier: Apache-2.0
+
 import os
 from argparse import ArgumentParser, Namespace
 from typing import Any, Dict, Iterator
@@ -17,7 +20,7 @@ def parse_args() -> Namespace:
         Namespace: Commandline arguments.
     """
     args = ArgumentParser()
-    args.add_argument('--out', type=str, default='/datasets/mds/c4-zstd/')
+    args.add_argument('--out_root', type=str, required=True)
     args.add_argument('--compression', type=str, default='zstd:7')
     args.add_argument('--hashes', type=str, default='sha1,xxh64')
     args.add_argument('--limit', type=int, default=1 << 27)
@@ -97,7 +100,7 @@ def main(args: Namespace) -> None:
     hashes = args.hashes.split(',') if args.hashes else []
     for old_split, new_split, num_samples, num_workers in splits:
         dataset = get(old_split)
-        split_dir = os.path.join(args.out, new_split)
+        split_dir = os.path.join(args.out_root, new_split)
         with MDSWriter(split_dir, fields, args.compression, hashes, args.limit) as out:
             samples = each(dataset, num_workers, args.batch_size)  # pyright: ignore
             if args.progbar:
