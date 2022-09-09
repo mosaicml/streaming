@@ -11,18 +11,6 @@ from tqdm import tqdm
 from streaming.base import MDSWriter
 
 
-def get_list_arg(text: str) -> List[str]:
-    """Pass a list as a commandline flag.
-
-    Args:
-        text (str): Text to split.
-
-    Returns:
-        List[str]: Splits, if any.
-    """
-    return text.split(',') if text else []
-
-
 def convert_image_class_dataset(dataset: Dataset,
                                 root: str,
                                 split: Optional[str] = None,

@@ -12,7 +12,7 @@ from typing import Any, Dict, Iterable, List, Tuple
 from tqdm import tqdm
 
 from streaming.base import MDSWriter
-from streaming.vision.convert.base import get_list_arg
+from streaming.base.util import get_list_arg
 
 
 def parse_args() -> Namespace:
@@ -25,14 +25,14 @@ def parse_args() -> Namespace:
     args.add_argument(
         '--in_root',
         type=str,
-        default='./datasets/ade20k/',
-        help='Location of Input dataset. Default: ./datasets/ade20k/',
+        required=True,
+        help='Location of the input dataset',
     )
     args.add_argument(
         '--out_root',
         type=str,
-        default='./datasets/mds/ade20k/',
-        help='Location to store the compressed dataset. Default: ./datasets/mds/ade20k/',
+        required=True,
+        help='Location to store the output dataset',
     )
     args.add_argument(
         '--splits',

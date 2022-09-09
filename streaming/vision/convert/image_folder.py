@@ -11,7 +11,7 @@ from PIL import Image
 from tqdm import tqdm
 
 from streaming.base import MDSWriter
-from streaming.vision.convert.base import get_list_arg
+from streaming.base.util import get_list_arg
 
 
 def parse_args() -> Namespace:
@@ -21,8 +21,8 @@ def parse_args() -> Namespace:
         Namespace: Commandline arguments.
     """
     args = ArgumentParser()
-    args.add_argument('--in', type=str, default='/datasets/imagenet_files/')
-    args.add_argument('--out', type=str, default='/datasets/mds/imagenet/')
+    args.add_argument('--in_root', type=str, required=True)
+    args.add_argument('--out_root', type=str, required=True)
     args.add_argument('--splits', type=str, default='train,val')
     args.add_argument('--compression', type=str, default='')
     args.add_argument('--hashes', type=str, default='sha1,xxh64')
@@ -86,14 +86,14 @@ def main(args: Namespace) -> None:
     extensions = set(get_list_arg(args.extensions))
     class_names = None
     for split in splits:
-        pattern = os.path.join(getattr(args, 'in'), split, '*', '*')
+        pattern = os.path.join(args.in_root, split, '*', '*')
         filenames = sorted(glob(pattern))
         check_extensions(filenames, extensions)
         classes, class_names = get_classes(filenames, class_names)
         indices = np.random.permutation(len(filenames))
         if args.progbar:
             indices = tqdm(indices, leave=args.leave)
-        split_dir = os.path.join(args.out, split)
+        split_dir = os.path.join(args.out_root, split)
         with MDSWriter(split_dir, columns, args.compression, hashes, args.size_limit) as out:
             for i in indices:
                 if args.validate:

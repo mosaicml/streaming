@@ -15,7 +15,7 @@ from torch.utils.data import Dataset
 from tqdm import tqdm
 
 from streaming.base import MDSWriter
-from streaming.vision.convert.base import get_list_arg
+from streaming.base.util import get_list_arg
 
 
 def parse_args() -> Namespace:
@@ -28,14 +28,14 @@ def parse_args() -> Namespace:
     args.add_argument(
         '--in_root',
         type=str,
-        default='./datasets/coco/',
-        help='Location of Input dataset. Default: ./datasets/coco/',
+        required=True,
+        help='Location of the input dataset',
     )
     args.add_argument(
         '--out_root',
         type=str,
-        default='./datasets/mds/coco/',
-        help='Location to store the compressed dataset. Default: ./datasets/mds/coco/',
+        required=True,
+        help='Location to store the output dataset',
     )
     args.add_argument(
         '--splits',

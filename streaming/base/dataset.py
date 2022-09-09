@@ -100,7 +100,8 @@ class Dataset(IterableDataset):
                  timeout: float = 60,
                  hash: Optional[str] = None,
                  batch_size: Optional[int] = None) -> None:
-        keep_zip = (remote == local) if keep_zip is None else keep_zip
+        if keep_zip is None:
+            keep_zip = remote is None or remote == local
         hash = hash or None
 
         self.local = local
