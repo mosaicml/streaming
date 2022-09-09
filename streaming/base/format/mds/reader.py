@@ -8,8 +8,8 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 from typing_extensions import Self
 
-from ..base.reader import FileInfo, JointReader
-from .encodings import mds_decode
+from streaming.base.format.base.reader import FileInfo, JointReader
+from streaming.base.format.mds.encodings import mds_decode
 
 
 class MDSReader(JointReader):
