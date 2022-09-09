@@ -12,12 +12,12 @@ from typing import Any, Iterator, List, Optional
 import numpy as np
 from torch.utils.data import IterableDataset
 
-from . import distributed as dist
-from .compression import decompress
-from .download import download_or_wait
-from .format import reader_from_json
-from .hashing import get_hash
-from .index import Index, Partition, get_index_basename
+from streaming.base import distributed as dist
+from streaming.base.compression import decompress
+from streaming.base.download import download_or_wait
+from streaming.base.format import reader_from_json
+from streaming.base.hashing import get_hash
+from streaming.base.index import Index, Partition, get_index_basename
 
 
 class DownloadStatus(IntEnum):

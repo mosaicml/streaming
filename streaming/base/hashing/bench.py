@@ -7,7 +7,7 @@ from typing import Iterator
 
 import numpy as np
 
-from .hashing import get_hash, get_hashes
+from streaming.base.hashing.hashing import get_hash, get_hashes
 
 
 def parse_args() -> Namespace:

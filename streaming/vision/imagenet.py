@@ -1,7 +1,7 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-from .base import ImageClassDataset
+from streaming.vision.base import ImageClassDataset
 
 
 class ImageNet(ImageClassDataset):
