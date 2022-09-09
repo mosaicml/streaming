@@ -1,3 +1,6 @@
+# Copyright 2022 MosaicML Streaming authors
+# SPDX-License-Identifier: Apache-2.0
+
 from .dataset import Dataset
 from .format import CSVWriter, JSONWriter, MDSWriter, TSVWriter, XSVWriter
 from .local import LocalDataset

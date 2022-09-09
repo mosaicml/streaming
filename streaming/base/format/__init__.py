@@ -1,3 +1,6 @@
+# Copyright 2022 MosaicML Streaming authors
+# SPDX-License-Identifier: Apache-2.0
+
 from typing import Any, Dict, Optional
 
 from .base.reader import Reader
