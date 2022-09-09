@@ -2,7 +2,7 @@ from typing import Any, Dict, Optional
 
 from transformers.models.auto.tokenization_auto import AutoTokenizer
 
-from ..base import Dataset
+from streaming.base import Dataset
 
 
 class C4(Dataset):

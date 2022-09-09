@@ -7,7 +7,7 @@ from datasets.arrow_dataset import Dataset
 from torch.utils.data import DataLoader, IterableDataset, get_worker_info
 from tqdm import tqdm
 
-from ...base import MDSWriter
+from streaming.base import MDSWriter
 
 
 def parse_args() -> Namespace:
@@ -52,7 +52,8 @@ def get(split: str) -> IterableDataset:
                 num_workers = worker_info.num_workers
                 worker_id = worker_info.id
                 shards = self.dataset._ex_iterable.kwargs['filepaths']  # pyright: ignore
-                assert len(shards) % num_workers == 0
+                if len(shards) % num_workers:
+                    raise ValueError('Shards must divide evenly by num_workers')
                 self.dataset._ex_iterable.kwargs['filepaths'] = (  # pyright: ignore
                     shards[worker_id::num_workers])
             return iter(self.dataset)
