@@ -6,4 +6,4 @@ Here's how to get started!
 Next steps
 ----------
 
-* Helpful links to other documents 
+* Helpful links to other documents
