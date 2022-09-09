@@ -6,8 +6,8 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
-from ..base.writer import JointWriter
-from .encodings import get_mds_encoded_size, is_mds_encoding, mds_encode
+from streaming.base.format.base.writer import JointWriter
+from streaming.base.format.mds.encodings import get_mds_encoded_size, is_mds_encoding, mds_encode
 
 
 class MDSWriter(JointWriter):

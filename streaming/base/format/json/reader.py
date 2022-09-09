@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 from typing_extensions import Self
 
-from ..base.reader import FileInfo, SplitReader
+from streaming.base.format.base.reader import FileInfo, SplitReader
 
 
 class JSONReader(SplitReader):

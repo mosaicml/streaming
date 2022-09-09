@@ -7,8 +7,8 @@ from typing import Any, Dict, Optional
 
 from torch.utils.data import Dataset
 
-from .format import reader_from_json
-from .index import Index
+from streaming.base.format import reader_from_json
+from streaming.base.index import Index
 
 
 class LocalDataset(Dataset):

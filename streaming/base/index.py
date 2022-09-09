@@ -7,7 +7,7 @@ from typing import List, Optional, Tuple
 import numpy as np
 from torch.utils.data import get_worker_info
 
-from . import distributed as dist
+from streaming.base import distributed as dist
 
 
 def get_index_basename() -> str:

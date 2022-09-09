@@ -10,8 +10,8 @@ import numpy as np
 from PIL import Image
 from tqdm import tqdm
 
-from ...base import MDSWriter
-from .base import get_list_arg
+from streaming.base import MDSWriter
+from streaming.vision.convert.base import get_list_arg
 
 
 def parse_args() -> Namespace:

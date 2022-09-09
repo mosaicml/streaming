@@ -9,9 +9,9 @@ from typing import Any, Dict, List, Optional, Tuple, Type
 
 from typing_extensions import Self
 
-from ...compression import compress, get_compression_extension, is_compression
-from ...hashing import get_hash, is_hash
-from ...index import get_index_basename
+from streaming.base.compression import compress, get_compression_extension, is_compression
+from streaming.base.hashing import get_hash, is_hash
+from streaming.base.index import get_index_basename
 
 
 class Writer(ABC):
