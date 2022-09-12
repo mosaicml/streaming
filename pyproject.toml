@@ -18,7 +18,7 @@ exclude = [
 
 reportUnnecessaryIsInstance = "warning"
 reportMissingTypeStubs = "none"
-reportIncompatibleMethodOverride = "warning"
+reportIncompatibleMethodOverride = "none"
 reportIncompatibleVariableOverride = "error"
 reportUnusedImport = "error"
 reportUnusedClass = "warning"
