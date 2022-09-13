@@ -10,6 +10,10 @@ import torchvision.transforms.functional as TF
 from PIL import Image
 from torchvision import transforms
 
+__all__ = [
+    'PadToSize', 'PhotometricDistoration', 'RandomCropPair', 'RandomHFlipPair', 'RandomResizePair'
+]
+
 
 class RandomResizePair(torch.nn.Module):
     """Resize the image and target to ``base_size`` scaled by a randomly sampled value.

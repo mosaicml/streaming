@@ -138,7 +138,7 @@ def main(args: Namespace) -> None:
     Args:
         args (Namespace): Command line arguments.
     """
-    fields = {'uid': 'bytes', 'image': 'bytes', 'annotation': 'bytes'}
+    fields = {'uid': 'bytes', 'image': 'jpeg', 'annotation': 'png'}
 
     for (split, expected_num_samples, shuffle) in [
         ('train', 20206, True),
