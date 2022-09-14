@@ -81,7 +81,7 @@ class VisionDataset(Dataset):
 
         self.transform = transform
         self.target_transform = target_transform
-        if not transforms:
+        if not has_transforms:
             transforms = StandardTransform(transform, target_transform)
         self.transforms = transforms
 
