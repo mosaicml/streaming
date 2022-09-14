@@ -1,9 +1,7 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Callable, Optional, Tuple
-
-from torch import Tensor
+from typing import Any, Callable, Optional, Tuple
 
 from streaming.base import Dataset
 
@@ -14,8 +12,8 @@ class ADE20k(Dataset):
 
     Args:
         local (str): Local filesystem directory where dataset is cached during operation.
-        split (str): The dataset split to use, either 'train' or 'val'.
         remote (str, optional): Remote directory (S3 or local filesystem) where dataset is stored. Default: ``None``.
+        split (str, optional): The dataset split to use, either 'train' or 'val'. Default: ``None``.
         shuffle (bool, optional): Whether to shuffle the train samples in this dataset. Default: ``True``.
         both_transforms (callable, optional): A function/transforms that takes in an image and a label and returns
             the transformed versions of both. Default: ``None``.
@@ -35,8 +33,8 @@ class ADE20k(Dataset):
 
     def __init__(self,
                  local: str,
-                 split: str,
                  remote: Optional[str] = None,
+                 split: Optional[str] = None,
                  shuffle: bool = True,
                  both_transforms: Optional[Callable] = None,
                  transform: Optional[Callable] = None,
@@ -55,7 +53,7 @@ class ADE20k(Dataset):
         self.transform = transform
         self.target_transform = target_transform
 
-    def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor]:
+    def __getitem__(self, idx: int) -> Tuple[Any, Any]:
         obj = super().__getitem__(idx)
         x = obj['x']
         y = obj['y']

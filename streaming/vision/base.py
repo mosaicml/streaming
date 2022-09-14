@@ -34,8 +34,8 @@ class VisionDataset(Dataset):
 
     Args:
         local (str): Local filesystem directory where dataset is cached during operation.
-        split (str): The dataset split to use, either 'train' or 'val'.
         remote (str, optional): Remote directory (S3 or local filesystem) where dataset is stored. Default: ``None``.
+        split (str, optional): The dataset split to use, either 'train' or 'val'. Default: ``None``.
         shuffle (bool, optional): Whether to shuffle the train samples in this dataset. Default: ``True``.
         transforms (callable, optional): A function/transforms that takes in an image and a label and returns the
             transformed versions of both. Default: ``None``.
@@ -55,8 +55,8 @@ class VisionDataset(Dataset):
 
     def __init__(self,
                  local: str,
-                 split: str,
                  remote: Optional[str] = None,
+                 split: Optional[str] = None,
                  shuffle: bool = True,
                  transforms: Optional[Callable] = None,
                  transform: Optional[Callable] = None,
@@ -69,9 +69,6 @@ class VisionDataset(Dataset):
                  batch_size: Optional[int] = None) -> None:
         super().__init__(local, remote, split, shuffle, prefetch, keep_zip, retry, timeout, hash,
                          batch_size)
-
-        if split not in ['train', 'val']:
-            raise ValueError(f"split='{split}' must be one of ['train', 'val'].")
 
         has_transforms = transforms is not None
         has_separate_transform = transform is not None or target_transform is not None
@@ -98,8 +95,8 @@ class ImageClassDataset(VisionDataset):
 
     Args:
         local (str): Local filesystem directory where dataset is cached during operation.
-        split (str): The dataset split to use, either 'train' or 'val'.
         remote (str, optional): Remote directory (S3 or local filesystem) where dataset is stored. Default: ``None``.
+        split (str, optional): The dataset split to use, either 'train' or 'val'. Default: ``None``.
         shuffle (bool, optional): Whether to shuffle the train samples in this dataset. Default: ``True``.
         transform (callable, optional): A function/transform that takes in an image and returns a transformed
             version. Default: ``None``.
@@ -117,8 +114,8 @@ class ImageClassDataset(VisionDataset):
 
     def __init__(self,
                  local: str,
-                 split: str,
                  remote: Optional[str] = None,
+                 split: Optional[str] = None,
                  shuffle: bool = True,
                  transform: Optional[Callable] = None,
                  target_transform: Optional[Callable] = None,
@@ -128,5 +125,5 @@ class ImageClassDataset(VisionDataset):
                  timeout: float = 60,
                  hash: Optional[str] = None,
                  batch_size: Optional[int] = None) -> None:
-        super().__init__(local, split, remote, shuffle, None, transform, target_transform, prefetch,
+        super().__init__(local, remote, split, shuffle, None, transform, target_transform, prefetch,
                          keep_zip, retry, timeout, hash, batch_size)
