@@ -48,7 +48,7 @@ class ADE20k(Dataset):
                  hash: Optional[str] = None,
                  batch_size: Optional[int] = None):
 
-        super().__init__(local, split, remote, shuffle, prefetch, keep_zip, retry, timeout, hash,
+        super().__init__(local, remote, split, shuffle, prefetch, keep_zip, retry, timeout, hash,
                          batch_size)
 
         self.both_transforms = both_transforms
@@ -60,7 +60,7 @@ class ADE20k(Dataset):
         x = obj['x']
         y = obj['y']
         if self.both_transforms:
-            x, y = self.both_transforms(x, y)
+            x, y = self.both_transforms((x, y))
         if self.transform:
             x = self.transform(x)
         if self.target_transform:
