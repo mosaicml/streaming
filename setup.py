@@ -58,9 +58,14 @@ extra_deps['docs'] = [
 
 extra_deps['all'] = set(dep for deps in extra_deps.values() for dep in deps)
 
+package_name = os.environ.get('MOSAIC_PACKAGE_NAME', 'mosaicml-streaming')
+
+if package_name != 'mosaicml-streaming':
+    print(f'Building mosaicml-streaming as {package_name}')
+
 setup(
-    name='streaming',
-    version='0.1.0',
+    name=package_name,
+    version='0.0.1a',
     author='MosaicML',
     author_email='team@mosaicml.com',
     description='Streaming datasets',
