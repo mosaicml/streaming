@@ -7,6 +7,8 @@ from torchvision.transforms.functional import to_tensor
 
 from streaming.base import Dataset
 
+__all__ = ['VisionDataset', 'ImageClassDataset']
+
 
 class StandardTransform(object):
 
@@ -27,6 +29,29 @@ class StandardTransform(object):
 
 
 class VisionDataset(Dataset):
+    """
+    Base Class for creating a Vision streaming datasets.
+
+    Args:
+        local (str): Local filesystem directory where dataset is cached during operation.
+        remote (str, optional): Remote directory (S3 or local filesystem) where dataset is stored. Default: ``None``.
+        split (str, optional): The dataset split to use, either 'train' or 'val'. Default: ``None``.
+        shuffle (bool, optional): Whether to shuffle the train samples in this dataset. Default: ``True``.
+        transforms (callable, optional): A function/transforms that takes in an image and a label and returns the
+            transformed versions of both. Default: ``None``.
+        transform (callable, optional): A function/transform that takes in an image and returns a transformed
+            version. Default: ``None``.
+        target_transform (callable, optional): A function/transform that takes in the target and transforms
+            it. Default: ``None``.
+        prefetch (int, optional): Target number of samples remaining to prefetch while iterating. Default: ``100_000``.
+        keep_zip (bool, optional): Whether to keep or delete the compressed file when decompressing downloaded shards.
+            If set to None, keep iff remote == local. Default: ``None``.
+        retry (int, optional): Number of download re-attempts before giving up. Default: ``2``.
+        timeout (float, optional): Number of seconds to wait for a shard to download before raising an exception.
+            Default: ``60``.
+        hash (str, optional): Hash or checksum algorithm to use to validate shards. Default: ``None``.
+        batch_size (int, optional): Batch size that will be used on each device's DataLoader. Default: ``None``.
+    """
 
     def __init__(self,
                  local: str,
@@ -48,12 +73,11 @@ class VisionDataset(Dataset):
         has_transforms = transforms is not None
         has_separate_transform = transform is not None or target_transform is not None
         if has_transforms and has_separate_transform:
-            raise ValueError('Only transforms or transform/target_transform can be passed as ' +
-                             'argument')
+            raise ValueError(
+                'Only transforms or transform/target_transform can be passed as an argument')
 
         self.transform = transform
         self.target_transform = target_transform
-
         if not has_transforms:
             transforms = StandardTransform(transform, target_transform)
         self.transforms = transforms
@@ -66,6 +90,27 @@ class VisionDataset(Dataset):
 
 
 class ImageClassDataset(VisionDataset):
+    """
+    Base Class for creating an Image Classification streaming datasets.
+
+    Args:
+        local (str): Local filesystem directory where dataset is cached during operation.
+        remote (str, optional): Remote directory (S3 or local filesystem) where dataset is stored. Default: ``None``.
+        split (str, optional): The dataset split to use, either 'train' or 'val'. Default: ``None``.
+        shuffle (bool, optional): Whether to shuffle the train samples in this dataset. Default: ``True``.
+        transform (callable, optional): A function/transform that takes in an image and returns a transformed
+            version. Default: ``None``.
+        target_transform (callable, optional): A function/transform that takes in the target and transforms
+            it. Default: ``None``.
+        prefetch (int, optional): Target number of samples remaining to prefetch while iterating. Default: ``100_000``.
+        keep_zip (bool, optional): Whether to keep or delete the compressed file when decompressing downloaded shards.
+            If set to None, keep iff remote == local. Default: ``None``.
+        retry (int, optional): Number of download re-attempts before giving up. Default: ``2``.
+        timeout (float, optional): Number of seconds to wait for a shard to download before raising an exception.
+            Default: ``60``.
+        hash (str, optional): Hash or checksum algorithm to use to validate shards. Default: ``None``.
+        batch_size (int, optional): Batch size that will be used on each device's DataLoader. Default: ``None``.
+    """
 
     def __init__(self,
                  local: str,

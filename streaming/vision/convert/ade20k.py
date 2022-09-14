@@ -127,8 +127,8 @@ def each(samples: Iterable[Tuple[str, str, str]]) -> Iterable[Dict[str, Any]]:
         annotation = open(annotation_file, 'rb').read()
         yield {
             'uid': uid,
-            'image': image,
-            'annotation': annotation,
+            'x': image,
+            'y': annotation,
         }
 
 
@@ -138,7 +138,7 @@ def main(args: Namespace) -> None:
     Args:
         args (Namespace): Command line arguments.
     """
-    fields = {'uid': 'bytes', 'image': 'bytes', 'annotation': 'bytes'}
+    fields = {'uid': 'bytes', 'x': 'jpeg', 'y': 'png'}
 
     for (split, expected_num_samples, shuffle) in [
         ('train', 20206, True),
