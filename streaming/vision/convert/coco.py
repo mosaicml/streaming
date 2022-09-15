@@ -181,10 +181,10 @@ def each(dataset: _COCODetection, shuffle: bool) -> Iterable[Dict[str, bytes]]:
         img_data = dataset.images[img_id]
         img_basename = img_data[0]
         img_filename = os.path.join(dataset.img_folder, img_basename)
-        img = Image.open(img_filename)
+        img_bytes = open(img_filename, 'rb').read()
 
         yield {
-            'img': img,
+            'img': img_bytes,
             'img_id': img_id,
             'htot': htot,
             'wtot': wtot,

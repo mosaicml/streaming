@@ -39,7 +39,6 @@ class COCO(Dataset):
                  timeout: float = 60,
                  hash: Optional[str] = None,
                  batch_size: Optional[int] = None):
-
         super().__init__(local, remote, split, shuffle, prefetch, keep_zip, retry, timeout, hash,
                          batch_size)
 
@@ -53,8 +52,8 @@ class COCO(Dataset):
         wtot = x['wtot']
         bbox_sizes = x['bbox_sizes']
         bbox_labels = x['bbox_labels']
+        coco_args = (img, (htot, wtot), bbox_sizes, bbox_labels)
         if self.transform:
-            img, (htot,
-                  wtot), bbox_sizes, bbox_labels = self.transform(img, (htot, wtot), bbox_sizes,
-                                                                  bbox_labels)
+            coco_args = self.transform(*coco_args)
+            img, (htot, wtot), bbox_sizes, bbox_labels = coco_args
         return img, img_id, (htot, wtot), bbox_sizes, bbox_labels
