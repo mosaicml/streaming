@@ -230,8 +230,8 @@ class Dataset(IterableDataset):
                     data = decompress(info.compression, data)  # pyright: ignore
                     with open(raw_filename, 'wb') as out:
                         out.write(data)
-                    if not self.keep_zip:
-                        os.remove(zip_filename)
+                    # if not self.keep_zip:
+                    #     os.remove(zip_filename)
                 else:
                     return False
         return True
@@ -329,8 +329,8 @@ class Dataset(IterableDataset):
                     data = decompress(info.compression, data)  # pyright: ignore
                     with open(raw_filename, 'wb') as out:
                         out.write(data)
-                    if not self.keep_zip:
-                        os.remove(zip_filename)
+                    # if not self.keep_zip:
+                    #     os.remove(zip_filename)
             else:
                 raw_filename = os.path.join(self.local, self.split, raw_info.basename)
                 if not os.path.isfile(raw_filename):
