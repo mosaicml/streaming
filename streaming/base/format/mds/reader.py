@@ -52,6 +52,16 @@ class MDSReader(JointReader):
 
     @classmethod
     def from_json(cls, dirname: str, split: Optional[str], obj: Dict[str, Any]) -> Self:
+        """Initialize from JSON object.
+
+        Args:
+            dirname (str): Local directory containing shards.
+            split (Optional[str]): Which dataset split to use, if any.
+            obj (Dict[str, Any]): JSON object to load.
+
+        Returns:
+            Self: Loaded MDSReader.
+        """
         args = deepcopy(obj)
         assert args['version'] == 2
         del args['version']
@@ -65,6 +75,14 @@ class MDSReader(JointReader):
         return cls(**args)
 
     def decode_sample(self, data: bytes) -> Dict[str, Any]:
+        """Decode a sample dict from bytes.
+
+        Args:
+            data (bytes): The sample encoded as bytes.
+
+        Returns:
+            Dict[str, Any]: Sample dict.
+        """
         sizes = []
         idx = 0
         for key, size in zip(self.column_names, self.column_sizes):
@@ -82,6 +100,14 @@ class MDSReader(JointReader):
         return sample
 
     def get_sample_data(self, idx: int) -> bytes:
+        """Get the raw sample data at the index.
+
+        Args:
+            idx (int): Sample index.
+
+        Returns:
+            bytes: Sample data.
+        """
         filename = os.path.join(self.dirname, self.split, self.raw_data.basename)
         offset = (1 + idx) * 4
         with open(filename, 'rb', 0) as fp:
