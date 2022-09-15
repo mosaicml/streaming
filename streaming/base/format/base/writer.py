@@ -93,7 +93,7 @@ class Writer(ABC):
         """Get the filenames of the next shard to be created.
 
         Args:
-            extension (str): Optional additional extension (eg, "meta" files).
+            extension (str): Optional additional extension (eg, meta files).
 
         Returns:
             Tuple[str, str]: Pair of (decompressed, compressed) filenames.

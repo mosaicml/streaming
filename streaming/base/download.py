@@ -26,7 +26,7 @@ def download_from_s3(remote: str, local: str, timeout: float) -> None:
 
     obj = urllib.parse.urlparse(remote)
     if obj.scheme != 's3':
-        raise ValueError(f"Expected obj.scheme to be 's3', got {obj.scheme} for remote={remote}")
+        raise ValueError(f'Expected obj.scheme to be 's3', got {obj.scheme} for remote={remote}')
 
     config = Config(read_timeout=timeout)
     s3 = boto3.client('s3', config=config)
