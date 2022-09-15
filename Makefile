@@ -20,7 +20,7 @@ style:
 	$(PYTHON) -m docformatter -ri $(dirs)
 
 longlines:
-	find streaming tests -type f -name "*.py" | xargs grep -x '.\{100,\}' 1>&2
+	find streaming tests -type f -name "*.py" | xargs grep -x '.\{100,\}'
 
 test:
 	$(PYTHON) -m $(PYTEST) $(EXTRA_ARGS)

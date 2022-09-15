@@ -29,8 +29,8 @@ def convert_image_class_dataset(dataset: Dataset,
         compression (Optional[str], default: None): Optional compression.
         hashes (Optional[List[str]], default: None): Optional list of hash algorithms to apply to
             shard files.
-        size_limit (int, default: 1 << 26): Uncompressed shard size limit, at which point it flushes
-            the shard and starts a new one.
+        size_limit (int, default: 1 << 26): Uncompressed shard size limit, at which point it
+            flushes the shard and starts a new one.
         progbar (bool, default: True): Whether to display a progress bar while converting.
         leave (bool, default: False): Whether to leave the progress bar in the console when done.
         encoding (str, default: pil): MDS encoding to use for the image data.

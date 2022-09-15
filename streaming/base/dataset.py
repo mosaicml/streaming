@@ -39,8 +39,8 @@ class Dataset(IterableDataset):
         shuffle (bool, default: True): Whether to shuffle the samples while iterating.
         prefetch (Optional[int], default: 100_000): Target number of samples remaining to prefetch
             while iterating.
-        keep_zip (Optional[bool], default: None): Whether to keep or delete the compressed file when
-            decompressing downloaded shards. If set to None, keep iff remote == local.
+        keep_zip (Optional[bool], default: None): Whether to keep or delete the compressed file
+            when decompressing downloaded shards. If set to None, keep iff remote is local.
         retry (int, default: 2): Number of download re-attempts before giving up.
         timeout (float, default: 60): Number of seconds to wait for a shard to download before
             raising an exception.
@@ -153,12 +153,12 @@ class Dataset(IterableDataset):
         left, which will not be the full epoch if the dataset isn't finished loaded when you start
         training.
 
-        Calls to this method during training modify the samples remaining on these iterations on the
-        fly to insert these new samples and then re-sort, making the shuffle as perfect as was
+        Calls to this method during training modify the samples remaining on these iterations on
+        the fly to insert these new samples and then re-sort, making the shuffle as perfect as was
         possible.
 
-        This operation is heavy and takes the lock, so call this method with all available shards at
-        once.
+        This operation is heavy and takes the lock, so call this method with all available shards
+        at once.
 
         Args:
             shards (List[int]): Shard IDs.

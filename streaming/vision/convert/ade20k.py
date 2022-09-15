@@ -68,8 +68,8 @@ def parse_args() -> Namespace:
         '--leave',
         type=int,
         default=0,
-        help=
-        'Keeps all traces of the progressbar upon termination of iteration. Default: 0 (Act as False)',
+        help='Keeps all traces of the progressbar upon termination of iteration. Default: 0 ' +
+        '(Act as False)',
     )
     return args.parse_args()
 
@@ -147,9 +147,8 @@ def main(args: Namespace) -> None:
         # Get samples
         samples = get(in_root=args.in_root, split=split, shuffle=shuffle)
         if len(samples) != expected_num_samples:
-            raise ValueError(
-                f'Number of samples in a dataset doesn\'t match. Expected {expected_num_samples}, but got {len(samples)}'
-            )
+            raise ValueError(f'Number of samples in a dataset doesn\'t match. Expected ' +
+                             f'{expected_num_samples}, but got {len(samples)}')
 
         split_images_out_dir = os.path.join(args.out_root, split)
         hashes = get_list_arg(args.hashes)

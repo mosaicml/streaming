@@ -23,8 +23,8 @@ class C4(Dataset):
         shuffle (bool, default: True): Whether to shuffle the samples while iterating.
         prefetch (Optional[int], default: 100_000): Target number of samples remaining to prefetch
             while iterating.
-        keep_zip (Optional[bool], default: None): Whether to keep or delete the compressed file when
-            decompressing downloaded shards. If set to None, keep iff remote == local.
+        keep_zip (Optional[bool], default: None): Whether to keep or delete the compressed file
+            when decompressing downloaded shards. If set to None, keep iff remote is local.
         retry (int, default: 2): Number of download re-attempts before giving up.
         timeout (float, default: 60): Number of seconds to wait for a shard to download before
             raising an exception.
