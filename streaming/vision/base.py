@@ -11,6 +11,13 @@ __all__ = ['VisionDataset', 'ImageClassDataset']
 
 
 class StandardTransform(object):
+    """Individual input and output transforms called jointly, following
+    torchvision.
+
+    Args:
+        transform (Optional[Callable]): Input transform. Default: ``None``.
+        target_transform (Optional[Callable]): Output transform. Default: ``None``.
+    """
 
     def __init__(self,
                  transform: Optional[Callable] = None,
@@ -19,6 +26,15 @@ class StandardTransform(object):
         self.target_transform = target_transform
 
     def __call__(self, x: Any, y: Any) -> Tuple[Any, Any]:
+        """Apply the transforms to input and output.
+
+        Args:
+            x (Any): Input.
+            y (Any): Output.
+
+        Returns:
+            Tuple[Any, Any]: Transformed input and output.
+        """
         if self.transform:
             x = self.transform(x)
         else:
@@ -88,6 +104,14 @@ class VisionDataset(Dataset):
         self.transforms = transforms
 
     def __getitem__(self, idx: int) -> Any:
+        """Get sample by global index, blocking to load its shard if missing.
+
+        Args:
+            idx (int): Sample index.
+
+        Returns:
+            Any: Sample data.
+        """
         obj = super().__getitem__(idx)
         x = obj['x']
         y = obj['y']

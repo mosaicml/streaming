@@ -57,6 +57,14 @@ class ADE20k(Dataset):
         self.target_transform = target_transform
 
     def __getitem__(self, idx: int) -> Tuple[Any, Any]:
+        """Get sample by global index, blocking to load its shard if missing.
+
+        Args:
+            idx (int): Sample index.
+
+        Returns:
+            Any: Sample data.
+        """
         obj = super().__getitem__(idx)
         x = obj['x']
         y = obj['y']

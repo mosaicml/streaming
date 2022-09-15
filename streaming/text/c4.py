@@ -64,6 +64,11 @@ class C4(Dataset):
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
     def _tokenize(self, text_sample: Dict[str, Any]):
+        """Apply the tokenizer to a sample.
+
+        Args:
+            text_sample (Dict[str, Any]): Sample to tokenize.
+        """
         if self.group_method == 'truncate':
             truncation = True
             padding = 'max_length'
@@ -78,6 +83,14 @@ class C4(Dataset):
                               max_length=max_length)
 
     def __getitem__(self, idx: int) -> Any:
+        """Get sample by global index, blocking to load its shard if missing.
+
+        Args:
+            idx (int): Sample index.
+
+        Returns:
+            Any: Sample data.
+        """
         text_sample = super().__getitem__(idx)
         token_sample = self._tokenize(text_sample)
         # Skip any token grouping, currently only supporting group_method='truncate'
