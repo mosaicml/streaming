@@ -220,7 +220,8 @@ def main(args: Namespace) -> None:
         split_annotations_in_file = os.path.join(args.in_root, 'annotations',
                                                  f'instances_{split}2017.json')
         if not os.path.exists(split_annotations_in_file):
-            raise FileNotFoundError(f'Annotations file does not exist: {split_annotations_in_file}')
+            raise FileNotFoundError(
+                f'Annotations file does not exist: {split_annotations_in_file}')
         dataset = _COCODetection(split_images_in_dir, split_annotations_in_file)
 
         if len(dataset) != expected_num_samples:

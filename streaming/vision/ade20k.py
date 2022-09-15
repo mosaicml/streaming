@@ -7,8 +7,7 @@ from streaming.base import Dataset
 
 
 class ADE20k(Dataset):
-    """
-    Implementation of the ADE20k dataset using streaming Dataset.
+    """Implementation of the ADE20k dataset using streaming Dataset.
 
     Args:
         local (str): Local filesystem directory where dataset is cached during operation.

@@ -84,7 +84,8 @@ class CSVWriter(XSVWriter):
                  hashes: Optional[List[str]] = None,
                  size_limit: Optional[int] = 1 << 26,
                  newline: str = '\n') -> None:
-        super().__init__(dirname, columns, self.separator, compression, hashes, size_limit, newline)
+        super().__init__(dirname, columns, self.separator, compression, hashes, size_limit,
+                         newline)
 
     def get_config(self) -> Dict[str, Any]:
         obj = super().get_config()
@@ -104,7 +105,8 @@ class TSVWriter(XSVWriter):
                  hashes: Optional[List[str]] = None,
                  size_limit: Optional[int] = 1 << 26,
                  newline: str = '\n') -> None:
-        super().__init__(dirname, columns, self.separator, compression, hashes, size_limit, newline)
+        super().__init__(dirname, columns, self.separator, compression, hashes, size_limit,
+                         newline)
 
     def get_config(self) -> Dict[str, Any]:
         obj = super().get_config()

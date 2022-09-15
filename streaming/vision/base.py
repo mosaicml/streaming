@@ -29,8 +29,7 @@ class StandardTransform(object):
 
 
 class VisionDataset(Dataset):
-    """
-    Base Class for creating a Vision streaming datasets.
+    """Base Class for creating a Vision streaming datasets.
 
     Args:
         local (str): Local filesystem directory where dataset is cached during operation.
@@ -90,8 +89,7 @@ class VisionDataset(Dataset):
 
 
 class ImageClassDataset(VisionDataset):
-    """
-    Base Class for creating an Image Classification streaming datasets.
+    """Base Class for creating an Image Classification streaming datasets.
 
     Args:
         local (str): Local filesystem directory where dataset is cached during operation.
@@ -125,5 +123,5 @@ class ImageClassDataset(VisionDataset):
                  timeout: float = 60,
                  hash: Optional[str] = None,
                  batch_size: Optional[int] = None) -> None:
-        super().__init__(local, remote, split, shuffle, None, transform, target_transform, prefetch,
-                         keep_zip, retry, timeout, hash, batch_size)
+        super().__init__(local, remote, split, shuffle, None, transform, target_transform,
+                         prefetch, keep_zip, retry, timeout, hash, batch_size)

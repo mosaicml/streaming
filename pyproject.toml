@@ -2,7 +2,7 @@
 # iSort
 [tool.isort]
 multi_line_output = 0
-line_length = 100
+line_length = 99
 skip = [ "env", "wandb", "runs", "build", "node_modules" ]
 
 # Pyright
@@ -142,7 +142,7 @@ blank_line_before_nested_class_or_def = true
 coalesce_brackets = false
 
 # The column limit.
-column_limit = 100
+column_limit = 99
 
 # The style for continuation alignment. Possible values are:
 #

@@ -133,8 +133,8 @@ class CSVReader(XSVReader):
         zip_meta: Optional[FileInfo],
     ) -> None:
         super().__init__(dirname, split, column_encodings, column_names, compression, hashes,
-                         newline, raw_data, raw_meta, samples, self.separator, size_limit, zip_data,
-                         zip_meta)
+                         newline, raw_data, raw_meta, samples, self.separator, size_limit,
+                         zip_data, zip_meta)
 
     @classmethod
     def from_json(cls, dirname: str, split: Optional[str], obj: Dict[str, Any]) -> Self:
@@ -190,8 +190,8 @@ class TSVReader(XSVReader):
         zip_meta: Optional[FileInfo],
     ) -> None:
         super().__init__(dirname, split, column_encodings, column_names, compression, hashes,
-                         newline, raw_data, raw_meta, samples, self.separator, size_limit, zip_data,
-                         zip_meta)
+                         newline, raw_data, raw_meta, samples, self.separator, size_limit,
+                         zip_data, zip_meta)
 
     @classmethod
     def from_json(cls, dirname: str, split: Optional[str], obj: Dict[str, Any]) -> Self:

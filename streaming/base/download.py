@@ -121,7 +121,8 @@ def download(remote: Optional[str], local: str, timeout: float):
     os.makedirs(local_dir, exist_ok=True)
 
     if not remote:
-        raise ValueError('In the absence of local dataset, path to remote dataset must be provided')
+        raise ValueError(
+            'In the absence of local dataset, path to remote dataset must be provided')
     elif remote.startswith('s3://'):
         download_from_s3(remote, local, timeout)
     elif remote.startswith('sftp://'):

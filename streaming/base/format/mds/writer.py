@@ -43,7 +43,8 @@ class MDSWriter(JointWriter):
     def encode_sample(self, sample: Dict[str, Any]) -> bytes:
         sizes = []
         data = []
-        for key, encoding, size in zip(self.column_names, self.column_encodings, self.column_sizes):
+        for key, encoding, size in zip(self.column_names, self.column_encodings,
+                                       self.column_sizes):
             value = sample[key]
             datum = mds_encode(encoding, value)
             if size is None:
