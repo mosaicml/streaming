@@ -37,7 +37,7 @@ class Dataset(IterableDataset):
             rank and worker's partition of the dataset must all exist locally. Defaults to
             ``None``.
         split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
-        shuffle (bool): Whether to shuffle the samples while iterating. Defaults to ``None``.
+        shuffle (bool): Whether to shuffle the samples while iterating. Defaults to ``True``.
         prefetch (int, optional): Target number of samples remaining to prefetch while iterating.
             Defaults to ``None``.
         keep_zip (bool, optional): Whether to keep or delete the compressed file when
