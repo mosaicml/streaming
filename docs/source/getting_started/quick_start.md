@@ -1,8 +1,8 @@
 # 🚀 Quick Start
 
-Here's how to get started!
+Get up and running with Straming in a couple of steps!
 
-There are mainly three steps to use the streaming dataset. First, you need to convert your raw dataset into one of the format we support, for example, `mds` format.
+First, convert your raw dataset into a supported streaming format, for example, `mds` format.  After the conversion is complete, upload your streaming dataset to the cloud based storage of your choice (e.g., [AWS S3](https://aws.amazon.com/s3/)).
 
 ```python
 import numpy as np
@@ -42,9 +42,7 @@ with MDSWriter(dirname, columns, compression, hashes) as out:
         out.write(sample)
 ```
 
-Second, upload the files or a folder to a cloud blob storage such as AWS S3.
-
-Third, use the streaming Dataset within your PyTorch Dataloader during training time
+Next, replace the original {class}`torch.utils.data.IterableDataset` with your new {class}`streaming.Dataset`.
 
 ```python
 from torch.utils.data import DataLoader
@@ -61,4 +59,6 @@ dataset = Dataset(local=local_dir, remote=remote_dir, split=None, shuffle=True)
 dataloader = DataLoader(dataset)
 ```
 
-See here for a more detailed guide to streaming dataset.
+That's it!  For additional details on using {mod}`streaming`, please see check out our User Guide and Examples.
+
+Happy training!
