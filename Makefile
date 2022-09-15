@@ -4,7 +4,7 @@ PYTEST ?= pytest  # Pytest command
 PYRIGHT ?= pyright  # Pyright command. Pyright must be installed seperately -- e.g. `node install -g pyright`
 EXTRA_ARGS ?=  # extra arguments for pytest
 
-dirs := streaming tests
+dirs := streaming tests docs
 
 # this only checks for style & pyright, makes no code changes
 lint:
