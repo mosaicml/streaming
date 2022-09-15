@@ -153,6 +153,11 @@ class Writer(ABC):
         return raw_info, zip_info
 
     def get_config(self) -> Dict[str, Any]:
+        """Get object describing shard-writing configuration.
+
+        Returns:
+            Dict[str, Any]: JSON object.
+        """
         return {
             'version': 2,
             'format': self.format,

@@ -11,6 +11,18 @@ from streaming.base.format.mds.encodings import get_mds_encoded_size, is_mds_enc
 
 
 class MDSWriter(JointWriter):
+    """Writes a streaming MDS dataset.
+
+    Args:
+        dirname (str): Local dataset directory.
+        columns (Dict[str, str]): Sample columns.
+        compression (Optional[str], default: None): Optional compression or compression:level.
+        hashes (Optional[List[str]], default: None): Optional list of hash algorithms to apply to
+            shard files.
+        size_limit (Optional[int], default: 1 << 26): Optional shard size limit, after which point
+            to start a new shard. If None, puts everything in one shard.
+    """
+
     format = 'mds'
     extra_bytes_per_sample = 4
 
@@ -41,6 +53,14 @@ class MDSWriter(JointWriter):
         self._reset_cache()
 
     def encode_sample(self, sample: Dict[str, Any]) -> bytes:
+        """Encode a sample dict to bytes.
+
+        Args:
+            sample (Dict[str, Any]): Sample dict.
+
+        Returns:
+            bytes: Sample encoded as bytes.
+        """
         sizes = []
         data = []
         for key, encoding, size in zip(self.column_names, self.column_encodings,
@@ -58,6 +78,11 @@ class MDSWriter(JointWriter):
         return head + body
 
     def get_config(self) -> Dict[str, Any]:
+        """Get object describing shard-writing configuration.
+
+        Returns:
+            Dict[str, Any]: JSON object.
+        """
         obj = super().get_config()
         obj.update({
             'column_names': self.column_names,
@@ -67,6 +92,11 @@ class MDSWriter(JointWriter):
         return obj
 
     def encode_joint_shard(self) -> bytes:
+        """Encode a joint shard out of the cached samples (single file).
+
+        Returns:
+            bytes: File data.
+        """
         num_samples = np.uint32(len(self.new_samples))
         sizes = list(map(len, self.new_samples))
         offsets = np.array([0] + sizes).cumsum().astype(np.uint32)
