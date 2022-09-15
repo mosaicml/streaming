@@ -33,21 +33,21 @@ class Dataset(IterableDataset):
 
     Args:
         local (str): Local dataset directory where shards are cached by split.
-        remote (Optional[str]): Download shards from this remote path or directory. If None, this
+        remote (str, optional): Download shards from this remote path or directory. If None, this
             rank and workers' partition of the dataset must all exist locally. Default: ``None``.
-        split (Optional[str]): Which dataset split to use, if any. Default: ``None``.
+        split (str, optional): Which dataset split to use, if any. Default: ``None``.
         shuffle (bool): Whether to shuffle the samples while iterating. Default: ``None``.
-        prefetch (Optional[int]): Target number of samples remaining to prefetch while iterating.
+        prefetch (int, optional): Target number of samples remaining to prefetch while iterating.
             Default: ``None``.
-        keep_zip (Optional[bool]): Whether to keep or delete the compressed file when
+        keep_zip (bool, optional): Whether to keep or delete the compressed file when
             decompressing downloaded shards. If set to None, keep iff remote is local. Default:
             ``None``.
         retry (int): Number of download re-attempts before giving up. Default: ``2``.
         timeout (float): Number of seconds to wait for a shard to download before raising an
             exception. Default: ``60``.
-        hash (Optional[str]): Optional hash or checksum algorithm to use to validate shards.
+        hash (str, optional): Optional hash or checksum algorithm to use to validate shards.
             Default: ``None``.
-        batch_size (Optional[int]): Hint the batch_size that will be used on each device's
+        batch_size (int, optional): Hint the batch_size that will be used on each device's
             DataLoader. Default: ``None``.
 
     .. doctest::
