@@ -33,21 +33,22 @@ class Dataset(IterableDataset):
 
     Args:
         local (str): Local dataset directory where shards are cached by split.
-        remote (Optional[str], default: None): Download shards from this remote path or directory.
-            If None, this rank and workers' partition of the dataset must all exist locally.
-        split (Optional[str], default: None): Which dataset split to use, if any.
-        shuffle (bool, default: True): Whether to shuffle the samples while iterating.
-        prefetch (Optional[int], default: 100_000): Target number of samples remaining to prefetch
-            while iterating.
-        keep_zip (Optional[bool], default: None): Whether to keep or delete the compressed file
-            when decompressing downloaded shards. If set to None, keep iff remote is local.
-        retry (int, default: 2): Number of download re-attempts before giving up.
-        timeout (float, default: 60): Number of seconds to wait for a shard to download before
-            raising an exception.
-        hash (Optional[str], default: None): Optional hash or checksum algorithm to use to validate
-            shards.
-        batch_size (Optional[int], default: None): Hint the batch_size that will be used on each
-            device's DataLoader.
+        remote (str, optional): Download shards from this remote path or directory. If None, this
+            rank and workers' partition of the dataset must all exist locally. Default: ``None``.
+        split (Optional[str]): Which dataset split to use, if any. Default: ``None``.
+        shuffle (bool): Whether to shuffle the samples while iterating. Default: ``None``.
+        prefetch (Optional[int]): Target number of samples remaining to prefetch while iterating.
+            Default: ``None``.
+        keep_zip (Optional[bool]): Whether to keep or delete the compressed file when
+            decompressing downloaded shards. If set to None, keep iff remote is local. Default:
+            ``None``.
+        retry (int): Number of download re-attempts before giving up. Default: `2`.
+        timeout (float): Number of seconds to wait for a shard to download before raising an
+            exception. Default: ``60``.
+        hash (Optional[str]): Optional hash or checksum algorithm to use to validate shards.
+            Default: ``None``.
+        batch_size (Optional[int]): Hint the batch_size that will be used on each device's
+            DataLoader. Default: ``None``.
 
     .. doctest::
 
