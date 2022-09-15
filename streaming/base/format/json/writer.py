@@ -16,12 +16,13 @@ class JSONWriter(SplitWriter):
     Args:
         dirname (str): Local dataset directory.
         columns (Dict[str, str]): Sample columns.
-        compression (Optional[str]): Optional compression or compression:level. Default: ``None``.
-        hashes (Optional[List[str]]): Optional list of hash algorithms to apply to shard files.
-            Default: ``None``.
-        size_limit (Optional[int]): Optional shard size limit, after which point to start a new
-            shard. If None, puts everything in one shard. Default: ``None``.
-        newline (str): Newline character inserted between samples. Default: ``\\n``.
+        compression (str, optional): Optional compression or compression:level. Defaults to
+            ``None``.
+        hashes (List[str], optional): Optional list of hash algorithms to apply to shard files.
+            Defaults to ``None``.
+        size_limit (int, optional): Optional shard size limit, after which point to start a new
+            shard. If None, puts everything in one shard. Defaults to ``None``.
+        newline (str): Newline character inserted between samples. Defaults to ``\\n``.
     """
 
     format = 'json'

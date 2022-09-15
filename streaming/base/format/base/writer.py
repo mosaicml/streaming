@@ -19,15 +19,16 @@ class Writer(ABC):
 
     Args:
         dirname (str): Local dataset directory.
-        compression (Optional[str], default: None): Optional compression or compression:level.
-        hashes (Optional[List[str]], default: None): Optional list of hash algorithms to apply to
-            shard files.
-        size_limit (Optional[int], default: 1 << 26): Optional shard size limit, after which point
-            to start a new shard. If None, puts everything in one shard.
-        extra_bytes_per_shard (int, default: 0): Extra bytes per serialized shard (for computing
-            shard size while writing).
-        extra_bytes_per_sample (int, default: 0): Extra bytes per serialized sample (for computing
-            shard size while writing).
+        compression (str, optional): Optional compression or compression:level. Defaults to
+            ``None``.
+        hashes (List[str], optional): Optional list of hash algorithms to apply to shard files.
+            Defaults to ``None``.
+        size_limit (int, optional): Optional shard size limit, after which point to start a new
+            shard. If ``None``, puts everything in one shard. Defaults to ``1 << 26``.
+        extra_bytes_per_shard (int): Extra bytes per serialized shard (for computing shard size
+            while writing). Defaults to ``0``.
+        extra_bytes_per_sample (int): Extra bytes per serialized sample (for computing shard size
+            while writing). Defaults to ``0``.
     """
 
     format: str = ''  # Name of the format (like "mds", "csv", "json", etc).
@@ -218,9 +219,9 @@ class Writer(ABC):
         """Exit context manager.
 
         Args:
-            exc_type (Optional[Type[BaseException]]): Exc type.
-            exc (Optional[BaseException]): Exc.
-            traceback (Optional[TracebackType]): Traceback.
+            exc_type (Type[BaseException], optional): Exc type.
+            exc (BaseException, optional): Exc.
+            traceback (TracebackType, optional): Traceback.
         """
         self.finish()
 
@@ -230,15 +231,16 @@ class JointWriter(Writer):
 
     Args:
         dirname (str): Local dataset directory.
-        compression (Optional[str], default: None): Optional compression or compression:level.
-        hashes (Optional[List[str]], default: None): Optional list of hash algorithms to apply to
-            shard files.
-        size_limit (Optional[int], default: 1 << 26): Optional shard size limit, after which point
-            to start a new shard. If None, puts everything in one shard.
-        extra_bytes_per_shard (int, default: 0): Extra bytes per serialized shard (for computing
-            shard size while writing).
-        extra_bytes_per_sample (int, default: 0): Extra bytes per serialized sample (for computing
-            shard size while writing).
+        compression (str, optional): Optional compression or compression:level. Defaults to
+            ``None``.
+        hashes (List[str], optional): Optional list of hash algorithms to apply to shard files.
+            Defaults to ``None``.
+        size_limit (int, optional): Optional shard size limit, after which point to start a new
+            shard. If None, puts everything in one shard. Defaults to ``1 << 26``.
+        extra_bytes_per_shard (int): Extra bytes per serialized shard (for computing shard size
+            while writing). Defaults to ``0``.
+        extra_bytes_per_sample (int): Extra bytes per serialized sample (for computing shard size
+            while writing). Defaults to ``0``.
     """
 
     def __init__(self,
@@ -281,11 +283,12 @@ class SplitWriter(Writer):
 
     Args:
         dirname (str): Local dataset directory.
-        compression (Optional[str], default: None): Optional compression or compression:level.
-        hashes (Optional[List[str]], default: None): Optional list of hash algorithms to apply to
-            shard files.
-        size_limit (Optional[int], default: 1 << 26): Optional shard size limit, after which point
-            to start a new shard. If None, puts everything in one shard.
+        compression (str, optional): Optional compression or compression:level. Defaults to
+            ``None``.
+        hashes (List[str], optional): Optional list of hash algorithms to apply to shard files.
+            Defaults to ``None``.
+        size_limit (int, optional): Optional shard size limit, after which point to start a new
+            shard. If None, puts everything in one shard. Defaults to ``1 << 26``.
     """
 
     extra_bytes_per_shard = 0

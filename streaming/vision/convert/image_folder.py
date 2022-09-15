@@ -52,9 +52,9 @@ def get_classes(filenames: List[str],
     """Get the classes for a dataset split of sample image filenames.
 
     Args:
-        filenames (List[str]): Files, in the format "root/split/class/sample.jpeg".
-        class_names (Optional[List[str]], default: None): List of class names from the other splits
-            that we must macth.
+        filenames (List[str]): Files, in the format ``"root/split/class/sample.jpeg"``.
+        class_names (List[str], optional): List of class names from the other splits that we must
+            match. Defaults to ``None``.
 
     Returns:
         Tuple[List[int], List[str]]: Class ID per sample, and the list of unique class names.

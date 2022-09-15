@@ -25,11 +25,11 @@ class Reader(ABC):
 
     Args:
         dirname (str): Local dataset directory.
-        split (Optional[str]): Which dataset split to use, if any.
-        compression (Optional[str]): Optional compression or compression:level.
+        split (str, optional): Which dataset split to use, if any.
+        compression (str, optional): Optional compression or compression:level.
         hashes (List[str]): Optional list of hash algorithms to apply to shard files.
         samples (int): Number of samples in this shard.
-        size_limit (Optional[int]): Optional shard size limit, after which point to start a new
+        size_limit (int, optional): Optional shard size limit, after which point to start a new
             shard. If None, puts everything in one shard.
     """
 
@@ -110,14 +110,14 @@ class JointReader(Reader):
 
     Args:
         dirname (str): Local dataset directory.
-        split (Optional[str]): Which dataset split to use, if any.
-        compression (Optional[str]): Optional compression or compression:level.
+        split (str, optional): Which dataset split to use, if any.
+        compression (str, optional): Optional compression or compression:level.
         hashes (List[str]): Optional list of hash algorithms to apply to shard files.
         raw_data (FileInfo): Uncompressed data file info.
         samples (int): Number of samples in this shard.
-        size_limit (Optional[int]): Optional shard size limit, after which point to start a new
+        size_limit (int, optional): Optional shard size limit, after which point to start a new
             shard. If None, puts everything in one shard.
-        zip_data (Optional[FileInfo]): Compressed data file info.
+        zip_data (FileInfo, optional): Compressed data file info.
     """
 
     def __init__(
@@ -142,16 +142,16 @@ class SplitReader(Reader):
 
     Args:
         dirname (str): Local dataset directory.
-        split (Optional[str]): Which dataset split to use, if any.
-        compression (Optional[str]): Optional compression or compression:level.
+        split (str, optional): Which dataset split to use, if any.
+        compression (str, optional): Optional compression or compression:level.
         hashes (List[str]): Optional list of hash algorithms to apply to shard files.
         raw_data (FileInfo): Uncompressed data file info.
         raw_meta (FileInfo): Uncompressed meta file info.
         samples (int): Number of samples in this shard.
-        size_limit (Optional[int]): Optional shard size limit, after which point to start a new
+        size_limit (int, optional): Optional shard size limit, after which point to start a new
             shard. If None, puts everything in one shard.
-        zip_data (Optional[FileInfo]): Compressed data file info.
-        zip_meta (Optional[FileInfo]): Compressed meta file info.
+        zip_data (FileInfo, optional): Compressed data file info.
+        zip_meta (FileInfo, optional): Compressed meta file info.
     """
 
     def __init__(

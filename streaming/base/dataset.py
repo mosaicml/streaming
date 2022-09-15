@@ -354,8 +354,8 @@ class Dataset(IterableDataset):
         Args:
             shards (List[int]): The missing shards to download.
             partition (Partition): Our rank and worker's partition of the dataset.
-            num_processes (Optional[int], default None): Number of concurrent shard downloads (ie,
-                size of the process pool). If None, uses number of CPUs.
+            num_processes (int, optional): Number of concurrent shard downloads (ie, size of the
+                process pool). If None, uses number of CPUs. Defaults to ``None``.
         """
         pool = Pool(num_processes)
         download_shard = lambda shard: self._download_shard(shard, partition)
@@ -416,8 +416,8 @@ class Dataset(IterableDataset):
         """Load all shards, downloading if not local (blocking).
 
         Args:
-            num_processes (Optional[int], default None): Number of concurrent shard downloads (ie,
-                size of the process pool). If None, uses number of CPUs.
+            num_processes (int, optional): Number of concurrent shard downloads (ie, size of the
+                process pool). If ``None``, uses number of CPUs. Defaults to ``None``.
         """
         partition = self.index.get_partition()
         shards = self._preload(partition)

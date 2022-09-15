@@ -16,11 +16,12 @@ class MDSWriter(JointWriter):
     Args:
         dirname (str): Local dataset directory.
         columns (Dict[str, str]): Sample columns.
-        compression (Optional[str], default: None): Optional compression or compression:level.
-        hashes (Optional[List[str]], default: None): Optional list of hash algorithms to apply to
-            shard files.
-        size_limit (Optional[int], default: 1 << 26): Optional shard size limit, after which point
-            to start a new shard. If None, puts everything in one shard.
+        compression (str, optional): Optional compression or compression:level. Defaults to
+            ``None``.
+        hashes (List[str], optional): Optional list of hash algorithms to apply to shard files.
+            Defaults to ``None``.
+        size_limit (int, optional): Optional shard size limit, after which point to start a new
+            shard. If None, puts everything in one shard. Defaults to ``1 << 26``.
     """
 
     format = 'mds'

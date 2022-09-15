@@ -17,17 +17,17 @@ class MDSReader(JointReader):
 
     Args:
         dirname (str): Local dataset directory.
-        split (Optional[str]): Which dataset split to use, if any.
+        split (str, optional): Which dataset split to use, if any.
         column_encodings (List[str]): Column encodings.
         column_names (List[str]): Column names.
         column_sizes (List[Optional[int]]): Column fixed sizes, if any.
-        compression (Optional[str]): Optional compression or compression:level.
+        compression (str, optional): Optional compression or compression:level.
         hashes (List[str]): Optional list of hash algorithms to apply to shard files.
         raw_data (FileInfo): Uncompressed data file info.
         samples (int): Number of samples in this shard.
-        size_limit (Optional[int]): Optional shard size limit, after which point to start a new
+        size_limit (int, optional): Optional shard size limit, after which point to start a new
             shard. If None, puts everything in one shard.
-        zip_data (Optional[FileInfo]): Compressed data file info.
+        zip_data (FileInfo, optional): Compressed data file info.
     """
 
     def __init__(
@@ -56,7 +56,7 @@ class MDSReader(JointReader):
 
         Args:
             dirname (str): Local directory containing shards.
-            split (Optional[str]): Which dataset split to use, if any.
+            split (str, optional): Which dataset split to use, if any.
             obj (Dict[str, Any]): JSON object to load.
 
         Returns:

@@ -10,30 +10,24 @@ class ADE20k(Dataset):
     """Implementation of the ADE20k dataset using streaming Dataset.
 
     Args:
-        local (str): Local filesystem directory where dataset is cached during operation.
-        remote (str, optional): Remote directory (S3 or local filesystem) where dataset is stored.
-            Default: ``None``.
-        split (str, optional): The dataset split to use, either 'train' or 'val'. Default:
+        local (str): Local dataset directory where shards are cached by split.
+        remote (str, optional): Download shards from this remote path or directory. If None, this
+            rank and worker's partition of the dataset must all exist locally. Defaults to
             ``None``.
-        shuffle (bool, optional): Whether to shuffle the train samples in this dataset. Default:
-            ``True``.
-        both_transforms (callable, optional): A function/transforms that takes in an image and a
-            label and returns the transformed versions of both. Default: ``None``.
-        transform (callable, optional): A function/transform that takes in an image and returns a
-            transformed version. Default: ``None``.
-        target_transform (callable, optional): A function/transform that takes in the target and
-            transforms it. Default: ``None``.
+        split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
+        shuffle (bool): Whether to shuffle the samples while iterating. Defaults to ``True``.
         prefetch (int, optional): Target number of samples remaining to prefetch while iterating.
-            Default: ``100_000``.
-        keep_zip (bool, optional): Whether to keep or delete the compressed file when decompressing
-            downloaded shards. If set to None, keep iff remote is local. Default: ``None``.
-        retry (int, optional): Number of download re-attempts before giving up. Default: ``2``.
-        timeout (float, optional): Number of seconds to wait for a shard to download before raising
-            an exception. Default: ``60``.
-        hash (str, optional): Hash or checksum algorithm to use to validate shards. Default:
+            Defaults to ``None``.
+        keep_zip (bool, optional): Whether to keep or delete the compressed file when
+            decompressing downloaded shards. If set to None, keep iff remote is local. Defaults to
             ``None``.
-        batch_size (int, optional): Batch size that will be used on each device's DataLoader.
-            Default: ``None``.
+        retry (int): Number of download re-attempts before giving up. Defaults to ``2``.
+        timeout (float): Number of seconds to wait for a shard to download before raising an
+            exception. Defaults to ``60``.
+        hash (str, optional): Optional hash or checksum algorithm to use to validate shards.
+            Defaults to ``None``.
+        batch_size (int, optional): Hint the batch_size that will be used on each device's
+            DataLoader. Defaults to ``None``.
     """
 
     def __init__(self,
