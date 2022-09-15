@@ -181,15 +181,15 @@ def each(dataset: _COCODetection, shuffle: bool) -> Iterable[Dict[str, bytes]]:
         img_data = dataset.images[img_id]
         img_basename = img_data[0]
         img_filename = os.path.join(dataset.img_folder, img_basename)
-        img_bytes = open(img_filename, 'rb').read()
+        img = Image.open(img_filename)
 
         yield {
-            'img': img_bytes,
-            'img_id': np.int64(img_id).tobytes(),
-            'htot': np.int64(htot).tobytes(),
-            'wtot': np.int64(wtot).tobytes(),
-            'bbox_sizes': bbox_sizes.numpy().tobytes(),  # (_, 4) float32.
-            'bbox_labels': bbox_labels.numpy().tobytes(),  # int64.
+            'img': img,
+            'img_id': img_id,
+            'htot': htot,
+            'wtot': wtot,
+            'bbox_sizes': bbox_sizes,  # (_, 4) float32.
+            'bbox_labels': bbox_labels,  # int64.
         }
 
 
@@ -200,12 +200,12 @@ def main(args: Namespace) -> None:
         args (Namespace): Command line arguments.
     """
     fields = {
-        'img': 'bytes',
-        'img_id': 'bytes',
-        'htot': 'bytes',
-        'wtot': 'bytes',
-        'bbox_sizes': 'bytes',
-        'bbox_labels': 'bytes'
+        'img': 'jpeg',
+        'img_id': 'int',
+        'htot': 'int',
+        'wtot': 'int',
+        'bbox_sizes': 'pkl',
+        'bbox_labels': 'pkl'
     }
 
     for (split, expected_num_samples, shuffle) in [
