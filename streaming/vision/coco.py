@@ -52,8 +52,8 @@ class COCO(Dataset):
         wtot = x['wtot']
         bbox_sizes = x['bbox_sizes']
         bbox_labels = x['bbox_labels']
-        coco_args = (img, (htot, wtot), bbox_sizes, bbox_labels)
         if self.transform:
-            coco_args = self.transform(*coco_args)
-            img, (htot, wtot), bbox_sizes, bbox_labels = coco_args
+            img, (htot,
+                  wtot), bbox_sizes, bbox_labels = self.transform(img, (htot, wtot), bbox_sizes,
+                                                                  bbox_labels)
         return img, img_id, (htot, wtot), bbox_sizes, bbox_labels
