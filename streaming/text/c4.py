@@ -51,7 +51,7 @@ class C4(Dataset):
                  hash: Optional[str] = None,
                  batch_size: Optional[int] = None) -> None:
         if group_method not in ['truncate']:
-            raise ValueError(f'Only group_method='truncate' is supported at this time.')
+            raise ValueError(f'Only group_method="truncate" is supported at this time.')
 
         super().__init__(local, remote, split, shuffle, prefetch, keep_zip, retry, timeout, hash,
                          batch_size)
