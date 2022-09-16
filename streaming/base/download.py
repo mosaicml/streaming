@@ -26,7 +26,7 @@ def download_from_s3(remote: str, local: str, timeout: float) -> None:
 
     obj = urllib.parse.urlparse(remote)
     if obj.scheme != 's3':
-        raise ValueError(f"Expected obj.scheme to be 's3', got {obj.scheme} for remote={remote}")
+        raise ValueError(f'Expected obj.scheme to be "s3", got {obj.scheme} for remote={remote}')
 
     config = Config(read_timeout=timeout)
     s3 = boto3.client('s3', config=config)
@@ -110,7 +110,7 @@ def download(remote: Optional[str], local: str, timeout: float):
     """Use the correct download handler to download the file.
 
     Args:
-        remote (Optional[str]): Remote path (local filesystem).
+        remote (str, optional): Remote path (local filesystem).
         local (str): Local path (local filesystem).
         timeout (float): How long to wait for file to download before raising an exception.
     """
@@ -121,7 +121,8 @@ def download(remote: Optional[str], local: str, timeout: float):
     os.makedirs(local_dir, exist_ok=True)
 
     if not remote:
-        raise ValueError('In the absence of local dataset, path to remote dataset must be provided')
+        raise ValueError(
+            'In the absence of local dataset, path to remote dataset must be provided')
     elif remote.startswith('s3://'):
         download_from_s3(remote, local, timeout)
     elif remote.startswith('sftp://'):
@@ -135,8 +136,8 @@ def wait_for_download(local: str, timeout: float = 60) -> None:
 
     Args:
         local (str): Local path (local filesystem).
-        timeout (float, default: 60): How long to wait for file to download before raising an
-            exception.
+        timeout (float): How long to wait for file to download before raising an exception.
+            Defaults to ``60``.
     """
     t0 = time()
     while not os.path.exists(local):
@@ -158,13 +159,13 @@ def download_or_wait(remote: Optional[str],
     correctly.
 
     Args:
-        remote (Optional[str]): Remote path (S3, SFTP, or local filesystem).
+        remote (str, optional): Remote path (S3, SFTP, or local filesystem).
         local (str): Local path (local filesystem).
-        wait (bool, default: False): If ``true``, then do not actively download the file, but
-            instead wait (up to ``timeout`` seconds) for the file to arrive.
-        retry (int, default: 2): Number of download re-attempts before giving up.
-        timeout (float, default: 60): How long to wait for file to download before raising an
-            exception.
+        wait (bool): If ``true``, then do not actively download the file, but instead wait (up to
+            ``timeout`` seconds) for the file to arrive. Defaults to ``False``.
+        retry (int): Number of download re-attempts before giving up. Defaults to ``2``.
+        timeout (float): How long to wait for file to download before raising an exception.
+            Defaults to ``60``.
     """
     errors = []
     for _ in range(1 + retry):

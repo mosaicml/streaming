@@ -11,6 +11,19 @@ from streaming.base.format.mds.encodings import get_mds_encoded_size, is_mds_enc
 
 
 class MDSWriter(JointWriter):
+    """Writes a streaming MDS dataset.
+
+    Args:
+        dirname (str): Local dataset directory.
+        columns (Dict[str, str]): Sample columns.
+        compression (str, optional): Optional compression or compression:level. Defaults to
+            ``None``.
+        hashes (List[str], optional): Optional list of hash algorithms to apply to shard files.
+            Defaults to ``None``.
+        size_limit (int, optional): Optional shard size limit, after which point to start a new
+            shard. If None, puts everything in one shard. Defaults to ``1 << 26``.
+    """
+
     format = 'mds'
     extra_bytes_per_sample = 4
 
@@ -41,9 +54,18 @@ class MDSWriter(JointWriter):
         self._reset_cache()
 
     def encode_sample(self, sample: Dict[str, Any]) -> bytes:
+        """Encode a sample dict to bytes.
+
+        Args:
+            sample (Dict[str, Any]): Sample dict.
+
+        Returns:
+            bytes: Sample encoded as bytes.
+        """
         sizes = []
         data = []
-        for key, encoding, size in zip(self.column_names, self.column_encodings, self.column_sizes):
+        for key, encoding, size in zip(self.column_names, self.column_encodings,
+                                       self.column_sizes):
             value = sample[key]
             datum = mds_encode(encoding, value)
             if size is None:
@@ -57,6 +79,11 @@ class MDSWriter(JointWriter):
         return head + body
 
     def get_config(self) -> Dict[str, Any]:
+        """Get object describing shard-writing configuration.
+
+        Returns:
+            Dict[str, Any]: JSON object.
+        """
         obj = super().get_config()
         obj.update({
             'column_names': self.column_names,
@@ -66,6 +93,11 @@ class MDSWriter(JointWriter):
         return obj
 
     def encode_joint_shard(self) -> bytes:
+        """Encode a joint shard out of the cached samples (single file).
+
+        Returns:
+            bytes: File data.
+        """
         num_samples = np.uint32(len(self.new_samples))
         sizes = list(map(len, self.new_samples))
         offsets = np.array([0] + sizes).cumsum().astype(np.uint32)

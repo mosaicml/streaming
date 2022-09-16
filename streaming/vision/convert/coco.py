@@ -71,8 +71,8 @@ def parse_args() -> Namespace:
         '--leave',
         type=int,
         default=0,
-        help=
-        'Keeps all traces of the progressbar upon termination of iteration. Default: 0 (Act as False)',
+        help='Keeps all traces of the progressbar upon termination of iteration. Default: 0 ' +
+        '(Act as False)',
     )
     return args.parse_args()
 
@@ -82,8 +82,8 @@ class _COCODetection(Dataset):
 
     Args:
         img_folder (str): Path to a COCO folder.
-        annotate_file (str): Path to a file that contains image id, annotations (e.g., bounding boxes and object
-            classes) etc.
+        annotate_file (str): Path to a file that contains image id, annotations (e.g., bounding
+            boxes and object classes) etc.
     """
 
     def __init__(self, img_folder: str, annotate_file: str):
@@ -220,13 +220,13 @@ def main(args: Namespace) -> None:
         split_annotations_in_file = os.path.join(args.in_root, 'annotations',
                                                  f'instances_{split}2017.json')
         if not os.path.exists(split_annotations_in_file):
-            raise FileNotFoundError(f'Annotations file does not exist: {split_annotations_in_file}')
+            raise FileNotFoundError(
+                f'Annotations file does not exist: {split_annotations_in_file}')
         dataset = _COCODetection(split_images_in_dir, split_annotations_in_file)
 
         if len(dataset) != expected_num_samples:
-            raise ValueError(
-                f'Number of samples in a dataset doesn\'t match. Expected {expected_num_samples}, but got {len(dataset)}'
-            )
+            raise ValueError(f'Number of samples in a dataset doesn\'t match. Expected ' +
+                             f'{expected_num_samples}, but got {len(dataset)}')
 
         hashes = get_list_arg(args.hashes)
 

@@ -11,6 +11,13 @@ __all__ = ['VisionDataset', 'ImageClassDataset']
 
 
 class StandardTransform(object):
+    """Individual input and output transforms called jointly, following
+    torchvision.
+
+    Args:
+        transform (Callable, optional): Input transform. Defaults to ``None``.
+        target_transform (Callable, optional): Output transform. Defaults to ``None``.
+    """
 
     def __init__(self,
                  transform: Optional[Callable] = None,
@@ -19,6 +26,15 @@ class StandardTransform(object):
         self.target_transform = target_transform
 
     def __call__(self, x: Any, y: Any) -> Tuple[Any, Any]:
+        """Apply the transforms to input and output.
+
+        Args:
+            x (Any): Input.
+            y (Any): Output.
+
+        Returns:
+            Tuple[Any, Any]: Transformed input and output.
+        """
         if self.transform:
             x = self.transform(x)
         else:
@@ -29,28 +45,33 @@ class StandardTransform(object):
 
 
 class VisionDataset(Dataset):
-    """
-    Base Class for creating a Vision streaming datasets.
+    """Base Class for creating a Vision streaming datasets.
 
     Args:
         local (str): Local filesystem directory where dataset is cached during operation.
-        remote (str, optional): Remote directory (S3 or local filesystem) where dataset is stored. Default: ``None``.
-        split (str, optional): The dataset split to use, either 'train' or 'val'. Default: ``None``.
-        shuffle (bool, optional): Whether to shuffle the train samples in this dataset. Default: ``True``.
-        transforms (callable, optional): A function/transforms that takes in an image and a label and returns the
-            transformed versions of both. Default: ``None``.
-        transform (callable, optional): A function/transform that takes in an image and returns a transformed
-            version. Default: ``None``.
-        target_transform (callable, optional): A function/transform that takes in the target and transforms
-            it. Default: ``None``.
-        prefetch (int, optional): Target number of samples remaining to prefetch while iterating. Default: ``100_000``.
-        keep_zip (bool, optional): Whether to keep or delete the compressed file when decompressing downloaded shards.
-            If set to None, keep iff remote == local. Default: ``None``.
-        retry (int, optional): Number of download re-attempts before giving up. Default: ``2``.
-        timeout (float, optional): Number of seconds to wait for a shard to download before raising an exception.
-            Default: ``60``.
-        hash (str, optional): Hash or checksum algorithm to use to validate shards. Default: ``None``.
-        batch_size (int, optional): Batch size that will be used on each device's DataLoader. Default: ``None``.
+        remote (str, optional): Remote directory (S3 or local filesystem) where dataset is stored.
+            Defaults to ``None``.
+        split (str, optional): The dataset split to use, either 'train' or 'val'. Defaults to
+            ``None``.
+        shuffle (bool, optional): Whether to shuffle the train samples in this dataset. Defaults to
+            ``True``.
+        transforms (callable, optional): A function/transforms that takes in an image and a label
+            and returns the transformed versions of both. Default to ``None``.
+        transform (callable, optional): A function/transform that takes in an image and returns a
+            transformed version. Defaults to ``None``.
+        target_transform (callable, optional): A function/transform that takes in the target and
+            transforms it. Defaults to ``None``.
+        prefetch (int, optional): Target number of samples remaining to prefetch while iterating.
+            Defaults to ``100_000``.
+        keep_zip (bool, optional): Whether to keep or delete the compressed file when decompressing
+            downloaded shards. If set to None, keep iff remote is local. Defaults to ``None``.
+        retry (int, optional): Number of download re-attempts before giving up. Defaults to ``2``.
+        timeout (float, optional): Number of seconds to wait for a shard to download before raising
+            an exception. Defaults to ``60``.
+        hash (str, optional): Hash or checksum algorithm to use to validate shards. Defaults to
+            ``None``.
+        batch_size (int, optional): Batch size that will be used on each device's DataLoader.
+            Defaults to ``None``.
     """
 
     def __init__(self,
@@ -83,6 +104,14 @@ class VisionDataset(Dataset):
         self.transforms = transforms
 
     def __getitem__(self, idx: int) -> Any:
+        """Get sample by global index, blocking to load its shard if missing.
+
+        Args:
+            idx (int): Sample index.
+
+        Returns:
+            Any: Sample data.
+        """
         obj = super().__getitem__(idx)
         x = obj['x']
         y = obj['y']
@@ -90,26 +119,31 @@ class VisionDataset(Dataset):
 
 
 class ImageClassDataset(VisionDataset):
-    """
-    Base Class for creating an Image Classification streaming datasets.
+    """Base Class for creating an Image Classification streaming datasets.
 
     Args:
         local (str): Local filesystem directory where dataset is cached during operation.
-        remote (str, optional): Remote directory (S3 or local filesystem) where dataset is stored. Default: ``None``.
-        split (str, optional): The dataset split to use, either 'train' or 'val'. Default: ``None``.
-        shuffle (bool, optional): Whether to shuffle the train samples in this dataset. Default: ``True``.
-        transform (callable, optional): A function/transform that takes in an image and returns a transformed
-            version. Default: ``None``.
-        target_transform (callable, optional): A function/transform that takes in the target and transforms
-            it. Default: ``None``.
-        prefetch (int, optional): Target number of samples remaining to prefetch while iterating. Default: ``100_000``.
-        keep_zip (bool, optional): Whether to keep or delete the compressed file when decompressing downloaded shards.
-            If set to None, keep iff remote == local. Default: ``None``.
-        retry (int, optional): Number of download re-attempts before giving up. Default: ``2``.
-        timeout (float, optional): Number of seconds to wait for a shard to download before raising an exception.
-            Default: ``60``.
-        hash (str, optional): Hash or checksum algorithm to use to validate shards. Default: ``None``.
-        batch_size (int, optional): Batch size that will be used on each device's DataLoader. Default: ``None``.
+        remote (str, optional): Remote directory (S3 or local filesystem) where dataset is stored.
+            Defaults to ``None``.
+        split (str, optional): The dataset split to use, either 'train' or 'val'. Defaults to
+            ``None``.
+        shuffle (bool, optional): Whether to shuffle the train samples in this dataset. Defaults to
+            ``True``.
+        transform (callable, optional): A function/transform that takes in an image and returns a
+            transformed version. Defaults to ``None``.
+        target_transform (callable, optional): A function/transform that takes in the target and
+            transforms it. Defaults to ``None``.
+        prefetch (int, optional): Target number of samples remaining to prefetch while iterating.
+            Defaults to ``100_000``.
+        keep_zip (bool, optional): Whether to keep or delete the compressed file when decompressing
+            downloaded shards. If set to None, keep iff remote is local. Defaults to ``None``.
+        retry (int, optional): Number of download re-attempts before giving up. Defaults to ``2``.
+        timeout (float, optional): Number of seconds to wait for a shard to download before raising
+            an exception. Defaults to ``60``.
+        hash (str, optional): Hash or checksum algorithm to use to validate shards. Defaults to
+            ``None``.
+        batch_size (int, optional): Batch size that will be used on each device's DataLoader.
+            Defaults to ``None``.
     """
 
     def __init__(self,
@@ -125,5 +159,5 @@ class ImageClassDataset(VisionDataset):
                  timeout: float = 60,
                  hash: Optional[str] = None,
                  batch_size: Optional[int] = None) -> None:
-        super().__init__(local, remote, split, shuffle, None, transform, target_transform, prefetch,
-                         keep_zip, retry, timeout, hash, batch_size)
+        super().__init__(local, remote, split, shuffle, None, transform, target_transform,
+                         prefetch, keep_zip, retry, timeout, hash, batch_size)

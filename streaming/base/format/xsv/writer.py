@@ -11,6 +11,21 @@ from streaming.base.format.xsv.encodings import is_xsv_encoding, xsv_encode
 
 
 class XSVWriter(SplitWriter):
+    """Writes a streaming XSV dataset.
+
+    Args:
+        dirname (str): Local dataset directory.
+        columns (Dict[str, str]): Sample columns.
+        separator (str): String used to separate columns.
+        compression (str, optional): Optional compression or compression:level. Defaults to
+            ``None``.
+        hashes (List[str], optional): Optional list of hash algorithms to apply to shard files.
+            Defaults to ``None``.
+        size_limit (int, optional): Optional shard size limit, after which point to start a new
+            shard. If None, puts everything in one shard. Defaults to ``None``.
+        newline (str): Newline character inserted between samples. Defaults to ``\\n``.
+    """
+
     format = 'xsv'
 
     def __init__(self,
@@ -38,6 +53,14 @@ class XSVWriter(SplitWriter):
         self.newline = newline
 
     def encode_sample(self, sample: Dict[str, Any]) -> bytes:
+        """Encode a sample dict to bytes.
+
+        Args:
+            sample (Dict[str, Any]): Sample dict.
+
+        Returns:
+            bytes: Sample encoded as bytes.
+        """
         values = []
         for name, encoding in zip(self.column_names, self.column_encodings):
             value = xsv_encode(encoding, sample[name])
@@ -48,6 +71,11 @@ class XSVWriter(SplitWriter):
         return text.encode('utf-8')
 
     def get_config(self) -> Dict[str, Any]:
+        """Get object describing shard-writing configuration.
+
+        Returns:
+            Dict[str, Any]: JSON object.
+        """
         obj = super().get_config()
         obj.update({
             'column_names': self.column_names,
@@ -58,6 +86,11 @@ class XSVWriter(SplitWriter):
         return obj
 
     def encode_split_shard(self) -> Tuple[bytes, bytes]:
+        """Encode a split shard out of the cached samples (data, meta files).
+
+        Returns:
+            Tuple[bytes, bytes]: Data file, meta file.
+        """
         header = self.separator.join(self.column_names) + self.newline
         header = header.encode('utf-8')
         data = b''.join([header] + self.new_samples)
@@ -74,6 +107,20 @@ class XSVWriter(SplitWriter):
 
 
 class CSVWriter(XSVWriter):
+    """Writes a streaming CSV dataset.
+
+    Args:
+        dirname (str): Local dataset directory.
+        columns (Dict[str, str]): Sample columns.
+        compression (str, optional): Optional compression or compression:level. Defaults to
+            ``None``.
+        hashes (List[str], optional): Optional list of hash algorithms to apply to shard files.
+            Defaults to ``None``.
+        size_limit (int, optional): Optional shard size limit, after which point to start a new
+            shard. If None, puts everything in one shard. Defaults to ``None``.
+        newline (str): Newline character inserted between samples. Defaults to ``\\n``.
+    """
+
     format = 'csv'
     separator = ','
 
@@ -84,9 +131,15 @@ class CSVWriter(XSVWriter):
                  hashes: Optional[List[str]] = None,
                  size_limit: Optional[int] = 1 << 26,
                  newline: str = '\n') -> None:
-        super().__init__(dirname, columns, self.separator, compression, hashes, size_limit, newline)
+        super().__init__(dirname, columns, self.separator, compression, hashes, size_limit,
+                         newline)
 
     def get_config(self) -> Dict[str, Any]:
+        """Get object describing shard-writing configuration.
+
+        Returns:
+            Dict[str, Any]: JSON object.
+        """
         obj = super().get_config()
         obj['format'] = self.format
         del obj['separator']
@@ -94,6 +147,20 @@ class CSVWriter(XSVWriter):
 
 
 class TSVWriter(XSVWriter):
+    """Writes a streaming TSV dataset.
+
+    Args:
+        dirname (str): Local dataset directory.
+        columns (Dict[str, str]): Sample columns.
+        compression (str, optional): Optional compression or compression:level. Defaults to
+            ``None``.
+        hashes (List[str], optional): Optional list of hash algorithms to apply to shard files.
+            Defaults to ``None``.
+        size_limit (int, optional): Optional shard size limit, after which point to start a new
+            shard. If None, puts everything in one shard. Defaults to ``None``.
+        newline (str): Newline character inserted between samples. Defaults to ``\\n``.
+    """
+
     format = 'tsv'
     separator = '\t'
 
@@ -104,9 +171,15 @@ class TSVWriter(XSVWriter):
                  hashes: Optional[List[str]] = None,
                  size_limit: Optional[int] = 1 << 26,
                  newline: str = '\n') -> None:
-        super().__init__(dirname, columns, self.separator, compression, hashes, size_limit, newline)
+        super().__init__(dirname, columns, self.separator, compression, hashes, size_limit,
+                         newline)
 
     def get_config(self) -> Dict[str, Any]:
+        """Get object describing shard-writing configuration.
+
+        Returns:
+            Dict[str, Any]: JSON object.
+        """
         obj = super().get_config()
         obj['format'] = self.format
         del obj['separator']

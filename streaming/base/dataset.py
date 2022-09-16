@@ -33,21 +33,23 @@ class Dataset(IterableDataset):
 
     Args:
         local (str): Local dataset directory where shards are cached by split.
-        remote (Optional[str], default: None): Download shards from this remote path or directory.
-            If None, this rank and workers' partition of the dataset must all exist locally.
-        split (Optional[str], default: None): Which dataset split to use, if any.
-        shuffle (bool, default: True): Whether to shuffle the samples while iterating.
-        prefetch (Optional[int], default: 100_000): Target number of samples remaining to prefetch
-            while iterating.
-        keep_zip (Optional[bool], default: None): Whether to keep or delete the compressed file when
-            decompressing downloaded shards. If set to None, keep iff remote == local.
-        retry (int, default: 2): Number of download re-attempts before giving up.
-        timeout (float, default: 60): Number of seconds to wait for a shard to download before
-            raising an exception.
-        hash (Optional[str], default: None): Optional hash or checksum algorithm to use to validate
-            shards.
-        batch_size (Optional[int], default: None): Hint the batch_size that will be used on each
-            device's DataLoader.
+        remote (str, optional): Download shards from this remote path or directory. If None, this
+            rank and worker's partition of the dataset must all exist locally. Defaults to
+            ``None``.
+        split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
+        shuffle (bool): Whether to shuffle the samples while iterating. Defaults to ``True``.
+        prefetch (int, optional): Target number of samples remaining to prefetch while iterating.
+            Defaults to ``None``.
+        keep_zip (bool, optional): Whether to keep or delete the compressed file when
+            decompressing downloaded shards. If set to None, keep iff remote is local. Defaults to
+            ``None``.
+        retry (int): Number of download re-attempts before giving up. Defaults to ``2``.
+        timeout (float): Number of seconds to wait for a shard to download before raising an
+            exception. Defaults to ``60``.
+        hash (str, optional): Optional hash or checksum algorithm to use to validate shards.
+            Defaults to ``None``.
+        batch_size (int, optional): Hint the batch_size that will be used on each device's
+            DataLoader. Defaults to ``None``.
 
     .. doctest::
 
@@ -153,12 +155,12 @@ class Dataset(IterableDataset):
         left, which will not be the full epoch if the dataset isn't finished loaded when you start
         training.
 
-        Calls to this method during training modify the samples remaining on these iterations on the
-        fly to insert these new samples and then re-sort, making the shuffle as perfect as was
+        Calls to this method during training modify the samples remaining on these iterations on
+        the fly to insert these new samples and then re-sort, making the shuffle as perfect as was
         possible.
 
-        This operation is heavy and takes the lock, so call this method with all available shards at
-        once.
+        This operation is heavy and takes the lock, so call this method with all available shards
+        at once.
 
         Args:
             shards (List[int]): Shard IDs.
@@ -352,8 +354,8 @@ class Dataset(IterableDataset):
         Args:
             shards (List[int]): The missing shards to download.
             partition (Partition): Our rank and worker's partition of the dataset.
-            num_processes (Optional[int], default None): Number of concurrent shard downloads (ie,
-                size of the process pool). If None, uses number of CPUs.
+            num_processes (int, optional): Number of concurrent shard downloads (ie, size of the
+                process pool). If None, uses number of CPUs. Defaults to ``None``.
         """
         pool = Pool(num_processes)
         download_shard = lambda shard: self._download_shard(shard, partition)
@@ -414,8 +416,8 @@ class Dataset(IterableDataset):
         """Load all shards, downloading if not local (blocking).
 
         Args:
-            num_processes (Optional[int], default None): Number of concurrent shard downloads (ie,
-                size of the process pool). If None, uses number of CPUs.
+            num_processes (int, optional): Number of concurrent shard downloads (ie, size of the
+                process pool). If ``None``, uses number of CPUs. Defaults to ``None``.
         """
         partition = self.index.get_partition()
         shards = self._preload(partition)
