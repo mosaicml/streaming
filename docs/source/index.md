@@ -2,7 +2,7 @@
 
 # Streaming
 
-Welcome to MosaicML’s Streaming documentation page!  Streaming is a PyTorch compatible dataset that enables users to stream training data from 
+Welcome to MosaicML’s Streaming documentation page!  Streaming is a PyTorch compatible dataset that enables users to stream training data from
 cloud-based object stores. As a drop-in replacement for your `Dataset` class, it's easy to get streaming:
 
 ```python
@@ -49,6 +49,7 @@ If you have any questions, please feel free to reach out to us on [Twitter](htt
    :caption: Getting Started
 
    getting_started/quick_start.md
+   getting_started/user_guide.md
 
 .. toctree::
    :hidden:
