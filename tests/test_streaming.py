@@ -197,7 +197,7 @@ def test_reader_download_fail(remote_local: Tuple[str, str], missing_file: str):
     elif missing_file == 'shard':
         os.remove(os.path.join(remote, 'shard.00000.mds'))
 
-    # Build and iterate over StreamingDataset
+    # Build and iterate over a streaming Dataset
     try:
         dataset = Dataset(local=local, remote=remote, shuffle=False, timeout=1)
         for _ in dataset:
@@ -226,8 +226,7 @@ def test_reader_after_crash(remote_local: Tuple[str, str], created_ago: float, t
     if not os.path.exists(local):
         os.mkdir(local)
 
-    shutil.copy(os.path.join(remote, f'index.json{compression_ext}'),
-                os.path.join(local, f'index.json.tmp{compression_ext}'))
+    shutil.copy(os.path.join(remote, f'index.json'), os.path.join(local, f'index.json.tmp'))
     shutil.copy(os.path.join(remote, f'shard.00003.mds{compression_ext}'),
                 os.path.join(local, f'shard.00003.mds.tmp{compression_ext}'))
     time.sleep(created_ago)
@@ -259,7 +258,7 @@ def test_reader_getitem(remote_local: Tuple[str, str], share_remote_local: bool)
                                       samples=samples,
                                       shard_size_limit=shard_size_limit)
 
-    # Build StreamingDataset
+    # Build a streaming Dataset
     dataset = Dataset(local=local, remote=remote, shuffle=False)
 
     # Test retrieving random sample
@@ -287,7 +286,7 @@ def test_dataloader_single_device(remote_local: Tuple[str, str], batch_size: int
                                       samples=samples,
                                       shard_size_limit=shard_size_limit)
 
-    # Build StreamingDataset
+    # Build a streaming Dataset
     dataset = Dataset(local=local, remote=remote, shuffle=shuffle, batch_size=batch_size)
 
     # Build DataLoader
