@@ -68,7 +68,7 @@ def write_synthetic_streaming_dataset(
     dirname: str,
     columns: Dict[str, str],
     samples: List[Dict[str, Any]],
-    shard_size_limit: int,
+    size_limit: int,
     compression: Optional[str] = None,
     hashes: Optional[List[str]] = None,
 ) -> None:
@@ -76,21 +76,21 @@ def write_synthetic_streaming_dataset(
                    columns=columns,
                    compression=compression,
                    hashes=hashes,
-                   size_limit=shard_size_limit) as out:
+                   size_limit=size_limit) as out:
         for sample in samples:
             out.write(sample)
 
 
 @pytest.mark.parametrize('num_samples', [1000, 10000])
-@pytest.mark.parametrize('shard_size_limit', [1 << 8, 1 << 12, 1 << 24])
-def test_writer(remote_local: Tuple[str, str], num_samples: int, shard_size_limit: int) -> None:
+@pytest.mark.parametrize('size_limit', [1 << 8, 1 << 12, 1 << 24])
+def test_writer(remote_local: Tuple[str, str], num_samples: int, size_limit: int) -> None:
     dirname, _ = remote_local
     samples, column_encodings, column_names, column_sizes = get_fake_samples_and_columns_metadata(
         num_samples)
     columns = dict(zip(column_names, column_encodings))
 
-    config_data_bytes = get_config_in_bytes('mds', shard_size_limit, column_names,
-                                            column_encodings, column_sizes)
+    config_data_bytes = get_config_in_bytes('mds', size_limit, column_names, column_encodings,
+                                            column_sizes)
     extra_bytes_per_shard = 4 + 4 + len(config_data_bytes)
     extra_bytes_per_sample = 4
 
@@ -101,14 +101,14 @@ def test_writer(remote_local: Tuple[str, str], num_samples: int, shard_size_limi
     first_sample_bytes = len(first_sample_head.tobytes() +
                              b''.join(first_sample_body)) + extra_bytes_per_sample
 
-    expected_samples_per_shard = (shard_size_limit - extra_bytes_per_shard) // first_sample_bytes
+    expected_samples_per_shard = (size_limit - extra_bytes_per_shard) // first_sample_bytes
     expected_num_shards = math.ceil(num_samples / expected_samples_per_shard)
     expected_num_files = expected_num_shards + 1  # the index file and compression metadata file
 
     write_synthetic_streaming_dataset(dirname=dirname,
                                       columns=columns,
                                       samples=samples,
-                                      shard_size_limit=shard_size_limit)
+                                      size_limit=size_limit)
     files = os.listdir(dirname)
     print(f'Number of files: {len(files)}')
 
@@ -122,7 +122,7 @@ def test_writer(remote_local: Tuple[str, str], num_samples: int, shard_size_limi
 @pytest.mark.parametrize('shuffle', [False, True])
 def test_reader(remote_local: Tuple[str, str], batch_size: int, remote_arg: str, shuffle: bool):
     num_samples = 117
-    shard_size_limit = 1 << 8
+    size_limit = 1 << 8
     samples, column_encodings, column_names, _ = get_fake_samples_and_columns_metadata(num_samples)
     columns = dict(zip(column_names, column_encodings))
     if remote_arg == 'none':
@@ -142,7 +142,7 @@ def test_reader(remote_local: Tuple[str, str], batch_size: int, remote_arg: str,
     write_synthetic_streaming_dataset(dirname=dirname,
                                       columns=columns,
                                       samples=samples,
-                                      shard_size_limit=shard_size_limit)
+                                      size_limit=size_limit)
 
     # Build Dataset
     dataset = Dataset(local=local, remote=remote, shuffle=shuffle, batch_size=batch_size)
@@ -183,14 +183,14 @@ def test_reader(remote_local: Tuple[str, str], batch_size: int, remote_arg: str,
 )
 def test_reader_download_fail(remote_local: Tuple[str, str], missing_file: str):
     num_samples = 117
-    shard_size_limit = 1 << 8
+    size_limit = 1 << 8
     samples, column_encodings, column_names, _ = get_fake_samples_and_columns_metadata(num_samples)
     columns = dict(zip(column_names, column_encodings))
     remote, local = remote_local
     write_synthetic_streaming_dataset(dirname=remote,
                                       columns=columns,
                                       samples=samples,
-                                      shard_size_limit=shard_size_limit)
+                                      size_limit=size_limit)
 
     if missing_file == 'index':
         os.remove(os.path.join(remote, 'index.json'))
@@ -213,14 +213,14 @@ def test_reader_after_crash(remote_local: Tuple[str, str], created_ago: float, t
                             compression: str) -> None:
     compression_ext = f'.{compression.split(":")[0]}' if compression is not None else ''
     num_samples = 117
-    shard_size_limit = 1 << 8
+    size_limit = 1 << 8
     samples, column_encodings, column_names, _ = get_fake_samples_and_columns_metadata(num_samples)
     columns = dict(zip(column_names, column_encodings))
     remote, local = remote_local
     write_synthetic_streaming_dataset(dirname=remote,
                                       columns=columns,
                                       samples=samples,
-                                      shard_size_limit=shard_size_limit,
+                                      size_limit=size_limit,
                                       compression=compression)
 
     if not os.path.exists(local):
@@ -247,7 +247,7 @@ def test_reader_after_crash(remote_local: Tuple[str, str], created_ago: float, t
 )
 def test_reader_getitem(remote_local: Tuple[str, str], share_remote_local: bool) -> None:
     num_samples = 117
-    shard_size_limit = 1 << 8
+    size_limit = 1 << 8
     samples, column_encodings, column_names, _ = get_fake_samples_and_columns_metadata(num_samples)
     columns = dict(zip(column_names, column_encodings))
     remote, local = remote_local
@@ -256,7 +256,7 @@ def test_reader_getitem(remote_local: Tuple[str, str], share_remote_local: bool)
     write_synthetic_streaming_dataset(dirname=remote,
                                       columns=columns,
                                       samples=samples,
-                                      shard_size_limit=shard_size_limit)
+                                      size_limit=size_limit)
 
     # Build a streaming Dataset
     dataset = Dataset(local=local, remote=remote, shuffle=False)
@@ -277,14 +277,14 @@ def test_reader_getitem(remote_local: Tuple[str, str], share_remote_local: bool)
 def test_dataloader_single_device(remote_local: Tuple[str, str], batch_size: int, drop_last: bool,
                                   num_workers: int, persistent_workers: bool, shuffle: bool):
     num_samples = 31
-    shard_size_limit = 1 << 6
+    size_limit = 1 << 6
     samples, column_encodings, column_names, _ = get_fake_samples_and_columns_metadata(num_samples)
     columns = dict(zip(column_names, column_encodings))
     remote, local = remote_local
     write_synthetic_streaming_dataset(dirname=remote,
                                       columns=columns,
                                       samples=samples,
-                                      shard_size_limit=shard_size_limit)
+                                      size_limit=size_limit)
 
     # Build a streaming Dataset
     dataset = Dataset(local=local, remote=remote, shuffle=shuffle, batch_size=batch_size)
@@ -357,7 +357,7 @@ def check_for_diff_files(dir: dircmp, compression_ext: Union[None, str]):
 @pytest.mark.parametrize('compression', [None, 'gz', 'gz:5'])
 def test_compression(compressed_remote_local: Tuple[str, str, str], compression: Optional[str]):
     num_samples = 31
-    shard_size_limit = 1 << 6
+    size_limit = 1 << 6
     shuffle = True
     compressed, remote, local = compressed_remote_local
     samples, column_encodings, column_names, _ = get_fake_samples_and_columns_metadata(num_samples)
@@ -367,12 +367,12 @@ def test_compression(compressed_remote_local: Tuple[str, str, str], compression:
     write_synthetic_streaming_dataset(dirname=compressed,
                                       columns=columns,
                                       samples=samples,
-                                      shard_size_limit=shard_size_limit,
+                                      size_limit=size_limit,
                                       compression=compression)
     write_synthetic_streaming_dataset(dirname=remote,
                                       columns=columns,
                                       samples=samples,
-                                      shard_size_limit=shard_size_limit,
+                                      size_limit=size_limit,
                                       compression=None)
 
     dataset = Dataset(local=local, remote=compressed, shuffle=shuffle)
