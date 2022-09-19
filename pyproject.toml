@@ -47,6 +47,18 @@ reportIncompleteStub = "error"
 reportUnsupportedDunderAll = "error"
 reportUnusedCoroutine = "error"
 
+# Pytest
+[tool.pytest.ini_options]
+# By default, do not run remote tests
+addopts = "--codeblocks --strict-markers -m 'not daily and not remote' -ra --tb=native"
+
+markers = [
+    # Should be run during daily regression
+    "daily",
+    # Whether the test will be reading data from a remote source, and may require credentials
+    "remote",
+]
+
 filterwarnings = [
     # "error",  # warnings should be treated like errors, but still need to fix some warnings
     'ignore:ExtraArgumentWarning',  # extra arguments originate from pytest-specific CLI args

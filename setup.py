@@ -36,6 +36,7 @@ extra_deps['dev'] = [
     'toml==0.10.2',
     'yamllint==1.26.3',
     'pre-commit>=2.18.1,<3',
+    'pytest_codeblocks==0.16.1',
 ]
 
 extra_deps['docs'] = [

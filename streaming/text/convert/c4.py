@@ -5,11 +5,11 @@ import os
 from argparse import ArgumentParser, Namespace
 from typing import Any, Dict, Iterator
 
-import datasets
 from datasets.arrow_dataset import Dataset
 from torch.utils.data import DataLoader, IterableDataset, get_worker_info
 from tqdm import tqdm
 
+import datasets
 from streaming.base import MDSWriter
 from streaming.base.util import get_list_arg
 
