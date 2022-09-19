@@ -117,6 +117,8 @@ def test_writer(remote_local: Tuple[str, str], num_samples: int, size_limit: int
     ) == expected_num_files, f'Files written ({len(files)}) != expected ({expected_num_files}).'
 
 
+@pytest.mark.xfail(
+    reason='Fetches shard greedily. See https://mosaicml.atlassian.net/browse/CO-548')
 @pytest.mark.parametrize('batch_size', [None, 1, 2])
 @pytest.mark.parametrize('remote_arg', ['none', 'same', 'different'])
 @pytest.mark.parametrize('shuffle', [False, True])
@@ -265,7 +267,8 @@ def test_reader_getitem(remote_local: Tuple[str, str], share_remote_local: bool)
     _ = dataset[17]
 
 
-@pytest.mark.daily
+@pytest.mark.xfail(
+    reason='Fetches shard greedily. See https://mosaicml.atlassian.net/browse/CO-548')
 @pytest.mark.parametrize('batch_size', [1, 2, 5])
 @pytest.mark.parametrize('drop_last', [False, True])
 @pytest.mark.parametrize('num_workers', [1])
