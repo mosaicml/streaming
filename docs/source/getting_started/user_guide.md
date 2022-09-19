@@ -2,9 +2,9 @@
 
 ## Writing a dataset to streaming format
 
-The streaming dataset supports custom dataset writer of a different modal types such as `MDSWriter`, `CSVWriter`, `JSONWriter`, `TSVWriter`, and `XSVWriter`. This guide shows you how to use your custom Dataset with `MDSWriter`, but the steps would also remain the same for another writer.
+The streaming dataset supports custom dataset writer of a different modal types such as {class}`streaming.MDSWriter`, {class}`streaming.CSVWriter`, {class}`streaming.JSONWriter`, {class}`streaming.TSVWriter`, and {class}`streaming.XSVWriter`. This guide shows you how to use your custom Dataset with {class}`streaming.MDSWriter`, but the steps would also remain the same for another writer.
 
-The `MDSWriter` takes the raw dataset and converts it into a sharded `.mds` format for fast data access.
+The {class}`streaming.MDSWriter` takes the raw dataset and converts it into a sharded `.mds` format for fast data access.
 
 For this tutorial, let's create a Synthetic Classification dataset drawn from a normal distribution that returns a tuple of features and a label.
 
@@ -32,7 +32,7 @@ class RandomClassificationDataset:
         return self.x[index], self.y[index]
 ```
 
-There are a few parameters that need to be initialized before `MDSWriter` gets called. Some of the parameters are optional, and others are required parameters. Let's look at each of them where we start with two required parameters.
+There are a few parameters that need to be initialized before {class}`streaming.MDSWriter` gets called. Some of the parameters are optional, and others are required parameters. Let's look at each of them where we start with two required parameters.
 
 1. Provide the Local filesystem directory path to store the compressed dataset
 
@@ -46,7 +46,7 @@ There are a few parameters that need to be initialized before `MDSWriter` gets c
    fields = {'x': 'pil', 'y': 'pil'}
    ```
 
-The below parameters are optional to `MDSWriter`. Let's look at each one of them
+The below parameters are optional to {class}`streaming.MDSWriter`. Let's look at each one of them
 
 1. Provide a name of a compression algorithm; the default is `None`. We support families of compression algorithms, and all of them can be found here.
 
@@ -86,7 +86,7 @@ def each(samples):
         }
 ```
 
-It's time to call the `MDSWriter` with the above initalized parameters and write the samples by iterating over a dataset.
+It's time to call the {class}`streaming.MDSWriter` with the above initalized parameters and write the samples by iterating over a dataset.
 
 ```python
 from streaming.base import MDSWriter
@@ -116,7 +116,7 @@ $ aws s3 cp dirname s3://mybucket/myfolder --recursive
 
 After writing a dataset in the streaming format in the previous step and uploaded to a cloud object storage as s3, we are ready to start loading data.
 
-To load the dataset files that we have written, we need to inherit the `streaming.base.Dataset` class (which will do most of the heavy lifting) by creating a `CustomDataset` class and overriding the `__getitem__(idx: int)` method to get the sharded dataset. The `streaming.base.Dataset` class requires to specify `local` and `remote` instance variables.
+To load the dataset files that we have written, we need to inherit the {class}`streaming.Dataset` class (which will do most of the heavy lifting) by creating a `CustomDataset` class and overriding the `__getitem__(idx: int)` method to get the sharded dataset. The {class}`streaming.Dataset` class requires to specify `local` and `remote` instance variables.
 
  ```python
 from streaming.base import Dataset
@@ -130,7 +130,7 @@ class CustomDataset(Dataset):
         return obj['x'], obj['y']
  ```
 
-The next step is to Instantiate the `CustomDataset` with local and remote paths.
+The next step is to Instantiate the `CustomDataset` class with local and remote paths.
 
 ```python
 # Local filesystem directory where dataset is cached during operation
@@ -142,7 +142,7 @@ remote='s3://mybucket/myfolder'
 dataset = CustomDataset(local=local, remote=remote)
 ```
 
-The final step is to pass the dataset to PyTorch DataLoader and use this dataloader to train your model.
+The final step is to pass the dataset to PyTorch {class}`torch.utils.data.DataLoader` and use this dataloader to train your model.
 
 ```python
 from torch.utils.data import DataLoader
@@ -152,4 +152,4 @@ dataloader = DataLoader(dataset=dataset)
 
 ## Other options
 
-Please look at the API reference page for the complete list of `streaming.base.Dataset` supporting parameters.
+Please look at the API reference page for the complete list of {class}`streaming.Dataset` supporting parameters.
