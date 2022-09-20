@@ -43,13 +43,13 @@ Start training your model with the Streaming dataset in a couple of steps!
     ```
 
 - Upload your streaming dataset to the cloud based storage of your choice (e.g., [AWS S3](https://aws.amazon.com/s3/)). Below is one example of uploading a directory to an S3 bucket using [AWS CLI](https://aws.amazon.com/cli/).
-
+    <!--pytest.mark.skip-->
     ```bash
     $ aws s3 cp dirname s3://mybucket/myfolder --recursive
     ```
 
 - Replace the original {class}`torch.utils.data.IterableDataset` with your new {class}`streaming.Dataset`.
-
+    <!--pytest.mark.skip-->
     ```python
     from torch.utils.data import DataLoader
     from streaming import Dataset

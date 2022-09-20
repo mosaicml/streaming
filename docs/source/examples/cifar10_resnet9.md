@@ -1,11 +1,11 @@
 # Training CIFAR-10
 In this example, we will demonstrate how to compress the CIFAR-10 dataset using {class}`streaming.MDSWriter` and use {class}`streaming.Dataset` to train a CIFAR-10 classifier using ResNet-9 architecture.
 
-Below is the step by step tutorial. 
+Below is the step by step tutorial.
 
 ## Step 1: Compress the CIFAR-10 dataset
 Use the existing [cifar10.py](https://github.com/mosaicml/streaming/blob/main/streaming/vision/convert/cifar10.py) script which uses {class}`streaming.MDSWriter` to compress the raw data.
-
+<!--pytest.mark.skip-->
 ```bash
 # Download the script locally
 $ wget https://raw.githubusercontent.com/mosaicml/streaming/main/streaming/vision/convert/cifar10.py
@@ -15,12 +15,13 @@ $ python cifar10.py --in_root <local_directory_to_download_raw_CIFAR10_data> --o
 
 ## Step 2: Upload the compressed files to cloud
 Upload the `--out_root` directory to cloud blob storage such as AWS S3 using [AWS CLI](https://aws.amazon.com/cli/).
-
+<!--pytest.mark.skip-->
 ```bash
 $ aws s3 cp <out_root directory> s3://mybucket/cifar10 --recursive
 ```
 
 ## Step 3: Import packages for model training
+<!--pytest.mark.skip-->
 ```python
 import time
 
@@ -31,6 +32,7 @@ from torchvision import transforms
 ```
 
 ## Step 4: Initialize transforms
+<!--pytest.mark.skip-->
 ```python
 # CIFAR10 mean and standard deviation for normalization.
 CIFAR10_MEAN = 0.4914, 0.4822, 0.4465
@@ -49,7 +51,7 @@ val_transform = transforms.Compose([
 ```
 ## Step 5: Create a streaming Dataset
 Here, we have used {class}`streaming.vision.CIFAR10` which is a superclass of {class}`streaming.Dataset` for better abstraction.
-
+<!--pytest.mark.skip-->
 ```python
 batch_size = 1024   # Batch size to use
 local_dir = '/local/directory/to/cache/streaming/data'
@@ -72,7 +74,7 @@ val_dataset = CIFAR10(local=local_dir,
 ```
 ## Step 6: Create a PyTorch DataLoader
 Create a PyTorch {class}`torch.utils.data.DataLoader` with {class}`streaming.vision.CIFAR10` dataset.
-
+<!--pytest.mark.skip-->
 ```python
 train_dataloader = torch.utils.data.DataLoader(train_dataset,
                                                batch_size=batch_size,
@@ -88,7 +90,7 @@ val_dataloader = torch.utils.data.DataLoader(val_dataset,
 
 ## Step 7: Setup model architecture and optimization parameters
 For the model, we use a custom ResNet-9 architecture
-
+<!--pytest.mark.skip-->
 ```python
 from composer import models
 
@@ -113,7 +115,7 @@ device = 'gpu' if torch.cuda.is_available() else 'cpu'  # select the device
 
 ## Step 8: Train and evaluate the model
 Trains the model for 10 epochs with evaluation at every epoch.
-
+<!--pytest.mark.skip-->
 ```python
 start_time = time.perf_counter()
 trainer.fit()

@@ -5,6 +5,7 @@
 Welcome to MosaicML’s Streaming documentation page!  Streaming is a PyTorch compatible dataset that enables users to stream training data from
 cloud-based object stores. As a drop-in replacement for your `Dataset` class, it's easy to get streaming:
 
+<!--pytest.mark.skip-->
 ```python
 dataloader = torch.utils.data.DataLoader(dataset=ImageStreamingDataset(path=s3://...))
 ```

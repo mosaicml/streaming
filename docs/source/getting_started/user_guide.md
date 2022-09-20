@@ -35,40 +35,40 @@ class RandomClassificationDataset:
 There are a few parameters that need to be initialized before {class}`streaming.MDSWriter` gets called. Some of the parameters are optional, and others are required parameters. Let's look at each of them where we start with two required parameters.
 
 1. Provide the Local filesystem directory path to store the compressed dataset
-
-   ```python
-   output_dir = 'dirname'
-   ```
+    <!--pytest-codeblocks:cont-->
+    ```python
+    output_dir = 'test_output_dir'
+    ```
 
 2. Provide the column field as `Dict[str, str]`, which maps a feature or label name with encoding type. All the supported encoding and decoding types can be found here.
-
-   ```python
-   fields = {'x': 'pil', 'y': 'pil'}
-   ```
+    <!--pytest-codeblocks:cont-->
+    ```python
+    fields = {'x': 'pkl', 'y': 'pkl'}
+    ```
 
 The below parameters are optional to {class}`streaming.MDSWriter`. Let's look at each one of them
 
 1. Provide a name of a compression algorithm; the default is `None`. We support families of compression algorithms, and all of them can be found here.
-
-   ```python
-   compression = 'zstd:7'
-   ```
+    <!--pytest-codeblocks:cont-->
+    ```python
+    compression = 'zstd:7'
+    ```
 
 2. Provide a name of a hashing algorithm; the default is `None`. All the supported compression algorithms can be found here.
-
-   ```python
-   hashes = 'sha1'
-   ```
+    <!--pytest-codeblocks:cont-->
+    ```python
+    hashes = ['sha1']
+    ```
 
 3. Provide a shard size limit, after which point to start a new shard.
-
-   ```python
-   # Number act as a byte, e.g., 1024 bytes
-   limit = 1024
-   ```
+    <!--pytest-codeblocks:cont-->
+    ```python
+    # Number act as a byte, e.g., 1024 bytes
+    limit = 1024
+    ```
 
 Once the parameters are initialized, the last thing we need is a generator that iterates over the data sample.
-
+<!--pytest-codeblocks:cont-->
 ```python
 def each(samples):
     """Generator over each dataset sample.
@@ -87,18 +87,18 @@ def each(samples):
 ```
 
 It's time to call the {class}`streaming.MDSWriter` with the above initalized parameters and write the samples by iterating over a dataset.
-
+<!--pytest-codeblocks:cont-->
 ```python
 from streaming.base import MDSWriter
 
 dataset = RandomClassificationDataset()
 with MDSWriter(output_dir, fields, compression, hashes, limit) as out:
-    for sample in each(rcd):
-				out.write(sample)
+    for sample in each(dataset):
+        out.write(sample)
 ```
 
 Once the dataset has been written, the output directory contains two types of files. First are sharded files, and second is an index.json file that contains the metadata of shards. For example,
-
+<!--pytest.mark.skip-->
 ```bash
 dirname
 ├── index.json
@@ -107,7 +107,7 @@ dirname
 ```
 
 Finally, upload the output directory to a cloud blob storage such as AWS S3. Below is one example of uploading a directory to an S3 bucket using [AWS CLI](https://aws.amazon.com/cli/).
-
+<!--pytest.mark.skip-->
 ```bash
 $ aws s3 cp dirname s3://mybucket/myfolder --recursive
 ```
@@ -117,7 +117,7 @@ $ aws s3 cp dirname s3://mybucket/myfolder --recursive
 After writing a dataset in the streaming format in the previous step and uploaded to a cloud object storage as s3, we are ready to start loading data.
 
 To load the dataset files that we have written, we need to inherit the {class}`streaming.Dataset` class (which will do most of the heavy lifting) by creating a `CustomDataset` class and overriding the `__getitem__(idx: int)` method to get the sharded dataset. The {class}`streaming.Dataset` class requires to specify `local` and `remote` instance variables.
-
+<!--pytest-codeblocks:cont-->
  ```python
 from streaming.base import Dataset
 
@@ -131,7 +131,7 @@ class CustomDataset(Dataset):
  ```
 
 The next step is to Instantiate the `CustomDataset` class with local and remote paths.
-
+<!--pytest-codeblocks:cont-->
 ```python
 # Local filesystem directory where dataset is cached during operation
 local = '/tmp/cache'
@@ -143,7 +143,7 @@ dataset = CustomDataset(local=local, remote=remote)
 ```
 
 The final step is to pass the dataset to PyTorch {class}`torch.utils.data.DataLoader` and use this dataloader to train your model.
-
+<!--pytest-codeblocks:cont-->
 ```python
 from torch.utils.data import DataLoader
 
