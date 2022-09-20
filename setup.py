@@ -5,6 +5,14 @@ import os
 import setuptools
 from setuptools import setup
 
+# Read the streaming version
+# Cannot import from `streaming.__version__` since that will not be available when building or installing the package
+with open(os.path.join(os.path.dirname(__file__), 'streaming', '_version.py')) as f:
+    version_globals = {}
+    version_locals = {}
+    exec(f.read(), version_globals, version_locals)
+    streaming_version = version_locals['__version__']
+
 classifiers = [
     'Programming Language :: Python :: 3',
     'Programming Language :: Python :: 3.7',
@@ -66,7 +74,7 @@ if package_name != 'mosaicml-streaming':
 
 setup(
     name=package_name,
-    version='0.0.1a',
+    version=streaming_version,
     author='MosaicML',
     author_email='team@mosaicml.com',
     description='Streaming datasets',
