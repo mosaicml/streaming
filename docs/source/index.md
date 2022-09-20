@@ -53,6 +53,13 @@ If you have any questions, please feel free to reach out to us on [Twitter](htt
 
 .. toctree::
    :hidden:
+   :maxdepth: 1
+   :caption: Examples
+
+   examples/cifar10_resnet9.md
+
+.. toctree::
+   :hidden:
    :caption: API Reference
    :maxdepth: 1
    :glob:
