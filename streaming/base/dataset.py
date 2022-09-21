@@ -206,7 +206,70 @@ class Dataset(IterableDataset):
         """
         self._load_shards([shard], partition)
 
-    def _preload_shard(self, shard: int) -> bool:
+    def _preload_shard_part(self,
+                            shard: int,
+                            partition: Partition,
+                            raw_info: FileInfo,
+                            zip_info: Optional[FileInfo] = None,
+                            compression: Optional[str] = None) -> None:
+        """Decompress and validate shard data given raw/zip version metadata.
+
+        MDS format uses joint shards (ie, one file per shard). Other formats supported by streaming
+        use split shards (ie, shard data lives in two files per shard: the raw data itself and
+        metadata in a separate file).
+
+        Args:
+            shard (int): Shard ID.
+            partition (Partition): Our rank and worker's partition of the dataset.
+            raw_info (FileInfo): Raw file info.
+            zip_info (FileInfo, optional): Zip file info. Default: ``None``.
+            compression (str, optional): Compression algorithm used for zip_info. Default: ``None``.
+
+        Returns:
+            bool: Whether shard is present.
+        """
+        # Determine if we are the doer (process performing the preload), or the waiter (one waiting
+        # for it to complete). Multiple processes share a shard when it is split between workers.
+        wait = shard not in partition.shards_to_download
+
+        # If the decompressed version already exists, validate if requested.
+        raw_filename = os.path.join(self.local, self.split, raw_info.basename)
+        if os.path.isfile(raw_filename):
+            if not wait:
+                if self.hash:
+                    data = open(raw_filename, 'rb').read()
+                    assert get_hash(self.hash, data) == raw_info.hashes[self.hash]
+            return True
+
+        # If no decompressed file, and compression was not used, shard is missing.
+        if not zip_info:
+            return False
+
+        # If no decompressed file, compression was used, and no compressed file, shard is missing.
+        zip_filename = os.path.join(self.local, self.split, zip_info.basename)
+        if not os.path.isfile(zip_filename):
+            return False
+
+        # If has only the compressed version, decompress and maybe validate it.
+        if not wait:
+            # If doer: load compressed, validate, decompress, save decompressed, maybe remove
+            # compressed to save space.
+            data = open(zip_filename, 'rb').read()
+            if self.hash:
+                assert get_hash(self.hash, data) == zip_info.hashes[self.hash]
+            data = decompress(compression, data)  # pyright: ignore
+            tmp_filename = raw_filename + '.tmp'
+            with open(tmp_filename, 'wb') as out:
+                out.write(data)
+            os.rename(tmp_filename, raw_filename)
+            if not self.keep_zip:
+                os.remove(zip_filename)
+        else:
+            # If waiter: wait on decompressed to be written.
+            wait_for_download(raw_filename, self.timeout)
+        return True
+
+    def _preload_shard(self, shard: int, partition: Partition) -> bool:
         """Decompress and validate a single shard, returning whether present.
 
         Args:
@@ -215,28 +278,13 @@ class Dataset(IterableDataset):
         Returns:
             bool: Whether shard is present.
         """
-        info = self.shards[shard]
-        for raw_info, zip_info in info.file_pairs:
-            raw_filename = os.path.join(self.local, self.split, raw_info.basename)
-            if os.path.isfile(raw_filename):
-                if self.hash:
-                    data = open(raw_filename, 'rb').read()
-                    assert get_hash(self.hash, data) == raw_info.hashes[self.hash]
-            elif not zip_info:
+
+        assert shard in partition.shards
+        reader = self.shards[shard]
+        for raw_info, zip_info in reader.file_pairs:
+            if not self._preload_shard_part(shard, partition, raw_info, zip_info,
+                                            reader.compression):
                 return False
-            else:
-                zip_filename = os.path.join(self.local, self.split, zip_info.basename)
-                if os.path.isfile(zip_filename):
-                    data = open(zip_filename, 'rb').read()
-                    if self.hash:
-                        assert get_hash(self.hash, data) == zip_info.hashes[self.hash]
-                    data = decompress(info.compression, data)  # pyright: ignore
-                    with open(raw_filename, 'wb') as out:
-                        out.write(data)
-                    # if not self.keep_zip:
-                    #     os.remove(zip_filename)
-                else:
-                    return False
         return True
 
     def _preload(self, partition: Partition) -> List[int]:
@@ -263,7 +311,7 @@ class Dataset(IterableDataset):
         present_shards = []
         missing_shards = []
         for shard in partition.shards:
-            if self._preload_shard(shard):
+            if self._preload_shard(shard, partition):
                 present_shards.append(shard)
             else:
                 missing_shards.append(shard)
