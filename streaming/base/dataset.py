@@ -211,7 +211,7 @@ class Dataset(IterableDataset):
                             partition: Partition,
                             raw_info: FileInfo,
                             zip_info: Optional[FileInfo] = None,
-                            compression: Optional[str] = None) -> None:
+                            compression: Optional[str] = None) -> bool:
         """Decompress and validate shard data given raw/zip version metadata.
 
         MDS format uses joint shards (ie, one file per shard). Other formats supported by streaming
