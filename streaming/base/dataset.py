@@ -206,6 +206,35 @@ class Dataset(IterableDataset):
         """
         self._load_shards([shard], partition)
 
+    def _decompress_shard_part(self, zip_info: FileInfo, zip_filename: str, raw_filename: str,
+                               compression: Optional[str], wait: bool):
+        """Validate and decompress shard data.
+
+        Args:
+            zip_info (FileInfo): Compressed file info.
+            zip_filename (str): Compressed filename.
+            raw_filename (str): Decompressed filename.
+            compression (str, optional): Compression algorithm.
+            wait (bool): Whether to wait for another worker to do the work.
+        """
+        # Doer or waiter?
+        if not wait:
+            # If doer: load compressed, validate, decompress, save decompressed, maybe remove
+            # compressed to save space.
+            data = open(zip_filename, 'rb').read()
+            if self.hash:
+                assert get_hash(self.hash, data) == zip_info.hashes[self.hash]
+            data = decompress(compression, data)  # pyright: ignore
+            tmp_filename = raw_filename + '.tmp'
+            with open(tmp_filename, 'wb') as out:
+                out.write(data)
+            os.rename(tmp_filename, raw_filename)
+            if not self.keep_zip:
+                os.remove(zip_filename)
+        else:
+            # If waiter: wait on decompressed to be written.
+            wait_for_download(raw_filename, self.timeout)
+
     def _preload_shard_part(self,
                             shard: int,
                             partition: Partition,
@@ -251,22 +280,7 @@ class Dataset(IterableDataset):
             return False
 
         # If has only the compressed version, decompress and maybe validate it.
-        if not wait:
-            # If doer: load compressed, validate, decompress, save decompressed, maybe remove
-            # compressed to save space.
-            data = open(zip_filename, 'rb').read()
-            if self.hash:
-                assert get_hash(self.hash, data) == zip_info.hashes[self.hash]
-            data = decompress(compression, data)  # pyright: ignore
-            tmp_filename = raw_filename + '.tmp'
-            with open(tmp_filename, 'wb') as out:
-                out.write(data)
-            os.rename(tmp_filename, raw_filename)
-            if not self.keep_zip:
-                os.remove(zip_filename)
-        else:
-            # If waiter: wait on decompressed to be written.
-            wait_for_download(raw_filename, self.timeout)
+        self._decompress_shard_part(zip_info, zip_filename, raw_filename, compression, wait)
         return True
 
     def _preload_shard(self, shard: int, partition: Partition) -> bool:
@@ -389,23 +403,8 @@ class Dataset(IterableDataset):
             if not os.path.isfile(zip_filename):
                 self._download_file(zip_info.basename, wait)
 
-            # Doer or waiter?
-            if not wait:
-                # If doer: load compressed, validate, decompress, save decompressed, maybe remove
-                # compressed to save space.
-                data = open(zip_filename, 'rb').read()
-                if self.hash:
-                    assert get_hash(self.hash, data) == zip_info.hashes[self.hash]
-                data = decompress(compression, data)  # pyright: ignore
-                tmp_filename = raw_filename + '.tmp'
-                with open(tmp_filename, 'wb') as out:
-                    out.write(data)
-                os.rename(tmp_filename, raw_filename)
-                if not self.keep_zip:
-                    os.remove(zip_filename)
-            else:
-                # If waiter: wait on decompressed to be written.
-                wait_for_download(raw_filename, self.timeout)
+            # Validate and decompress (or wait on that).
+            self._decompress_shard_part(zip_info, zip_filename, raw_filename, compression, wait)
         else:
             # Download the raw version.
             self._download_file(raw_info.basename, wait)
