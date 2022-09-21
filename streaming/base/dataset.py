@@ -14,8 +14,9 @@ from torch.utils.data import IterableDataset
 
 from streaming.base import distributed as dist
 from streaming.base.compression import decompress
-from streaming.base.download import download_or_wait
+from streaming.base.download import download_or_wait, wait_for_download
 from streaming.base.format import reader_from_json
+from streaming.base.format.base.reader import FileInfo
 from streaming.base.hashing import get_hash
 from streaming.base.index import Index, Partition, get_index_basename
 
@@ -305,6 +306,69 @@ class Dataset(IterableDataset):
         download_or_wait(remote, local, wait, self.retry, self.timeout)
         return local
 
+    def _download_shard_part(self,
+                             shard: int,
+                             partition: Partition,
+                             raw_info: FileInfo,
+                             zip_info: Optional[FileInfo] = None,
+                             compression: Optional[str] = None) -> None:
+        """Download shard data given metadata for the raw and compressed versions of it.
+
+        MDS format uses joint shards (ie, one file per shard). Other formats supported by streaming
+        use split shards (ie, shard data lives in two files per shard: the raw data itself and
+        metadata in a separate file).
+
+        Args:
+            shard (int): Shard ID.
+            partition (Partition): Our rank and worker's partition of the dataset.
+            raw_info (FileInfo): Raw file info.
+            zip_info (FileInfo, optional): Zip file info. Default: ``None``.
+            compression (str, optional): Compression algorithm used for zip_info. Default: ``None``.
+        """
+        # If the local raw file already exists, this is a no-op.
+        raw_filename = os.path.join(self.local, self.split, raw_info.basename)
+        if os.path.isfile(raw_filename):
+            return
+
+        # Determine if we are the doer (process performing the download), or the waiter (one waiting
+        # for it to complete). Multiple processes share a shard when it is split between workers.
+        wait = shard not in partition.shards_to_download
+
+        # Is compression used?
+        if zip_info:
+            # Download the compressed form if missing (or wait on download).
+            zip_filename = os.path.join(self.local, self.split, zip_info.basename)
+            if not os.path.isfile(zip_filename):
+                self._download_file(zip_info.basename, wait)
+
+            # Doer or waiter?
+            if not wait:
+                # If doer: load compressed, validate, decompress, save decompressed, maybe remove
+                # compressed to save space.
+                data = open(zip_filename, 'rb').read()
+                if self.hash:
+                    assert get_hash(self.hash, data) == zip_info.hashes[self.hash]
+                data = decompress(compression, data)  # pyright: ignore
+                tmp_filename = raw_filename + '.tmp'
+                with open(tmp_filename, 'wb') as out:
+                    out.write(data)
+                os.rename(tmp_filename, raw_filename)
+                if not self.keep_zip:
+                    os.remove(zip_filename)
+            else:
+                # If waiter: wait on decompressed to be written.
+                wait_for_download(raw_filename, self.timeout)
+        else:
+            # Download the raw version.
+            self._download_file(raw_info.basename, wait)
+
+            # Doer or waiter?
+            if not wait:
+                # If doer: load raw, validate.
+                if self.hash:
+                    data = open(raw_filename, 'rb').read()
+                    assert get_hash(self.hash, data) == raw_info.hashes[self.hash]
+
     def _download_shard(self, shard: int, partition: Partition) -> int:
         """Download the given shard.
 
@@ -316,31 +380,9 @@ class Dataset(IterableDataset):
             int: Shard ID.
         """
         assert shard in partition.shards
-        info = self.shards[shard]
-        for raw_info, zip_info in info.file_pairs:
-            if zip_info:
-                raw_filename = os.path.join(self.local, self.split, raw_info.basename)
-                if not os.path.isfile(raw_filename):
-                    zip_filename = os.path.join(self.local, self.split, zip_info.basename)
-                    if not os.path.isfile(zip_filename):
-                        wait = shard not in partition.shards_to_download
-                        self._download_file(zip_info.basename, wait)
-                    data = open(zip_filename, 'rb').read()
-                    if self.hash:
-                        assert get_hash(self.hash, data) == zip_info.hashes[self.hash]
-                    data = decompress(info.compression, data)  # pyright: ignore
-                    with open(raw_filename, 'wb') as out:
-                        out.write(data)
-                    # if not self.keep_zip:
-                    #     os.remove(zip_filename)
-            else:
-                raw_filename = os.path.join(self.local, self.split, raw_info.basename)
-                if not os.path.isfile(raw_filename):
-                    wait = shard not in partition.shards_to_download
-                    self._download_file(raw_info.basename, wait)
-                    if self.hash:
-                        data = open(raw_filename, 'rb').read()
-                        assert get_hash(self.hash, data) == raw_info.hashes[self.hash]
+        reader = self.shards[shard]
+        for raw_info, zip_info in reader.file_pairs:
+            self._download_shard_part(shard, partition, raw_info, zip_info, reader.compression)
         return shard
 
     def _download_shards_via_pool(self,
