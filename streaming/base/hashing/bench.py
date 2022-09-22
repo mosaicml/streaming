@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+"""Script to benchmark various hashing algorithms."""
+
 from argparse import ArgumentParser, Namespace
 from time import time
 from typing import Iterator
@@ -11,10 +13,10 @@ from streaming.base.hashing.hashing import get_hash, get_hashes
 
 
 def parse_args() -> Namespace:
-    """Parse commandline arguments.
+    """Parse command-line arguments.
 
     Args:
-        Namespace: Commandline arguments.
+        Namespace: command-line arguments.
     """
     args = ArgumentParser()
     args.add_argument('--data', type=str, required=True)
@@ -48,7 +50,7 @@ def main(args: Namespace) -> None:
     """Benchmark hash algorithms.
 
     Args:
-        args (Namespace): Commandline flags.
+        args (Namespace): command-line flags.
     """
     data = open(args.data, 'rb').read()
     for algo in sorted(get_hashes()):

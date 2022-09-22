@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+""":class:`JSONWriter` converts a list of samples into binary `.mds` files that can be read as a :class:`JSONReader`."""
+
 import json
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -11,7 +13,7 @@ from streaming.base.format.json.encodings import is_json_encoded, is_json_encodi
 
 
 class JSONWriter(SplitWriter):
-    """Writes a streaming JSON dataset.
+    r"""Writes a streaming JSON dataset.
 
     Args:
         dirname (str): Local dataset directory.

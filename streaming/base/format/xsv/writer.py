@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+"""Converts a list of samples into a tabular data format files such as XSV, CSV, and TSV."""
+
 import json
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -11,7 +13,7 @@ from streaming.base.format.xsv.encodings import is_xsv_encoding, xsv_encode
 
 
 class XSVWriter(SplitWriter):
-    """Writes a streaming XSV dataset.
+    r"""Writes a streaming XSV dataset.
 
     Args:
         dirname (str): Local dataset directory.
@@ -107,7 +109,7 @@ class XSVWriter(SplitWriter):
 
 
 class CSVWriter(XSVWriter):
-    """Writes a streaming CSV dataset.
+    r"""Writes a streaming CSV dataset.
 
     Args:
         dirname (str): Local dataset directory.
@@ -147,7 +149,7 @@ class CSVWriter(XSVWriter):
 
 
 class TSVWriter(XSVWriter):
-    """Writes a streaming TSV dataset.
+    r"""Writes a streaming TSV dataset.
 
     Args:
         dirname (str): Local dataset directory.

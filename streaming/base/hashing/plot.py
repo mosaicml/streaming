@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+"""Utility and helper functions to plot hashing information."""
+
 from argparse import ArgumentParser, Namespace
 from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
@@ -30,10 +32,10 @@ algo2color: Dict[str, Optional[str]] = {
 
 
 def parse_args() -> Namespace:
-    """Parse commandline arguments.
+    """Parse command-line arguments.
 
     Args:
-        Namespace: Commandline arguments.
+        Namespace: command-line arguments.
     """
     args = ArgumentParser()
     args.add_argument('--data', type=str, required=True)
@@ -112,7 +114,7 @@ def main(args: Namespace) -> None:
     """Plot info about hashing.
 
     Args:
-        args (Namespace): Commandline arguments.
+        args (Namespace): command-line arguments.
     """
     data = load(args.data)
     plot_hash_rates(data, algo2color, args.dpi, args.font_size, args.line_width, args.hash_rates)

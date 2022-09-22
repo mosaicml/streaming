@@ -1,11 +1,17 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+"""ImageNet classification streaming dataset.
+
+The most widely used dataset for Image Classification algorithms. Please refer to the `ImageNet
+2012 Classification Dataset <http://image-net.org/>`_ for more details.
+"""
+
 from streaming.vision.base import ImageClassDataset
 
 
 class ImageNet(ImageClassDataset):
-    """Streaming ImageNet.
+    """Implementation of the ImageNet dataset using streaming Dataset.
 
     Args:
         local (str): Local filesystem directory where dataset is cached during operation.

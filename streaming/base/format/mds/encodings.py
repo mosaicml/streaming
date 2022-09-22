@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+"""Encode and Decode samples in a supported MDS format."""
+
 import json
 import pickle
 from abc import ABC, abstractmethod

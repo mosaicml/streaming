@@ -1,14 +1,19 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+"""COCO (Common Objects in Context) dataset.
+
+COCO is a large-scale object detection, segmentation, and captioning dataset. Please refer to the
+`COCO dataset <https://cocodataset.org>`_ for more details.
+"""
+
 from typing import Any, Callable, Optional
 
 from streaming.base import Dataset
 
 
 class COCO(Dataset):
-    """
-    Implementation of the COCO dataset using streaming Dataset.
+    """Implementation of the COCO dataset using streaming Dataset.
 
     Args:
         local (str): Local filesystem directory where dataset is cached during operation.
@@ -51,6 +56,14 @@ class COCO(Dataset):
         self.transform = transform
 
     def __getitem__(self, idx: int) -> Any:
+        """Get sample by global index, blocking to load its shard if missing.
+
+        Args:
+            idx (int): Sample index.
+
+        Returns:
+            Any: Sample data.
+        """
         x = super().__getitem__(idx)
         img = x['img'].convert('RGB')
         img_id = x['img_id']

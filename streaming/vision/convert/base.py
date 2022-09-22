@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+"""Utility and helper functions to convert CV datasets."""
+
 import os
 from typing import List, Optional
 

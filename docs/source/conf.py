@@ -371,9 +371,7 @@ def _auto_rst_for_module(module: types.ModuleType, exclude_members: List[Any]) -
 
 
 def _modules_to_rst() -> List[types.ModuleType]:
-    """Return the list of modules for which to generate API reference rst
-    files."""
-
+    """Return the list of modules for which to generate API reference rst files."""
     document_modules: List[types.Module] = [
         streaming,
     ]
@@ -389,8 +387,8 @@ def _modules_to_rst() -> List[types.ModuleType]:
 def _generate_rst_files_for_modules() -> None:
     """Generate .rst files for each module to include in the API reference.
 
-    These files contain the module docstring followed by tables listing
-    all the functions, classes, etc.
+    These files contain the module docstring followed by tables listing all the functions, classes,
+    etc.
     """
     docs_dir = os.path.abspath(os.path.dirname(__file__))
     module_rst_save_dir = os.path.join(docs_dir, 'api_reference')

@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+""":class:`MDSReader` reads samples from binary ``.mds`` files that were written out by:class:`StreamingDatasetWriter`."""
+
 import os
 from copy import deepcopy
 from typing import Any, Dict, List, Optional

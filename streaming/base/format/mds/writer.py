@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+""":class:`MDSWriter` converts a list of samples into binary `.mds` files that can be read as a :class:`MDSReader`."""
+
 import json
 from typing import Any, Dict, List, Optional
 

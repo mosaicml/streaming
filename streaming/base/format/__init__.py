@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+"""Individual dataset writer for every format."""
+
 from typing import Any, Dict, Optional
 
 from streaming.base.format.base.reader import Reader
@@ -19,6 +21,16 @@ _readers = {
 
 
 def reader_from_json(dirname: str, split: Optional[str], obj: Dict[str, Any]) -> Reader:
+    """Initialize the reader from JSON object.
+
+    Args:
+        dirname (str): Local directory containing shards.
+        split (str, optional): Which dataset split to use, if any.
+        obj (Dict[str, Any]): JSON object to load.
+
+    Returns:
+        Reader: Loaded Reader of `format` type
+    """
     assert obj['version'] == 2
     cls = _readers[obj['format']]
     return cls.from_json(dirname, split, obj)

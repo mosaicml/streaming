@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+"""The :class:`Dataset` class, used for building streaming iterable datasets."""
+
 import json
 import os
 from enum import IntEnum
@@ -292,7 +294,6 @@ class Dataset(IterableDataset):
         Returns:
             bool: Whether shard is present.
         """
-
         assert shard in partition.shards
         reader = self.shards[shard]
         for raw_info, zip_info in reader.file_pairs:

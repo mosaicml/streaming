@@ -1,5 +1,6 @@
 Example:
 
+```json
     {
       "column_encodings": [
         "int",
@@ -53,3 +54,4 @@ Example:
         }
       }
     }
+```
