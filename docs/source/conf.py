@@ -375,7 +375,7 @@ def _modules_to_rst() -> List[types.ModuleType]:
     document_modules: List[types.Module] = [
         streaming,
     ]
-    exclude_modules: List[types.Module] = []
+    exclude_modules: List[types.Module] = [streaming.base, streaming._version]
     for name in streaming.__dict__:
         obj = streaming.__dict__[name]
         if isinstance(obj, types.ModuleType) and obj not in exclude_modules:
