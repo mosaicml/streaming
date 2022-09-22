@@ -32,5 +32,3 @@ jobs:
       - name: Linting
         run: |
           pre-commit run --all-files
-        with:
-          working_directory: ${{ github.workspace }}
