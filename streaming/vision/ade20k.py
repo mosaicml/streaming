@@ -12,8 +12,8 @@ from typing import Any, Callable, Optional, Tuple
 from streaming.base import Dataset
 
 
-class ADE20k(Dataset):
-    """Implementation of the ADE20k dataset using streaming Dataset.
+class ADE20K(Dataset):
+    """Implementation of the ADE20K dataset using streaming Dataset.
 
     Args:
         local (str): Local dataset directory where shards are cached by split.

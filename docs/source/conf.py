@@ -16,15 +16,13 @@ documentation root, use os.path.abspath to make it absolute, like shown here.
 import ast
 import importlib
 import inspect
-import json
 import os
 import shutil
 import sys
 import tempfile
-import textwrap
 import types
 import warnings
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, List, Tuple, Type
 
 import sphinx.application
 import sphinx.ext.autodoc
@@ -375,7 +373,7 @@ def _modules_to_rst() -> List[types.ModuleType]:
     document_modules: List[types.Module] = [
         streaming,
     ]
-    exclude_modules: List[types.Module] = [streaming.base, streaming._version]
+    exclude_modules: List[types.Module] = [streaming._version]
     for name in streaming.__dict__:
         obj = streaming.__dict__[name]
         if isinstance(obj, types.ModuleType) and obj not in exclude_modules:
