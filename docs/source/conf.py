@@ -16,15 +16,13 @@ documentation root, use os.path.abspath to make it absolute, like shown here.
 import ast
 import importlib
 import inspect
-import json
 import os
 import shutil
 import sys
 import tempfile
-import textwrap
 import types
 import warnings
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, List, Tuple, Type
 
 import sphinx.application
 import sphinx.ext.autodoc
@@ -371,13 +369,11 @@ def _auto_rst_for_module(module: types.ModuleType, exclude_members: List[Any]) -
 
 
 def _modules_to_rst() -> List[types.ModuleType]:
-    """Return the list of modules for which to generate API reference rst
-    files."""
-
+    """Return the list of modules for which to generate API reference rst files."""
     document_modules: List[types.Module] = [
         streaming,
     ]
-    exclude_modules: List[types.Module] = []
+    exclude_modules: List[types.Module] = [streaming._version]
     for name in streaming.__dict__:
         obj = streaming.__dict__[name]
         if isinstance(obj, types.ModuleType) and obj not in exclude_modules:
@@ -389,8 +385,8 @@ def _modules_to_rst() -> List[types.ModuleType]:
 def _generate_rst_files_for_modules() -> None:
     """Generate .rst files for each module to include in the API reference.
 
-    These files contain the module docstring followed by tables listing
-    all the functions, classes, etc.
+    These files contain the module docstring followed by tables listing all the functions, classes,
+    etc.
     """
     docs_dir = os.path.abspath(os.path.dirname(__file__))
     module_rst_save_dir = os.path.join(docs_dir, 'api_reference')

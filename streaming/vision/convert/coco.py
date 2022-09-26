@@ -19,10 +19,10 @@ from streaming.base.util import get_list_arg
 
 
 def parse_args() -> Namespace:
-    """Parse command line arguments.
+    """Parse command-line arguments.
 
     Args:
-        Namespace: Command line arguments.
+        Namespace: command-line arguments.
     """
     args = ArgumentParser()
     args.add_argument(
@@ -56,10 +56,10 @@ def parse_args() -> Namespace:
         help='Hashing algorithms to apply to shard files. Default: sha1,xxh64',
     )
     args.add_argument(
-        '--limit',
+        '--size_limit',
         type=int,
         default=1 << 25,
-        help='Shard size limit, after which point to start a new shard. Default: 33554432',
+        help='Shard size limit, after which point to start a new shard. Default: 1 << 25',
     )
     args.add_argument(
         '--progbar',
@@ -197,7 +197,7 @@ def main(args: Namespace) -> None:
     """Main: create COCO streaming dataset.
 
     Args:
-        args (Namespace): Command line arguments.
+        args (Namespace): command-line arguments.
     """
     fields = {
         'img': 'jpeg',
@@ -235,7 +235,7 @@ def main(args: Namespace) -> None:
         else:
             dataset = each(dataset, shuffle)
 
-        with MDSWriter(split_out_dir, fields, args.compression, hashes, args.limit) as out:
+        with MDSWriter(split_out_dir, fields, args.compression, hashes, args.size_limit) as out:
             for sample in dataset:
                 out.write(sample)
 

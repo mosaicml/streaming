@@ -16,23 +16,23 @@ from streaming.base.util import get_list_arg
 
 
 def parse_args() -> Namespace:
-    """Parse command line arguments.
+    """Parse command-line arguments.
 
     Args:
-        Namespace: Command line arguments.
+        Namespace: command-line arguments.
     """
     args = ArgumentParser()
     args.add_argument(
         '--in_root',
         type=str,
         required=True,
-        help='Location of the input dataset',
+        help='Directory path of the input dataset',
     )
     args.add_argument(
         '--out_root',
         type=str,
         required=True,
-        help='Location to store the output dataset',
+        help='Directory path to store the output dataset',
     )
     args.add_argument(
         '--splits',
@@ -53,23 +53,23 @@ def parse_args() -> Namespace:
         help='Hashing algorithms to apply to shard files. Default: sha1,xxh64',
     )
     args.add_argument(
-        '--limit',
+        '--size_limit',
         type=int,
         default=1 << 22,
-        help='Shard size limit, after which point to start a new shard. Default: 4194304',
+        help='Shard size limit, after which point to start a new shard. Default: 1 << 22',
     )
     args.add_argument(
         '--progbar',
         type=int,
         default=1,
-        help='tqdm progress bar. Default: 1 (Act as True)',
+        help='tqdm progress bar. Default: 1 (True)',
     )
     args.add_argument(
         '--leave',
         type=int,
         default=0,
         help='Keeps all traces of the progressbar upon termination of iteration. Default: 0 ' +
-        '(Act as False)',
+        '(False)',
     )
     return args.parse_args()
 
@@ -136,7 +136,7 @@ def main(args: Namespace) -> None:
     """Main: create streaming ADE20K dataset.
 
     Args:
-        args (Namespace): Command line arguments.
+        args (Namespace): command-line arguments.
     """
     fields = {'uid': 'bytes', 'x': 'jpeg', 'y': 'png'}
 
@@ -156,7 +156,8 @@ def main(args: Namespace) -> None:
         if args.progbar:
             samples = tqdm(samples, leave=args.leave)
 
-        with MDSWriter(split_images_out_dir, fields, args.compression, hashes, args.limit) as out:
+        with MDSWriter(split_images_out_dir, fields, args.compression, hashes,
+                       args.size_limit) as out:
             for sample in each(samples):
                 out.write(sample)
 

@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+"""Convert a list of samples into a format files that can be read as a :class:`Dataset`."""
+
 import json
 import os
 from abc import ABC, abstractmethod

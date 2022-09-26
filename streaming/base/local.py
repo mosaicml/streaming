@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+"""Local Dataset."""
+
 import json
 import os
 from typing import Any, Dict, Optional
@@ -12,6 +14,12 @@ from streaming.base.index import Index
 
 
 class LocalDataset(Dataset):
+    """The dataset resides locally in a machine.
+
+    Args:
+        dirname (str): Local dataset directory where the dataset is present.
+        split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
+    """
 
     def __init__(self, dirname: str, split: Optional[str] = None):
         split = split or ''
@@ -32,9 +40,22 @@ class LocalDataset(Dataset):
         self.index = Index(shard_sizes)
 
     def __len__(self) -> int:
+        """Get the length as an IterableDataset.
+
+        Returns:
+            int: Dataset length.
+        """
         return self.index.total_samples
 
     def __getitem__(self, idx: int) -> Dict[str, Any]:
+        """Get sample by global index.
+
+        Args:
+            idx (int): Sample index.
+
+        Returns:
+            Dict[str, Any]: Column name with sample data.
+        """
         shard_idx, idx_in_shard = self.index.find_sample(idx)
         shard = self.shards[shard_idx]
         return shard[idx_in_shard]

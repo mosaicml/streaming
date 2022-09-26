@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+"""List of Compression and Decompression algorithms."""
+
 import bz2
 import gzip
 from abc import ABC, abstractmethod

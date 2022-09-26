@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+"""Reads and decode samples from a Tabular format files such as XSV, CSV, and TSV."""
+
 import os
 from copy import deepcopy
 from typing import Any, Dict, List, Optional

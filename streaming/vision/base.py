@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+"""Base Class for making Computer Vision datasets which are compatible with :class:`Dataset`."""
+
 from typing import Any, Callable, Optional, Tuple
 
 from torchvision.transforms.functional import to_tensor
@@ -11,8 +13,7 @@ __all__ = ['VisionDataset', 'ImageClassDataset']
 
 
 class StandardTransform(object):
-    """Individual input and output transforms called jointly, following
-    torchvision.
+    """Individual input and output transforms called jointly, following torchvision.
 
     Args:
         transform (Callable, optional): Input transform. Defaults to ``None``.

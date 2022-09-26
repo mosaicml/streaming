@@ -347,7 +347,9 @@ def test_dataloader_single_device(remote_local: Tuple[str, str], batch_size: int
 
 def check_for_diff_files(dir: dircmp, compression_ext: Union[None, str]):
     """Check recursively for different files in a dircmp object.
-    Local directory also has the uncompressed files, ignore it during file comparison."""
+
+    Local directory also has the uncompressed files, ignore it during file comparison.
+    """
     if compression_ext:
         for file in dir.diff_files:
             assert not file.endswith(compression_ext)

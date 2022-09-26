@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+"""Utility and helper functions to plot compression information."""
+
 from argparse import ArgumentParser, Namespace
 from collections import defaultdict
 from dataclasses import dataclass
@@ -72,10 +74,10 @@ algo2color = {
 
 
 def parse_args() -> Namespace:
-    """Parse commandline arguments.
+    """Parse command-line arguments.
 
     Args:
-        Namespace: Commandline arguments.
+        Namespace: command-line arguments.
     """
     args = ArgumentParser()
     args.add_argument('--data', type=str, required=True)
@@ -252,7 +254,7 @@ def main(args: Namespace) -> None:
     """Plot info about compression.
 
     Args:
-        args (Namespace): Commandline arguments.
+        args (Namespace): command-line arguments.
     """
     data = load(args.data, args.min_dec_size)
     plot_compression_rates(data, algo2color, args.dpi, args.font_size, args.line_width,

@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+"""Helper methods to get the shard attributes."""
+
 from math import ceil
 from typing import List, Optional, Tuple
 
@@ -41,9 +43,8 @@ class Partition(object):
 class Index(object):
     """An index of sample ranges (corresponding to shards).
 
-    Enables (a) finding the shard for a given sample, (b) getting the
-    per-device dataset size, and (c) getting this device/worker's sample
-    range of the dataset.
+    Enables (a) finding the shard for a given sample, (b) getting the per-device dataset size, and
+    (c) getting this device/worker's sample range of the dataset.
     """
 
     def __init__(self, samples_per_shard: List[int], batch_size: Optional[int] = None) -> None:

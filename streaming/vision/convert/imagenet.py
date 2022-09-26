@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+"""ImageNet streaming dataset conversion scripts."""
+
 import os
 from argparse import ArgumentParser, Namespace
 from glob import glob
@@ -15,22 +17,73 @@ from streaming.base.util import get_list_arg
 
 
 def parse_args() -> Namespace:
-    """Parse commandline arguments.
+    """Parse command-line arguments.
 
     Args:
-        Namespace: Commandline arguments.
+        Namespace: command-line arguments.
     """
     args = ArgumentParser()
-    args.add_argument('--in_root', type=str, required=True)
-    args.add_argument('--out_root', type=str, required=True)
-    args.add_argument('--splits', type=str, default='train,val')
-    args.add_argument('--compression', type=str, default='')
-    args.add_argument('--hashes', type=str, default='sha1,xxh64')
-    args.add_argument('--size_limit', type=int, default=1 << 26)
-    args.add_argument('--progbar', type=int, default=1)
-    args.add_argument('--leave', type=int, default=0)
-    args.add_argument('--validate', type=int, default=1)
-    args.add_argument('--extensions', type=str, default='jpeg')
+    args.add_argument(
+        '--in_root',
+        type=str,
+        required=True,
+        help='Directory path of the input dataset',
+    )
+    args.add_argument(
+        '--out_root',
+        type=str,
+        required=True,
+        help='Directory path to store the output dataset',
+    )
+    args.add_argument(
+        '--splits',
+        type=str,
+        default='train,val',
+        help='Split to use. Default: train,val',
+    )
+    args.add_argument(
+        '--compression',
+        type=str,
+        default='',
+        help='Compression algorithm to use. Default: None',
+    )
+    args.add_argument(
+        '--hashes',
+        type=str,
+        default='sha1,xxh64',
+        help='Hashing algorithms to apply to shard files. Default: sha1,xxh64',
+    )
+    args.add_argument(
+        '--size_limit',
+        type=int,
+        default=1 << 26,
+        help='Shard size limit, after which point to start a new shard. Default: 1 << 26',
+    )
+    args.add_argument(
+        '--progbar',
+        type=int,
+        default=1,
+        help='tqdm progress bar. Default: 1 (True)',
+    )
+    args.add_argument(
+        '--leave',
+        type=int,
+        default=0,
+        help='Keeps all traces of the progressbar upon termination of iteration. Default: 0 ' +
+        '(False)',
+    )
+    args.add_argument(
+        '--validate',
+        type=int,
+        default=1,
+        help='Validate that it is an Image. Default: 1 (True)',
+    )
+    args.add_argument(
+        '--extensions',
+        type=str,
+        default='jpeg',
+        help='Validate filename extensions. Default: jpeg',
+    )
     return args.parse_args()
 
 
@@ -75,10 +128,10 @@ def get_classes(filenames: List[str],
 
 
 def main(args: Namespace) -> None:
-    """Main: create streaming CIFAR10 dataset.
+    """Main: create streaming ImageNet dataset.
 
     Args:
-        args (Namespace): Commandline arguments.
+        args (Namespace): command-line arguments.
     """
     splits = get_list_arg(args.splits)
     columns = {'i': 'int', 'x': 'jpeg', 'y': 'int'}

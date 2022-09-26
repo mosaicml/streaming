@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+"""Check whether sample encoding is of supported JSON types."""
+
 from abc import ABC, abstractmethod
 from typing import Any
 

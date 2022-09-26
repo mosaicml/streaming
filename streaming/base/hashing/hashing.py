@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+"""Setter and Getter for support hashing algorithms."""
+
 import hashlib
 from typing import Any, Callable, Dict, Set
 

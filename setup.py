@@ -1,4 +1,7 @@
-# Copyright 2022 MosaicML. All Rights Reserved.
+# Copyright 2022 MosaicML Streaming authors
+# SPDX-License-Identifier: Apache-2.0
+
+"""Streaming package setup."""
 
 import os
 

@@ -1,13 +1,19 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+"""ADE20K Semantic segmentation and scene parsing dataset.
+
+Please refer to the `ADE20K dataset <https://groups.csail.mit.edu/vision/datasets/ADE20K/>`_ for more details about this
+dataset.
+"""
+
 from typing import Any, Callable, Optional, Tuple
 
 from streaming.base import Dataset
 
 
-class ADE20k(Dataset):
-    """Implementation of the ADE20k dataset using streaming Dataset.
+class ADE20K(Dataset):
+    """Implementation of the ADE20K dataset using streaming Dataset.
 
     Args:
         local (str): Local dataset directory where shards are cached by split.
@@ -57,7 +63,7 @@ class ADE20k(Dataset):
             idx (int): Sample index.
 
         Returns:
-            Any: Sample data.
+            Tuple[Any, Any]: Sample data and label.
         """
         obj = super().__getitem__(idx)
         x = obj['x']

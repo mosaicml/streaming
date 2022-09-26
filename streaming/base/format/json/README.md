@@ -1,5 +1,6 @@
 Example:
 
+```json
     {
       "columns": {
         "number": "int",
@@ -48,3 +49,4 @@ Example:
         }
       }
     }
+```
