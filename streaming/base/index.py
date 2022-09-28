@@ -48,11 +48,29 @@ class Index(object):
     """
 
     def __init__(self, samples_per_shard: List[int], batch_size: Optional[int] = None) -> None:
-        self.total_samples = sum(samples_per_shard)
         self.samples_per_shard = samples_per_shard
+        self.batch_size = batch_size
+
+        self.total_samples = sum(samples_per_shard)
         self.shard_offsets = np.array([0] + samples_per_shard).cumsum().tolist()
 
-        self.batch_size = batch_size
+        # Make a lookup table of sample to shard, stored in the form of equal-sized spans of sample
+        # IDs that map to at most two adjacent shards, keeping the dividing sample ID.
+        self.slot_size = min(samples_per_shard[:-1])
+        self.num_slots = (self.total_samples + self.slot_size - 1) // self.slot_size
+        shard_ends = np.array(samples_per_shard).cumsum()
+        shard = 0
+        slots = []
+        for slot in range(self.num_slots):
+            slot_end = (slot + 1) * self.slot_size
+            if shard_ends[shard] < slot_end:
+                div = shard_ends[shard]
+                slots.append((shard, div))
+                shard += 1
+            else:
+                div = slot_end
+                slots.append((shard, div))
+        self.slots = np.array(slots)
 
     def find_sample(self, idx: int) -> Tuple[int, int]:
         """Get the shard and offset where a sample will be found.
@@ -63,24 +81,9 @@ class Index(object):
         Returns:
             Tuple[int, int]: Shard and sample index within that shard.
         """
-        low = 0
-        high = len(self.shard_offsets) - 1
-        while True:
-            if low + 1 == high:
-                if idx == self.shard_offsets[high]:
-                    shard = high
-                else:
-                    shard = low
-                break
-            mid = (low + high) // 2
-            div = self.shard_offsets[mid]
-            if idx < div:
-                high = mid
-            elif div < idx:
-                low = mid
-            else:
-                shard = mid
-                break
+        shard, div = self.slots[idx // self.slot_size]
+        if div <= idx:
+            shard += 1
         offset = idx - self.shard_offsets[shard]
         return shard, offset
 
