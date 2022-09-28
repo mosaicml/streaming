@@ -1,8 +1,14 @@
 # User Guide
 
+At a high level, one needs to create a dataset files compatible with a streaming and then load the same dataset files using {class}`streaming.Dataset` class.
+
+Streaming supports different dataset writer based on your need such as {class}`streaming.MDSWriter`, {class}`streaming.CSVWriter`, {class}`streaming.JSONWriter`, {class}`streaming.TSVWriter`, and {class}`streaming.XSVWriter`. The {class}`streaming.MDSWriter` write the dataset into `.mds` extension, the {class}`streaming.CSVWriter` write the content in `.csv` format and so on. For the more information about writer and its parameters, look at the API reference doc.
+
+For loading the dataset during model training, one needs to instantiate the {class}`streaming.Dataset` class with a dataset file path and provide that object to `dataset` parameter in PyTorch {class}`torch.utils.data.DataLoader` class. For the more information about dataset and its parameters, look at the API reference doc.
+
 ## Writing a dataset to streaming format
 
-The streaming dataset supports custom dataset writer of a different modal types such as {class}`streaming.MDSWriter`, {class}`streaming.CSVWriter`, {class}`streaming.JSONWriter`, {class}`streaming.TSVWriter`, and {class}`streaming.XSVWriter`. This guide shows you how to use your custom Dataset with {class}`streaming.MDSWriter`, but the steps would also remain the same for another writer.
+This guide shows you how to use your custom Dataset with {class}`streaming.MDSWriter`, but the steps would also remain the same for another writer.
 
 The {class}`streaming.MDSWriter` takes the raw dataset and converts it into a sharded `.mds` format for fast data access.
 
@@ -116,7 +122,7 @@ $ aws s3 cp dirname s3://mybucket/myfolder --recursive
 
 After writing a dataset in the streaming format in the previous step and uploaded to a cloud object storage as s3, we are ready to start loading data.
 
-To load the dataset files that we have written, we need to inherit the {class}`streaming.Dataset` class (which will do most of the heavy lifting) by creating a `CustomDataset` class and overriding the `__getitem__(idx: int)` method to get the sharded dataset. The {class}`streaming.Dataset` class requires to specify `local` and `remote` instance variables.
+To load the dataset files that we have written, we need to inherit the {class}`streaming.Dataset` class by creating a `CustomDataset` class and overriding the `__getitem__(idx: int)` method to get the sharded dataset. The {class}`streaming.Dataset` class requires to specify `local` and `remote` instance variables.
 <!--pytest-codeblocks:cont-->
  ```python
 from streaming.base import Dataset
