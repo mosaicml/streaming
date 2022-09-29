@@ -1,4 +1,4 @@
-# User Guide
+# 🖼️ User Guide
 
 At a high level, one needs to create a dataset files compatible with a streaming and then load the same dataset files using {class}`streaming.Dataset` class.
 

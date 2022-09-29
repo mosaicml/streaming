@@ -65,6 +65,6 @@ Start training your model with the Streaming dataset in a couple of steps!
     dataloader = DataLoader(dataset)
     ```
 
-That's it!  For additional details on using {mod}`streaming`, please see check out our [User Guide](user_guide.md) and [Examples](examples/).
+That's it!  For additional details on using {mod}`streaming`, please see check out our [User Guide](user_guide.md) and Tutorial.
 
 Happy training!
