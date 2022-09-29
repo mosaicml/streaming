@@ -55,9 +55,10 @@ If you have any questions, please feel free to reach out to us on [Twitter](htt
 .. toctree::
    :hidden:
    :maxdepth: 1
-   :caption: Examples
+   :caption: Tutorial
 
-   examples/cifar10_resnet9.md
+   tutorial/cifar10.ipynb
+   tutorial/facesynthetics.ipynb
 
 .. toctree::
    :hidden:
