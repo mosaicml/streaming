@@ -60,7 +60,7 @@ class Index(object):
             self.slot_size = min(samples_per_shard[:-1])
         else:
             self.slot_size = samples_per_shard[-1]
-        self.slot_size = self.slot_size or 1
+        self.slot_size = self.slot_size or 1  # For the edge case of empty shards.
         self.num_slots = (self.total_samples + self.slot_size - 1) // self.slot_size
         shard_ends = np.array(samples_per_shard).cumsum()
         shard = 0
