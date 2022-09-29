@@ -1,7 +1,7 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""EnWiki streaming dataset conversion script."""
+"""English Wikipedia 2020-01-01 streaming dataset conversion script."""
 
 from argparse import ArgumentParser, Namespace
 import os
