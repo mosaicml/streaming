@@ -1,6 +1,6 @@
 from argparse import ArgumentParser, Namespace
 import os
-from typing import Dict, List
+from typing import List
 
 from tqdm import tqdm
 
