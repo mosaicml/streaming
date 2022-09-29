@@ -56,7 +56,10 @@ class Index(object):
 
         # Make a lookup table of sample to shard, stored in the form of equal-sized spans of sample
         # IDs that map to at most two adjacent shards, keeping the dividing sample ID.
-        self.slot_size = min(samples_per_shard[:-1])
+        if samples_per_shard[:-1]:
+            self.slot_size = min(samples_per_shard[:-1]) or 1
+        else:
+            self.slot_size = samples_per_shard[-1]
         self.num_slots = (self.total_samples + self.slot_size - 1) // self.slot_size
         shard_ends = np.array(samples_per_shard).cumsum()
         shard = 0
