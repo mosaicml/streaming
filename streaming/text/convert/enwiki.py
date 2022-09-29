@@ -48,7 +48,7 @@ def parse_args() -> Namespace:
         '--size_limit',
         type=int,
         default=1 << 25,
-        help='Shard size limit, after which point to start a new shard. Default: 1 << 27',
+        help='Shard size limit, after which point to start a new shard. Default: 1 << 25',
     )
     args.add_argument(
         '--progbar',

@@ -66,7 +66,7 @@ class C4(Dataset):
         self.group_method = group_method
 
         # Build tokenizer
-        self.tokenizer = AutoTokenizer.from_pretrained(self.tokenizer_name)  # pyright: ignore
+        self.tokenizer = AutoTokenizer.from_pretrained(self.tokenizer_name)
         if self.tokenizer.pad_token is None:
             # Some tokenizers (e.g. GPT2 tokenizer) have no padding token which causes bugs
             self.tokenizer.pad_token = self.tokenizer.eos_token
