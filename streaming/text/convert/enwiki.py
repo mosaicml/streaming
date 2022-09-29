@@ -3,8 +3,8 @@
 
 """English Wikipedia 2020-01-01 streaming dataset conversion script."""
 
-from argparse import ArgumentParser, Namespace
 import os
+from argparse import ArgumentParser, Namespace
 from typing import List
 
 from tqdm import tqdm
