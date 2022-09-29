@@ -66,8 +66,9 @@ def parse_args() -> Namespace:
     return args.parse_args()
 
 
-def process_split(in_root: str, out_root: str, compression: str, hashes: List[str], size_limit: int,
-                  progbar: int, leave: int, basenames: List[str], split: str) -> None:
+def process_split(in_root: str, out_root: str, compression: str, hashes: List[str],
+                  size_limit: int, progbar: int, leave: int, basenames: List[str],
+                  split: str) -> None:
     """Process a dataset split.
 
     Args:
