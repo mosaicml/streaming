@@ -1,11 +1,7 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""C4 (Colossal Cleaned Common Crawl) dataset.
-
-This dataset is a colossal, cleaned version of Common Crawl's web crawl corpus and it is based on
-the `Common Crawl <https://commoncrawl.org>`_ dataset.
-"""
+"""English Wikipedia 2020-01-01 streaming dataset."""
 
 from typing import Any, Dict, Optional
 
@@ -14,8 +10,8 @@ from transformers.models.auto.tokenization_auto import AutoTokenizer
 from streaming.base import Dataset
 
 
-class C4(Dataset):
-    """Implementation of the C4 (Colossal Cleaned Common Crawl) dataset using streaming Dataset.
+class EnWiki(Dataset):
+    """Implementation of the English Wikipedia 2020-01-01 streaming dataset.
 
     Args:
         tokenizer_name (str): The name of the HuggingFace tokenizer to use to tokenize samples.
