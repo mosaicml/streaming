@@ -43,12 +43,6 @@ class TestBrotli:
         with pytest.raises(TypeError):
             _ = brotli.compress(data)
 
-    # def test_each(self):
-    #     algos = {}
-    #     for algo, obj in Brotli.each():
-    #         algos[algo] = obj
-    #     print()
-
 
 class TestBzip2:
 
