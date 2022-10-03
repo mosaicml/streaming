@@ -6,7 +6,7 @@
 import bz2
 import gzip
 from abc import ABC, abstractmethod
-from typing import Dict, Iterator, Optional, Set, Tuple, Type, Union
+from typing import Dict, Iterator, Optional, Set, Tuple, Type
 
 import brotli
 import snappy
@@ -132,7 +132,7 @@ class Snappy(Compression):
 
     extension = 'snappy'
 
-    def compress(self, data: Union[bytes, str]) -> bytes:
+    def compress(self, data: bytes) -> bytes:
         return snappy.compress(data)
 
     def decompress(self, data: bytes) -> bytes:
