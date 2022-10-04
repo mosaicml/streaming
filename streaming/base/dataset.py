@@ -399,20 +399,26 @@ class Dataset(IterableDataset):
 
         # Is compression used?
         if zip_info:
-            # Download the compressed form if missing (or wait on download).
+            # Download the compressed form if missing (or wait on its download).
             zip_filename = os.path.join(self.local, self.split, zip_info.basename)
             if not os.path.isfile(zip_filename):
-                self._download_file(zip_info.basename, wait)
+                # Waiter or doer?
+                if wait:
+                    # If waiter: wait for *raw* version to exist (as the zip may be ephemeral).
+                    wait_for_download(raw_filename, self.timeout)
+                else:
+                    # If doer: download the zip version.
+                    self._download_file(zip_info.basename)
 
             # Validate and decompress (or wait on that).
             self._decompress_shard_part(zip_info, zip_filename, raw_filename, compression, wait)
         else:
-            # Download the raw version.
+            # Download the raw form (or wait on its download).
             self._download_file(raw_info.basename, wait)
 
-            # Doer or waiter?
+            # Waiter or doer?
             if not wait:
-                # If doer: load raw, validate.
+                # If doer: validate if requested.
                 if self.hash:
                     data = open(raw_filename, 'rb').read()
                     assert get_hash(self.hash, data) == raw_info.hashes[self.hash]
