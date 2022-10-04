@@ -205,6 +205,14 @@ class Index(object):
             worker_max_id = \
                 device_min_id + (worker_max_batch_id + 1) * self.batch_size - max_id_offset - 1
 
+            # Adjustment for last partition.
+            if self.total_samples == worker_max_id:
+                if 0 < worker_min_id:
+                    worker_min_id -= 1
+                worker_max_id -= 1
+            elif self.total_samples < worker_max_id:
+                raise RuntimeError('Invalid partitioning')
+
         min_shard, _ = self.find_sample(worker_min_id)
         max_shard, _ = self.find_sample(worker_max_id)
         shards = list(range(min_shard, max_shard + 1))
