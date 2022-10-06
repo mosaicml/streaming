@@ -5,9 +5,12 @@ from __future__ import division
 from __future__ import print_function
 
 import collections
+import numpy as np
 import random
 import tokenization
 import tensorflow.compat.v1 as tf
+
+from streaming import MDSWriter
 
 flags = tf.flags
 
@@ -16,9 +19,16 @@ FLAGS = flags.FLAGS
 flags.DEFINE_string("input_file", None,
                     "Input raw text file (or comma-separated list of files).")
 
-flags.DEFINE_string(
-    "output_file", None,
-    "Output TF example file (or comma-separated list of files).")
+flags.DEFINE_string("output_dir", None, "Output example directory.")
+
+flags.DEFINE_string("compression", "zstd:12",
+                    "Optional compression algorithm and compression level.")
+
+flags.DEFINE_string("hashes", "", "Optional list of hashing algorithms with " +
+                    "which to validate produced shards.")
+
+flags.DEFINE_integer("size_limit", 1 << 27,
+                     "Optional shard size limit in bytes")
 
 flags.DEFINE_string("vocab_file", None,
                     "The vocabulary file that the BERT model was trained on.")
@@ -75,16 +85,36 @@ class TrainingInstance(object):
     return self.__str__()
 
 
+def pack_i32(obj):
+  i64 = np.array(obj, np.int64)
+  i32 = i64.astype(np.int32)
+  assert (i32 == i64).all()
+  return i32.tobytes()
+
+
+def pack_f32(obj):
+  arr = np.array(obj, np.float32)
+  return arr.tobytes()
+
+
 def write_instance_to_example_files(instances, tokenizer, max_seq_length,
-                                    max_predictions_per_seq, output_files):
-  """Create TF example files from `TrainingInstance`s."""
-  writers = []
-  for output_file in output_files:
-    writers.append(tf.python_io.TFRecordWriter(output_file))
-
-  writer_index = 0
-
+                                    max_predictions_per_seq, output_dir,
+                                    compression, hashes, size_limit):
+  """Create MDS example files from `TrainingInstance`s."""
   total_written = 0
+
+  columns = {
+    'input_ids': 'bytes',
+    'input_mask': 'bytes',
+    'segment_ids': 'bytes',
+    'masked_lm_positions': 'bytes',
+    'masked_lm_ids': 'bytes',
+    'masked_lm_weights': 'bytes',
+    'next_sentence_labels': 'bytes',
+  }
+
+  writer = MDSWriter(output_dir, columns, compression, hashes, size_limit)
+
   for (inst_index, instance) in enumerate(instances):
     input_ids = tokenizer.convert_tokens_to_ids(instance.tokens)
     input_mask = [1] * len(input_ids)
@@ -111,20 +141,16 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length,
 
     next_sentence_label = 1 if instance.is_random_next else 0
 
-    features = collections.OrderedDict()
-    features["input_ids"] = create_int_feature(input_ids)
-    features["input_mask"] = create_int_feature(input_mask)
-    features["segment_ids"] = create_int_feature(segment_ids)
-    features["masked_lm_positions"] = create_int_feature(masked_lm_positions)
-    features["masked_lm_ids"] = create_int_feature(masked_lm_ids)
-    features["masked_lm_weights"] = create_float_feature(masked_lm_weights)
-    features["next_sentence_labels"] = create_int_feature([next_sentence_label])
-
-    tf_example = tf.train.Example(features=tf.train.Features(feature=features))
-
-    writers[writer_index].write(tf_example.SerializeToString())
-    writer_index = (writer_index + 1) % len(writers)
-
+    sample = {
+      'input_ids': pack_i32(input_ids),
+      'input_mask': pack_i32(input_mask),
+      'segment_ids': pack_i32(segment_ids),
+      'masked_lm_positions': pack_i32(masked_lm_positions),
+      'masked_lm_ids': pack_i32(masked_lm_ids),
+      'masked_lm_weights': pack_f32(masked_lm_weights),
+      'next_sentence_labels': pack_i32([next_sentence_label]),
+    }
+    writer.write(sample)
     total_written += 1
 
     if inst_index < 20:
@@ -132,18 +158,17 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length,
       tf.logging.info("tokens: %s" % " ".join(
           [tokenization.printable_text(x) for x in instance.tokens]))
 
-      for feature_name in features.keys():
-        feature = features[feature_name]
-        values = []
-        if feature.int64_list.value:
-          values = feature.int64_list.value
-        elif feature.float_list.value:
-          values = feature.float_list.value
+      for feature_name in sorted(sample):
+        feature = sample[feature_name]
+        if feature_name == 'masked_lm_weights':
+          dtype = np.float32
+        else:
+          dtype = np.int32
+        values = np.frombuffer(feature, dtype)
         tf.logging.info(
             "%s: %s" % (feature_name, " ".join([str(x) for x in values])))
 
-  for writer in writers:
-    writer.close()
+  writer.finish()
 
   tf.logging.info("Wrote %d total instances", total_written)
 
@@ -412,17 +437,17 @@ def main(_):
       FLAGS.short_seq_prob, FLAGS.masked_lm_prob, FLAGS.max_predictions_per_seq,
       rng)
 
-  output_files = FLAGS.output_file.split(",")
-  tf.logging.info("*** Writing to output files ***")
-  for output_file in output_files:
-    tf.logging.info("  %s", output_file)
+  tf.logging.info("*** Writing to output directory:", FLAGS.output_dir, "***")
 
+  hashes = FLAGS.hashes.split(',') if FLAGS.hashes else []
   write_instance_to_example_files(instances, tokenizer, FLAGS.max_seq_length,
-                                  FLAGS.max_predictions_per_seq, output_files)
+                                  FLAGS.max_predictions_per_seq,
+                                  FLAGS.output_dir, FLAGS.compression, hashes,
+                                  FLAGS.size_limit)
 
 
 if __name__ == "__main__":
   flags.mark_flag_as_required("input_file")
-  flags.mark_flag_as_required("output_file")
+  flags.mark_flag_as_required("output_dir")
   flags.mark_flag_as_required("vocab_file")
   tf.app.run()
