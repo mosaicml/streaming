@@ -211,7 +211,7 @@ class Index(object):
                     worker_min_id -= 1
                 worker_max_id -= 1
             elif self.total_samples < worker_max_id:
-                raise RuntimeError('Partitions were calculated incorrectly, please file a bug')
+                raise RuntimeError('Partitions were calculated incorrectly')
 
         min_shard, _ = self.find_sample(worker_min_id)
         max_shard, _ = self.find_sample(worker_max_id)
