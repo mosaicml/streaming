@@ -63,12 +63,18 @@ package_name = os.environ.get('MOSAIC_PACKAGE_NAME', 'mosaicml-streaming')
 if package_name != 'mosaicml-streaming':
     print(f'Building mosaicml-streaming as {package_name}')
 
+# Use repo README for PyPi description
+with open('README.md', 'r', encoding='utf-8') as fh:
+    long_description = fh.read()
+
 setup(
     name=package_name,
     version='0.0.1a',
     author='MosaicML',
     author_email='team@mosaicml.com',
-    description='Streaming datasets',
+    description='Streaming lets users create PyTorch compatible datasets that can be streamed from cloud-based object stores',
+    long_description=long_description,
+    long_description_content_type='text/markdown',
     url='https://github.com/mosaicml/streaming/',
     packages=setuptools.find_packages(exclude=['tests*']),
     classifiers=classifiers,
