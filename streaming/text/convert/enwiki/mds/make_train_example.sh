@@ -1,7 +1,7 @@
 # just do one of 500 shards for demonstration purposes.
 python3 create_pretraining_data.py \
-   --input_file=/data/enwiki_preproc/results4/part-00000-of-00500 \
-   --output_dir=/data/mds-enwiki/train/ \
+   --input_file=/tmp/enwiki_preproc/results4/part-00000-of-00500 \
+   --output_dir=/dataset/mds-enwiki/train/ \
    --compression zstd:7 \
    --hashes sha1,xxh3_64 \
    --size_limit 67108864 \

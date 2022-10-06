@@ -1,6 +1,6 @@
 python3 create_pretraining_data.py \
-  --input_file=/data/enwiki_preproc/results4/eval.txt \
-  --output_file=/data/enwiki_preproc/tfrecord/eval_intermediate \
+  --input_file=/tmp/enwiki_preproc/results4/eval.txt \
+  --output_file=/tmp/enwiki_preproc/tfrecord/eval_intermediate \
   --vocab_file=vocab.txt \
   --do_lower_case=True \
   --max_seq_length=512 \
@@ -10,6 +10,6 @@ python3 create_pretraining_data.py \
   --dupe_factor=10
 
 python3 pick_eval_samples.py \
-  --input_tfrecord=data/tfrecord/eval_intermediate \
-  --output_tfrecord=data/tfrecord/eval_10k \
+  --input_tfrecord=/tmp/enwiki_preproc/tfrecord/eval_intermediate \
+  --output_tfrecord=/tmp/enwiki_preproc/tfrecord/eval_10k \
   --num_examples_to_pick=10000

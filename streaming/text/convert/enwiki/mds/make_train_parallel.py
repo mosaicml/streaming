@@ -2,8 +2,8 @@ import os
 
 num_cpus = os.cpu_count()
 num_shards = 500
-input_file_pattern = '/data/enwiki_preproc/results4/part-%05d-of-00500'
-output_dir_pattern = '/data/mds-enwiki/train/group-%03d/'
+input_file_pattern = '/tmp/enwiki_preproc/results4/part-%05d-of-00500'
+output_dir_pattern = '/tmp/mds-enwiki/train/group-%03d/'
 
 for cpu in range(num_cpus):
     begin = cpu * num_shards // num_cpus
@@ -14,7 +14,7 @@ for cpu in range(num_cpus):
         python3 create_pretraining_data.py \
            --input_file {input_files} \
            --output_dir {output_dir} \
-           --compression zstd:7 \
+           --compression zstd:16 \
            --hashes sha1,xxh3_64 \
            --size_limit 134217728 \
            --vocab_file vocab.txt \
