@@ -21,7 +21,7 @@ flags.DEFINE_string("input_file", None,
 
 flags.DEFINE_string("output_dir", None, "Output example directory.")
 
-flags.DEFINE_string("compression", "zstd:20",
+flags.DEFINE_string("compression", "zstd:7",
                     "Optional compression algorithm and compression level.")
 
 flags.DEFINE_string("hashes", "", "Optional list of hashing algorithms with " +
