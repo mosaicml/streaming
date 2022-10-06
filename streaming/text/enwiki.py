@@ -50,11 +50,14 @@ class EnWiki(Dataset):
         self.field_dtypes = {
             'input_ids': np.int32,
             'input_mask': np.int32,
+            'attention_mask': np.int32,
             'segment_ids': np.int32,
+            'token_type_ids': np.int32,
             'masked_lm_positions': np.int32,
             'masked_lm_ids': np.int32,
             'masked_lm_weights': np.float32,
             'next_sentence_labels': np.int32,
+            'labels': np.int32,
         }
 
     def __getitem__(self, idx: int) -> Any:
@@ -69,5 +72,15 @@ class EnWiki(Dataset):
         obj = super().__getitem__(idx)
         for key, value in obj.items():
             dtype = self.field_dtypes[key]
-            obj[key] = np.frombuffer(value, dtype)
-        return obj
+            obj[key] = np.copy(np.frombuffer(value, dtype))
+
+        ret_obj = {}
+        ret_obj['input_ids'] = obj['input_ids']
+        ret_obj['token_type_ids'] = obj['segment_ids']
+        ret_obj['attention_mask'] = obj['input_mask']
+
+        input_len = len(obj['input_ids'])
+        ret_obj['labels'] = np.full((input_len,), -100)
+        ret_obj['labels'][obj['masked_lm_positions']] = obj['masked_lm_ids']
+
+        return ret_obj
