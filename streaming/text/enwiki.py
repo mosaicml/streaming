@@ -3,10 +3,9 @@
 
 """English Wikipedia 2020-01-01 streaming dataset."""
 
-import numpy as np
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
-from transformers.models.auto.tokenization_auto import AutoTokenizer
+import numpy as np
 
 from streaming.base import Dataset
 

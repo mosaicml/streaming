@@ -14,6 +14,7 @@ include = [
 exclude = [
     "build/**",
     "node_modules/**",
+    "streaming/text/convert/enwiki/**"
 ]
 
 reportUnnecessaryIsInstance = "warning"
