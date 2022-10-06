@@ -84,7 +84,8 @@ setup(
     version=streaming_version,
     author='MosaicML',
     author_email='team@mosaicml.com',
-    description='Streaming lets users create PyTorch compatible datasets that can be streamed from cloud-based object stores',
+    description=
+    'Streaming lets users create PyTorch compatible datasets that can be streamed from cloud-based object stores',
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/mosaicml/streaming/',
