@@ -437,7 +437,7 @@ def main(_):
       FLAGS.short_seq_prob, FLAGS.masked_lm_prob, FLAGS.max_predictions_per_seq,
       rng)
 
-  tf.logging.info("*** Writing to output directory:", FLAGS.output_dir, "***")
+  tf.logging.info("*** Writing to output directory: %s ***", FLAGS.output_dir)
 
   hashes = FLAGS.hashes.split(',') if FLAGS.hashes else []
   write_instance_to_example_files(instances, tokenizer, FLAGS.max_seq_length,
