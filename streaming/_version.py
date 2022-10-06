@@ -1,4 +1,6 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Data conversion scripts for Natural Language Processing."""
+"""The Streaming Version."""
+
+__version__ = '0.0.1a'

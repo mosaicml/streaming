@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+""":class:`JSONWriter` converts a list of samples into binary `.mds` files that can be read as a :class:`JSONReader`."""
+
 import json
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -11,6 +13,20 @@ from streaming.base.format.json.encodings import is_json_encoded, is_json_encodi
 
 
 class JSONWriter(SplitWriter):
+    r"""Writes a streaming JSON dataset.
+
+    Args:
+        dirname (str): Local dataset directory.
+        columns (Dict[str, str]): Sample columns.
+        compression (str, optional): Optional compression or compression:level. Defaults to
+            ``None``.
+        hashes (List[str], optional): Optional list of hash algorithms to apply to shard files.
+            Defaults to ``None``.
+        size_limit (int, optional): Optional shard size limit, after which point to start a new
+            shard. If None, puts everything in one shard. Defaults to ``None``.
+        newline (str): Newline character inserted between samples. Defaults to ``\\n``.
+    """
+
     format = 'json'
 
     def __init__(self,
@@ -29,6 +45,14 @@ class JSONWriter(SplitWriter):
         self.newline = newline
 
     def encode_sample(self, sample: Dict[str, Any]) -> bytes:
+        """Encode a sample dict to bytes.
+
+        Args:
+            sample (Dict[str, Any]): Sample dict.
+
+        Returns:
+            bytes: Sample encoded as bytes.
+        """
         obj = {}
         for key, encoding in self.columns.items():
             value = sample[key]
@@ -38,11 +62,21 @@ class JSONWriter(SplitWriter):
         return text.encode('utf-8')
 
     def get_config(self) -> Dict[str, Any]:
+        """Get object describing shard-writing configuration.
+
+        Returns:
+            Dict[str, Any]: JSON object.
+        """
         obj = super().get_config()
         obj.update({'columns': self.columns, 'newline': self.newline})
         return obj
 
     def encode_split_shard(self) -> Tuple[bytes, bytes]:
+        """Encode a split shard out of the cached samples (data, meta files).
+
+        Returns:
+            Tuple[bytes, bytes]: Data file, meta file.
+        """
         data = b''.join(self.new_samples)
 
         num_samples = np.uint32(len(self.new_samples))

@@ -2,7 +2,7 @@
 # iSort
 [tool.isort]
 multi_line_output = 0
-line_length = 100
+line_length = 99
 skip = [ "env", "wandb", "runs", "build", "node_modules" ]
 
 # Pyright
@@ -46,6 +46,18 @@ reportInvalidStubStatement = "error"
 reportIncompleteStub = "error"
 reportUnsupportedDunderAll = "error"
 reportUnusedCoroutine = "error"
+
+# Pytest
+[tool.pytest.ini_options]
+# By default, do not run remote tests
+addopts = "--codeblocks --strict-markers -m 'not daily and not remote' -ra --tb=native"
+
+markers = [
+    # Should be run during daily regression
+    "daily",
+    # Whether the test will be reading data from a remote source, and may require credentials
+    "remote",
+]
 
 filterwarnings = [
     # "error",  # warnings should be treated like errors, but still need to fix some warnings
@@ -142,7 +154,7 @@ blank_line_before_nested_class_or_def = true
 coalesce_brackets = false
 
 # The column limit.
-column_limit = 100
+column_limit = 99
 
 # The style for continuation alignment. Possible values are:
 #
@@ -463,3 +475,8 @@ ignore_patterns = [
     "wandb/**/*.py",
     "build/**/*.py",
 ]
+
+[tool.pydocstyle]
+convention="google"
+add_ignore="D102,D105,D107,D401"
+add_select="D400,D404"

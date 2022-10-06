@@ -16,15 +16,13 @@ documentation root, use os.path.abspath to make it absolute, like shown here.
 import ast
 import importlib
 import inspect
-import json
 import os
 import shutil
 import sys
 import tempfile
-import textwrap
 import types
 import warnings
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, List, Tuple, Type
 
 import sphinx.application
 import sphinx.ext.autodoc
@@ -165,7 +163,7 @@ html_static_path = ['_static']
 html_title = ' Streaming'
 
 # Customize CSS
-html_css_files = ['css/custom.css']
+html_css_files = ['css/custom.css', 'https://cdn.jsdelivr.net/npm/@docsearch/css@3']
 html_js_files = [
     'js/posthog.js',
 ]
@@ -347,8 +345,8 @@ def _auto_rst_for_module(module: types.ModuleType, exclude_members: List[Any]) -
     classes.sort(key=lambda x: x[0])
     attributes.sort(key=lambda x: x[0])
 
-    for category, category_name in ((functions, 'Functions'), (classes, 'Classes'), (exceptions,
-                                                                                     'Exceptions')):
+    for category, category_name in ((functions, 'Functions'), (classes, 'Classes'),
+                                    (exceptions, 'Exceptions')):
         sphinx_lines = []
         for item_name, _ in category:
             sphinx_lines.append(f'      {item_name}')
@@ -372,11 +370,13 @@ def _auto_rst_for_module(module: types.ModuleType, exclude_members: List[Any]) -
 
 def _modules_to_rst() -> List[types.ModuleType]:
     """Return the list of modules for which to generate API reference rst files."""
-
     document_modules: List[types.Module] = [
         streaming,
+        streaming.base.compression,
+        streaming.base.hashing,
+        streaming.base.format,
     ]
-    exclude_modules: List[types.Module] = []
+    exclude_modules: List[types.Module] = [streaming.base, streaming._version]
     for name in streaming.__dict__:
         obj = streaming.__dict__[name]
         if isinstance(obj, types.ModuleType) and obj not in exclude_modules:
@@ -388,8 +388,8 @@ def _modules_to_rst() -> List[types.ModuleType]:
 def _generate_rst_files_for_modules() -> None:
     """Generate .rst files for each module to include in the API reference.
 
-    These files contain the module docstring followed by tables listing all
-    the functions, classes, etc.
+    These files contain the module docstring followed by tables listing all the functions, classes,
+    etc.
     """
     docs_dir = os.path.abspath(os.path.dirname(__file__))
     module_rst_save_dir = os.path.join(docs_dir, 'api_reference')
@@ -496,7 +496,8 @@ def linkcode_resolve(domain: str, info: Dict[str, str]):
             # in _determine_lineno_of_attribute
             pass
     if lineno is None:
-        log.debug(f'Could not determine source line number for {module_name}.{obj_name_in_module}.')
+        log.debug(
+            f'Could not determine source line number for {module_name}.{obj_name_in_module}.')
         return None
     # Format the link
     filename = module_name.replace('.', '/')
@@ -548,7 +549,8 @@ class PatchedHTMLTranslator(HTML5Translator):
         self.body.append(self.starttag(node, 'a', '', **atts))
 
         if node.get('secnumber'):
-            self.body.append(('%s' + self.secnumber_suffix) % '.'.join(map(str, node['secnumber'])))
+            self.body.append(
+                ('%s' + self.secnumber_suffix) % '.'.join(map(str, node['secnumber'])))
 
 
 def setup(app: sphinx.application.Sphinx):

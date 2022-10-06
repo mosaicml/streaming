@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+"""Utility and helper functions to convert CV datasets."""
+
 import os
 from typing import List, Optional
 
@@ -25,15 +27,16 @@ def convert_image_class_dataset(dataset: Dataset,
     Args:
         dataset (Dataset): The dataset object to convert.
         root (str): Local dataset directory where shards are cached by split.
-        split (Optional[str], default: None): Which dataset split to use, if any.
-        compression (Optional[str], default: None): Optional compression.
-        hashes (Optional[List[str]], default: None): Optional list of hash algorithms to apply to
-            shard files.
-        size_limit (int, default: 1 << 26): Uncompressed shard size limit, at which point it flushes
-            the shard and starts a new one.
-        progbar (bool, default: True): Whether to display a progress bar while converting.
-        leave (bool, default: False): Whether to leave the progress bar in the console when done.
-        encoding (str, default: pil): MDS encoding to use for the image data.
+        split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
+        compression (str, optional): Optional compression. Defaults to ``None``.
+        hashes (List[str], optional): Optional list of hash algorithms to apply to shard files.
+            Defaults to ``None``.
+        size_limit (int): Uncompressed shard size limit, at which point it flushes the shard and
+            starts a new one. Defaults to ``1 << 26``.
+        progbar (bool): Whether to display a progress bar while converting. Defaults to ``True``.
+        leave (bool): Whether to leave the progress bar in the console when done. Defaults to
+            ``False``.
+        encoding (str): MDS encoding to use for the image data. Defaults to ``pil``.
     """
     split = split or ''
     fields = {

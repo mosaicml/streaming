@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+""":class:`MDSReader` reads samples from binary ``.mds`` files that were written out by:class:`StreamingDatasetWriter`."""
+
 import os
 from copy import deepcopy
 from typing import Any, Dict, List, Optional
@@ -17,17 +19,17 @@ class MDSReader(JointReader):
 
     Args:
         dirname (str): Local dataset directory.
-        split (Optional[str]): Which dataset split to use, if any.
+        split (str, optional): Which dataset split to use, if any.
         column_encodings (List[str]): Column encodings.
         column_names (List[str]): Column names.
         column_sizes (List[Optional[int]]): Column fixed sizes, if any.
-        compression (Optional[str]): Optional compression or compression:level.
+        compression (str, optional): Optional compression or compression:level.
         hashes (List[str]): Optional list of hash algorithms to apply to shard files.
         raw_data (FileInfo): Uncompressed data file info.
         samples (int): Number of samples in this shard.
-        size_limit (Optional[int]): Optional shard size limit, after which point to start a new
+        size_limit (int, optional): Optional shard size limit, after which point to start a new
             shard. If None, puts everything in one shard.
-        zip_data (Optional[FileInfo]): Compressed data file info.
+        zip_data (FileInfo, optional): Compressed data file info.
     """
 
     def __init__(
@@ -52,6 +54,16 @@ class MDSReader(JointReader):
 
     @classmethod
     def from_json(cls, dirname: str, split: Optional[str], obj: Dict[str, Any]) -> Self:
+        """Initialize from JSON object.
+
+        Args:
+            dirname (str): Local directory containing shards.
+            split (str, optional): Which dataset split to use, if any.
+            obj (Dict[str, Any]): JSON object to load.
+
+        Returns:
+            Self: Loaded MDSReader.
+        """
         args = deepcopy(obj)
         assert args['version'] == 2
         del args['version']
@@ -65,6 +77,14 @@ class MDSReader(JointReader):
         return cls(**args)
 
     def decode_sample(self, data: bytes) -> Dict[str, Any]:
+        """Decode a sample dict from bytes.
+
+        Args:
+            data (bytes): The sample encoded as bytes.
+
+        Returns:
+            Dict[str, Any]: Sample dict.
+        """
         sizes = []
         idx = 0
         for key, size in zip(self.column_names, self.column_sizes):
@@ -82,6 +102,14 @@ class MDSReader(JointReader):
         return sample
 
     def get_sample_data(self, idx: int) -> bytes:
+        """Get the raw sample data at the index.
+
+        Args:
+            idx (int): Sample index.
+
+        Returns:
+            bytes: Sample data.
+        """
         filename = os.path.join(self.dirname, self.split, self.raw_data.basename)
         offset = (1 + idx) * 4
         with open(filename, 'rb', 0) as fp:

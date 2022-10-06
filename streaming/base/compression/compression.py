@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+"""List of Compression and Decompression algorithms."""
+
 import bz2
 import gzip
 from abc import ABC, abstractmethod
@@ -59,7 +61,7 @@ class LevelledCompression(Compression):
     """Compression with levels.
 
     Args:
-        level (Optional[int], default: None): Compression level.
+        level (int, optional): Compression level. Defaults to ``None``.
     """
 
     levels: list = []  # Compression levels.
@@ -197,7 +199,7 @@ def is_compression(algo: Optional[str]) -> bool:
     """Get whether this compression algorithm is supported.
 
     Args:
-        algo (str): Compression.
+        algo (str, optional): Compression.
 
     Returns:
         bool: Whether supported.
@@ -224,6 +226,7 @@ def compress(algo: Optional[str], data: bytes) -> bytes:
     """Compress arbitrary data.
 
     Args:
+        algo (str, optional): Compression.
         data (bytes): Uncompressed data.
 
     Returns:
@@ -241,6 +244,7 @@ def decompress(algo: Optional[str], data: bytes) -> bytes:
     """Decompress data compressed by this algorithm.
 
     Args:
+        algo (str, optional): Compression.
         data (bytes): Compressed data.
 
     Returns:

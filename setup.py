@@ -1,9 +1,20 @@
-# Copyright 2022 MosaicML. All Rights Reserved.
+# Copyright 2022 MosaicML Streaming authors
+# SPDX-License-Identifier: Apache-2.0
+
+"""Streaming package setup."""
 
 import os
 
 import setuptools
 from setuptools import setup
+
+# Read the streaming version
+# Cannot import from `streaming.__version__` since that will not be available when building or installing the package
+with open(os.path.join(os.path.dirname(__file__), 'streaming', '_version.py')) as f:
+    version_globals = {}
+    version_locals = {}
+    exec(f.read(), version_globals, version_locals)
+    streaming_version = version_locals['__version__']
 
 classifiers = [
     'Programming Language :: Python :: 3',
@@ -36,6 +47,7 @@ extra_deps['dev'] = [
     'toml==0.10.2',
     'yamllint==1.26.3',
     'pre-commit>=2.18.1,<3',
+    'pytest_codeblocks==0.16.1',
 ]
 
 extra_deps['docs'] = [
@@ -69,7 +81,7 @@ with open('README.md', 'r', encoding='utf-8') as fh:
 
 setup(
     name=package_name,
-    version='0.0.1a',
+    version=streaming_version,
     author='MosaicML',
     author_email='team@mosaicml.com',
     description='Streaming lets users create PyTorch compatible datasets that can be streamed from cloud-based object stores',

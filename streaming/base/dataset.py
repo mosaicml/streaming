@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+"""The :class:`Dataset` class, used for building streaming iterable datasets."""
+
 import json
 import os
 from enum import IntEnum
@@ -14,8 +16,9 @@ from torch.utils.data import IterableDataset
 
 from streaming.base import distributed as dist
 from streaming.base.compression import decompress
-from streaming.base.download import download_or_wait
+from streaming.base.download import download_or_wait, wait_for_download
 from streaming.base.format import reader_from_json
+from streaming.base.format.base.reader import FileInfo
 from streaming.base.hashing import get_hash
 from streaming.base.index import Index, Partition, get_index_basename
 
@@ -33,21 +36,23 @@ class Dataset(IterableDataset):
 
     Args:
         local (str): Local dataset directory where shards are cached by split.
-        remote (Optional[str], default: None): Download shards from this remote path or directory.
-            If None, this rank and workers' partition of the dataset must all exist locally.
-        split (Optional[str], default: None): Which dataset split to use, if any.
-        shuffle (bool, default: True): Whether to shuffle the samples while iterating.
-        prefetch (Optional[int], default: 100_000): Target number of samples remaining to prefetch
-            while iterating.
-        keep_zip (Optional[bool], default: None): Whether to keep or delete the compressed file when
-            decompressing downloaded shards. If set to None, keep iff remote == local.
-        retry (int, default: 2): Number of download re-attempts before giving up.
-        timeout (float, default: 60): Number of seconds to wait for a shard to download before
-            raising an exception.
-        hash (Optional[str], default: None): Optional hash or checksum algorithm to use to validate
-            shards.
-        batch_size (Optional[int], default: None): Hint the batch_size that will be used on each
-            device's DataLoader.
+        remote (str, optional): Download shards from this remote path or directory. If None, this
+            rank and worker's partition of the dataset must all exist locally. Defaults to
+            ``None``.
+        split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
+        shuffle (bool): Whether to shuffle the samples while iterating. Defaults to ``True``.
+        prefetch (int, optional): Target number of samples remaining to prefetch while iterating.
+            Defaults to ``None``.
+        keep_zip (bool, optional): Whether to keep or delete the compressed file when
+            decompressing downloaded shards. If set to None, keep iff remote is local. Defaults to
+            ``None``.
+        retry (int): Number of download re-attempts before giving up. Defaults to ``2``.
+        timeout (float): Number of seconds to wait for a shard to download before raising an
+            exception. Defaults to ``60``.
+        hash (str, optional): Optional hash or checksum algorithm to use to validate shards.
+            Defaults to ``None``.
+        batch_size (int, optional): Hint the batch_size that will be used on each device's
+            DataLoader. Defaults to ``None``.
 
     .. doctest::
 
@@ -153,12 +158,12 @@ class Dataset(IterableDataset):
         left, which will not be the full epoch if the dataset isn't finished loaded when you start
         training.
 
-        Calls to this method during training modify the samples remaining on these iterations on the
-        fly to insert these new samples and then re-sort, making the shuffle as perfect as was
+        Calls to this method during training modify the samples remaining on these iterations on
+        the fly to insert these new samples and then re-sort, making the shuffle as perfect as was
         possible.
 
-        This operation is heavy and takes the lock, so call this method with all available shards at
-        once.
+        This operation is heavy and takes the lock, so call this method with all available shards
+        at once.
 
         Args:
             shards (List[int]): Shard IDs.
@@ -203,7 +208,84 @@ class Dataset(IterableDataset):
         """
         self._load_shards([shard], partition)
 
-    def _preload_shard(self, shard: int) -> bool:
+    def _decompress_shard_part(self, zip_info: FileInfo, zip_filename: str, raw_filename: str,
+                               compression: Optional[str], wait: bool):
+        """Validate and decompress shard data.
+
+        Args:
+            zip_info (FileInfo): Compressed file info.
+            zip_filename (str): Compressed filename.
+            raw_filename (str): Decompressed filename.
+            compression (str, optional): Compression algorithm.
+            wait (bool): Whether to wait for another worker to do the work.
+        """
+        # Doer or waiter?
+        if not wait:
+            # If doer: load compressed, validate, decompress, save decompressed, maybe remove
+            # compressed to save space.
+            data = open(zip_filename, 'rb').read()
+            if self.hash:
+                assert get_hash(self.hash, data) == zip_info.hashes[self.hash]
+            data = decompress(compression, data)  # pyright: ignore
+            tmp_filename = raw_filename + '.tmp'
+            with open(tmp_filename, 'wb') as out:
+                out.write(data)
+            os.rename(tmp_filename, raw_filename)
+            if not self.keep_zip:
+                os.remove(zip_filename)
+        else:
+            # If waiter: wait on decompressed to be written.
+            wait_for_download(raw_filename, self.timeout)
+
+    def _preload_shard_part(self,
+                            shard: int,
+                            partition: Partition,
+                            raw_info: FileInfo,
+                            zip_info: Optional[FileInfo] = None,
+                            compression: Optional[str] = None) -> bool:
+        """Decompress and validate shard data given raw/zip version metadata.
+
+        MDS format uses joint shards (ie, one file per shard). Other formats supported by streaming
+        use split shards (ie, shard data lives in two files per shard: the raw data itself and
+        metadata in a separate file).
+
+        Args:
+            shard (int): Shard ID.
+            partition (Partition): Our rank and worker's partition of the dataset.
+            raw_info (FileInfo): Raw file info.
+            zip_info (FileInfo, optional): Zip file info. Default: ``None``.
+            compression (str, optional): Compression algorithm used for zip_info. Default: ``None``.
+
+        Returns:
+            bool: Whether shard is present.
+        """
+        # Determine if we are the doer (process performing the preload), or the waiter (one waiting
+        # for it to complete). Multiple processes share a shard when it is split between workers.
+        wait = shard not in partition.shards_to_download
+
+        # If the decompressed version already exists, validate if requested.
+        raw_filename = os.path.join(self.local, self.split, raw_info.basename)
+        if os.path.isfile(raw_filename):
+            if not wait:
+                if self.hash:
+                    data = open(raw_filename, 'rb').read()
+                    assert get_hash(self.hash, data) == raw_info.hashes[self.hash]
+            return True
+
+        # If no decompressed file, and compression was not used, shard is missing.
+        if not zip_info:
+            return False
+
+        # If no decompressed file, compression was used, and no compressed file, shard is missing.
+        zip_filename = os.path.join(self.local, self.split, zip_info.basename)
+        if not os.path.isfile(zip_filename):
+            return False
+
+        # If has only the compressed version, decompress and maybe validate it.
+        self._decompress_shard_part(zip_info, zip_filename, raw_filename, compression, wait)
+        return True
+
+    def _preload_shard(self, shard: int, partition: Partition) -> bool:
         """Decompress and validate a single shard, returning whether present.
 
         Args:
@@ -212,28 +294,12 @@ class Dataset(IterableDataset):
         Returns:
             bool: Whether shard is present.
         """
-        info = self.shards[shard]
-        for raw_info, zip_info in info.file_pairs:
-            raw_filename = os.path.join(self.local, self.split, raw_info.basename)
-            if os.path.isfile(raw_filename):
-                if self.hash:
-                    data = open(raw_filename, 'rb').read()
-                    assert get_hash(self.hash, data) == raw_info.hashes[self.hash]
-            elif not zip_info:
+        assert shard in partition.shards
+        reader = self.shards[shard]
+        for raw_info, zip_info in reader.file_pairs:
+            if not self._preload_shard_part(shard, partition, raw_info, zip_info,
+                                            reader.compression):
                 return False
-            else:
-                zip_filename = os.path.join(self.local, self.split, zip_info.basename)
-                if os.path.isfile(zip_filename):
-                    data = open(zip_filename, 'rb').read()
-                    if self.hash:
-                        assert get_hash(self.hash, data) == zip_info.hashes[self.hash]
-                    data = decompress(info.compression, data)  # pyright: ignore
-                    with open(raw_filename, 'wb') as out:
-                        out.write(data)
-                    # if not self.keep_zip:
-                    #     os.remove(zip_filename)
-                else:
-                    return False
         return True
 
     def _preload(self, partition: Partition) -> List[int]:
@@ -260,7 +326,7 @@ class Dataset(IterableDataset):
         present_shards = []
         missing_shards = []
         for shard in partition.shards:
-            if self._preload_shard(shard):
+            if self._preload_shard(shard, partition):
                 present_shards.append(shard)
             else:
                 missing_shards.append(shard)
@@ -303,6 +369,60 @@ class Dataset(IterableDataset):
         download_or_wait(remote, local, wait, self.retry, self.timeout)
         return local
 
+    def _download_shard_part(self,
+                             shard: int,
+                             partition: Partition,
+                             raw_info: FileInfo,
+                             zip_info: Optional[FileInfo] = None,
+                             compression: Optional[str] = None) -> None:
+        """Download shard data given metadata for the raw and compressed versions of it.
+
+        MDS format uses joint shards (ie, one file per shard). Other formats supported by streaming
+        use split shards (ie, shard data lives in two files per shard: the raw data itself and
+        metadata in a separate file).
+
+        Args:
+            shard (int): Shard ID.
+            partition (Partition): Our rank and worker's partition of the dataset.
+            raw_info (FileInfo): Raw file info.
+            zip_info (FileInfo, optional): Zip file info. Default: ``None``.
+            compression (str, optional): Compression algorithm used for zip_info. Default: ``None``.
+        """
+        # If the local raw file already exists, this is a no-op.
+        raw_filename = os.path.join(self.local, self.split, raw_info.basename)
+        if os.path.isfile(raw_filename):
+            return
+
+        # Determine if we are the doer (process performing the download), or the waiter (one waiting
+        # for it to complete). Multiple processes share a shard when it is split between workers.
+        wait = shard not in partition.shards_to_download
+
+        # Is compression used?
+        if zip_info:
+            # Download the compressed form if missing (or wait on its download).
+            zip_filename = os.path.join(self.local, self.split, zip_info.basename)
+            if not os.path.isfile(zip_filename):
+                # Waiter or doer?
+                if wait:
+                    # If waiter: wait for *raw* version to exist (as the zip may be ephemeral).
+                    wait_for_download(raw_filename, self.timeout)
+                else:
+                    # If doer: download the zip version.
+                    self._download_file(zip_info.basename)
+
+            # Validate and decompress (or wait on that).
+            self._decompress_shard_part(zip_info, zip_filename, raw_filename, compression, wait)
+        else:
+            # Download the raw form (or wait on its download).
+            self._download_file(raw_info.basename, wait)
+
+            # Waiter or doer?
+            if not wait:
+                # If doer: validate if requested.
+                if self.hash:
+                    data = open(raw_filename, 'rb').read()
+                    assert get_hash(self.hash, data) == raw_info.hashes[self.hash]
+
     def _download_shard(self, shard: int, partition: Partition) -> int:
         """Download the given shard.
 
@@ -314,31 +434,9 @@ class Dataset(IterableDataset):
             int: Shard ID.
         """
         assert shard in partition.shards
-        info = self.shards[shard]
-        for raw_info, zip_info in info.file_pairs:
-            if zip_info:
-                raw_filename = os.path.join(self.local, self.split, raw_info.basename)
-                if not os.path.isfile(raw_filename):
-                    zip_filename = os.path.join(self.local, self.split, zip_info.basename)
-                    if not os.path.isfile(zip_filename):
-                        wait = shard not in partition.shards_to_download
-                        self._download_file(zip_info.basename, wait)
-                    data = open(zip_filename, 'rb').read()
-                    if self.hash:
-                        assert get_hash(self.hash, data) == zip_info.hashes[self.hash]
-                    data = decompress(info.compression, data)  # pyright: ignore
-                    with open(raw_filename, 'wb') as out:
-                        out.write(data)
-                    # if not self.keep_zip:
-                    #     os.remove(zip_filename)
-            else:
-                raw_filename = os.path.join(self.local, self.split, raw_info.basename)
-                if not os.path.isfile(raw_filename):
-                    wait = shard not in partition.shards_to_download
-                    self._download_file(raw_info.basename, wait)
-                    if self.hash:
-                        data = open(raw_filename, 'rb').read()
-                        assert get_hash(self.hash, data) == raw_info.hashes[self.hash]
+        reader = self.shards[shard]
+        for raw_info, zip_info in reader.file_pairs:
+            self._download_shard_part(shard, partition, raw_info, zip_info, reader.compression)
         return shard
 
     def _download_shards_via_pool(self,
@@ -352,8 +450,8 @@ class Dataset(IterableDataset):
         Args:
             shards (List[int]): The missing shards to download.
             partition (Partition): Our rank and worker's partition of the dataset.
-            num_processes (Optional[int], default None): Number of concurrent shard downloads (ie,
-                size of the process pool). If None, uses number of CPUs.
+            num_processes (int, optional): Number of concurrent shard downloads (ie, size of the
+                process pool). If None, uses number of CPUs. Defaults to ``None``.
         """
         pool = Pool(num_processes)
         download_shard = lambda shard: self._download_shard(shard, partition)
@@ -414,8 +512,8 @@ class Dataset(IterableDataset):
         """Load all shards, downloading if not local (blocking).
 
         Args:
-            num_processes (Optional[int], default None): Number of concurrent shard downloads (ie,
-                size of the process pool). If None, uses number of CPUs.
+            num_processes (int, optional): Number of concurrent shard downloads (ie, size of the
+                process pool). If ``None``, uses number of CPUs. Defaults to ``None``.
         """
         partition = self.index.get_partition()
         shards = self._preload(partition)
