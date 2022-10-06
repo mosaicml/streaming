@@ -3,6 +3,7 @@
 
 """English Wikipedia 2020-01-01 streaming dataset."""
 
+import numpy as np
 from typing import Any, Dict, Optional
 
 from transformers.models.auto.tokenization_auto import AutoTokenizer
@@ -14,10 +15,6 @@ class EnWiki(Dataset):
     """Implementation of the English Wikipedia 2020-01-01 streaming dataset.
 
     Args:
-        tokenizer_name (str): The name of the HuggingFace tokenizer to use to tokenize samples.
-        max_seq_len (int): The max sequence length of each token sample.
-        group_method (str): How to group text samples into token samples. Currently only supporting
-            ``'truncate'``.
         local (str): Local dataset directory where shards are cached by split.
         remote (str, optional): Download shards from this remote path or directory. If None, this
             rank and worker's partition of the dataset must all exist locally. Defaults to
@@ -39,9 +36,6 @@ class EnWiki(Dataset):
     """
 
     def __init__(self,
-                 tokenizer_name: str,
-                 max_seq_len: int,
-                 group_method: str,
                  local: str,
                  remote: Optional[str] = None,
                  split: Optional[str] = None,
@@ -52,39 +46,17 @@ class EnWiki(Dataset):
                  timeout: float = 60,
                  hash: Optional[str] = None,
                  batch_size: Optional[int] = None) -> None:
-        if group_method not in ['truncate']:
-            raise ValueError(f'Only group_method="truncate" is supported at this time.')
-
         super().__init__(local, remote, split, shuffle, prefetch, keep_zip, retry, timeout, hash,
                          batch_size)
-        self.tokenizer_name = tokenizer_name
-        self.max_seq_len = max_seq_len
-        self.group_method = group_method
-
-        # Build tokenizer
-        self.tokenizer = AutoTokenizer.from_pretrained(self.tokenizer_name)
-        if self.tokenizer.pad_token is None:
-            # Some tokenizers (e.g. GPT2 tokenizer) have no padding token which causes bugs
-            self.tokenizer.pad_token = self.tokenizer.eos_token
-
-    def _tokenize(self, text_sample: Dict[str, Any]):
-        """Apply the tokenizer to a sample.
-
-        Args:
-            text_sample (Dict[str, Any]): Sample to tokenize.
-        """
-        if self.group_method == 'truncate':
-            truncation = True
-            padding = 'max_length'
-            max_length = self.max_seq_len
-        else:
-            truncation = False
-            padding = False
-            max_length = None
-        return self.tokenizer(text_sample['text'],
-                              truncation=truncation,
-                              padding=padding,
-                              max_length=max_length)
+        self.field_dtypes = {
+            'input_ids': np.int32,
+            'input_mask': np.int32,
+            'segment_ids': np.int32,
+            'masked_lm_positions': np.int32,
+            'masked_lm_ids': np.int32,
+            'masked_lm_weights': np.float32,
+            'next_sentence_labels': np.int32,
+        }
 
     def __getitem__(self, idx: int) -> Any:
         """Get sample by global index, blocking to load its shard if missing.
@@ -95,7 +67,8 @@ class EnWiki(Dataset):
         Returns:
             Any: Sample data.
         """
-        text_sample = super().__getitem__(idx)
-        token_sample = self._tokenize(text_sample)
-        # Skip any token grouping, currently only supporting group_method='truncate'
-        return token_sample
+        obj = super().__getitem__(idx)
+        for key, value in obj.items():
+            dtype = self.field_dtypes[key]
+            obj[key] = np.frombuffer(value, dtype)
+        return obj
