@@ -21,13 +21,13 @@ flags.DEFINE_string("input_file", None,
 
 flags.DEFINE_string("output_dir", None, "Output example directory.")
 
-flags.DEFINE_string("compression", "zstd:12",
+flags.DEFINE_string("compression", "zstd:20",
                     "Optional compression algorithm and compression level.")
 
 flags.DEFINE_string("hashes", "", "Optional list of hashing algorithms with " +
                     "which to validate produced shards.")
 
-flags.DEFINE_integer("size_limit", 1 << 27,
+flags.DEFINE_integer("size_limit", 1 << 26,
                      "Optional shard size limit in bytes")
 
 flags.DEFINE_string("vocab_file", None,
