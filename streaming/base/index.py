@@ -207,11 +207,11 @@ class Index(object):
 
             # Adjustment for last partition.
             if self.total_samples == worker_max_id:
-                if 0 < worker_min_id:
+                if worker_min_id:
                     worker_min_id -= 1
                 worker_max_id -= 1
             elif self.total_samples < worker_max_id:
-                raise RuntimeError('Invalid partitioning')
+                raise RuntimeError('Partitions were calculated incorrectly, please file a bug')
 
         min_shard, _ = self.find_sample(worker_min_id)
         max_shard, _ = self.find_sample(worker_max_id)
