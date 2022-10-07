@@ -1,14 +1,25 @@
 # 🖼️ User Guide
 
-At a high level, one needs to create a dataset files compatible with a streaming and then load the same dataset files using {class}`streaming.Dataset` class.
+At a very high level, one needs to convert a raw dataset into streaming format files and then use the same streaming format files using {class}`streaming.Dataset` class for model training.
 
-Streaming supports different dataset writer based on your need such as {class}`streaming.MDSWriter`, {class}`streaming.CSVWriter`, {class}`streaming.JSONWriter`, {class}`streaming.TSVWriter`, and {class}`streaming.XSVWriter`. The {class}`streaming.MDSWriter` write the dataset into `.mds` extension, the {class}`streaming.CSVWriter` write the content in `.csv` format and so on. For the more information about writer and its parameters, look at the API reference doc.
+Streaming supports different dataset writers based on your need to for conversion of raw datasets into a streaming format such as
+- {class}`streaming.MDSWriter`: Writes the dataset into `.mds` (Mosaic Data Shard) extension. It supports various encoding/decoding formats(`str`, `int`, `bytes`, `jpeg`, `png`, `pil`, `pkl`, and `json`) which converts the data from that format to bytes and vice-versa.
+- {class}`streaming.CSVWriter`: Writes the dataset into `.csv` (Comma Separated Values) extension. It supports various encoding/decoding formats(`str`, `int`, and `float`) which converts the data from that format to string and vice-versa.
+- {class}`streaming.JSONWriter`: Writes the dataset into `.json` (JavaScript Object Notation) extension. It supports various encoding/decoding formats(`str`, `int`, and `float`).
+- {class}`streaming.TSVWriter`: Writes the dataset into `.tsv` (Tab Separated Values) extension. It supports various encoding/decoding formats(`str`, `int`, and `float`) which converts the data from that format to string and vice-versa.
+- {class}`streaming.XSVWriter`: Writes the dataset into `.xsv` (user defined Separated Values) extension. It supports various encoding/decoding formats(`str`, `int`, and `float`) which converts the data from that format to string and vice-versa.
 
-For loading the dataset during model training, one needs to instantiate the {class}`streaming.Dataset` class with a dataset file path and provide that object to `dataset` parameter in PyTorch {class}`torch.utils.data.DataLoader` class. For the more information about dataset and its parameters, look at the API reference doc.
+For more information about writers and its parameters, look at the [API reference doc](../api_reference/).
+
+After the dataset has been converted to one of our streaming formats, one just needs to instantiate the {class}`streaming.Dataset` class by providing the dataset path of the streaming formats and use that dataset object in PyTorch {class}`torch.utils.data.DataLoader` class. For more information about `streaming.Dataset` and its parameters, look at the {class}`streaming.Dataset` API reference doc.
+
+Streaming supports various dataset compression formats (Brotli, Bzip2, Gzip, Snappy, and Zstandard) that reduces downloading time and cloud egress fees. Additionally, Streaming also supports various hashing algorithms (SHA2, SHA3, MD5, xxHash, etc.) that ensures data integrity through cryptographic and non-cryptographic hashing algorithm.
+
+Let's jump right into an example on how to convert a raw dataset into a streaming format and load the same streaming format dataset for model training.
 
 ## Writing a dataset to streaming format
 
-This guide shows you how to use your custom Dataset with {class}`streaming.MDSWriter`, but the steps would also remain the same for another writer.
+This guide shows you how to use your custom Dataset with {class}`streaming.MDSWriter`, but the steps would remain the same for other writers.
 
 The {class}`streaming.MDSWriter` takes the raw dataset and converts it into a sharded `.mds` format for fast data access.
 
@@ -40,13 +51,13 @@ class RandomClassificationDataset:
 
 There are a few parameters that need to be initialized before {class}`streaming.MDSWriter` gets called. Some of the parameters are optional, and others are required parameters. Let's look at each of them where we start with two required parameters.
 
-1. Provide the Local filesystem directory path to store the compressed dataset
+1. Provide the local filesystem directory path to store the compressed dataset files.
     <!--pytest-codeblocks:cont-->
     ```python
     output_dir = 'test_output_dir'
     ```
 
-2. Provide the column field as `Dict[str, str]`, which maps a feature or label name with encoding type. All the supported encoding and decoding types can be found here.
+2. Provide the column field as `Dict[str, str]`, which maps a feature name or label name with a streaming supported encoding type.
     <!--pytest-codeblocks:cont-->
     ```python
     fields = {'x': 'pkl', 'y': 'pkl'}
@@ -54,13 +65,13 @@ There are a few parameters that need to be initialized before {class}`streaming.
 
 The below parameters are optional to {class}`streaming.MDSWriter`. Let's look at each one of them
 
-1. Provide a name of a compression algorithm; the default is `None`. We support families of compression algorithms, and all of them can be found here.
+1. Provide a name of a compression algorithm; the default is `None`. Streaming supports families of compression algorithms such as `br`, `gzip`, `snappy`, `zstd`, and `bz2` with the level of compression.
     <!--pytest-codeblocks:cont-->
     ```python
     compression = 'zstd:7'
     ```
 
-2. Provide a name of a hashing algorithm; the default is `None`. All the supported compression algorithms can be found here.
+2. Provide a name of a hashing algorithm; the default is `None`. Streaming support families of hashing algorithm such as `sha`, `blake`, `md5`, `xxHash`, etc.
     <!--pytest-codeblocks:cont-->
     ```python
     hashes = ['sha1']
@@ -92,7 +103,7 @@ def each(samples):
         }
 ```
 
-It's time to call the {class}`streaming.MDSWriter` with the above initalized parameters and write the samples by iterating over a dataset.
+It's time to call the {class}`streaming.MDSWriter` with the above initialized parameters and write the samples by iterating over a dataset.
 <!--pytest-codeblocks:cont-->
 ```python
 from streaming.base import MDSWriter
@@ -103,7 +114,7 @@ with MDSWriter(output_dir, fields, compression, hashes, limit) as out:
         out.write(sample)
 ```
 
-Once the dataset has been written, the output directory contains two types of files. First are sharded files, and second is an index.json file that contains the metadata of shards. For example,
+Once the dataset has been written, the output directory contains two types of files. The first is an index.json file that contains the metadata of shards and second is the shard files. For example,
 <!--pytest.mark.skip-->
 ```bash
 dirname
@@ -112,7 +123,7 @@ dirname
 └── shard.00001.mds.zstd
 ```
 
-Finally, upload the output directory to a cloud blob storage such as AWS S3. Below is one example of uploading a directory to an S3 bucket using [AWS CLI](https://aws.amazon.com/cli/).
+Finally, upload the output directory to a cloud blob storage of your choice. Below is one example of uploading a directory to an S3 bucket using [AWS CLI](https://aws.amazon.com/cli/).
 <!--pytest.mark.skip-->
 ```bash
 $ aws s3 cp dirname s3://mybucket/myfolder --recursive
@@ -120,9 +131,9 @@ $ aws s3 cp dirname s3://mybucket/myfolder --recursive
 
 ## Loading a streaming dataset
 
-After writing a dataset in the streaming format in the previous step and uploaded to a cloud object storage as s3, we are ready to start loading data.
+After writing a dataset in the streaming format in the previous step and uploaded to a cloud object storage as s3, we are ready to start loading the data.
 
-To load the dataset files that we have written, we need to inherit the {class}`streaming.Dataset` class by creating a `CustomDataset` class and overriding the `__getitem__(idx: int)` method to get the sharded dataset. The {class}`streaming.Dataset` class requires to specify `local` and `remote` instance variables.
+To load the same dataset files that was created in the above steps, create a `CustomDataset` class by inheriting the {class}`streaming.Dataset` class and override the `__getitem__(idx: int)` method to get the samples. The {class}`streaming.Dataset` class requires to two mandatory parameters which are `remote` which is a remote directory (S3 or local filesystem) where dataset is stored and `local` which is a local directory where dataset is cached during operation.
 <!--pytest-codeblocks:cont-->
  ```python
 from streaming.base import Dataset
@@ -155,6 +166,8 @@ from torch.utils.data import DataLoader
 
 dataloader = DataLoader(dataset=dataset)
 ```
+
+You've now seen an in-depth look at how to prepare and use steaming datasets with PyTorch. To continue learning about Streaming, please continue to explore our [tutorials](../tutorial/)!
 
 ## Other options
 
