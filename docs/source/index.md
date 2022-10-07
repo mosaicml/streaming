@@ -3,14 +3,14 @@
 # Streaming
 
 Welcome to MosaicML’s Streaming documentation page!  Streaming is a PyTorch compatible dataset that enables users to stream training data from
-cloud-based object stores. As a drop-in replacement for your `Dataset` class, it's easy to get streaming:
+cloud-based object stores. Streaming can read files from local disk or from cloud-based object stores. As a drop-in replacement for your `Dataset` class, it's easy to get streaming:
 
 <!--pytest.mark.skip-->
 ```python
-dataloader = torch.utils.data.DataLoader(dataset=ImageStreamingDataset(path=s3://...))
+dataloader = torch.utils.data.DataLoader(dataset=ImageStreamingDataset(remote=s3://...))
 ```
 
-For additional details please see our [Quick Start](getting_started/quick_start.md) and User Guide.
+For additional details, please see our [Quick Start](getting_started/quick_start.md) and [User Guide](getting_started/user_start.md).
 
 Streaming was originally developed as a part of MosaicML’s Composer training library and is a critical component of our efficient machine learning infrastructure.
 
@@ -22,19 +22,19 @@ pip install mosaicml-streaming
 
 ## Key Benefits
 
-- High performance, accurate streaming of training data from cloud storage
-- Efficiently train anywhere, independent of training data location
-- Cloud-native, no persistent storage required; simplifying infrastructure
-- Enhanced data security, data exists ephemerally training cluster
+- High performance, accurate streaming of training data from cloud storage.
+- Efficiently train anywhere, independent of training data location.
+- Cloud-native, no persistent storage required; simplifying infrastructure.
+- Enhanced data security, data exists ephemerally training cluster.
 
 ## Features
 
-- Drop-in replacement for {class}`torch.utils.data.Dataset` datasets, compatible {class}`torch.utils.data.IterableDataset` style dataloaders
-- Built-in support for popular open source datasets (e.g., ADE20K, C4, COCO, ImageNet, etc.)
-- Support for various image, structured and unstructured text formats
-- Helper utilities to convert proprietary datasets to streaming format
-- Streaming dataset compression (e.g., gzip, snappy, zstd, bz2, etc.)
-- Streaming dataset integrity (e.g., SHA2, SHA3, MD5, xxHash, etc.)
+- Drop-in replacement for {class}`torch.utils.data.Dataset` datasets, compatible {class}`torch.utils.data.IterableDataset` style dataloaders.
+- Built-in support for popular open source datasets (e.g., ADE20K, C4, COCO, Enwiki, ImageNet, etc.).
+- Support for various image, structured and unstructured text formats.
+- Helper utilities to convert proprietary datasets to streaming format.
+- Streaming dataset compression (e.g., gzip, snappy, zstd, bz2, etc.).
+- Streaming dataset integrity (e.g., SHA2, SHA3, MD5, xxHash, etc.).
 
 ## Community
 

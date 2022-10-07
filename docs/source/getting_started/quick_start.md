@@ -1,8 +1,8 @@
 # 🚀 Quick Start
 
-Start training your model with the Streaming dataset in a couple of steps!
+Start training your model with the Streaming dataset in a few steps!
 
-- Convert your raw dataset into a supported streaming format, for example, `mds` format.
+1. Convert your raw dataset into one of our supported streaming format, for example, `mds` (Mosaic Data Shard) format.
 
     ```python
     import numpy as np
@@ -42,13 +42,13 @@ Start training your model with the Streaming dataset in a couple of steps!
             out.write(sample)
     ```
 
-- Upload your streaming dataset to the cloud based storage of your choice (e.g., [AWS S3](https://aws.amazon.com/s3/)). Below is one example of uploading a directory to an S3 bucket using [AWS CLI](https://aws.amazon.com/cli/).
+2. Upload your streaming dataset to the cloud based storage of your choice (e.g., [AWS S3](https://aws.amazon.com/s3/)). Below is one example of uploading a directory to an S3 bucket using [AWS CLI](https://aws.amazon.com/cli/).
     <!--pytest.mark.skip-->
     ```bash
     $ aws s3 cp dirname s3://mybucket/myfolder --recursive
     ```
 
-- Replace the original {class}`torch.utils.data.IterableDataset` with your new {class}`streaming.Dataset`.
+3. Replace the original {class}`torch.utils.data.IterableDataset` with your new {class}`streaming.Dataset`.
     <!--pytest.mark.skip-->
     ```python
     from torch.utils.data import DataLoader
@@ -65,6 +65,6 @@ Start training your model with the Streaming dataset in a couple of steps!
     dataloader = DataLoader(dataset)
     ```
 
-That's it!  For additional details on using {mod}`streaming`, please see check out our [User Guide](user_guide.md) and Tutorial.
+That's it!  For additional details on using {mod}`streaming`, please see check out our [User Guide](user_guide.md) and [Tutorial](../tutorial/).
 
 Happy training!
