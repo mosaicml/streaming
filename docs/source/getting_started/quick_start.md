@@ -2,7 +2,7 @@
 
 Start training your model with the Streaming dataset in a few steps!
 
-1. Convert your raw dataset into one of our supported streaming format, for example, `mds` (Mosaic Data Shard) format.
+1. Convert your raw dataset into one of our supported streaming formats, for example, `mds` (Mosaic Data Shard) format.
 
     ```python
     import numpy as np
