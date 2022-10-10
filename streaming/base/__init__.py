@@ -5,8 +5,9 @@
 
 from streaming.base.dataset import Dataset
 from streaming.base.format import CSVWriter, JSONWriter, MDSWriter, TSVWriter, XSVWriter
-from streaming.base.local import LocalDataset
+from streaming.base.local import LocalIterableDataset, LocalMapDataset
 
 __all__ = [
-    'Dataset', 'CSVWriter', 'JSONWriter', 'LocalDataset', 'MDSWriter', 'TSVWriter', 'XSVWriter'
+    'Dataset', 'CSVWriter', 'JSONWriter', 'LocalIterableDataset', 'LocalMapDataset', 'MDSWriter',
+    'TSVWriter', 'XSVWriter'
 ]

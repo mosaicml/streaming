@@ -6,10 +6,10 @@
 import streaming.text as text
 import streaming.vision as vision
 from streaming._version import __version__
-from streaming.base import (CSVWriter, Dataset, JSONWriter, LocalDataset, MDSWriter, TSVWriter,
-                            XSVWriter)
+from streaming.base import (CSVWriter, Dataset, JSONWriter, LocalIterableDataset, LocalMapDataset,
+                            MDSWriter, TSVWriter, XSVWriter)
 
 __all__ = [
-    'Dataset', 'CSVWriter', 'JSONWriter', 'MDSWriter', 'TSVWriter', 'XSVWriter', 'LocalDataset',
-    'vision', 'text'
+    'Dataset', 'CSVWriter', 'JSONWriter', 'MDSWriter', 'TSVWriter', 'XSVWriter',
+    'LocalIterableDataset', 'LocalMapDataset', 'vision', 'text'
 ]

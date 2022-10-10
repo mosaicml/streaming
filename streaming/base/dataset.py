@@ -131,7 +131,7 @@ class Dataset(IterableDataset):
             shard = reader_from_json(local, split, info)
             self.shards.append(shard)
 
-        samples_per_shard = list(map(lambda shard: shard.samples, self.shards))
+        samples_per_shard = np.array([x.samples for x in self.shards])
         self.index = Index(samples_per_shard, batch_size)
 
         # Fields, protected by the lock, relating to loading shards in the background.
