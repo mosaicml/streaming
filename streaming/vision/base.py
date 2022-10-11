@@ -7,9 +7,12 @@ from typing import Any, Callable, Optional, Tuple
 
 from torchvision.transforms.functional import to_tensor
 
-from streaming.base import Dataset
+from streaming.base import Dataset, LocalResumableDataset
 
-__all__ = ['VisionDataset', 'ImageClassDataset']
+__all__ = [
+    'VisionDataset', 'ImageClassDataset', 'LocalResumableVisionDataset',
+    'LocalResumableImageClassDataset'
+]
 
 
 class StandardTransform(object):
@@ -162,3 +165,80 @@ class ImageClassDataset(VisionDataset):
                  batch_size: Optional[int] = None) -> None:
         super().__init__(local, remote, split, shuffle, None, transform, target_transform,
                          prefetch, keep_zip, retry, timeout, hash, batch_size)
+
+
+class LocalResumableVisionDataset(LocalResumableDataset):
+    """Base Class for creating a Vision streaming datasets.
+
+    Args:
+        local (str): Local filesystem directory where dataset is cached during operation.
+        split (str, optional): The dataset split to use, either 'train' or 'val'. Defaults to
+            ``None``.
+        shuffle (bool, optional): Whether to shuffle the train samples in this dataset. Defaults to
+            ``True``.
+        transforms (callable, optional): A function/transforms that takes in an image and a label
+            and returns the transformed versions of both. Default to ``None``.
+        transform (callable, optional): A function/transform that takes in an image and returns a
+            transformed version. Defaults to ``None``.
+        target_transform (callable, optional): A function/transform that takes in the target and
+            transforms it. Defaults to ``None``.
+    """
+
+    def __init__(self,
+                 local: str,
+                 split: Optional[str] = None,
+                 shuffle: bool = True,
+                 transforms: Optional[Callable] = None,
+                 transform: Optional[Callable] = None,
+                 target_transform: Optional[Callable] = None):
+        super().__init__(local, split, shuffle)
+
+        has_transforms = transforms is not None
+        has_separate_transform = transform is not None or target_transform is not None
+        if has_transforms and has_separate_transform:
+            raise ValueError(
+                'Only transforms or transform/target_transform can be passed as an argument')
+
+        self.transform = transform
+        self.target_transform = target_transform
+        if not has_transforms:
+            transforms = StandardTransform(transform, target_transform)
+        self.transforms = transforms
+
+    def __getitem__(self, idx: int) -> Any:
+        """Get sample by global index, blocking to load its shard if missing.
+
+        Args:
+            idx (int): Sample index.
+
+        Returns:
+            Any: Sample data.
+        """
+        obj = super().__getitem__(idx)
+        x = obj['x']
+        y = obj['y']
+        return self.transforms(x, y)
+
+
+class LocalResumableImageClassDataset(LocalResumableVisionDataset):
+    """Base Class for creating an Image Classification streaming datasets.
+
+    Args:
+        local (str): Local filesystem directory where dataset is cached during operation.
+        split (str, optional): The dataset split to use, either 'train' or 'val'. Defaults to
+            ``None``.
+        shuffle (bool, optional): Whether to shuffle the train samples in this dataset. Defaults to
+            ``True``.
+        transform (callable, optional): A function/transform that takes in an image and returns a
+            transformed version. Defaults to ``None``.
+        target_transform (callable, optional): A function/transform that takes in the target and
+            transforms it. Defaults to ``None``.
+    """
+
+    def __init__(self,
+                 local: str,
+                 split: Optional[str] = None,
+                 shuffle: bool = True,
+                 transform: Optional[Callable] = None,
+                 target_transform: Optional[Callable] = None):
+        super().__init__(local, split, shuffle, None, transform, target_transform)

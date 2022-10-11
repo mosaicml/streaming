@@ -7,7 +7,7 @@ It is one of the most widely used datasets for machine learning research. Please
 `CIFAR-10 Dataset <https://www.cs.toronto.edu/~kriz/cifar.html>`_ for more details.
 """
 
-from streaming.vision.base import ImageClassDataset
+from streaming.vision.base import ImageClassDataset, LocalResumableImageClassDataset
 
 
 class CIFAR10(ImageClassDataset):
@@ -36,4 +36,20 @@ class CIFAR10(ImageClassDataset):
             ``None``.
         batch_size (int, optional): Batch size that will be used on each device's DataLoader.
             Defaults to ``None``.
+    """
+
+
+class LocalResumableCIFAR10(LocalResumableImageClassDataset):
+    """Implementation of the CIFAR-10 dataset using streaming Dataset.
+
+    Args:
+        local (str): Local filesystem directory where dataset is cached during operation.
+        split (str, optional): The dataset split to use, either 'train' or 'val'. Defaults to
+            ``None``.
+        shuffle (bool, optional): Whether to shuffle the train samples in this dataset. Defaults to
+            ``True``.
+        transform (callable, optional): A function/transform that takes in an image and returns a
+            transformed version. Defaults to ``None``.
+        target_transform (callable, optional): A function/transform that takes in the target and
+            transforms it. Defaults to ``None``.
     """
