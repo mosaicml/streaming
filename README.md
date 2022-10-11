@@ -44,6 +44,7 @@
 # 👋 Welcome
 Streaming is a PyTorch compatible dataset that enables users to stream training data from cloud-based object stores. Streaming can read files from local disk or from cloud-based object stores. As a drop-in replacement for your PyTroch [IterableDataset](https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset) class, it’s easy to get streaming:
 
+<!--pytest.mark.skip-->
 ```python
 dataloader = torch.utils.data.DataLoader(dataset=ImageStreamingDataset(remote=s3://...))
 ```
