@@ -55,11 +55,11 @@ If you have any questions, please feel free to reach out to us on [Twitter](htt
 .. toctree::
    :hidden:
    :maxdepth: 1
-   :caption: Tutorial
+   :caption: Examples
 
-   tutorial/cifar10.ipynb
-   tutorial/facesynthetics.ipynb
-   tutorial/synthetic_nlp.ipynb
+   examples/cifar10.ipynb
+   examples/facesynthetics.ipynb
+   examples/synthetic_nlp.ipynb
 
 .. toctree::
    :hidden:
