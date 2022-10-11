@@ -4,8 +4,10 @@
 """Tracks distributed progress through a streaming dataset for checkpointing."""
 
 from multiprocessing.shared_memory import SharedMemory
+from typing import Any, Dict, Iterator
 
 import numpy as np
+from numpy.typing import NDArray
 
 from streaming.base import distributed as dist
 
@@ -81,7 +83,7 @@ class Cursor:
             int: The index.
         """
         num_sessions = self._arr[self._num_sessions_slot]
-        index = self._arr[self._sessions_slot]
+        index = self._sessions_slot
         for _ in range(num_sessions - 1):
             num_workers = self._arr[index]
             index += 1 + num_workers
@@ -109,3 +111,48 @@ class Cursor:
         """Reset our sessions at the end of an epoch."""
         if dist.is_local_leader():
             self._arr[self._num_sessions_slot] = 0
+
+    def each_session(self) -> Iterator[NDArray[np.int64]]:
+        """Iterate over our sessions.
+
+        Returns:
+            Iterator[NDArray[np.int64]]: The iterator.
+        """
+        num_sessions = self._arr[self._num_sessions_slot]
+        index = self._sessions_slot
+        for _ in range(num_sessions):
+            num_workers = self._arr[index]
+            index += 1
+            yield self._arr[index:index + num_workers]
+            index += num_workers
+
+    def state_dict(self) -> Dict[str, Any]:
+        """Get a dict containing training state (called from non-worker process).
+
+        Returns:
+            Dict[str, Any]: The state.
+        """
+        # TODO: all_gather state across nodes.
+        epoch = self.get_epoch()
+        sessions = [x.tolist() for x in self.each_session()]
+        return {
+            'epoch': epoch,
+            'sessions': sessions,
+        }
+
+    def load_state_dict(self, obj: Dict[str, Any]) -> None:
+        """Load a dict containing training state (called from non-worker process).
+
+        Args:
+            obj (Dict[str, Any]): The state.
+        """
+        self._arr[self._epoch_slot] = obj['epoch']
+        sessions = obj['sessions']
+        self._arr[self._num_sessions_slot] = len(sessions)
+        index = self._sessions_slot
+        for session in sessions:
+            self._arr[index] = num_workers = len(session)
+            index += 1
+            self._arr[index:index + num_workers] = session
+            index += num_workers
+        # TODO: broadcast state across nodes.

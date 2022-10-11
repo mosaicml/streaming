@@ -198,3 +198,19 @@ class LocalResumableDataset(IterableDataset):
 
         self.cursor.clear_sessions()
         self.cursor.step_epoch()
+
+    def state_dict(self) -> Dict[str, Any]:
+        """Get a dict containing training state (called from non-worker process).
+
+        Returns:
+            Dict[str, Any]: The state.
+        """
+        return self.cursor.state_dict()
+
+    def load_state_dict(self, obj: Dict[str, Any]) -> None:
+        """Load a dict containing training state (called from non-worker process).
+
+        Args:
+            obj (Dict[str, Any]): The state.
+        """
+        self.cursor.load_state_dict(obj)
