@@ -54,7 +54,7 @@ class Barrier:
         self.lock = Lock(name)
 
         # Fields: count, enter, exit, flag.
-        size = np.int32().nbytes
+        size = 4 * np.int32().nbytes
         try:
             self.shm = SharedMemory(name, True, size)
         except:
