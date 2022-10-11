@@ -4,7 +4,8 @@
 """Tracks distributed progress through a streaming dataset for checkpointing."""
 
 from multiprocessing.shared_memory import SharedMemory
-from typing import Any, Dict, Iterator
+from time import sleep
+from typing import Any, Dict, Iterator, Optional
 
 import numpy as np
 from numpy.typing import NDArray
@@ -72,22 +73,48 @@ class Cursor:
         """Increment the epoch by one."""
         if dist.is_local_leader():
             self._arr[self._epoch_slot] += 1
+        else:
+            sleep(0.07)
 
-    def _get_sample_slot(self) -> int:
-        """Precompute where this worker's count of samples seen this session is found.
+    def _get_current_session_slot(self) -> Optional[int]:
+        """Find the starting slot of the current session in the array.
 
-        Note: don't do this in dataset __init__ because you might be in the wrong process and get
-        a garbage result. Instead, call at the start of __iter__.
+        Used for synchrnoization during state_dict()/load_state_dict().
+
+        If training is not in progress (no sessions), returns None.
 
         Returns:
-            int: The index.
+            Optional[int]: The slot, if training is in progress.
         """
         num_sessions = self._arr[self._num_sessions_slot]
+        if not num_sessions:
+            return None
+
         index = self._sessions_slot
         for _ in range(num_sessions - 1):
             num_workers = self._arr[index]
             index += 1 + num_workers
-        return index + 1 + dist.get_worker()
+        return index
+
+    def new_session(self) -> int:
+        """Start a new training session, returning our sample slot.
+
+        A sample slot is where this worker's count of samples seen this session is found in _arr.
+
+        Note: don't precompute this in dataset __init__ because you might be in the wrong process
+        and get a garbage result. Instead, call at the start of __iter__.
+
+        Returns:
+            int: Slot of _arr where this worker's samples seen this session are counted.
+        """
+        if dist.is_local_leader():
+            self._arr[self._num_sessions_slot] += 1
+        else:
+            sleep(0.07)
+        slot = self._get_current_session_slot()
+        assert slot
+        self._arr[slot] = num_workers = dist.get_num_workers()
+        return num_workers + 1 + dist.get_worker()
 
     def step_sample(self, sample_slot: int) -> None:
         """Incremenet this worker's sample position by one.
@@ -96,16 +123,6 @@ class Cursor:
             sample_slot (int): The slot in _arr where this count is stored.
         """
         self._arr[sample_slot] += 1
-
-    def new_session(self) -> int:
-        """Start a new training session, returning our sample slot.
-
-        Returns:
-            int: Slot of _arr where our samples seen this session are counted.
-        """
-        if dist.is_local_leader():
-            self._arr[self._num_sessions_slot] += 1
-        return self._get_sample_slot()
 
     def clear_sessions(self) -> None:
         """Reset our sessions at the end of an epoch."""

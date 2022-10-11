@@ -81,3 +81,15 @@ def get_worker() -> int:
         worker_of_rank = 0
         workers_per_rank = 1
     return rank * workers_per_rank + worker_of_rank
+
+
+def get_num_workers() -> int:
+    """Get how many workers ther are in total.
+
+    Returns:
+        int: Worker count.
+    """
+    world_size = get_world_size()
+    info = get_worker_info()
+    workers_per_rank = info.num_workers if info else 1
+    return world_size * workers_per_rank
