@@ -69,9 +69,6 @@ Streaming is available with Pip:
 pip install mosaicml-streaming
 ```
 
-# 🤔 Why should I use Streaming?
-TODO
-
 # Tutorial
 Please check our [tutorial](https://docs.mosaicml.com/projects/streaming/) section for the end-to-end model training workflow using Streaming dataset.
 
