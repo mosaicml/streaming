@@ -46,6 +46,15 @@ def get_local_world_size() -> int:
     return int(os.environ.get('LOCAL_WORLD_SIZE', 1))
 
 
+def is_multinode() -> bool:
+    """Get whether this training run is multi-node.
+
+    Returns:
+        bool: Whether we span multiple nodes.
+    """
+    return get_local_world_size() < get_world_size()
+
+
 def is_local_leader() -> bool:
     """Get whether we are the local leader.
 

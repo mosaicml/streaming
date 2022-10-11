@@ -8,7 +8,9 @@ from time import sleep
 from typing import Any, Dict, Iterator, Optional
 
 import numpy as np
+import torch
 from numpy.typing import NDArray
+from torch import distributed
 
 from streaming.base import distributed as dist
 
@@ -111,9 +113,9 @@ class Cursor:
             self._arr[self._num_sessions_slot] += 1
         else:
             sleep(0.07)
-        slot = self._get_current_session_slot()
-        assert slot
-        self._arr[slot] = num_workers = dist.get_num_workers()
+        index = self._get_current_session_slot()
+        assert index
+        self._arr[index] = num_workers = dist.get_num_workers()
         return num_workers + 1 + dist.get_worker()
 
     def step_sample(self, sample_slot: int) -> None:
@@ -128,6 +130,8 @@ class Cursor:
         """Reset our sessions at the end of an epoch."""
         if dist.is_local_leader():
             self._arr[self._num_sessions_slot] = 0
+        else:
+            sleep(0.07)
 
     def each_session(self) -> Iterator[NDArray[np.int64]]:
         """Iterate over our sessions.
@@ -143,13 +147,74 @@ class Cursor:
             yield self._arr[index:index + num_workers]
             index += num_workers
 
+    def _all_gather_current_session(self) -> None:
+        """All-gather the current session data.
+
+        This is done in order to checkpoint.
+        """
+        # Bail if we are not multi-node.
+        if not dist.is_multinode():
+            return
+
+        # Bail if we are not currently training. If we aren't training, there are no running
+        # sample counts to synchonize.
+        index = self._get_current_session_slot()
+        if not index:
+            return
+
+        # Do the all_gather on the last session counts.
+        num_workers = self._arr[index]
+        index += 1
+        samples_per_worker = self._arr[index:index + num_workers]
+        rank = dist.get_rank()
+        device = torch.device(f'cuda:{rank}')
+        source = torch.tensor(samples_per_worker, device=device)
+        world_size = dist.get_world_size()
+        dests = [
+            torch.empty(num_workers, dtype=torch.int64, device=device) for _ in range(world_size)
+        ]
+        distributed.all_gather(dests, source)
+
+        # Each rank provides ground truth for its workers.
+        if dist.is_local_leader():
+            dests = torch.stack(dests).cpu().numpy()  # Shape: (world size, total workers).
+            workers_per_rank = num_workers // world_size
+            for rank in range(world_size):
+                rank_start = rank * workers_per_rank
+                rank_end = (rank + 1) * workers_per_rank
+                self._arr[index + rank_start:index + rank_end] = dests[rank]
+        else:
+            sleep(0.07)
+
+    def _broadcast_state(self) -> None:
+        """Broadcast the entire state.
+
+        This is done following a restore from checkpoint.
+        """
+        # Bail if we are not multi-node.
+        if not dist.is_multinode():
+            return
+
+        # Do the broadcast on the entire state.
+        rank = dist.get_rank()
+        device = torch.device(f'cuda:{rank}')
+        tensor = torch.tensor(self._arr, device=device)
+        distributed.broadcast(tensor, 0)
+
+        # Each other rank receives ground truth from rank zero.
+        if dist.is_local_leader() and rank:
+            self._arr[:] = tensor.cpu().numpy()
+        else:
+            sleep(0.07)
+
     def state_dict(self) -> Dict[str, Any]:
         """Get a dict containing training state (called from non-worker process).
 
         Returns:
             Dict[str, Any]: The state.
         """
-        # TODO: all_gather state across nodes.
+        self._all_gather_current_session()
+
         epoch = self.get_epoch()
         sessions = [x.tolist() for x in self.each_session()]
         return {
@@ -172,4 +237,5 @@ class Cursor:
             index += 1
             self._arr[index:index + num_workers] = session
             index += num_workers
-        # TODO: broadcast state across nodes.
+
+        self._broadcast_state()
