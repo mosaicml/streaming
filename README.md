@@ -42,21 +42,21 @@
 <br />
 
 # 👋 Welcome
-Streaming is a PyTorch compatible dataset that enables users to stream training data from cloud-based object stores. Streaming can read files from local disk or from cloud-based object stores. As a drop-in replacement for your PyTroch [IterableDataset](https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset) class, it’s easy to get streaming:
+Streaming is a PyTorch compatible dataset that enables users to stream training data from cloud-based object stores. Streaming can read files from local disk or from cloud-based object stores. As a drop-in replacement for your PyTorch [IterableDataset](https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset) class, it’s easy to get streaming:
 
 <!--pytest.mark.skip-->
 ```python
-dataloader = torch.utils.data.DataLoader(dataset=ImageStreamingDataset(remote=s3://...))
+dataloader = torch.utils.data.DataLoader(dataset=ImageStreamingDataset(remote='s3://...'))
 ```
 
 Please check the [quick start guide](https://docs.mosaicml.com/projects/streaming/en/latest/getting_started/quick_start.html) and [user guide](https://docs.mosaicml.com/projects/streaming/en/latest/getting_started/user_guide.html) on how to use the Streaming Dataset.
 
 # Key Benefits
 
-- High performance, accurate streaming of training data from cloud storage.
-- Efficiently train anywhere, independent of training data location.
-- Cloud-native, no persistent storage required; simplifying infrastructure.
-- Enhanced data security, data exists ephemerally training cluster.
+- High performance, accurate streaming of training data from cloud storage
+- Efficiently train anywhere, independent of training data location
+- Cloud-native, no persistent storage required
+- Enhanced data security—data exists ephemerally in training cluster
 
 
 # 🚀 Quickstart
@@ -70,13 +70,13 @@ pip install mosaicml-streaming
 ```
 
 # Tutorial
-Please check our [tutorial](https://docs.mosaicml.com/projects/streaming/) section for the end-to-end model training workflow using Streaming dataset.
+Please check our [tutorial](https://docs.mosaicml.com/projects/streaming/) section for the end-to-end model training workflow using Streaming datasets.
 
 # 📚 Documentation
-Getting started guides, examples, tutorials, API reference, and other useful information can be found on our [documentation page](https://docs.mosaicml.com/projects/streaming).
+Getting started guides, examples, tutorials, API reference, and other useful information can be found in our [docs](https://docs.mosaicml.com/projects/streaming).
 
 # 💫 Contributors
-Streaming is part of the broader Machine Learning community, and we welcome any contributions, pull requests, or issues!
+We welcome any contributions, pull requests, or issues!
 
 To start contributing, see our [Contributing](https://github.com/mosaicml/streaming/blob/dev/CONTRIBUTING.md) page.
 
