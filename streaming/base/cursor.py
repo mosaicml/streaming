@@ -51,7 +51,7 @@ class Cursor:
 
     def __init__(self, split: str) -> None:
         name = f'cursor_{split}'
-        size = 1 << 16
+        size = 1 << 20
         try:
             self._shm = SharedMemory(name, True, size)
         except:
@@ -90,7 +90,9 @@ class Cursor:
         """
         num_sessions = self._arr[self._num_sessions_slot]
         if not num_sessions:
-            return None
+            # Mitigate
+            self._arr[self._sessions_slot] = dist.get_num_workers()
+            return self._sessions_slot
 
         index = self._sessions_slot
         for _ in range(num_sessions - 1):
@@ -116,7 +118,9 @@ class Cursor:
         index = self._get_current_session_slot()
         assert index
         self._arr[index] = num_workers = dist.get_num_workers()
-        return num_workers + 1 + dist.get_worker()
+        index += 1
+        self._arr[index:index + num_workers] = 0
+        return index + dist.get_worker()
 
     def step_sample(self, sample_slot: int) -> None:
         """Incremenet this worker's sample position by one.

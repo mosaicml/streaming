@@ -8,6 +8,8 @@ from typing import Iterable, List
 import numpy as np
 from numpy.typing import NDArray
 
+from streaming.base import distributed as dist
+
 
 class _Shard(object):
     """Shard ID paired with its sample IDs.
@@ -170,9 +172,6 @@ def get_epoch(sizes: NDArray[np.int64], shuffle: bool, seed: int, epoch: int,
     Returns:
         List[NDArray[np.int64]]: Sequence of sample IDs for each worker.
     """
-    if not sessions:
-        raise ValueError('Sessions must contain at least one session')
-
     # Initialize fixed and per-epoch PRNGs.
     static_rng = np.random.default_rng(seed)
     epoch_rng = np.random.default_rng(seed + epoch)
@@ -197,6 +196,10 @@ def get_epoch(sizes: NDArray[np.int64], shuffle: bool, seed: int, epoch: int,
                     epoch_rng.shuffle(shard.samples)
             _drop_first_samples(shards, num_samples)
         shards = _concat_parts(parts)  # Result is ignored on last session.
+    else:
+        # Mitigate
+        num_parts = dist.get_num_workers()
+        parts = _break_into_balanced_parts(shards, num_parts)
 
     # Return the array of sample IDs for each partition.
     return list(map(_shards_to_samples, parts))  # pyright: ignore
