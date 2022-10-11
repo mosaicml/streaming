@@ -5,7 +5,6 @@
 
 import json
 import os
-from time import sleep
 from typing import Any, Dict, Iterator, Optional
 
 import numpy as np
@@ -189,8 +188,6 @@ class LocalResumableDataset(IterableDataset):
             Iterator[Dict[str, Any]]: Each sample.
         """
         sample_slot = self.cursor.new_session()
-        sleep(0.07)
-
         sequences = get_epoch(self.shard_sizes, self.shuffle, self.seed, self.cursor.get_epoch(),
                               self.cursor.each_session())
         todos = sequences[dist.get_worker()]
