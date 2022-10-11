@@ -59,6 +59,7 @@ If you have any questions, please feel free to reach out to us on [Twitter](htt
 
    tutorial/cifar10.ipynb
    tutorial/facesynthetics.ipynb
+   tutorial/synthetic_nlp.ipynb
 
 .. toctree::
    :hidden:
