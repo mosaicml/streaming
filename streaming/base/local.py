@@ -5,14 +5,17 @@
 
 import json
 import os
+from time import sleep
 from typing import Any, Dict, Iterator, Optional
 
 import numpy as np
 from torch.utils.data import Dataset, IterableDataset
 
+from streaming.base import distributed as dist
 from streaming.base.cursor import Cursor
 from streaming.base.format import reader_from_json
 from streaming.base.index import Index
+from streaming.base.shuffle import get_epoch
 
 
 class LocalMapDataset(Dataset):
@@ -153,8 +156,8 @@ class LocalResumableDataset(IterableDataset):
             shard = reader_from_json(local, split, info)
             self.shards.append(shard)
 
-        shard_sizes = np.array([x.samples for x in self.shards])
-        self.index = Index(shard_sizes)
+        self.shard_sizes = np.array([x.samples for x in self.shards])
+        self.index = Index(self.shard_sizes)
 
         self.cursor = Cursor(self.split)
 
@@ -185,13 +188,13 @@ class LocalResumableDataset(IterableDataset):
         Returns:
             Iterator[Dict[str, Any]]: Each sample.
         """
-        part = self.index.get_partition()
-        todos = np.arange(part.min_sample_id, part.max_sample_id)
-        if self.shuffle:
-            rng = np.random.default_rng(self.seed)
-            rng.shuffle(todos)
-
         sample_slot = self.cursor.new_session()
+        sleep(0.07)
+
+        sequences = get_epoch(self.shard_sizes, self.shuffle, self.seed, self.cursor.get_epoch(),
+                              self.cursor.each_session())
+        todos = sequences[dist.get_worker()]
+
         for index in todos:
             self.cursor.step_sample(sample_slot)
             yield self[index]
