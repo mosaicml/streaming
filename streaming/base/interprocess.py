@@ -9,19 +9,21 @@ from time import sleep
 
 import numpy as np
 
-# A short unit of time for spinlocking.
-TICK = 0.007
-
 
 class Lock:
     """A lock that works inter-process using directory creation.
 
     Args:
         dirname (str): Dirname that backs all instances of this lock across all processes.
+        poll_interval (float): A short unit of time for spinlocking. Default: ``0.007``.
     """
 
-    def __init__(self, dirname: str) -> None:
+    def __init__(self, dirname: str, poll_interval: float = 0.007) -> None:
         self.dirname = dirname
+        self.poll_interval = poll_interval
+
+        # Initially not locked.
+        assert not os.path.exists(dirname)
 
     def acquire(self) -> None:
         """Acquire the lock."""
@@ -30,7 +32,7 @@ class Lock:
                 os.makedirs(self.dirname)
                 break
             except FileExistsError:
-                sleep(TICK)
+                sleep(self.poll_interval)
 
     def release(self) -> None:
         """Release the lock."""
@@ -41,18 +43,29 @@ class Barrier:
     """A barrier that works inter-process using a file lock and shared memory.
 
     Args:
-        count (int): Number of processes to synchronize.
+        num_procs (int): Number of processes to synchronize.
         name (str): Unique name for both the shared memory and file lock backing this object.
-        lock_dir (str): Directory where file locks are stored.
+        lock_dir (str): Directory where file locks are stored. Default: `/tmp/`.
+        poll_interval (float): A short unit of time for spinlocking. Default: ``0.007``.
     """
 
-    def __init__(self, count: int, name: str, lock_dir: str = '/tmp/') -> None:
-        self.count = count
+    # The fields of the shared memory array.
+    _num_enter_slot = 0
+    _num_exit_slot = 1
+    _flag_slot = 2
+
+    def __init__(self,
+                 num_procs: int,
+                 name: str,
+                 lock_dir: str = '/tmp/',
+                 poll_interval: float = 0.007) -> None:
+        self.num_procs = num_procs
         self.name = name
         self.lock_dir = lock_dir
+        self.poll_interval = poll_interval
 
         # File lock.
-        self.lock = Lock(name)
+        self.lock = Lock(name, poll_interval)
 
         # Shared memory bytes.
         size = 3 * np.int32().nbytes
@@ -63,9 +76,9 @@ class Barrier:
 
         # Array backed by shared memory: num_enter, num_exit, flag.
         self._arr = np.frombuffer(self._shm.buf, np.int32)
-        self._arr[0] = 0
-        self._arr[1] = count
-        self._arr[2] = True
+        self._arr[self._num_enter_slot] = 0
+        self._arr[self._num_exit_slot] = num_procs
+        self._arr[self._flag_slot] = True
 
     def __del__(self):
         """Destructor clears array that lives in shm."""
@@ -131,8 +144,8 @@ class Barrier:
         self.lock.acquire()
         if not self.num_enter:
             self.lock.release()
-            while self.num_exit != self.count:
-                sleep(TICK)
+            while self.num_exit != self.num_procs:
+                sleep(self.poll_interval)
             self.lock.acquire()
             self.flag = False
 
@@ -140,7 +153,7 @@ class Barrier:
         self.num_enter += 1
 
         # If we are the last to arrive, reset `enter` and `exit`, and set flag to "go".
-        if self.num_enter == self.count:
+        if self.num_enter == self.num_procs:
             self.num_enter = 0
             self.num_exit = 0
             self.flag = True
@@ -148,7 +161,7 @@ class Barrier:
 
         # Everybody waits until the flag is set to "go".
         while not self.flag:
-            sleep(TICK)
+            sleep(self.poll_interval)
 
         # Note that we exited.
         self.lock.acquire()
