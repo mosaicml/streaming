@@ -3,12 +3,10 @@
 
 """Slice, shuffle, and dice epochs of samples across worker partitions."""
 
-from typing import Iterable, List
+from typing import List
 
 import numpy as np
 from numpy.typing import NDArray
-
-from streaming.base import distributed as dist
 
 
 class _Shard(object):
@@ -142,7 +140,7 @@ def _concat_parts(lists: List[List[_Shard]]) -> List[_Shard]:
 
 
 def get_epoch(sizes: NDArray[np.int64], shuffle: bool, seed: int, epoch: int,
-              sessions: Iterable[NDArray[np.int64]]):
+              sessions: List[NDArray[np.int64]]):
     """Get this epoch's ordering of samples for each worker.
 
     Mid-epoch resumption:
@@ -165,13 +163,16 @@ def get_epoch(sizes: NDArray[np.int64], shuffle: bool, seed: int, epoch: int,
         seed (int): Base random seed, which is held constant over an entire training run.
         epoch (int): Current epoch, which is added to the seed to get a different deterministic
             shuffle each epoch.
-        sessions (Iterable[NDArray[np.int64]]): Partial epoch progress, in the form of an array per
+        sessions (List[NDArray[np.int64]]): Partial epoch progress, in the form of an array per
             partial epoch training session. Each array contains the samples seen per worker during
             that session, which can be zero. The list will always contain at least one array.
 
     Returns:
         List[NDArray[np.int64]]: Sequence of sample IDs for each worker.
     """
+    if not sessions:
+        raise RuntimeError('There must be at least one training session')
+
     # Initialize fixed and per-epoch PRNGs.
     static_rng = np.random.default_rng(seed)
     epoch_rng = np.random.default_rng(seed + epoch)
@@ -196,10 +197,6 @@ def get_epoch(sizes: NDArray[np.int64], shuffle: bool, seed: int, epoch: int,
                     epoch_rng.shuffle(shard.samples)
             _drop_first_samples(shards, num_samples)
         shards = _concat_parts(parts)  # Result is ignored on last session.
-    else:
-        # Mitigate
-        num_parts = dist.get_num_workers()
-        parts = _break_into_balanced_parts(shards, num_parts)
 
     # Return the array of sample IDs for each partition.
     return list(map(_shards_to_samples, parts))  # pyright: ignore

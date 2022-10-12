@@ -10,11 +10,11 @@ from typing import Any, Dict, Iterator, Optional
 import numpy as np
 from torch.utils.data import Dataset, IterableDataset
 
-from streaming.base import distributed as dist
 from streaming.base.cursor import Cursor
 from streaming.base.format import reader_from_json
 from streaming.base.index import Index
 from streaming.base.shuffle import get_epoch
+from streaming.base.world import World
 
 
 class LocalMapDataset(Dataset):
@@ -187,17 +187,19 @@ class LocalResumableDataset(IterableDataset):
         Returns:
             Iterator[Dict[str, Any]]: Each sample.
         """
-        sample_slot = self.cursor.new_session()
-        sequences = get_epoch(self.shard_sizes, self.shuffle, self.seed, self.cursor.get_epoch(),
-                              self.cursor.each_session())
-        todos = sequences[dist.get_worker()]
+        world = World()
+        self.cursor.push_session(world)
+
+        sequences = get_epoch(self.shard_sizes, self.shuffle, self.seed, self.cursor.epoch,
+                              self.cursor.sessions)
+        todos = sequences[world.worker]
 
         for index in todos:
-            self.cursor.step_sample(sample_slot)
+            self.cursor.step_sample(world)
             yield self[index]
 
-        self.cursor.clear_sessions()
-        self.cursor.step_epoch()
+        self.cursor.pop_sessions(world)
+        self.cursor.step_epoch(world)
 
     def state_dict(self) -> Dict[str, Any]:
         """Get a dict containing training state (called from non-worker process).

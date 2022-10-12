@@ -78,7 +78,7 @@ class Barrier:
         Returns:
             int: Number of processes that have entered the barrier.
         """
-        return self._arr[0]
+        return int(self._arr[0])
 
     @num_enter.setter
     def num_enter(self, num_enter: int) -> None:
@@ -96,7 +96,7 @@ class Barrier:
         Returns:
             int: Number of processes that have exited the barrier.
         """
-        return self._arr[1]
+        return int(self._arr[1])
 
     @num_exit.setter
     def num_exit(self, num_exit: int) -> None:

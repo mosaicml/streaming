@@ -4,15 +4,13 @@
 """Tracks distributed progress through a streaming dataset for checkpointing."""
 
 from multiprocessing.shared_memory import SharedMemory
-from time import sleep
-from typing import Any, Dict, Iterator, Optional
+from typing import Any, Dict
 
 import numpy as np
 import torch
-from numpy.typing import NDArray
 from torch import distributed
 
-from streaming.base import distributed as dist
+from streaming.base.world import World
 
 
 class Cursor:
@@ -49,6 +47,10 @@ class Cursor:
     TODO: handle num_workers=0.
     """
 
+    _epoch_slot = 0
+    _num_sessions_slot = 1
+    _sessions_slot = 2
+
     def __init__(self, split: str) -> None:
         name = f'cursor_{split}'
         size = 1 << 20
@@ -59,11 +61,10 @@ class Cursor:
 
         self._arr = np.frombuffer(self._shm.buf, np.int64)
 
-        self._epoch_slot = 0
-        self._num_sessions_slot = 1
-        self._sessions_slot = 2
+        self.sessions = []
 
-    def get_epoch(self) -> int:
+    @property
+    def epoch(self) -> int:
         """Get the current epoch.
 
         Returns:
@@ -71,85 +72,90 @@ class Cursor:
         """
         return int(self._arr[self._epoch_slot])
 
-    def step_epoch(self):
-        """Increment the epoch by one."""
-        if dist.is_local_leader():
-            self._arr[self._epoch_slot] += 1
-        else:
-            sleep(0.07)
+    @epoch.setter
+    def epoch(self, epoch: int) -> None:
+        """Set the current epoch.
 
-    def _get_current_session_slot(self) -> Optional[int]:
-        """Find the starting slot of the current session in the array.
+        Args:
+            epoch (int): The epoch.
+        """
+        self._arr[self._epoch_slot] = epoch
 
-        Used for synchrnoization during state_dict()/load_state_dict().
-
-        If training is not in progress (no sessions), returns None.
+    @property
+    def _num_sessions(self) -> int:
+        """Get the number of sessions.
 
         Returns:
-            Optional[int]: The slot, if training is in progress.
+            int: Number of sessions.
         """
-        num_sessions = self._arr[self._num_sessions_slot]
-        if not num_sessions:
-            # Mitigate
-            self._arr[self._sessions_slot] = dist.get_num_workers()
-            return self._sessions_slot
+        return int(self._arr[self._num_sessions_slot])
 
+    @_num_sessions.setter
+    def _num_sessions(self, num_sessions: int) -> None:
+        """Set the number of sessions.
+
+        Args:
+            num_sessions (int): Number of sessions.
+        """
+        self._arr[self._num_sessions_slot] = num_sessions
+
+    def _get_end_slot(self) -> int:
+        """Get the slot that lies after the last session.
+
+        Returns:
+            int: The end slot.
+        """
         index = self._sessions_slot
-        for _ in range(num_sessions - 1):
+        for _ in range(self._num_sessions):
             num_workers = self._arr[index]
             index += 1 + num_workers
         return index
 
-    def new_session(self) -> int:
-        """Start a new training session, returning our sample slot.
+    def push_session(self, world: World) -> None:
+        """Begin a new training session at the beginning of an epoch.
 
-        A sample slot is where this worker's count of samples seen this session is found in _arr.
-
-        Note: don't precompute this in dataset __init__ because you might be in the wrong process
-        and get a garbage result. Instead, call at the start of __iter__.
-
-        Returns:
-            int: Slot of _arr where this worker's samples seen this session are counted.
+        Args:
+            world (World): The world.
         """
-        if dist.is_local_leader():
-            self._arr[self._num_sessions_slot] += 1
-        else:
-            sleep(0.07)
-        index = self._get_current_session_slot()
-        assert index
-        self._arr[index] = num_workers = dist.get_num_workers()
-        index += 1
-        self._arr[index:index + num_workers] = 0
-        return index + dist.get_worker()
+        if world.is_local_leader:
+            index = self._get_end_slot()
+            self._arr[index] = world.num_workers
+            index += 1
+            session = self._arr[index:index + world.num_workers]
+            session[:] = 0
+            self._num_sessions += 1
+            self.sessions.append(session)
+        world.barrier()
 
-    def step_sample(self, sample_slot: int) -> None:
+    def step_sample(self, world: World) -> None:
         """Incremenet this worker's sample position by one.
 
         Args:
-            sample_slot (int): The slot in _arr where this count is stored.
+            world (World): The world.
         """
-        self._arr[sample_slot] += 1
+        session = self.sessions[-1]
+        session[world.worker] += 1
 
-    def clear_sessions(self) -> None:
-        """Reset our sessions at the end of an epoch."""
-        if dist.is_local_leader():
-            self._arr[self._num_sessions_slot] = 0
-        else:
-            sleep(0.07)
+    def pop_sessions(self, world: World) -> None:
+        """Reset our sessions at the end of an epoch.
 
-    def each_session(self) -> Iterator[NDArray[np.int64]]:
-        """Iterate over our sessions.
-
-        Returns:
-            Iterator[NDArray[np.int64]]: The iterator.
+        Args:
+            world (World): The world.
         """
-        num_sessions = self._arr[self._num_sessions_slot]
-        index = self._sessions_slot
-        for _ in range(num_sessions):
-            num_workers = self._arr[index]
-            index += 1
-            yield self._arr[index:index + num_workers]
-            index += num_workers
+        if world.is_local_leader:
+            self._num_sessions = 0
+        self.sessions = []
+        world.barrier()
+
+    def step_epoch(self, world: World):
+        """Increment the epoch by one.
+
+        Args:
+            world (World): The world.
+        """
+        if world.is_local_leader:
+            self.epoch += 1
+        world.barrier()
 
     def _all_gather_current_session(self) -> None:
         """All-gather the current session data.
@@ -157,59 +163,33 @@ class Cursor:
         This is done in order to checkpoint.
         """
         # Bail if we are not multi-node.
-        if not dist.is_multinode():
+        world = World()
+        if not world.is_multinode:
             return
 
         # Bail if we are not currently training. If we aren't training, there are no running
         # sample counts to synchonize.
-        index = self._get_current_session_slot()
-        if not index:
+        if not self.sessions:
             return
 
         # Do the all_gather on the last session counts.
-        num_workers = self._arr[index]
-        index += 1
-        samples_per_worker = self._arr[index:index + num_workers]
-        rank = dist.get_rank()
-        device = torch.device(f'cuda:{rank}')
-        source = torch.tensor(samples_per_worker, device=device)
-        world_size = dist.get_world_size()
+        current_session = self.sessions[-1]
+        device = torch.device(f'cuda:{world.rank}')
+        source = torch.tensor(current_session, device=device)
         dests = [
-            torch.empty(num_workers, dtype=torch.int64, device=device) for _ in range(world_size)
+            torch.empty(len(current_session), dtype=torch.int64, device=device)
+            for _ in range(world.num_ranks)
         ]
         distributed.all_gather(dests, source)
 
         # Each rank provides ground truth for its workers.
-        if dist.is_local_leader():
+        if world.is_local_leader:
             dests = torch.stack(dests).cpu().numpy()  # Shape: (world size, total workers).
-            workers_per_rank = num_workers // world_size
-            for rank in range(world_size):
-                rank_start = rank * workers_per_rank
-                rank_end = (rank + 1) * workers_per_rank
-                self._arr[index + rank_start:index + rank_end] = dests[rank]
-        else:
-            sleep(0.07)
-
-    def _broadcast_state(self) -> None:
-        """Broadcast the entire state.
-
-        This is done following a restore from checkpoint.
-        """
-        # Bail if we are not multi-node.
-        if not dist.is_multinode():
-            return
-
-        # Do the broadcast on the entire state.
-        rank = dist.get_rank()
-        device = torch.device(f'cuda:{rank}')
-        tensor = torch.tensor(self._arr, device=device)
-        distributed.broadcast(tensor, 0)
-
-        # Each other rank receives ground truth from rank zero.
-        if dist.is_local_leader() and rank:
-            self._arr[:] = tensor.cpu().numpy()
-        else:
-            sleep(0.07)
+            for rank in range(world.num_ranks):
+                rank_start = rank * world.workers_per_rank
+                rank_end = (rank + 1) * world.workers_per_rank
+                current_session[rank_start:rank_end] = dests[rank]
+        world.barrier()
 
     def state_dict(self) -> Dict[str, Any]:
         """Get a dict containing training state (called from non-worker process).
@@ -219,12 +199,42 @@ class Cursor:
         """
         self._all_gather_current_session()
 
-        epoch = self.get_epoch()
-        sessions = [x.tolist() for x in self.each_session()]
+        epoch = self.epoch
+        sessions = [x.tolist() for x in self.sessions]
         return {
             'epoch': epoch,
             'sessions': sessions,
         }
+
+    def _broadcast_state(self) -> None:
+        """Broadcast the entire state.
+
+        This is done following a restore from checkpoint.
+        """
+        # Bail if we are not multi-node.
+        world = World()
+        if not world.is_multinode:
+            return
+
+        # Do the broadcast on the entire state.
+        device = torch.device(f'cuda:{world.rank}')
+        tensor = torch.tensor(self._arr, device=device)
+        distributed.broadcast(tensor, 0)
+
+        # Each other rank receives ground truth from rank zero.
+        if world.is_local_leader and world.rank:
+            self._arr[:] = tensor.cpu().numpy()
+        world.barrier()
+
+        # Collect sessions list.
+        self.sessions = []
+        index = self._sessions_slot
+        for _ in range(self._num_sessions):
+            num_workers = self._arr[index]
+            index += 1
+            session = self._arr[index:index + num_workers]
+            self.sessions.append(session)
+            index += num_workers
 
     def load_state_dict(self, obj: Dict[str, Any]) -> None:
         """Load a dict containing training state (called from non-worker process).
@@ -232,11 +242,10 @@ class Cursor:
         Args:
             obj (Dict[str, Any]): The state.
         """
-        self._arr[self._epoch_slot] = obj['epoch']
-        sessions = obj['sessions']
-        self._arr[self._num_sessions_slot] = len(sessions)
+        self.epoch = obj['epoch']
+        self._num_sessions = len(obj['sessions'])
         index = self._sessions_slot
-        for session in sessions:
+        for session in obj['sessions']:
             self._arr[index] = num_workers = len(session)
             index += 1
             self._arr[index:index + num_workers] = session
