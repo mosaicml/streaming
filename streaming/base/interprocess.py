@@ -9,7 +9,8 @@ from time import sleep
 
 import numpy as np
 
-IOTA = 0.007
+# A short unit of time for spinlocking.
+TICK = 0.007
 
 
 class Lock:
@@ -29,17 +30,11 @@ class Lock:
                 os.makedirs(self.dirname)
                 break
             except FileExistsError:
-                sleep(IOTA)
+                sleep(TICK)
 
     def release(self) -> None:
         """Release the lock."""
         os.rmdir(self.dirname)
-
-
-COUNT = 0
-ENTER = 1
-EXIT = 2
-GO = 3
 
 
 class Barrier:
@@ -47,47 +42,115 @@ class Barrier:
 
     Args:
         count (int): Number of processes to synchronize.
-        name (str): Unique name of the shared memory and file lock backing this object.
+        name (str): Unique name for both the shared memory and file lock backing this object.
+        lock_dir (str): Directory where file locks are stored.
     """
 
-    def __init__(self, count: int, name: str) -> None:
+    def __init__(self, count: int, name: str, lock_dir: str = '/tmp/') -> None:
+        self.count = count
+        self.name = name
+        self.lock_dir = lock_dir
+
+        # File lock.
         self.lock = Lock(name)
 
-        # Fields: count, enter, exit, flag.
-        size = 4 * np.int32().nbytes
+        # Shared memory bytes.
+        size = 3 * np.int32().nbytes
         try:
-            self.shm = SharedMemory(name, True, size)
+            self._shm = SharedMemory(name, True, size)
         except:
-            self.shm = SharedMemory(name, False, size)
-        self._arr = np.frombuffer(self.shm.buf, np.int32)
-        self._arr[:] = count, 0, count, True  # Count, enter, exit, go.
+            self._shm = SharedMemory(name, False, size)
+
+        # Array backed by shared memory: num_enter, num_exit, flag.
+        self._arr = np.frombuffer(self._shm.buf, np.int32)
+        self._arr[0] = 0
+        self._arr[1] = count
+        self._arr[2] = True
+
+    def __del__(self):
+        """Destructor clears array that lives in shm."""
+        del self._arr
+
+    @property
+    def num_enter(self) -> int:
+        """Get property num_enter.
+
+        Returns:
+            int: Number of processes that have entered the barrier.
+        """
+        return self._arr[0]
+
+    @num_enter.setter
+    def num_enter(self, num_enter: int) -> None:
+        """Set property num_enter.
+
+        Args:
+            num_enter (int): Number of processes that have entered the barrier.
+        """
+        self._arr[0] = num_enter
+
+    @property
+    def num_exit(self) -> int:
+        """Get property num_exit.
+
+        Returns:
+            int: Number of processes that have exited the barrier.
+        """
+        return self._arr[1]
+
+    @num_exit.setter
+    def num_exit(self, num_exit: int) -> None:
+        """Set property num_exit.
+
+        Args:
+            num_exit (int): Number of processes that have exited the barrier.
+        """
+        self._arr[1] = num_exit
+
+    @property
+    def flag(self) -> bool:
+        """Get property flag.
+
+        Returns:
+            bool: The flag value.
+        """
+        return bool(self._arr[2])
+
+    @flag.setter
+    def flag(self, flag: bool) -> None:
+        """Set property flag.
+
+        Args:
+            flag (bool): The flag value.
+        """
+        self._arr[2] = bool(flag)
 
     def __call__(self) -> None:
-        """However many processes enter, wait, and exit the barrier."""
+        """A set number of processes enter, wait, and exit the barrier."""
         # If we are the first to arrive, wait for everyone to exit, then set flag to "don't go".
         self.lock.acquire()
-        if not self._arr[ENTER]:
+        if not self.num_enter:
             self.lock.release()
-            while self._arr[EXIT] != self._arr[COUNT]:
-                sleep(IOTA)
+            while self.num_exit != self.count:
+                sleep(TICK)
             self.lock.acquire()
-            self._arr[GO] = False
+            self.flag = False
 
         # Note that we entered.
-        self._arr[ENTER] += 1
+        self.num_enter += 1
 
         # If we are the last to arrive, reset `enter` and `exit`, and set flag to "go".
-        if self._arr[ENTER] == self._arr[COUNT]:
-            self._arr[ENTER] = 0
-            self._arr[EXIT] = 0
-            self._arr[GO] = True
+        if self.num_enter == self.count:
+            self.num_enter = 0
+            self.num_exit = 0
+            self.flag = True
         self.lock.release()
 
         # Everybody waits until the flag is set to "go".
-        while not self._arr[GO]:
-            sleep(IOTA)
+        while not self.flag:
+            sleep(TICK)
 
         # Note that we exited.
         self.lock.acquire()
-        self._arr[EXIT] += 1
+        self.num_exit += 1
         self.lock.release()
