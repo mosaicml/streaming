@@ -8,7 +8,7 @@ from typing import Any, Dict
 
 import numpy as np
 import torch
-from torch import distributed
+from torch import distributed as dist
 
 from streaming.base.world import World
 
@@ -180,7 +180,7 @@ class Cursor:
             torch.empty(len(current_session), dtype=torch.int64, device=device)
             for _ in range(world.num_ranks)
         ]
-        distributed.all_gather(dests, source)
+        dist.all_gather(dests, source)
 
         # Each rank provides ground truth for its workers.
         if world.is_local_leader:
@@ -219,7 +219,7 @@ class Cursor:
         # Do the broadcast on the entire state.
         device = torch.device(f'cuda:{world.rank}')
         tensor = torch.tensor(self._arr, device=device)
-        distributed.broadcast(tensor, 0)
+        dist.broadcast(tensor, 0)
 
         # Each other rank receives ground truth from rank zero.
         if world.is_local_leader and world.rank:
