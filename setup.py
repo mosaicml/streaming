@@ -43,11 +43,12 @@ extra_deps = {}
 
 extra_deps['dev'] = [
     'docformatter==1.4',
+    'jupyter==1.0.0',
+    'pre-commit>=2.18.1,<3',
     'pytest==7.1.2',
+    'pytest_codeblocks==0.16.1',
     'toml==0.10.2',
     'yamllint==1.26.3',
-    'pre-commit>=2.18.1,<3',
-    'pytest_codeblocks==0.16.1',
 ]
 
 extra_deps['docs'] = [
