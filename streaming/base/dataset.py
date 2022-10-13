@@ -40,7 +40,7 @@ class Dataset(IterableDataset):
             rank and worker's partition of the dataset must all exist locally. Defaults to
             ``None``.
         split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
-        shuffle (bool): Whether to shuffle the samples while iterating. Defaults to ``True``.
+        shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to ``True``.
         prefetch (int, optional): Target number of samples remaining to prefetch while iterating.
             Defaults to ``None``.
         keep_zip (bool, optional): Whether to keep or delete the compressed file when
@@ -51,7 +51,7 @@ class Dataset(IterableDataset):
             exception. Defaults to ``60``.
         hash (str, optional): Optional hash or checksum algorithm to use to validate shards.
             Defaults to ``None``.
-        batch_size (int, optional): Hint the batch_size that will be used on each device's
+        batch_size (int, optional): Hint the batch size that will be used on each device's
             DataLoader. Defaults to ``None``.
 
     .. doctest::

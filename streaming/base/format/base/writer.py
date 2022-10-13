@@ -67,7 +67,10 @@ class Writer(ABC):
 
         self.shards = []
 
-        os.makedirs(dirname)
+        # Raise an exception if the directory is not empty
+        if os.path.exists(dirname) and len(os.listdir(dirname)) != 0:
+            raise FileExistsError(f'Directory is not empty: {dirname}')
+        os.makedirs(dirname, exist_ok=True)
 
         self._reset_cache()
 

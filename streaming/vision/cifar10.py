@@ -19,7 +19,7 @@ class CIFAR10(ImageClassDataset):
             Defaults to ``None``.
         split (str, optional): The dataset split to use, either 'train' or 'val'. Defaults to
             ``None``.
-        shuffle (bool, optional): Whether to shuffle the train samples in this dataset. Defaults to
+        shuffle (bool, optional): Whether to iterate over the samples in randomized order. Defaults to
             ``True``.
         transform (callable, optional): A function/transform that takes in an image and returns a
             transformed version. Defaults to ``None``.
@@ -34,6 +34,6 @@ class CIFAR10(ImageClassDataset):
             an exception. Defaults to ``60``.
         hash (str, optional): Hash or checksum algorithm to use to validate shards. Defaults to
             ``None``.
-        batch_size (int, optional): Batch size that will be used on each device's DataLoader.
+        batch_size (int, optional): Hint the batch size that will be used on each device's DataLoader.
             Defaults to ``None``.
     """
