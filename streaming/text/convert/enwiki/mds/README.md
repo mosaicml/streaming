@@ -1,5 +1,9 @@
 ## English Wikipedia MDS dataset creation
 
+### Initial download:
+
+[Google Drive](https://drive.google.com/drive/folders/1cywmDnAsrP5-2vsr8GDc6QUc7VWe-M3v)
+
 ### Training split:
 
 - `python3 make_train_parallel.py`
