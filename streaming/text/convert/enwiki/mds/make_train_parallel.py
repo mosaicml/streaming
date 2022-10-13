@@ -26,7 +26,7 @@ def parse_args() -> Namespace:
     args.add_argument('--do_lower_case', type=int, default=1)
     args.add_argument('--max_seq_length', type=int, default=512)
     args.add_argument('--max_predictions_per_seq', type=int, default=76)
-    args.add_argument('--random_seed', type=int, defaualt=12345)
+    args.add_argument('--random_seed', type=int, default=12345)
     args.add_argument('--dupe_factor', type=int, default=10)
     args.add_argument('--masked_lm_prob', type=float, default=0.15)
     args.add_argument('--short_seq_prob', type=float, default=0.1)
@@ -59,7 +59,7 @@ def main(args: Namespace) -> None:
                 --random_seed {args.random_seed} \
                 --dupe_factor {args.dupe_factor} \
                 --masked_lm_prob {args.masked_lm_prob} \
-                --short_seq_prob {args.short_seq_prob}
+                --short_seq_prob {args.short_seq_prob} &
         '''
         assert not os.system(command)
 

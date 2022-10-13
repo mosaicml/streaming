@@ -1,10 +1,12 @@
 from glob import glob
 import json
 import os
+import shutil
 
-subdir_pattern = '/tmp/mds-enwiki/train/group-*/'
-out_dir = '/dataset/mds-enwiki/train/'
-os.makedirs(out_dir)
+in_root = '/tmp/mds-enwiki/train/'
+subdir_pattern = os.path.join(in_root, 'group-*')
+out_root = '/dataset/mds-enwiki/train/'
+os.makedirs(out_root)
 subdirs = sorted(glob(subdir_pattern))
 offset = 0
 infos = []
@@ -14,7 +16,7 @@ for subdir in subdirs:
     # Move shard files.
     for shard in range(shards_this_group):
         old_filename = f'{subdir}/shard.{shard:05d}.mds.zstd'
-        new_filename = f'{out_dir}/shard.{offset + shard:05d}.mds.zstd'
+        new_filename = f'{out_root}/shard.{offset + shard:05d}.mds.zstd'
         os.rename(old_filename, new_filename)
 
     # Collect shard infos.
@@ -35,6 +37,9 @@ obj = {
     'version': 2,
     'shards': infos,
 }
-index_filename = f'{out_dir}/index.json'
+index_filename = f'{out_root}/index.json'
 with open(index_filename, 'w') as out:
     json.dump(obj, out)
+
+# Remove leftover old index files.
+shutil.rmtree(in_root)
