@@ -21,14 +21,14 @@ class COCO(Dataset):
             Defaults to ``None``.
         split (str, optional): The dataset split to use, either 'train' or 'val'. Defaults to
             ``None``.
-        shuffle (bool, optional): Whether to shuffle the train samples in this dataset. Defaults to
+        shuffle (bool, optional):Whether to shuffle the samples in this dataset. Defaults to
             ``True``.
         transform (callable, optional): A function/transform that takes in an image and bboxes and
             returns a transformed version. Defaults to ``None``.
         prefetch (int, optional): Target number of samples remaining to prefetch while iterating.
             Defaults to ``100_000``.
         keep_zip (bool, optional): Whether to keep or delete the compressed file when decompressing
-            downloaded shards. If set to None, keep iff remote == local. Defaults to ``None``.
+            downloaded shards. If set to None, keep iff remote is local. Defaults to ``None``.
         retry (int, optional): Number of download re-attempts before giving up. Defaults to ``2``.
         timeout (float, optional): Number of seconds to wait for a shard to download before raising
             an exception. Defaults to ``60``.

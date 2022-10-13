@@ -2,14 +2,14 @@
 
 At a very high level, one needs to convert a raw dataset into streaming format files and then use the same streaming format files using {class}`streaming.Dataset` class for model training.
 
-Streaming supports different dataset writers based on your need to for conversion of raw datasets into a streaming format such as
-- {class}`streaming.MDSWriter`: Writes the dataset into `.mds` (Mosaic Data Shard) extension. It supports various encoding/decoding formats(`str`, `int`, `bytes`, `jpeg`, `png`, `pil`, `pkl`, and `json`) which converts the data from that format to bytes and vice-versa.
-- {class}`streaming.CSVWriter`: Writes the dataset into `.csv` (Comma Separated Values) extension. It supports various encoding/decoding formats(`str`, `int`, and `float`) which converts the data from that format to string and vice-versa.
+Streaming supports different dataset writers based on your need for conversion of raw datasets into a streaming format such as
+- {class}`streaming.MDSWriter`: Writes the dataset into `.mds` (Mosaic Data Shard) extension. It supports various encoding/decoding formats(`str`, `int`, `bytes`, `jpeg`, `png`, `pil`, `pkl`, and `json`) which convert the data from that format to bytes and vice-versa.
+- {class}`streaming.CSVWriter`: Writes the dataset into `.csv` (Comma Separated Values) extension. It supports various encoding/decoding formats(`str`, `int`, and `float`) which convert the data from that format to string and vice-versa.
 - {class}`streaming.JSONWriter`: Writes the dataset into `.json` (JavaScript Object Notation) extension. It supports various encoding/decoding formats(`str`, `int`, and `float`).
-- {class}`streaming.TSVWriter`: Writes the dataset into `.tsv` (Tab Separated Values) extension. It supports various encoding/decoding formats(`str`, `int`, and `float`) which converts the data from that format to string and vice-versa.
-- {class}`streaming.XSVWriter`: Writes the dataset into `.xsv` (user defined Separated Values) extension. It supports various encoding/decoding formats(`str`, `int`, and `float`) which converts the data from that format to string and vice-versa.
+- {class}`streaming.TSVWriter`: Writes the dataset into `.tsv` (Tab Separated Values) extension. It supports various encoding/decoding formats(`str`, `int`, and `float`) which convert the data from that format to string and vice-versa.
+- {class}`streaming.XSVWriter`: Writes the dataset into `.xsv` (user defined Separated Values) extension. It supports various encoding/decoding formats(`str`, `int`, and `float`) which convert the data from that format to string and vice-versa.
 
-For more information about writers and its parameters, look at the [API reference doc](../api_reference/).
+For more information about writer and their parameters, look at the [API reference doc](../api_reference/streaming.rst).
 
 After the dataset has been converted to one of our streaming formats, one just needs to instantiate the {class}`streaming.Dataset` class by providing the dataset path of the streaming formats and use that dataset object in PyTorch {class}`torch.utils.data.DataLoader` class. For more information about `streaming.Dataset` and its parameters, look at the {class}`streaming.Dataset` API reference doc.
 
@@ -71,7 +71,7 @@ The below parameters are optional to {class}`streaming.MDSWriter`. Let's look at
     compression = 'zstd:7'
     ```
 
-2. Provide a name of a hashing algorithm; the default is `None`. Streaming support families of hashing algorithm such as `sha`, `blake`, `md5`, `xxHash`, etc.
+2. Provide a name of a hashing algorithm; the default is `None`. Streaming supports families of hashing algorithm such as `sha`, `blake`, `md5`, `xxHash`, etc.
     <!--pytest-codeblocks:cont-->
     ```python
     hashes = ['sha1']
@@ -131,9 +131,9 @@ $ aws s3 cp dirname s3://mybucket/myfolder --recursive
 
 ## Loading a streaming dataset
 
-After writing a dataset in the streaming format in the previous step and uploaded to a cloud object storage as s3, we are ready to start loading the data.
+After writing a dataset in the streaming format in the previous step and uploading to a cloud object storage as s3, we are ready to start loading the data.
 
-To load the same dataset files that was created in the above steps, create a `CustomDataset` class by inheriting the {class}`streaming.Dataset` class and override the `__getitem__(idx: int)` method to get the samples. The {class}`streaming.Dataset` class requires to two mandatory parameters which are `remote` which is a remote directory (S3 or local filesystem) where dataset is stored and `local` which is a local directory where dataset is cached during operation.
+To load the same dataset files that were created in the above steps, create a `CustomDataset` class by inheriting the {class}`streaming.Dataset` class and override the `__getitem__(idx: int)` method to get the samples. The {class}`streaming.Dataset` class requires two mandatory parameters which are `remote` which is a remote directory (S3 or local filesystem) where dataset is stored and `local` which is a local directory where dataset is cached during operation.
 <!--pytest-codeblocks:cont-->
  ```python
 from streaming.base import Dataset
@@ -167,7 +167,7 @@ from torch.utils.data import DataLoader
 dataloader = DataLoader(dataset=dataset)
 ```
 
-You've now seen an in-depth look at how to prepare and use steaming datasets with PyTorch. To continue learning about Streaming, please continue to explore our [tutorials](../tutorial/)!
+You've now seen an in-depth look at how to prepare and use streaming datasets with PyTorch. To continue learning about Streaming, please continue to explore our [examples](../examples/cifar10.ipynb/)!
 
 ## Other options
 

@@ -7,10 +7,10 @@ cloud-based object stores. Streaming can read files from local disk or from clou
 
 <!--pytest.mark.skip-->
 ```python
-dataloader = torch.utils.data.DataLoader(dataset=ImageStreamingDataset(remote=s3://...))
+dataloader = torch.utils.data.DataLoader(dataset=ImageStreamingDataset(remote='s3://...'))
 ```
 
-For additional details, please see our [Quick Start](getting_started/quick_start.md) and [User Guide](getting_started/user_start.md).
+For additional details, please see our [Quick Start](getting_started/quick_start.md) and [User Guide](getting_started/user_guide.md).
 
 Streaming was originally developed as a part of MosaicML’s Composer training library and is a critical component of our efficient machine learning infrastructure.
 
@@ -22,14 +22,14 @@ pip install mosaicml-streaming
 
 ## Key Benefits
 
-- High performance, accurate streaming of training data from cloud storage.
-- Efficiently train anywhere, independent of training data location.
-- Cloud-native, no persistent storage required; simplifying infrastructure.
-- Enhanced data security, data exists ephemerally training cluster.
+- High performance, accurate streaming of training data from cloud storage
+- Efficiently train anywhere, independent of training data location
+- Cloud-native, no persistent storage required
+- Enhanced data security—data exists ephemerally on training cluster
 
 ## Features
 
-- Drop-in replacement for {class}`torch.utils.data.Dataset` datasets, compatible {class}`torch.utils.data.IterableDataset` style dataloaders.
+- Drop-in replacement for {class}`torch.utils.data.IterableDataset` class.
 - Built-in support for popular open source datasets (e.g., ADE20K, C4, COCO, Enwiki, ImageNet, etc.).
 - Support for various image, structured and unstructured text formats.
 - Helper utilities to convert proprietary datasets to streaming format.

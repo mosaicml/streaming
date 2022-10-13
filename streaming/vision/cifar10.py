@@ -19,7 +19,7 @@ class CIFAR10(ImageClassDataset):
             Defaults to ``None``.
         split (str, optional): The dataset split to use, either 'train' or 'val'. Defaults to
             ``None``.
-        shuffle (bool, optional): Whether to shuffle the train samples in this dataset. Defaults to
+        shuffle (bool, optional): Whether to shuffle the samples in this dataset. Defaults to
             ``True``.
         transform (callable, optional): A function/transform that takes in an image and returns a
             transformed version. Defaults to ``None``.
