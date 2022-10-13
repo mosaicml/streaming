@@ -21,7 +21,7 @@ class ADE20K(Dataset):
             Defaults to ``None``.
         split (str, optional): The dataset split to use, either 'train' or 'val'. Defaults to
             ``None``.
-        shuffle (bool): Whether to shuffle the samples in this dataset. Defaults to
+        shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
             ``True``.
         prefetch (int, optional): Target number of samples remaining to prefetch while iterating.
             Defaults to ``100_000``.
@@ -32,7 +32,7 @@ class ADE20K(Dataset):
             an exception. Defaults to ``60``.
         hash (str, optional): Hash or checksum algorithm to use to validate shards. Defaults to
             ``None``.
-        batch_size (int, optional): Batch size that will be used on each device's DataLoader.
+        batch_size (int, optional): Hint the batch size that will be used on each device's DataLoader.
             Defaults to ``None``.
     """
 

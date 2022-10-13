@@ -9,7 +9,7 @@ Streaming supports different dataset writers based on your need for conversion o
 - {class}`streaming.TSVWriter`: Writes the dataset into `.tsv` (Tab Separated Values) extension. It supports various encoding/decoding formats(`str`, `int`, and `float`) which convert the data from that format to string and vice-versa.
 - {class}`streaming.XSVWriter`: Writes the dataset into `.xsv` (user defined Separated Values) extension. It supports various encoding/decoding formats(`str`, `int`, and `float`) which convert the data from that format to string and vice-versa.
 
-For more information about writer and their parameters, look at the [API reference doc](../api_reference/streaming.rst).
+For more information about writers and their parameters, look at the [API reference doc](../api_reference/streaming.rst).
 
 After the dataset has been converted to one of our streaming formats, one just needs to instantiate the {class}`streaming.Dataset` class by providing the dataset path of the streaming formats and use that dataset object in PyTorch {class}`torch.utils.data.DataLoader` class. For more information about `streaming.Dataset` and its parameters, look at the {class}`streaming.Dataset` API reference doc.
 
