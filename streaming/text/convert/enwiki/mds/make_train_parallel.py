@@ -28,8 +28,8 @@ def parse_args() -> Namespace:
                       help='Number of input shards.')
     args.add_argument('--out_root',
                       type=str,
-                      default='/tmp/mds-enwiki/train/',
-                      help='Location of output shard directories named like group-###.')
+                      required=True,
+                      help='Output root directory containing shard dirs named like group-###.')
     args.add_argument('--out_pattern',
                       type=str,
                       default='group-%03d',
