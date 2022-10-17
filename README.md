@@ -56,7 +56,7 @@ Please check the [quick start guide](https://docs.mosaicml.com/projects/streamin
 - High performance, accurate streaming of training data from cloud storage
 - Efficiently train anywhere, independent of training data location
 - Cloud-native, no persistent storage required
-- Enhanced data security—data exists ephemerally in training cluster
+- Enhanced data security—data exists ephemerally on training cluster
 
 
 # 🚀 Quickstart
@@ -69,11 +69,11 @@ Streaming is available with Pip:
 pip install mosaicml-streaming
 ```
 
-# Tutorial
-Please check our [tutorial](https://docs.mosaicml.com/projects/streaming/) section for the end-to-end model training workflow using Streaming datasets.
+# Examples
+Please check our [Examples](https://docs.mosaicml.com/projects/streaming/) section for the end-to-end model training workflow using Streaming datasets.
 
 # 📚 Documentation
-Getting started guides, examples, tutorials, API reference, and other useful information can be found in our [docs](https://docs.mosaicml.com/projects/streaming).
+Getting started guides, examples, API reference, and other useful information can be found in our [docs](https://docs.mosaicml.com/projects/streaming).
 
 # 💫 Contributors
 We welcome any contributions, pull requests, or issues!
