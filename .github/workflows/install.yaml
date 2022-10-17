@@ -1,4 +1,4 @@
-name: streaming-install
+name: Installation
 
 on:
   push:

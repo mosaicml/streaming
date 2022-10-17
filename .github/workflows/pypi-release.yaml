@@ -7,11 +7,9 @@ on:
 
 jobs:
   pre-commit:
-    name: pre-commit
     uses: ./.github/workflows/precommit.yaml
 
   test:
-    name: Pytest
     uses: ./.github/workflows/pytest.yaml
 
   build-n-publish:
