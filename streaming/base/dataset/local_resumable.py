@@ -27,6 +27,24 @@ from streaming.base.world import World
 class LocalResumableDataset(IterableDataset):
     """A resumable streaming dataset whose shards reside locally as a pytorch IterableDataset.
 
+    Training is represented as sequence of one or more training sessions, which are cleared between
+    epochs. A training session is an array of how many samples each worker has processed during
+    this session.
+
+    To restore from checkpoint, even while changing the number of worker partitions, we recreate
+    the deterministic initial shuffle then replay the training history: splitting, truncating from
+    front, and rejoining for each session in order.
+
+    We communicate this state across all ranks and worker processes by putting it in shared memory
+    objects which are updated during checkpointing and training.
+
+    Checkpoints are represented in JSON as follows:
+
+        {
+            'epoch': int,
+            'sessions': List[List[int]],
+        }
+
     Args:
         local (str): Local dataset directory where the dataset is present.
         split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
