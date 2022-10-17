@@ -70,17 +70,18 @@ class EnWiki(Dataset):
             Any: Sample data.
         """
         obj = super().__getitem__(idx)
+
         for key, value in obj.items():
             dtype = self.field_dtypes[key]
-            obj[key] = np.copy(np.frombuffer(value, dtype))
-
-        ret_obj = {}
-        ret_obj['input_ids'] = obj['input_ids']
-        ret_obj['token_type_ids'] = obj['segment_ids']
-        ret_obj['attention_mask'] = obj['input_mask']
+            obj[key] = np.frombuffer(value, dtype)
 
         input_len = len(obj['input_ids'])
-        ret_obj['labels'] = np.full((input_len,), -100)
-        ret_obj['labels'][obj['masked_lm_positions']] = obj['masked_lm_ids']
+        labels = np.full((input_len,), -100)
+        labels[obj['masked_lm_positions']] = obj['masked_lm_ids']
 
-        return ret_obj
+        return {
+            'input_ids': obj['input_ids'].copy(),
+            'token_type_ids': obj['segment_ids'].copy(),
+            'attention_mask': obj['input_mask'].copy(),
+            'labels': labels,
+        }
