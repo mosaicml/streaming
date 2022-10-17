@@ -17,8 +17,8 @@ def parse_args() -> Namespace:
     """
     args = ArgumentParser()
     args.add_argument('--out', type=str, default='/tmp/fake_cifar10/')
-    args.add_argument('--num_train', type=int, default=8 * 8 * 1000)
-    args.add_argument('--num_val', type=int, default=8 * 8 * 200)
+    args.add_argument('--num_train', type=int, default=8 * 8 * 8192)
+    args.add_argument('--num_val', type=int, default=8 * 8 * 1024)
     return args.parse_args()
 
 

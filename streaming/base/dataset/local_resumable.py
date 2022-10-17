@@ -3,14 +3,21 @@
 
 """A non-streaming pytorch IterableDataset with mid-epoch resumption."""
 
+# TODO: checkpointing needs to save/restore the epoch of each of the other Datasets too
+# TODO: when resuming, trainer progressbar should reflect our place in shortened epoch
+
 import json
 import os
-from typing import Any, Dict, Iterator, Optional
+from multiprocessing.shared_memory import SharedMemory
+from time import sleep
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 import numpy as np
+import torch
+from numpy.typing import NDArray
+from torch import distributed as dist
 from torch.utils.data import IterableDataset
 
-from streaming.base.cursor import Cursor
 from streaming.base.format import reader_from_json
 from streaming.base.index import Index
 from streaming.base.shuffle import get_epoch
@@ -49,7 +56,28 @@ class LocalResumableDataset(IterableDataset):
         self.shard_sizes = np.array([x.samples for x in self.shards])
         self.index = Index(self.shard_sizes)
 
-        self.cursor = Cursor(self.split)
+        # TODO: add a coordinated random integer prefix to all shm names for uniqueness
+
+        '''
+        world = World()
+        device = torch.device(f'cuda:{world.rank_of_node}')
+        tensor = torch.zeros(1, dtype=torch.int64, device=device)
+        if world.is_leader:
+            tensor[0] = np.random.randint(1 << 30)
+        dist.broadcast(tensor, 0)
+        self.shm_prefix = tensor.item()
+        '''
+
+        self.resume_shm = None
+
+        shm_name = f'{self.split}_epoch'
+        shm_bytes = np.int64().nbytes
+        try:
+            self._epoch_shm = SharedMemory(shm_name, True, shm_bytes)
+        except:
+            self._epoch_shm = SharedMemory(shm_name)
+        self._epoch_arr = np.ndarray(1, buffer=self._epoch_shm.buf, dtype=np.int64)
+        self._epoch_arr[0] = 0
 
     def __len__(self) -> int:
         """Get the length as an IterableDataset.
@@ -72,6 +100,67 @@ class LocalResumableDataset(IterableDataset):
         reader = self.shards[shard]
         return reader[index_in_shard]
 
+    def _get_old_sessions(self) -> Tuple[int, List[NDArray[np.int64]]]:
+        """Load epoch and previous sessions from resume_shm.
+
+        Called by __iter__() and state_dict().
+
+        Returns:
+            Tuple[int, List[NDArray[np.int64]]]: Current epoch, old sessions.
+        """
+        if self.resume_shm:
+            text = bytes(self.resume_shm.buf).decode('utf-8')
+            obj = json.loads(text)
+            self._epoch_arr[0] = epoch = obj['epoch']
+            old_sessions = [np.asarray(x) for x in obj['sessions']]
+        else:
+            epoch = int(self._epoch_arr[0])
+            old_sessions = []
+        return epoch, old_sessions
+
+    def _create_cur_session(self, epoch: int) -> Tuple[NDArray[np.int64], SharedMemory]:
+        """Create the current session, as we have just started an epoch.
+
+        Called by __iter__() in a worker process, or a per-rank process if workers aren't used.
+
+        Args:
+            epoch (int): The current epoch.
+
+        Returns:
+            Tuple[NDArray[np.int64], SharedMemory]: Session and handle to shared memory.
+        """
+        world = World()
+        shm_name = f'{self.split}_session_{epoch}'
+        shm_bytes = world.num_workers * np.int64().nbytes
+        try:
+            shm = SharedMemory(shm_name, True, shm_bytes)
+        except:
+            shm = SharedMemory(shm_name)
+        cur_session = np.ndarray(world.num_workers, buffer=shm.buf, dtype=np.int64)
+        cur_session[:] = 0
+        return cur_session, shm
+
+    def _lookup_cur_session(
+            self, epoch: int) -> Tuple[Optional[NDArray[np.int64]], Optional[SharedMemory]]:
+        """Look up the current session, which exists if we are currently training.
+
+        Called by state_dict() in a per-rank process.
+
+        Args:
+            epoch (int): The current epoch.
+
+        Returns:
+            Tuple[Optional[NDArray[np.int64]], Optional[SharedMemory]]: Maybe session, maybe shm.
+        """
+        shm_name = f'{self.split}_session_{epoch}'
+        try:
+            shm = SharedMemory(shm_name)
+        except:
+            return None, None
+        num_workers = shm.size // np.int64().nbytes
+        cur_session = np.ndarray(num_workers, buffer=shm.buf, dtype=np.int64)
+        return cur_session, shm
+
     def __iter__(self) -> Iterator[Dict[str, Any]]:
         """Iterate over all the samples in our partition.
 
@@ -79,18 +168,58 @@ class LocalResumableDataset(IterableDataset):
             Iterator[Dict[str, Any]]: Each sample.
         """
         world = World()
-        self.cursor.push_session(world)
+        epoch, old_sessions = self._get_old_sessions()
+        session, session_shm = self._create_cur_session(epoch)
+        sessions = old_sessions + [session]
 
-        sequences = get_epoch(self.shard_sizes, self.shuffle, self.seed, self.cursor.epoch,
-                              self.cursor.sessions)
+        sequences = get_epoch(self.shard_sizes, self.shuffle, self.seed, epoch, sessions)
         todos = sequences[world.worker]
 
         for index in todos:
-            self.cursor.step_sample(world)
+            session[world.worker] += 1
             yield self[index]
 
-        self.cursor.pop_sessions(world)
-        self.cursor.step_epoch(world)
+        if world.is_local_leader:
+            self._epoch_arr[0] += 1
+
+            if self.resume_shm:
+                self.resume_shm.unlink()
+                del self.resume_shm
+                self.resume_shm = None
+
+            session_shm.unlink()
+
+    def _all_gather_current_session(self, session: NDArray[np.int64]) -> None:
+        """All-gather the current session data.
+
+        This is done in order to checkpoint.
+
+        Args:
+            session (NDArray[np.int64]): The current session.
+        """
+        # Bail if we are not multi-node.
+        world = World()
+        if not world.is_multinode:
+            return
+
+        # Do the all_gather on the last session counts.
+        device = torch.device(f'cuda:{world.rank}')
+        source = torch.tensor(session, device=device)
+        dests = [
+            torch.empty(len(session), dtype=torch.int64, device=device)
+            for _ in range(world.num_ranks)
+        ]
+        dist.all_gather(dests, source)
+
+        # Each rank provides ground truth for its workers.
+        if world.is_local_leader:
+            dests = torch.stack(dests).cpu().numpy()  # Shape: (world size, total workers).
+            for rank in range(world.num_ranks):
+                rank_start = rank * world.workers_per_rank
+                rank_end = (rank + 1) * world.workers_per_rank
+                session[rank_start:rank_end] = dests[rank]
+        else:
+            sleep(0.07)
 
     def state_dict(self) -> Dict[str, Any]:
         """Get a dict containing training state (called from non-worker process).
@@ -98,12 +227,28 @@ class LocalResumableDataset(IterableDataset):
         Returns:
             Dict[str, Any]: The state.
         """
-        return self.cursor.state_dict()
+        epoch, sessions = self._get_old_sessions()
+        cur_session, _ = self._lookup_cur_session(epoch)
+        if cur_session is not None:
+            self._all_gather_current_session(cur_session)
+            sessions.append(cur_session)
+        return {
+            'epoch': int(epoch),
+            'sessions': [x.tolist() for x in sessions],
+        }
 
     def load_state_dict(self, obj: Dict[str, Any]) -> None:
         """Load a dict containing training state (called from non-worker process).
 
+        This is called on each copy of the dataset when resuming.
+
         Args:
             obj (Dict[str, Any]): The state.
         """
-        self.cursor.load_state_dict(obj)
+        data = json.dumps(obj, sort_keys=True).encode('utf-8')
+        shm_name = f'{self.split}_resume'
+        try:
+            self.resume_shm = SharedMemory(shm_name, True, len(data))
+            self.resume_shm.buf[:] = data
+        except:
+            self.resume_shm = SharedMemory(shm_name)

@@ -6,7 +6,6 @@
 from torch.utils.data import get_worker_info
 
 from streaming.base.distributed import get_local_world_size, get_rank, get_world_size
-from streaming.base.interprocess import Barrier
 
 
 class World:
@@ -29,9 +28,6 @@ class World:
       - worker_of_rank / workers_per_rank
       - is_leader
       - is_local_leader
-
-    Synchronization:
-      - barrier
     """
 
     def __init__(self):
@@ -59,5 +55,3 @@ class World:
 
         self.is_leader = not self.worker
         self.is_local_leader = not self.worker_of_node
-
-        self.barrier = Barrier(self.workers_per_node, 'barrier')
