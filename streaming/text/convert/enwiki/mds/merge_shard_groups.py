@@ -17,8 +17,10 @@ def parse_args() -> Namespace:
         Namespace: Command-line arguments.
     """
     args = ArgumentParser()
-    args.add_argument('--in_root', type=str, default='/tmp/mds-enwiki/train/')
-    args.add_argument('--out_root', type=str, default='/dataset/mds-enwiki/train/')
+    args.add_argument('--in_root', type=str, required=True,
+                      help='Location of input shard directories named like group-###')
+    args.add_argument('--out_root', type=str, required=True,
+                      help='Location of merged shards (a valid streaming dataset)')
     return args.parse_args()
 
 
