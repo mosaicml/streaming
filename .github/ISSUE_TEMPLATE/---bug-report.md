@@ -11,7 +11,7 @@ assignees: ''
 <!-- Provide the below as necessary -->
 
 - OS: [Ubuntu 20.04]
-- Hardware (GPU, or instance type): [V100]
+- Hardware (GPU, or instance type): [H100]
 
 <!-- if your bug is CUDA related, please also provide your CUDA version -->
 
