@@ -38,12 +38,12 @@ def main(args: Namespace) -> None:
 
         # Move shard files.
         for shard in range(shards_this_group):
-            old_filename = f'{subdir}/shard.{shard:05d}.mds.zstd'
-            new_filename = f'{args.out_root}/shard.{offset + shard:05d}.mds.zstd'
+            old_filename = os.path.join(subdir, f'shard.{shard:05d}.mds.zstd')
+            new_filename = os.path.join(args.out_root, f'shard.{offset + shard:05d}.mds.zstd')
             os.rename(old_filename, new_filename)
 
         # Collect shard infos.
-        index_filename = f'{subdir}/index.json'
+        index_filename = os.path.join(subdir, 'index.json')
         obj = json.load(open(index_filename))
         infos += obj['shards']
 
@@ -60,7 +60,7 @@ def main(args: Namespace) -> None:
         'version': 2,
         'shards': infos,
     }
-    index_filename = f'{args.out_root}/index.json'
+    index_filename = os.path.join(args.out_root, 'index.json')
     with open(index_filename, 'w') as out:
         json.dump(obj, out)
 
