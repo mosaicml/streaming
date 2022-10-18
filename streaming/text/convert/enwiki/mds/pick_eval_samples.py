@@ -2,7 +2,7 @@
 
 from argparse import ArgumentParser
 
-from streaming import StreamingDataset, MDSWriter
+from streaming import MDSWriter, StreamingDataset
 
 
 def parse_args():
