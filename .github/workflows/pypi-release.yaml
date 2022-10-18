@@ -7,7 +7,7 @@ on:
 
 jobs:
   pre-commit:
-    uses: ./.github/workflows/precommit.yaml
+    uses: ./.github/workflows/linting.yaml
 
   test:
     uses: ./.github/workflows/pytest.yaml
