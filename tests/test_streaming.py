@@ -14,7 +14,7 @@ import numpy as np
 import pytest
 from torch.utils.data import DataLoader
 
-from streaming.base import Dataset, MDSWriter
+from streaming.base import MDSWriter, StreamingDataset
 
 
 @pytest.fixture
@@ -146,8 +146,8 @@ def test_reader(remote_local: Tuple[str, str], batch_size: int, remote_arg: str,
                                       samples=samples,
                                       size_limit=size_limit)
 
-    # Build Dataset
-    dataset = Dataset(local=local, remote=remote, shuffle=shuffle, batch_size=batch_size)
+    # Build StreamingDataset
+    dataset = StreamingDataset(local=local, remote=remote, shuffle=shuffle, batch_size=batch_size)
 
     # Test basic sample order
     rcvd_samples = 0
@@ -199,9 +199,9 @@ def test_reader_download_fail(remote_local: Tuple[str, str], missing_file: str):
     elif missing_file == 'shard':
         os.remove(os.path.join(remote, 'shard.00000.mds'))
 
-    # Build and iterate over a streaming Dataset
+    # Build and iterate over a StreamingDataset
     try:
-        dataset = Dataset(local=local, remote=remote, shuffle=False, timeout=1)
+        dataset = StreamingDataset(local=local, remote=remote, shuffle=False, timeout=1)
         for _ in dataset:
             pass
     except FileNotFoundError as e:
@@ -233,7 +233,7 @@ def test_reader_after_crash(remote_local: Tuple[str, str], created_ago: float, t
                 os.path.join(local, f'shard.00003.mds.tmp{compression_ext}'))
     time.sleep(created_ago)
 
-    dataset = Dataset(local=local, remote=remote, shuffle=False, timeout=timeout)
+    dataset = StreamingDataset(local=local, remote=remote, shuffle=False, timeout=timeout)
 
     # Iterate over dataset and make sure there are no TimeoutErrors
     for _ in dataset:
@@ -260,8 +260,8 @@ def test_reader_getitem(remote_local: Tuple[str, str], share_remote_local: bool)
                                       samples=samples,
                                       size_limit=size_limit)
 
-    # Build a streaming Dataset
-    dataset = Dataset(local=local, remote=remote, shuffle=False)
+    # Build a StreamingDataset
+    dataset = StreamingDataset(local=local, remote=remote, shuffle=False)
 
     # Test retrieving random sample
     _ = dataset[17]
@@ -289,8 +289,8 @@ def test_dataloader_single_device(remote_local: Tuple[str, str], batch_size: int
                                       samples=samples,
                                       size_limit=size_limit)
 
-    # Build a streaming Dataset
-    dataset = Dataset(local=local, remote=remote, shuffle=shuffle, batch_size=batch_size)
+    # Build a StreamingDataset
+    dataset = StreamingDataset(local=local, remote=remote, shuffle=shuffle, batch_size=batch_size)
 
     # Build DataLoader
     dataloader = DataLoader(dataset=dataset,
@@ -380,7 +380,7 @@ def test_compression(compressed_remote_local: Tuple[str, str, str], compression:
                                       size_limit=size_limit,
                                       compression=None)
 
-    dataset = Dataset(local=local, remote=compressed, shuffle=shuffle)
+    dataset = StreamingDataset(local=local, remote=compressed, shuffle=shuffle)
 
     for _ in dataset:
         pass  # download sample

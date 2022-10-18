@@ -7,7 +7,7 @@ from typing import Any, Dict, Optional, Tuple
 
 import pytest
 
-from streaming.base import Dataset
+from streaming.base import StreamingDataset
 from streaming.text import C4
 from streaming.vision import ADE20K, CIFAR10, COCO, ImageNet
 
@@ -17,7 +17,7 @@ def get_dataset(name: str,
                 split: str,
                 shuffle: bool,
                 batch_size: Optional[int],
-                other_kwargs: Optional[Dict[str, Any]] = None) -> Tuple[int, Dataset]:
+                other_kwargs: Optional[Dict[str, Any]] = None) -> Tuple[int, StreamingDataset]:
     other_kwargs = {} if other_kwargs is None else other_kwargs
     dataset_map = {
         'ade20k': {
@@ -74,7 +74,7 @@ def get_dataset(name: str,
             'num_samples': {
                 'all': 0,
             },
-            'class': Dataset,
+            'class': StreamingDataset,
             'kwargs': {},
         }
     }

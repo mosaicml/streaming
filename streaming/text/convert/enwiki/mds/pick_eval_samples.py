@@ -2,7 +2,7 @@
 
 from argparse import ArgumentParser
 
-from streaming import Dataset, MDSWriter
+from streaming import StreamingDataset, MDSWriter
 
 
 def parse_args():
@@ -17,7 +17,7 @@ def parse_args():
 
 
 def main(args):
-    dataset = Dataset(local=args.input_dir, shuffle=False)
+    dataset = StreamingDataset(local=args.input_dir, shuffle=False)
     columns = {
         'input_ids': 'bytes',
         'input_mask': 'bytes',

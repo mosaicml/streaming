@@ -1,13 +1,13 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Base Class for making Computer Vision datasets which are compatible with :class:`Dataset`."""
+"""Base class for computer vision datasets which are compatible with :class:`StreamingDataset`."""
 
 from typing import Any, Callable, Optional, Tuple
 
 from torchvision.transforms.functional import to_tensor
 
-from streaming.base import Dataset
+from streaming.base import StreamingDataset
 
 __all__ = ['VisionDataset', 'ImageClassDataset']
 
@@ -45,7 +45,7 @@ class StandardTransform(object):
         return x, y
 
 
-class VisionDataset(Dataset):
+class VisionDataset(StreamingDataset):
     """Base Class for creating a Vision streaming datasets.
 
     Args:

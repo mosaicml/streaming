@@ -7,10 +7,10 @@ from typing import Any, Optional
 
 import numpy as np
 
-from streaming.base import Dataset
+from streaming.base import StreamingDataset
 
 
-class EnWiki(Dataset):
+class EnWiki(StreamingDataset):
     """Implementation of the English Wikipedia 2020-01-01 streaming dataset.
 
     Args:

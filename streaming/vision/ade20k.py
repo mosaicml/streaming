@@ -9,11 +9,11 @@ dataset.
 
 from typing import Any, Callable, Optional, Tuple
 
-from streaming.base import Dataset
+from streaming.base import StreamingDataset
 
 
-class ADE20K(Dataset):
-    """Implementation of the ADE20K dataset using streaming Dataset.
+class ADE20K(StreamingDataset):
+    """Implementation of the ADE20K dataset using StreamingDataset.
 
     Args:
         local (str): Local filesystem directory where dataset is cached during operation.

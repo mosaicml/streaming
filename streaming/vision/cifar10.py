@@ -11,7 +11,7 @@ from streaming.vision.base import ImageClassDataset
 
 
 class CIFAR10(ImageClassDataset):
-    """Implementation of the CIFAR-10 dataset using streaming Dataset.
+    """Implementation of the CIFAR-10 dataset using StreamingDataset.
 
     Args:
         local (str): Local filesystem directory where dataset is cached during operation.

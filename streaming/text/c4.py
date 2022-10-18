@@ -11,11 +11,11 @@ from typing import Any, Dict, Optional
 
 from transformers.models.auto.tokenization_auto import AutoTokenizer
 
-from streaming.base import Dataset
+from streaming.base import StreamingDataset
 
 
-class C4(Dataset):
-    """Implementation of the C4 (Colossal Cleaned Common Crawl) dataset using streaming Dataset.
+class C4(StreamingDataset):
+    """Implementation of the C4 (Colossal Cleaned Common Crawl) dataset using StreamingDataset.
 
     Args:
         tokenizer_name (str): The name of the HuggingFace tokenizer to use to tokenize samples.

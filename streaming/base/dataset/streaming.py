@@ -1,7 +1,7 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""The :class:`Dataset` class, used for building streaming iterable datasets."""
+"""The :class:`StreamingDataset` class, used for building streaming iterable datasets."""
 
 import json
 import os
@@ -31,7 +31,7 @@ class DownloadStatus(IntEnum):
     FAILED = 4
 
 
-class Dataset(IterableDataset):
+class StreamingDataset(IterableDataset):
     """A sharded, streamed, iterable dataset.
 
     Args:
@@ -82,16 +82,16 @@ class Dataset(IterableDataset):
         ...         out.write(sample)
 
         To read the dataset:
-        >>> from streaming import Dataset
-        >>> dataset = Dataset(dirname)
+        >>> from streaming import StreamingDataset
+        >>> dataset = StreamingDataset(dirname)
         >>> for sample in dataset:
         ...     print(sample)
 
         To read the dataset (with all optional arguments):
-        >>> from streaming import Dataset
-        >>> dataset = Dataset(local=dirname, remote=None, split=None, shuffle=True,
-        ...                   prefetch=100_000, keep_zip=None, retry=2, timeout=60, hash=None,
-        ...                   batch_size=None)
+        >>> from streaming import StreamingDataset
+        >>> dataset = StreamingDataset(local=dirname, remote=None, split=None, shuffle=True,
+        ...                            prefetch=100_000, keep_zip=None, retry=2, timeout=60,
+        ...                            hash=None, batch_size=None)
     """
 
     def __init__(self,
@@ -131,7 +131,7 @@ class Dataset(IterableDataset):
             shard = reader_from_json(local, split, info)
             self.shards.append(shard)
 
-        samples_per_shard = list(map(lambda shard: shard.samples, self.shards))
+        samples_per_shard = np.array([x.samples for x in self.shards])
         self.index = Index(samples_per_shard, batch_size)
 
         # Fields, protected by the lock, relating to loading shards in the background.

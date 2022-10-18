@@ -7,6 +7,7 @@ from math import ceil
 from typing import List, Optional, Tuple
 
 import numpy as np
+from numpy.typing import NDArray
 from torch.utils.data import get_worker_info
 
 from streaming.base import distributed as dist
@@ -47,22 +48,24 @@ class Index(object):
     (c) getting this device/worker's sample range of the dataset.
     """
 
-    def __init__(self, samples_per_shard: List[int], batch_size: Optional[int] = None) -> None:
+    def __init__(self,
+                 samples_per_shard: NDArray[np.int64],
+                 batch_size: Optional[int] = None) -> None:
         self.samples_per_shard = samples_per_shard
         self.batch_size = batch_size
 
         self.total_samples = sum(samples_per_shard)
-        self.shard_offsets = np.array([0] + samples_per_shard).cumsum().tolist()
+        self.shard_offsets = samples_per_shard.cumsum() - samples_per_shard
 
         # Make a lookup table of sample to shard, stored in the form of equal-sized spans of sample
         # IDs that map to at most two adjacent shards, keeping the dividing sample ID.
-        if samples_per_shard[:-1]:
+        if len(samples_per_shard[:-1]):
             self.slot_size = min(samples_per_shard[:-1])
         else:
             self.slot_size = samples_per_shard[-1]
         self.slot_size = self.slot_size or 1  # For the edge case of empty shards.
         self.num_slots = (self.total_samples + self.slot_size - 1) // self.slot_size
-        shard_ends = np.array(samples_per_shard).cumsum()
+        shard_ends = samples_per_shard.cumsum()
         shard = 0
         slots = []
         for slot in range(self.num_slots):
