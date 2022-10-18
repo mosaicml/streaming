@@ -5,14 +5,14 @@
 
 import os
 
-__all__ = ['get_global_rank', 'get_local_rank', 'get_local_world_size', 'get_world_size']
+__all__ = ['get_rank', 'get_local_rank', 'get_local_world_size', 'get_world_size']
 
 
-def get_global_rank() -> int:
-    """Returns the global rank of the current process, which is on ``[0; WORLD_SIZE - 1]``.
+def get_rank() -> int:
+    """Returns the rank of the current process, which is on ``[0; WORLD_SIZE - 1]``.
 
     Returns:
-        int: The global rank.
+        int: The rank.
     """
     return int(os.environ.get('RANK', 0))
 

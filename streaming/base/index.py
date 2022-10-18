@@ -145,7 +145,7 @@ class Index(object):
         Returns:
             Partition: This worker's partition of the dataset.
         """
-        global_device = dist.get_global_rank()
+        global_device = dist.get_rank()
         global_num_devices = dist.get_world_size()
         node_device = dist.get_local_rank()
         node_num_devices = dist.get_local_world_size()
