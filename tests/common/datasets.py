@@ -40,11 +40,11 @@ class SequenceDataset:
     def __next__(self) -> Dict[str, Any]:
         if self._index >= self.size:
             raise StopIteration
-        uid = f'{self._index:06}'
+        id = f'{self._index:06}'
         data = 3 * self._index
         self._index += 1
         return {
-            self.column_names[0]: uid,
+            self.column_names[0]: id,
             self.column_names[1]: data,
         }
 

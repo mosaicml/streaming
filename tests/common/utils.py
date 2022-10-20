@@ -29,7 +29,8 @@ def get_config_in_bytes(format: str,
                         column_encodings: List[str],
                         column_sizes: List[str],
                         compression: Optional[str] = None,
-                        hashes: Optional[List[str]] = []):
+                        hashes: Optional[List[str]] = None):
+    hashes = hashes or []
     config = {
         'version': 2,
         'format': format,

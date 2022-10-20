@@ -44,7 +44,7 @@ class TestMDSWriter:
         assert writer.get_config() == expected_config
 
     @pytest.mark.parametrize('num_samples', [1000, 10000])
-    @pytest.mark.parametrize('size_limit', [256, 4096, 16_777_216])
+    @pytest.mark.parametrize('size_limit', [4096, 16_777_216])
     def test_number_of_files(self, remote_local: Tuple[str, str], num_samples: int,
                              size_limit: int) -> None:
         dirname, _ = remote_local

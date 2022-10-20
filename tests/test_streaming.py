@@ -56,14 +56,14 @@ def test_reader(remote_local: Tuple[str, str], batch_size: int, remote_arg: str,
     shuffle_matches = 0
     for ix, sample in enumerate(dataset):
         rcvd_samples += 1
-        uid = sample['uid']
+        id = sample['id']
         data = sample['data']
-        expected_uid = f'{ix:06}'
+        expected_id = f'{ix:06}'
         expected_data = 3 * ix
         if shuffle:
-            shuffle_matches += (expected_uid == uid)
+            shuffle_matches += (expected_id == id)
         else:
-            assert uid == expected_uid, f'sample ix={ix} has uid={uid}, expected {expected_uid}'
+            assert id == expected_id, f'sample ix={ix} has id={id}, expected {expected_id}'
             assert data == expected_data, f'sample ix={ix} has data={data}, expected {expected_data}'
 
     # If shuffling, there should be few matches
@@ -169,15 +169,13 @@ def test_reader_getitem(remote_local: Tuple[str, str], share_remote_local: bool)
     _ = dataset[17]
 
 
-@pytest.mark.parametrize('batch_size', [1, 4, 128])
+@pytest.mark.parametrize('batch_size', [128])
 @pytest.mark.parametrize('drop_last', [False, True])
-@pytest.mark.parametrize('num_workers', [1, 2, 8])
+@pytest.mark.parametrize('num_workers', [1, 8])
 @pytest.mark.parametrize('num_samples', [9867, 100_000])
-@pytest.mark.parametrize('size_limit', [32, 1024])
+@pytest.mark.parametrize('size_limit', [8_192, 65_536])
 def test_dataloader_single_device(remote_local: Tuple[str, str], batch_size: int, drop_last: bool,
                                   num_workers: int, num_samples: int, size_limit: int):
-    if (num_samples in [100_000] and batch_size in [1, 4]):
-        pytest.skip('Too slow parameter combination')
     dataset = SequenceDataset(num_samples)
     columns = dict(zip(dataset.column_names, dataset.column_encodings))
     remote, local = remote_local
@@ -209,14 +207,14 @@ def test_dataloader_single_device(remote_local: Tuple[str, str], batch_size: int
 
         # Every batch should be complete except (maybe) final one
         if batch_ix + 1 < expected_num_batches:
-            assert len(batch['uid']) == batch_size
+            assert len(batch['id']) == batch_size
         else:
             if drop_last:
-                assert len(batch['uid']) == batch_size
+                assert len(batch['id']) == batch_size
             else:
-                assert len(batch['uid']) <= batch_size
+                assert len(batch['id']) <= batch_size
 
-        sample_order.extend(batch['uid'][:])
+        sample_order.extend(batch['id'][:])
 
     # Test dataloader length
     assert len(dataloader) == expected_num_batches
