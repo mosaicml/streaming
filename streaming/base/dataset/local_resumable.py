@@ -247,7 +247,8 @@ class LocalResumableDataset(IterableDataset):
 
         # Attempt to load resume state, if it exists.
         epoch, old_sessions = self._resume(self.next_epoch - 1)
-        self.next_epoch = epoch + 1
+        if world.is_local_leader:
+            self.next_epoch = epoch + 1
         time.sleep(0.42)
 
         # Create the current training session array.
@@ -257,13 +258,6 @@ class LocalResumableDataset(IterableDataset):
         sessions = old_sessions + [cur_session]
         sequences = get_epoch(self.shard_sizes, self.shuffle, self.seed, epoch, sessions)
         todos = sequences[world.worker]
-
-        # TODO: use proper partitioning, cf:
-        # part = self.index.get_partition()
-        # todos = np.arange(part.min_sample_id, part.max_sample_id)
-        # if self.shuffle:
-        #     rng = np.random.default_rng(self.seed + epoch)
-        #     rng.shuffle(todos)
 
         # Iterate over this partition's samples.
         for index in todos:
