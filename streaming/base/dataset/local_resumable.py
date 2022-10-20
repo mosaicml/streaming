@@ -1,15 +1,11 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""A non-streaming pytorch IterableDataset with mid-epoch resumption."""
-
-# TODO: checkpointing needs to save/restore the epoch of each of the other Datasets too
-# TODO: when resuming, trainer progressbar should reflect our place in shortened epoch
+"""A streaming pytorch IterableDataset, resumable mid-epoch, whose shards reside locally."""
 
 import json
 import os
 from multiprocessing.shared_memory import SharedMemory
-from time import sleep
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 import numpy as np
@@ -25,7 +21,7 @@ from streaming.base.world import World
 
 
 class LocalResumableDataset(IterableDataset):
-    """A resumable streaming dataset whose shards reside locally as a pytorch IterableDataset.
+    """A streaming pytorch IterableDataset, resumable mid-epoch, whose shards reside locally.
 
     Training is represented as sequence of one or more training sessions, which are cleared between
     epochs. A training session is an array of how many samples each worker has processed during
@@ -49,53 +45,88 @@ class LocalResumableDataset(IterableDataset):
         local (str): Local dataset directory where the dataset is present.
         split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
         shuffle (bool): Whether to shuffle the samples while iterating. Defaults to ``True``.
-        seed (int): Base random seed, used for shuffling.
+        seed (int, optional): Seed for shuffling, or ``None`` for random seed. Defaults to
+            ``None``.
     """
 
     def __init__(self,
                  local: str,
                  split: Optional[str] = None,
                  shuffle: bool = True,
-                 seed: int = 42):
+                 seed: Optional[int] = None):
         self.local = local
         self.split = split or ''
         self.shuffle = shuffle
-        self.seed = seed
 
+        # Load the index.json file.
         filename = os.path.join(local, split, 'index.json')  # pyright: ignore
         obj = json.load(open(filename))
         assert obj['version'] == 2
 
+        # Initialize shard readers according to the loaded info.
         self.shards = []
         for info in obj['shards']:
             shard = reader_from_json(local, split, info)
             self.shards.append(shard)
 
+        # Build the Index (for partitioning and mapping samples to shards).
         self.shard_sizes = np.array([x.samples for x in self.shards])
         self.index = Index(self.shard_sizes)
 
-        # TODO: add a coordinated random integer prefix to all shm names for uniqueness
-
-        '''
+        # Setup for coordinating.
         world = World()
         device = torch.device(f'cuda:{world.rank_of_node}')
         tensor = torch.zeros(1, dtype=torch.int64, device=device)
+
+        # Coordinate the seed across ranks.
         if world.is_leader:
-            tensor[0] = np.random.randint(1 << 30)
+            if seed is None:
+                seed = np.random.randint(1 << 60)
+            tensor[0] = seed
         dist.broadcast(tensor, 0)
-        self.shm_prefix = tensor.item()
-        '''
+        self.seed = int(tensor)
 
-        self.resume_shm = None
+        # Add a coordinated random prefix to all shm names for uniqueness.
+        if world.is_leader:
+            tensor[0] = np.random.randint(1 << 60)
+        dist.broadcast(tensor, 0)
+        self._shm_prefix = f'{int(tensor):016x}_{self.split}'
 
-        shm_name = f'{self.split}_epoch'
-        shm_bytes = np.int64().nbytes
+        # Set up the epoch counter.
+        #
+        # Note: we do not assume that the end of __iter__() will ever be reached, so we need to
+        # increment the epoch counter at the start of __iter__() instead of at the end, so we need
+        # to track what the next epoch is, not the current epoch.
+        name = f'{self._shm_prefix}_next_epoch'
+        size = np.int64().nbytes
         try:
-            self._epoch_shm = SharedMemory(shm_name, True, shm_bytes)
+            self._next_epoch_shm = SharedMemory(name, True, size)
         except:
-            self._epoch_shm = SharedMemory(shm_name)
-        self._epoch_arr = np.ndarray(1, buffer=self._epoch_shm.buf, dtype=np.int64)
-        self._epoch_arr[0] = 0
+            self._next_epoch_shm = SharedMemory(name)
+        self._next_epoch_arr = np.ndarray(1, buffer=self._next_epoch_shm.buf, dtype=np.int64)
+        self._next_epoch_arr[0] = 0
+
+        # Placeholder for _resume_shm, a shared memory object where load_state_dict() saves its
+        # data to be picked up by __iter__().
+        self._resume_shm = None
+
+    @property
+    def next_epoch(self) -> int:
+        """Get property next_epoch.
+
+        Returns:
+            int: Next epoch.
+        """
+        return int(self._next_epoch_arr[0])
+
+    @next_epoch.setter
+    def next_epoch(self, next_epoch: int) -> None:
+        """Set property next_epoch.
+
+        Args:
+            next_epoch (int): Next epoch.
+        """
+        self._next_epoch_arr[0] = next_epoch
 
     def __len__(self) -> int:
         """Get the length as an IterableDataset.
@@ -118,28 +149,47 @@ class LocalResumableDataset(IterableDataset):
         reader = self.shards[shard]
         return reader[index_in_shard]
 
-    def _get_old_sessions(self) -> Tuple[int, List[NDArray[np.int64]]]:
-        """Load epoch and previous sessions from resume_shm.
+    def _resume(self, epoch: int) -> Tuple[int, List[NDArray[np.int64]]]:
+        """Resume from checkpoint.
 
-        Called by __iter__() and state_dict().
+        Args:
+            epoch (int): What epoch we think it is (pre-checkpoint).
 
         Returns:
-            Tuple[int, List[NDArray[np.int64]]]: Current epoch, old sessions.
+            Tuple[int, List[NDArray[np.int64]]]: Pair of (resumed epoch, old sessions).
         """
-        if self.resume_shm:
-            text = bytes(self.resume_shm.buf).decode('utf-8')
-            obj = json.loads(text)
-            self._epoch_arr[0] = epoch = obj['epoch']
-            old_sessions = [np.asarray(x) for x in obj['sessions']]
-        else:
-            epoch = int(self._epoch_arr[0])
-            old_sessions = []
+        world = World()
+
+        # Get the resume state, if it exists.
+        name = f'{self._shm_prefix}_resume'
+        try:
+            shm = SharedMemory(name)
+        except:
+            # There is nothing to resume.
+            return epoch, []
+
+        # Parse the existent resume state.
+        obj = json.loads(bytes(shm.buf).decode('utf-8'))
+
+        # Check if the resume state is stale.
+        if obj['epoch'] < epoch:
+            # Clean up stale state.
+            if world.is_local_leader:
+                shm.unlink()
+            return epoch, []
+
+        # Load the correct epoch and previous training sessions this epoch.
+        epoch = obj['epoch']
+        old_sessions = [np.array(x) for x in obj['sessions']]
         return epoch, old_sessions
 
     def _create_cur_session(self, epoch: int) -> Tuple[NDArray[np.int64], SharedMemory]:
         """Create the current session, as we have just started an epoch.
 
         Called by __iter__() in a worker process, or a per-rank process if workers aren't used.
+
+        Note: this also returns the underlying shared memory object, because the returned array
+        will become invalidated when it goes out of scope.
 
         Args:
             epoch (int): The current epoch.
@@ -148,7 +198,7 @@ class LocalResumableDataset(IterableDataset):
             Tuple[NDArray[np.int64], SharedMemory]: Session and handle to shared memory.
         """
         world = World()
-        shm_name = f'{self.split}_session_{epoch}'
+        shm_name = f'{self._shm_prefix}_session_{epoch}'
         shm_bytes = world.num_workers * np.int64().nbytes
         try:
             shm = SharedMemory(shm_name, True, shm_bytes)
@@ -164,13 +214,16 @@ class LocalResumableDataset(IterableDataset):
 
         Called by state_dict() in a per-rank process.
 
+        Note: this also returns the underlying shared memory object (if it exists), because the
+        returned array will become invalidated when it goes out of scope.
+
         Args:
             epoch (int): The current epoch.
 
         Returns:
             Tuple[Optional[NDArray[np.int64]], Optional[SharedMemory]]: Maybe session, maybe shm.
         """
-        shm_name = f'{self.split}_session_{epoch}'
+        shm_name = f'{self._shm_prefix}_session_{epoch}'
         try:
             shm = SharedMemory(shm_name)
         except:
@@ -186,26 +239,38 @@ class LocalResumableDataset(IterableDataset):
             Iterator[Dict[str, Any]]: Each sample.
         """
         world = World()
-        epoch, old_sessions = self._get_old_sessions()
-        session, session_shm = self._create_cur_session(epoch)
-        sessions = old_sessions + [session]
+        # Now step the epoch counter right before we start iterating.
+        if world.is_local_leader:
+            self.next_epoch += 1
+        import time
+        time.sleep(0.42)
 
+        # Attempt to load resume state, if it exists.
+        epoch, old_sessions = self._resume(self.next_epoch - 1)
+        self.next_epoch = epoch + 1
+        time.sleep(0.42)
+
+        # Create the current training session array.
+        cur_session, _ = self._create_cur_session(epoch)
+
+        # Do some work that takes time.
+        sessions = old_sessions + [cur_session]
         sequences = get_epoch(self.shard_sizes, self.shuffle, self.seed, epoch, sessions)
         todos = sequences[world.worker]
 
+        # TODO: use proper partitioning, cf:
+        # part = self.index.get_partition()
+        # todos = np.arange(part.min_sample_id, part.max_sample_id)
+        # if self.shuffle:
+        #     rng = np.random.default_rng(self.seed + epoch)
+        #     rng.shuffle(todos)
+
+        # Iterate over this partition's samples.
         for index in todos:
-            session[world.worker] += 1
+            cur_session[world.worker] += 1
             yield self[index]
 
-        if world.is_local_leader:
-            self._epoch_arr[0] += 1
-
-            if self.resume_shm:
-                self.resume_shm.unlink()
-                del self.resume_shm
-                self.resume_shm = None
-
-            session_shm.unlink()
+        # Any code after the yields will never be reached by the Composer trainer.
 
     def _all_gather_current_session(self, session: NDArray[np.int64]) -> None:
         """All-gather the current session data.
@@ -236,22 +301,33 @@ class LocalResumableDataset(IterableDataset):
                 rank_start = rank * world.workers_per_rank
                 rank_end = (rank + 1) * world.workers_per_rank
                 session[rank_start:rank_end] = dests[rank]
-        else:
-            sleep(0.07)
+
+        # Wait for local leaders to load session state from the other nodes.
+        dist.barrier()
 
     def state_dict(self) -> Dict[str, Any]:
         """Get a dict containing training state (called from non-worker process).
 
+        This is called on rank zero.
+
         Returns:
             Dict[str, Any]: The state.
         """
-        epoch, sessions = self._get_old_sessions()
+        # Attempt to load resume state, if it exists.
+        epoch, old_sessions = self._resume(self.next_epoch - 1)
+
+        # Get the current training session array, if we are currently training.
         cur_session, _ = self._lookup_cur_session(epoch)
+
+        # Concatenate the sessions, synchronizing current session if we have one.
         if cur_session is not None:
             self._all_gather_current_session(cur_session)
-            sessions.append(cur_session)
+            sessions = old_sessions + [cur_session]
+        else:
+            sessions = old_sessions
+
         return {
-            'epoch': int(epoch),
+            'epoch': epoch,
             'sessions': [x.tolist() for x in sessions],
         }
 
@@ -263,10 +339,15 @@ class LocalResumableDataset(IterableDataset):
         Args:
             obj (Dict[str, Any]): The state.
         """
+        # Set the number of the next epoch.
+        self.next_epoch = obj['epoch']
+
+        # Save the resume state (old sessions).
+        name = f'{self._shm_prefix}_resume'
         data = json.dumps(obj, sort_keys=True).encode('utf-8')
-        shm_name = f'{self.split}_resume'
         try:
-            self.resume_shm = SharedMemory(shm_name, True, len(data))
-            self.resume_shm.buf[:] = data
+            self._resume_shm = SharedMemory(name, True, len(data))
+            self._resume_shm.buf[:] = data
         except:
-            self.resume_shm = SharedMemory(shm_name)
+            self._resume_shm = SharedMemory(name)
+            assert len(self._resume_shm.buf) == len(data)
