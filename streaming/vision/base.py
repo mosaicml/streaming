@@ -5,8 +5,8 @@
 
 from typing import Any, Callable, Optional, Tuple
 
+from torchvision.datasets import VisionDataset as TorchVisionVisionDataset
 from torchvision.transforms.functional import to_tensor
-from torchvision import VisionDataset as TorchVisionVisionDataset
 
 from streaming.base import Dataset
 
