@@ -6,6 +6,7 @@
 from typing import Any, Callable, Optional, Tuple
 
 from torchvision.transforms.functional import to_tensor
+from torchvision import VisionDataset as TorchVisionVisionDataset
 
 from streaming.base import Dataset
 
@@ -45,7 +46,7 @@ class StandardTransform(object):
         return x, y
 
 
-class VisionDataset(Dataset):
+class VisionDataset(Dataset, TorchVisionVisionDataset):
     """Base Class for creating a Vision streaming datasets.
 
     Args:
