@@ -1,11 +1,11 @@
 <br />
 <p align="center">
     <a href="https://github.com/mosaicml/streaming#gh-light-mode-only" class="only-light">
-      <img src="./docs/source/_static/logo-light-mode.png" width="50%"/>
+      <img src="https://storage.googleapis.com/docs.mosaicml.com/images/streaming-logo-light-mode.png" width="50%"/>
     </a>
     <!-- SETUPTOOLS_LONG_DESCRIPTION_HIDE_BEGIN -->
     <a href="https://github.com/mosaicml/streaming#gh-dark-mode-only" class="only-dark">
-      <img src="docs/source/_static/logo-dark-mode.png" width="50%"/>
+      <img src="https://storage.googleapis.com/docs.mosaicml.com/images/streaming-logo-dark-mode.png" width="50%"/>
     </a>
     <!-- SETUPTOOLS_LONG_DESCRIPTION_HIDE_END -->
 </p>

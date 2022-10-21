@@ -168,11 +168,11 @@ html_js_files = [
     'js/posthog.js',
 ]
 
-# Mosaic logo
-# html_logo = 'https://storage.googleapis.com/docs.mosaicml.com/images/logo-dark-bg.png'
+# MosaicML Streaming logo
+# html_logo = 'https://storage.googleapis.com/docs.mosaicml.com/images/streaming-logo-light-mode.png'
 html_theme_options = {
-    'light_logo': 'logo-light-mode.png',
-    'dark_logo': 'logo-dark-mode.png',
+    'light_logo': 'images/streaming-logo-light-mode.png',
+    'dark_logo': 'images/streaming-logo-dark-mode.png',
     'light_css_variables': {
         'color-brand-primary': '#343434',
         'color-brand-content': '#343434',
