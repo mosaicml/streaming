@@ -17,7 +17,6 @@ from .common.datasets import *
 from .common.distributed import DistributedTest
 from .common.utils import *
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -39,13 +38,6 @@ class TestWorldSize(DistributedTest):
 # @pytest.mark.skip
 class TestInit(DistributedTest):
     world_size = 2
-
-    # @pytest.mark.world_size(1)
-    # @pytest.mark.parametrize('batch_size', [128])
-    # @pytest.mark.parametrize('drop_last', [True])
-    # @pytest.mark.parametrize('num_workers', [1])
-    # @pytest.mark.parametrize('num_samples', [9867])
-    # @pytest.mark.parametrize('size_limit', [8_192])
 
     @pytest.mark.parametrize('batch_size', [128])
     @pytest.mark.parametrize('drop_last', [False, True])

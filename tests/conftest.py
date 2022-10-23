@@ -10,7 +10,7 @@ import pytest
 # This hook is run before the default pytest_runtest_call
 @pytest.hookimpl(tryfirst=True)  # pyright: ignore
 def pytest_runtest_call(item: Any):
-    # We want to use our own launching function for distributed tests
+    # Launch a custom function for distributed tests
     if getattr(item.cls, 'is_dist_test', False):
         dist_test_class = item.cls()
         dist_test_class._run_test(item._request)

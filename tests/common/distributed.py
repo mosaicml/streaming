@@ -16,7 +16,6 @@ from _pytest.fixtures import FixtureRequest
 from _pytest.outcomes import Skipped
 from torch.multiprocessing import Process
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Worker timeout after the first worker has completed.

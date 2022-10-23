@@ -49,18 +49,6 @@ def get_local_world_size() -> int:
     return int(os.environ.get('LOCAL_WORLD_SIZE', 1))
 
 
-# def get_node_rank() -> int:
-#     """Returns the node rank.
-
-#     For example, if there are 2 nodes, and 2 ranks per node, then global ranks 0-1 will have a
-#     node rank of 0, and global ranks 2-3 will have a node rank of 1.
-
-#     Returns:
-#         int: The node rank, starting at 0.
-#     """
-#     return int(os.environ.get('NODE_RANK', 0))
-
-
 def all_gather_object(obj: TObj) -> List[TObj]:
     """Collect a pickle-able object from each rank and return a list of these objects.
 
@@ -81,6 +69,8 @@ def all_gather_object(obj: TObj) -> List[TObj]:
     world_size = get_world_size()
     if world_size == 1:
         return [obj]
-    raise RuntimeError(
-        f'The world_size({world_size}) > 1, but the distributed package is not available or has not been initialized. Please check you have initialized the distributed runtime and that PyTorch has been built with distributed support.'
-    )
+    raise RuntimeError(''.join([
+        f'The world_size({world_size}) > 1, but the distributed package is not available ',
+        'or has not been initialized. Please check you have initialized the distributed ',
+        'runtime and that PyTorch has been built with distributed support.'
+    ]))
