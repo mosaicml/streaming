@@ -45,4 +45,4 @@ jobs:
         id: tests
         run: |
           set -ex
-          python3 -m pytest -n auto
+          python3 -m pytest
