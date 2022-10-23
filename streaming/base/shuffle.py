@@ -196,7 +196,11 @@ def get_epoch(sizes: NDArray[np.int64], shuffle: bool, seed: int, epoch: int,
                 for shard in shards:
                     epoch_rng.shuffle(shard.samples)
             _drop_first_samples(shards, num_samples)
-        shards = _concat_parts(parts)  # Result is ignored on last session.
+        shards = _concat_parts(parts)
+
+    # Partition for the last (ie, current) session.
+    num_parts = len(sessions[-1])
+    parts = _break_into_balanced_parts(shards, num_parts)
 
     # Return the array of sample IDs for each partition.
     return list(map(_shards_to_samples, parts))  # pyright: ignore
