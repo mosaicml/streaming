@@ -16,6 +16,24 @@ with open(os.path.join(os.path.dirname(__file__), 'streaming', '_version.py')) a
     exec(f.read(), version_globals, version_locals)
     streaming_version = version_locals['__version__']
 
+# Use repo README for PyPi description
+with open('README.md', 'r', encoding='utf-8') as fh:
+    long_description = fh.read()
+
+# Hide the content between <!-- SETUPTOOLS_LONG_DESCRIPTION_HIDE_BEGIN --> and
+# <!-- SETUPTOOLS_LONG_DESCRIPTION_HIDE_END --> tags in the README
+while True:
+    start_tag = '<!-- SETUPTOOLS_LONG_DESCRIPTION_HIDE_BEGIN -->'
+    end_tag = '<!-- SETUPTOOLS_LONG_DESCRIPTION_HIDE_END -->'
+    start = long_description.find(start_tag)
+    end = long_description.find(end_tag)
+    if start == -1:
+        assert end == -1, 'there should be a balanced number of start and ends'
+        break
+    else:
+        assert end != -1, 'there should be a balanced number of start and ends'
+        long_description = long_description[:start] + long_description[end + len(end_tag):]
+
 classifiers = [
     'Programming Language :: Python :: 3',
     'Programming Language :: Python :: 3.7',
@@ -76,10 +94,6 @@ package_name = os.environ.get('MOSAIC_PACKAGE_NAME', 'mosaicml-streaming')
 
 if package_name != 'mosaicml-streaming':
     print(f'Building mosaicml-streaming as {package_name}')
-
-# Use repo README for PyPi description
-with open('README.md', 'r', encoding='utf-8') as fh:
-    long_description = fh.read()
 
 setup(
     name=package_name,
