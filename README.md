@@ -3,6 +3,8 @@
     <a href="https://github.com/mosaicml/streaming#gh-light-mode-only" class="only-light">
       <img src="https://storage.googleapis.com/docs.mosaicml.com/images/streaming-logo-light-mode.png" width="50%"/>
     </a>
+    <!--pypi website does not support dark mode and does not understand GitHub tag. Hence, it renders both the images.
+    The below tag is being used to remove the dark mode image on pypi website.-->
     <!-- SETUPTOOLS_LONG_DESCRIPTION_HIDE_BEGIN -->
     <a href="https://github.com/mosaicml/streaming#gh-dark-mode-only" class="only-dark">
       <img src="https://storage.googleapis.com/docs.mosaicml.com/images/streaming-logo-dark-mode.png" width="50%"/>
