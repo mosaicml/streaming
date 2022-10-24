@@ -16,6 +16,7 @@ from torch.utils.data import IterableDataset
 
 from streaming.base.format import reader_from_json
 from streaming.base.index import Index
+from streaming.base.shared import SharedBarrier
 from streaming.base.shuffle import get_epoch
 from streaming.base.world import World
 
@@ -47,13 +48,15 @@ class LocalResumableDataset(IterableDataset):
         shuffle (bool): Whether to shuffle the samples while iterating. Defaults to ``True``.
         seed (int, optional): Seed for shuffling, or ``None`` for random seed. Defaults to
             ``None``.
+        workers_per_rank (int): Workers per rank. Defauls to ``8``.
     """
 
     def __init__(self,
                  local: str,
                  split: Optional[str] = None,
                  shuffle: bool = True,
-                 seed: Optional[int] = None):
+                 seed: Optional[int] = None,
+                 workers_per_rank: int = 8):
         self.local = local
         self.split = split or ''
         self.shuffle = shuffle
@@ -90,14 +93,14 @@ class LocalResumableDataset(IterableDataset):
         if world.is_leader:
             tensor[0] = np.random.randint(1 << 60)
         dist.broadcast(tensor, 0)
-        self._shm_prefix = f'{int(tensor):016x}_{self.split}'
+        self._prefix = f'{int(tensor):016x}_{self.split}'
 
         # Set up the epoch counter.
         #
         # Note: we do not assume that the end of __iter__() will ever be reached, so we need to
         # increment the epoch counter at the start of __iter__() instead of at the end, so we need
         # to track what the next epoch is, not the current epoch.
-        name = f'{self._shm_prefix}_next_epoch'
+        name = f'{self._prefix}_next_epoch'
         size = np.int64().nbytes
         try:
             self._next_epoch_shm = SharedMemory(name, True, size)
@@ -109,6 +112,12 @@ class LocalResumableDataset(IterableDataset):
         # Placeholder for _resume_shm, a shared memory object where load_state_dict() saves its
         # data to be picked up by __iter__().
         self._resume_shm = None
+
+        # Create the barrier.
+        count = world.ranks_per_node * workers_per_rank
+        self._barrier_filelock_path = os.path.join('/tmp', self._prefix, 'barrier_filelock')
+        self._barrier_shm_path = f'{self._prefix}_barrier_shm'
+        self._barrier = SharedBarrier(count, self._barrier_filelock_path, self._barrier_shm_path)
 
     @property
     def next_epoch(self) -> int:
@@ -161,7 +170,7 @@ class LocalResumableDataset(IterableDataset):
         world = World()
 
         # Get the resume state, if it exists.
-        name = f'{self._shm_prefix}_resume'
+        name = f'{self._prefix}_resume'
         try:
             shm = SharedMemory(name)
         except:
@@ -198,7 +207,7 @@ class LocalResumableDataset(IterableDataset):
             Tuple[NDArray[np.int64], SharedMemory]: Session and handle to shared memory.
         """
         world = World()
-        shm_name = f'{self._shm_prefix}_session_{epoch}'
+        shm_name = f'{self._prefix}_session_{epoch}'
         shm_bytes = world.num_workers * np.int64().nbytes
         try:
             shm = SharedMemory(shm_name, True, shm_bytes)
@@ -223,7 +232,7 @@ class LocalResumableDataset(IterableDataset):
         Returns:
             Tuple[Optional[NDArray[np.int64]], Optional[SharedMemory]]: Maybe session, maybe shm.
         """
-        shm_name = f'{self._shm_prefix}_session_{epoch}'
+        shm_name = f'{self._prefix}_session_{epoch}'
         try:
             shm = SharedMemory(shm_name)
         except:
@@ -238,28 +247,26 @@ class LocalResumableDataset(IterableDataset):
         Returns:
             Iterator[Dict[str, Any]]: Each sample.
         """
-        world = World()
-        # Now step the epoch counter right before we start iterating.
-        if world.is_local_leader:
-            self.next_epoch += 1
-        import time
-        time.sleep(0.42)
-
-        # Attempt to load resume state, if it exists.
-        epoch, old_sessions = self._resume(self.next_epoch - 1)
-        if world.is_local_leader:
-            self.next_epoch = epoch + 1
-        time.sleep(0.42)
-
-        # Create the current training session array.
+        # Load resume state and create the new training session.
+        presumed_epoch = self.next_epoch
+        epoch, old_sessions = self._resume(presumed_epoch)
         cur_session, _ = self._create_cur_session(epoch)
 
-        # Do some work that takes time.
+        self._barrier()
+
+        # Update the pre-incremented epoch counter.
+        world = World()
+        if world.is_local_leader:
+            self.next_epoch = epoch + 1
+
+        self._barrier()
+
+        # Generate the partitions and get ours.
         sessions = old_sessions + [cur_session]
         sequences = get_epoch(self.shard_sizes, self.shuffle, self.seed, epoch, sessions)
         todos = sequences[world.worker]
 
-        # Iterate over this partition's samples.
+        # Iterate over our partition's samples.
         for index in todos:
             cur_session[world.worker] += 1
             yield self[index]
@@ -337,7 +344,7 @@ class LocalResumableDataset(IterableDataset):
         self.next_epoch = obj['epoch']
 
         # Save the resume state (old sessions).
-        name = f'{self._shm_prefix}_resume'
+        name = f'{self._prefix}_resume'
         data = json.dumps(obj, sort_keys=True).encode('utf-8')
         try:
             self._resume_shm = SharedMemory(name, True, len(data))
