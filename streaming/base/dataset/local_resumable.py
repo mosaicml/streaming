@@ -261,10 +261,27 @@ class LocalResumableDataset(IterableDataset):
 
         self._barrier()
 
-        # Generate the partitions and get ours.
-        sessions = old_sessions + [cur_session]
-        sequences = get_epoch(self.shard_sizes, self.shuffle, self.seed, epoch, sessions)
-        todos = sequences[world.worker]
+        # Local leader generates the partitions.
+        if world.is_local_leader:
+            sessions = old_sessions + [cur_session]
+            sequences = get_epoch(self.shard_sizes, self.shuffle, self.seed, epoch, sessions)
+            base = world.node * world.ranks_per_node * world.workers_per_rank
+            for rank_of_node in range(world.ranks_per_node):
+                for worker_of_rank in range(world.workers_per_rank):
+                    worker = base + rank_of_node * world.workers_per_rank + worker_of_rank
+                    name = f'{self._prefix}_part_{worker:03}'
+                    sequence = sequences[worker]
+                    size = len(sequence) * np.int64(0).nbytes
+                    shm = SharedMemory(name, True, size)
+                    shm.buf[:] = sequence.tobytes()
+
+        self._barrier()
+
+        # Load our partition.
+        name = f'{self._prefix}_part_{world.worker:03}'
+        shm = SharedMemory(name)
+        todos = np.frombuffer(shm.buf, np.int64).copy()
+        shm.unlink()
 
         # Iterate over our partition's samples.
         for index in todos:
