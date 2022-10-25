@@ -20,6 +20,8 @@ logger = logging.getLogger(__name__)
 
 # Worker timeout after the first worker has completed.
 WORKER_TIMEOUT_IN_SECS = 120
+
+# Local host
 MASTER_ADDRESS = '127.0.0.1'
 
 
@@ -28,10 +30,12 @@ class DistributedTest:
     is_dist_test = True
     # Number of ranks
     world_size = 1
-    backend = 'gloo'
     current_test = None
     test_kwargs = None
     port = None
+
+    # Only `gloo` is supported for now
+    __backend = 'gloo'
 
     def _run_test(self, request: FixtureRequest) -> None:
         """Run the current test.
@@ -99,8 +103,7 @@ class DistributedTest:
 
     def get_free_tcp_port(self) -> int:
         """Get a free socket port to listen on."""
-        # from https://www.programcreek.com/python/?CodeExample=get+free+port
-        tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        tcp = socket.socket()
         tcp.bind(('', 0))
         _, port = tcp.getsockname()
         tcp.close()
@@ -201,7 +204,7 @@ class DistributedTest:
                 PYTHONUNBUFFERED='1',
         ):
             # Initializes the default distributed process group
-            dist.init_process_group(backend=self.backend, rank=global_rank, world_size=num_procs)
+            dist.init_process_group(backend=self.__backend, rank=global_rank, world_size=num_procs)
             # Synchronizes all processes
             dist.barrier()
 

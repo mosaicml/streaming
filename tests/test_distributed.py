@@ -35,21 +35,20 @@ class TestWorldSize(DistributedTest):
         assert dist.get_rank() < 4
 
 
-# @pytest.mark.skip
 class TestInit(DistributedTest):
     world_size = 2
 
     @pytest.mark.parametrize('batch_size', [128])
     @pytest.mark.parametrize('drop_last', [False, True])
-    @pytest.mark.parametrize('num_workers', [1, 8])
+    @pytest.mark.parametrize('num_workers', [0, 1, 8])
     @pytest.mark.parametrize('num_samples', [9867])
     @pytest.mark.parametrize('size_limit', [8_192])
     def test_dataloader_multi_device(self, remote_local: Tuple[str, str], batch_size: int,
                                      drop_last: bool, num_workers: int, num_samples: int,
                                      size_limit: int):
 
-        global_rank = ms_dist.get_global_rank()  # RANK
-        global_num_ranks = ms_dist.get_world_size()  # WORLD_SIZE
+        global_rank = ms_dist.get_global_rank()
+        global_num_ranks = ms_dist.get_world_size()
         node_rank = ms_dist.get_global_rank()
 
         assert batch_size % global_num_ranks == 0
