@@ -515,6 +515,8 @@ class Dataset(IterableDataset):
         epoch, old_sessions = self._resume(presumed_epoch)
         cur_session, _ = self._create_cur_session(epoch)
 
+        world = World()
+        assert world.num_workers == self._barrier.count
         self._barrier()
 
         # Update the pre-incremented epoch counter.
