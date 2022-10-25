@@ -13,6 +13,8 @@ from transformers.models.auto.tokenization_auto import AutoTokenizer
 
 from streaming.base import Dataset
 
+__all__ = ['C4']
+
 
 class C4(Dataset):
     """Implementation of the C4 (Colossal Cleaned Common Crawl) dataset using streaming Dataset.

@@ -13,6 +13,8 @@ from typing_extensions import Self
 
 from streaming.base.format.base.reader import FileInfo, SplitReader
 
+__all__ = ['JSONReader']
+
 
 class JSONReader(SplitReader):
     """Provides random access to the samples of a JSON shard.

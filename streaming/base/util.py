@@ -5,6 +5,8 @@
 
 from typing import List
 
+__all__ = ['get_list_arg']
+
 
 def get_list_arg(text: str) -> List[str]:
     """Pass a list as a command-line flag.

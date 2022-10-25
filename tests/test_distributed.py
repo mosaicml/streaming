@@ -12,10 +12,9 @@ from torch.utils.data import DataLoader
 
 import streaming.base.distributed as ms_dist
 from streaming.base import Dataset
-
-from .common.datasets import *
-from .common.distributed import DistributedTest
-from .common.utils import *
+from tests.common.datasets import *
+from tests.common.distributed import DistributedTest
+from tests.common.utils import *
 
 logger = logging.getLogger(__name__)
 

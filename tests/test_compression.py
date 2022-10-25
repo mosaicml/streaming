@@ -11,9 +11,8 @@ from streaming.base import Dataset
 from streaming.base.compression.compression import (Brotli, Bzip2, Gzip, Snappy, Zstandard,
                                                     compress, decompress,
                                                     get_compression_extension, is_compression)
-
-from .common.datasets import *
-from .common.utils import *
+from tests.common.datasets import *
+from tests.common.utils import *
 
 
 class TestBrotli:
