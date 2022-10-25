@@ -31,16 +31,17 @@ class SharedBarrier:
         self.filelock_path = filelock_path
         self.shm_path = shm_path
 
+        # Create filelock.
         dirname = os.path.dirname(filelock_path)
         os.makedirs(dirname, exist_ok=True)
         self.lock = FileLock(filelock_path)
 
+        # Create three int32 fields in shared memory: num_enter, num_exit, flag.
         size = 3 * np.int32().nbytes
         try:
             self._shm = SharedMemory(shm_path, True, size)
         except:
             self._shm = SharedMemory(shm_path)
-
         self._arr = np.ndarray(3, buffer=self._shm.buf, dtype=np.int32)
         self.num_enter = 0
         self.num_exit = count
