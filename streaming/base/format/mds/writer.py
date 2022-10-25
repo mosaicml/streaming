@@ -11,6 +11,8 @@ import numpy as np
 from streaming.base.format.base.writer import JointWriter
 from streaming.base.format.mds.encodings import get_mds_encoded_size, is_mds_encoding, mds_encode
 
+__all__ = ['MDSWriter']
+
 
 class MDSWriter(JointWriter):
     """Writes a streaming MDS dataset.

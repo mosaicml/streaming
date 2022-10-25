@@ -15,6 +15,8 @@ from streaming.base.compression import compress, get_compression_extension, is_c
 from streaming.base.hashing import get_hash, is_hash
 from streaming.base.index import get_index_basename
 
+__all__ = ['JointWriter', 'SplitWriter']
+
 
 class Writer(ABC):
     """Writes a streaming dataset.

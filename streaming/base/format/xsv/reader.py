@@ -13,6 +13,8 @@ from typing_extensions import Self
 from streaming.base.format.base.reader import FileInfo, SplitReader
 from streaming.base.format.xsv.encodings import xsv_decode
 
+__all__ = ['XSVReader', 'CSVReader', 'TSVReader']
+
 
 class XSVReader(SplitReader):
     """Provides random access to the samples of an XSV shard.

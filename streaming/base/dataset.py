@@ -22,6 +22,8 @@ from streaming.base.format.base.reader import FileInfo
 from streaming.base.hashing import get_hash
 from streaming.base.index import Index, Partition, get_index_basename
 
+__all__ = ['Dataset']
+
 
 class DownloadStatus(IntEnum):
     """Download status."""

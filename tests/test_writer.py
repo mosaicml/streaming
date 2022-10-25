@@ -10,9 +10,8 @@ import numpy as np
 import pytest
 
 from streaming import CSVWriter, Dataset, JSONWriter, MDSWriter, TSVWriter, XSVWriter
-
-from .common.datasets import *
-from .common.utils import *
+from tests.common.datasets import *
+from tests.common.utils import *
 
 logger = logging.getLogger(__name__)
 

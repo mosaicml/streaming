@@ -9,6 +9,8 @@ import numpy as np
 
 from streaming.base import Dataset
 
+__all__ = ['EnWiki']
+
 
 class EnWiki(Dataset):
     """Implementation of the English Wikipedia 2020-01-01 streaming dataset.

@@ -11,6 +11,8 @@ import numpy as np
 from streaming.base.format.base.writer import SplitWriter
 from streaming.base.format.json.encodings import is_json_encoded, is_json_encoding
 
+__all__ = ['JSONWriter']
+
 
 class JSONWriter(SplitWriter):
     r"""Writes a streaming JSON dataset.

@@ -12,9 +12,8 @@ import pytest
 from torch.utils.data import DataLoader
 
 from streaming.base import Dataset
-
-from .common.datasets import *
-from .common.utils import *
+from tests.common.datasets import *
+from tests.common.utils import *
 
 logger = logging.getLogger(__name__)
 

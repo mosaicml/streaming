@@ -11,6 +11,8 @@ from torch.utils.data import get_worker_info
 
 from streaming.base import distributed as dist
 
+__all__ = ['get_index_basename', 'Partition', 'Index']
+
 
 def get_index_basename() -> str:
     """Get the canonical index file basename.
