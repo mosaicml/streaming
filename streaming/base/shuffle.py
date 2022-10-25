@@ -97,8 +97,9 @@ def _break_into_balanced_parts(shards: List[_Shard], num_parts: int) -> List[Lis
     lists = []
     shard_index = 0
     samples_so_far = 0
-    for part in range(num_parts):
-        part_end = total_samples * (part + 1) // num_parts
+    part_sizes = [total_samples // num_parts] * num_parts
+    part_ends = np.array(part_sizes).cumsum()
+    for part_end in part_ends:
         new_shards = []
         while True:
             if shard_index == len(shards):
