@@ -459,6 +459,13 @@ class LocalResumableDataset(IterableDataset):
             raise RuntimeError('Unknown shard state')
 
     def _download_thread(self, epoch: int, sample_ids: NDArray[np.int64]) -> None:
+        """Download the relevant shards in the background while we are being iterated.
+
+        Args:
+            epoch (int): Which epoch. On noticing that a new epoch has started, we exit this thread
+                because a new one will soon be running, with different sample IDs.
+            sample_ids (NDArray[np.int64]): The samples to download the shards of.
+        """
         # Create or attach shard_states array.
         name = f'{self._prefix}_shard_states'
         size = len(self.shard_sizes) * np.uint8(0).nbytes
