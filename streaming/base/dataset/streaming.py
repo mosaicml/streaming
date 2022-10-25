@@ -22,7 +22,7 @@ from streaming.base.download import download
 from streaming.base.format import reader_from_json
 from streaming.base.format.base.reader import FileInfo
 from streaming.base.hashing import get_hash
-from streaming.base.index import Index
+from streaming.base.index import Index, get_index_basename
 from streaming.base.shared import SharedBarrier
 from streaming.base.shuffle import get_epoch
 from streaming.base.world import World
@@ -115,7 +115,13 @@ class Dataset(IterableDataset):
         self.num_workers = num_workers
 
         # Load the index.json file.
-        filename = os.path.join(local, split, 'index.json')  # pyright: ignore
+        basename = get_index_basename()
+        world = World()
+        if world.is_local_leader:
+            filename = self._download_file(basename)
+        else:
+            filename = os.path.join(local, split, basename)  # pyright: ignore
+        dist.barrier()
         obj = json.load(open(filename))
         assert obj['version'] == 2
 
@@ -130,7 +136,6 @@ class Dataset(IterableDataset):
         self.index = Index(self.shard_sizes)
 
         # Setup for coordinating.
-        world = World()
         device = torch.device(f'cuda:{world.rank_of_node}')
         tensor = torch.zeros(1, dtype=torch.int64, device=device)
 
