@@ -201,7 +201,7 @@ def test_reader_download_fail(remote_local: Tuple[str, str], missing_file: str):
 
     # Build and iterate over a streaming Dataset
     try:
-        dataset = Dataset(local=local, remote=remote, shuffle=False, timeout=1)
+        dataset = Dataset(local=local, remote=remote, shuffle=False, download_timeout=1)
         for _ in dataset:
             pass
     except FileNotFoundError as e:
@@ -209,10 +209,10 @@ def test_reader_download_fail(remote_local: Tuple[str, str], missing_file: str):
 
 
 @pytest.mark.parametrize('created_ago', [0.5, 3])
-@pytest.mark.parametrize('timeout', [1])
+@pytest.mark.parametrize('download_timeout', [1])
 @pytest.mark.parametrize('compression', [None])
-def test_reader_after_crash(remote_local: Tuple[str, str], created_ago: float, timeout: float,
-                            compression: str) -> None:
+def test_reader_after_crash(remote_local: Tuple[str, str], created_ago: float,
+                            download_timeout: float, compression: str) -> None:
     compression_ext = f'.{compression.split(":")[0]}' if compression is not None else ''
     num_samples = 117
     size_limit = 1 << 8
@@ -233,7 +233,7 @@ def test_reader_after_crash(remote_local: Tuple[str, str], created_ago: float, t
                 os.path.join(local, f'shard.00003.mds.tmp{compression_ext}'))
     time.sleep(created_ago)
 
-    dataset = Dataset(local=local, remote=remote, shuffle=False, timeout=timeout)
+    dataset = Dataset(local=local, remote=remote, shuffle=False, download_timeout=download_timeout)
 
     # Iterate over dataset and make sure there are no TimeoutErrors
     for _ in dataset:

@@ -5,7 +5,6 @@
 
 from streaming.base.dataset.local_iterable import LocalIterableDataset
 from streaming.base.dataset.local_map import LocalMapDataset
-from streaming.base.dataset.local_resumable import LocalResumableDataset
 from streaming.base.dataset.streaming import Dataset
 
-__all__ = ['LocalIterableDataset', 'LocalMapDataset', 'LocalResumableDataset', 'Dataset']
+__all__ = ['LocalIterableDataset', 'LocalMapDataset', 'Dataset']
