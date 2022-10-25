@@ -5,20 +5,39 @@
 
 import json
 import os
+from enum import IntEnum
 from multiprocessing.shared_memory import SharedMemory
+from threading import Thread
+from time import sleep
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 import numpy as np
 import torch
+from filelock import FileLock
 from numpy.typing import NDArray
 from torch import distributed as dist
 from torch.utils.data import IterableDataset
 
+from streaming.base.download import download
 from streaming.base.format import reader_from_json
+from streaming.base.format.base.reader import FileInfo
+from streaming.base.hashing import get_hash
 from streaming.base.index import Index
 from streaming.base.shared import SharedBarrier
 from streaming.base.shuffle import get_epoch
 from streaming.base.world import World
+
+
+class _ShardState(IntEnum):
+    """The download status of a shard.
+
+    Restrictions:
+    - The initial state of UNKNOWN must be zero.
+    - The state will only ever change in the upward direction.
+    """
+    UNKNOWN = 0
+    DOWNLOADING = 1
+    DOWNLOADED = 2
 
 
 class LocalResumableDataset(IterableDataset):
@@ -43,23 +62,57 @@ class LocalResumableDataset(IterableDataset):
         }
 
     Args:
-        local (str): Local dataset directory where the dataset is present.
+        local (str): Local dataset directory where shards are cached by split.
+        remote (str, optional): Download shards from this remote path or directory. If None, this
+            rank and worker's partition of the dataset must all exist locally. Defaults to
+            ``None``.
         split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
-        shuffle (bool): Whether to shuffle the samples while iterating. Defaults to ``True``.
+        shuffle (bool): Whether to shuffle the samples while iterating. Defaults to ``False``.
+        predownload (int, optional): Target number of samples remaining to prefetch while
+            iterating. Defaults to ``None``.
+        keep_zip (bool, optional): Whether to keep or delete the compressed file when
+            decompressing downloaded shards. If set to None, keep iff remote is local. Defaults to
+            ``None``.
+        download_retry (int): Number of download re-attempts before giving up. Defaults to ``2``.
+        download_timeout (float): Number of seconds to wait for a shard to download before raising
+            an exception. Defaults to ``60``.
+        validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
+            shards. Defaults to ``None``.
+        batch_size (int, optional): Hint the batch_size that will be used on each device's
+            DataLoader. Defaults to ``None``.
         seed (int, optional): Seed for shuffling, or ``None`` for random seed. Defaults to
             ``None``.
-        workers_per_rank (int): Workers per rank. Defauls to ``8``.
+        batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
+            partitioned over the workers. Defaults to ``None``.
+        num_workers (int, optional): Number of workers of its DataLoader, which determines the size
+            of the barrier to coordinate workers while iterating. Defaults to ``None``.
     """
 
     def __init__(self,
                  local: str,
+                 remote: Optional[str] = None,
                  split: Optional[str] = None,
-                 shuffle: bool = True,
+                 shuffle: bool = False,
+                 predownload: Optional[int] = 100_000,
+                 keep_zip: Optional[bool] = None,
+                 download_retry: int = 2,
+                 download_timeout: float = 60,
+                 validate_hash: Optional[str] = None,
                  seed: Optional[int] = None,
-                 workers_per_rank: int = 8):
+                 batch_size: Optional[int] = None,
+                 num_workers: Optional[int] = None):
         self.local = local
-        self.split = split or ''
+        self.remote = remote
+        self.split = split or ''  # Empty string for os.path.join().
         self.shuffle = shuffle
+        self.predownload = predownload
+        self.keep_zip = keep_zip
+        self.download_retry = download_retry
+        self.download_timeout = download_timeout
+        self.validate_hash = validate_hash or None
+        # Seed is set below.
+        self.batch_size = batch_size
+        self.num_workers = num_workers
 
         # Load the index.json file.
         filename = os.path.join(local, split, 'index.json')  # pyright: ignore
@@ -114,10 +167,14 @@ class LocalResumableDataset(IterableDataset):
         self._resume_shm = None
 
         # Create the barrier.
-        count = world.ranks_per_node * workers_per_rank
-        self._barrier_filelock_path = os.path.join('/tmp', self._prefix, 'barrier_filelock')
+        total_workers = world.ranks_per_node * (self.num_workers or 1)
+        self._barrier_filelock_path = os.path.join('/tmp', 'mds', self._prefix, 'barrier_filelock')
         self._barrier_shm_path = f'{self._prefix}_barrier_shm'
-        self._barrier = SharedBarrier(count, self._barrier_filelock_path, self._barrier_shm_path)
+        self._barrier = SharedBarrier(total_workers, self._barrier_filelock_path,
+                                      self._barrier_shm_path)
+
+        self._iter_index = 0
+        self._download_index = 0
 
     @property
     def next_epoch(self) -> int:
@@ -241,6 +298,205 @@ class LocalResumableDataset(IterableDataset):
         cur_session = np.ndarray(num_workers, buffer=shm.buf, dtype=np.int64)
         return cur_session, shm
 
+    def _get_partition(self, epoch: int, sessions: List[NDArray[np.int64]],
+                       world: World) -> NDArray[np.int64]:
+        # Local leader generates the partitions.
+        if world.is_local_leader:
+            sequences = get_epoch(self.shard_sizes, self.shuffle, self.seed, epoch, sessions)
+            base = world.node * world.ranks_per_node * world.workers_per_rank
+            for rank_of_node in range(world.ranks_per_node):
+                for worker_of_rank in range(world.workers_per_rank):
+                    worker = base + rank_of_node * world.workers_per_rank + worker_of_rank
+                    name = f'{self._prefix}_part_{worker:03}'
+                    sequence = sequences[worker]
+                    size = len(sequence) * np.int64(0).nbytes
+                    shm = SharedMemory(name, True, size)
+                    shm.buf[:] = sequence.tobytes()
+
+        self._barrier()
+
+        # Load our partition.
+        name = f'{self._prefix}_part_{world.worker:03}'
+        shm = SharedMemory(name)
+        todos = np.frombuffer(shm.buf, np.int64).copy()
+        shm.unlink()
+
+        return todos
+
+    def _download_file(self, basename: str) -> str:
+        """Safely download a file from remote to local cache.
+
+        Args:
+            basename (str): Basename of file to download.
+
+        Returns:
+            str: Local cache filename.
+        """
+        if self.remote is None:
+            remote = None
+        else:
+            remote = os.path.join(self.remote, self.split, basename)
+        local = os.path.join(self.local, self.split, basename)
+        for _ in range(1 + self.download_retry):
+            try:
+                download(remote, local, self.download_timeout)
+            except:
+                continue
+            break
+        return local
+
+    def _decompress_shard_part(self, zip_info: FileInfo, zip_filename: str, raw_filename: str,
+                               compression: Optional[str]) -> None:
+        """Validate and decompress shard data.
+
+        Args:
+            zip_info (FileInfo): Compressed file info.
+            zip_filename (str): Compressed filename.
+            raw_filename (str): Decompressed filename.
+            compression (str, optional): Compression algorithm.
+        """
+        # Load compressed.
+        data = open(zip_filename, 'rb').read()
+
+        # Validate what was downloaded.
+        if self.validate_hash:
+            assert get_hash(self.validate_hash, data) == zip_info.hashes[self.validate_hash]
+
+        # Decompress and save that.
+        data = decompress(compression, data)  # pyright: ignore
+        tmp_filename = raw_filename + '.tmp'
+        with open(tmp_filename, 'wb') as out:
+            out.write(data)
+        os.rename(tmp_filename, raw_filename)
+
+        # Maybe remove compressed to save space.
+        if not self.keep_zip:
+            os.remove(zip_filename)
+
+    def _download_shard_part(self,
+                             shard: int,
+                             raw_info: FileInfo,
+                             zip_info: Optional[FileInfo] = None,
+                             compression: Optional[str] = None) -> None:
+        """Download shard data given metadata for the raw and compressed versions of it.
+
+        MDS format uses joint shards (ie, one file per shard). Other formats supported by streaming
+        use split shards (ie, shard data lives in two files per shard: the raw data itself and
+        metadata in a separate file).
+
+        Args:
+            shard (int): Shard ID.
+            raw_info (FileInfo): Raw file info.
+            zip_info (FileInfo, optional): Zip file info. Defaults to ``None``.
+            compression (str, optional): Compression algorithm used for zip_info. Defaults to
+                ``None``.
+        """
+        # If the local raw file already exists, this is a no-op.
+        raw_filename = os.path.join(self.local, self.split, raw_info.basename)
+        if os.path.isfile(raw_filename):
+            return
+
+        # Is compression used?
+        if zip_info:
+            # Download the compressed form if missing.
+            zip_filename = os.path.join(self.local, self.split, zip_info.basename)
+            if not os.path.isfile(zip_filename):
+                self._download_file(zip_info.basename)
+
+            # Validate and decompress.
+            self._decompress_shard_part(zip_info, zip_filename, raw_filename, compression)
+        else:
+            # Download the raw form.
+            self._download_file(raw_info.basename)
+
+            # Validate if requested.
+            if self.validate_hash:
+                data = open(raw_filename, 'rb').read()
+                assert get_hash(self.validate_hash, data) == raw_info.hashes[self.validate_hash]
+
+    def _download_shard(self, shard_id: int) -> None:
+        """Download the given shard.
+
+        Args:
+            shard_id (int): Shard ID.
+        """
+        reader = self.shards[shard_id]
+        for raw_info, zip_info in reader.file_pairs:
+            self._download_shard_part(shard_id, raw_info, zip_info, reader.compression)
+
+    def _download_or_await_shard(self, lock: FileLock, shard_states: NDArray[np.uint8],
+                                 shard_id: int) -> None:
+        """Either download the given shard or wait on its download.
+
+        Args:
+            lock (FileLock): The lock protecting ``shard_states``.
+            shard_states (NDArray[np.uint8]): The download status of each shard, as an array in
+                shared memory.
+            shard_id (int): Shard ID.
+        """
+        # First, the fast path: check the shared memory shard state without taking the lock. The
+        # shard states only ever go up, so if we're at the downloaded state, it's downloaded.
+        state = shard_states[shard_id]
+        if state == _ShardState.DOWNLOADED:
+            return
+
+        # Shard is not necessarily downloaded, so check and update state with the lock.
+        lock.acquire()
+        state = shard_states[shard_id]
+        if state == _ShardState.UNKNOWN:
+            shard_states[shard_id] = _ShardState.DOWNLOADING
+            lock.release()
+            self._download_shard(shard_id)
+            with lock:
+                shard_states[shard_id] = _ShardState.DOWNLOADED
+        elif state == _ShardState.DOWNLOADING:
+            lock.release()
+            while shard_states[shard_id] != _ShardState.DOWNLOADED:
+                sleep(0.07)
+        elif state == _ShardState.DOWNLOADED:
+            lock.release()
+        else:
+            raise RuntimeError('Unknown shard state')
+
+    def _download_thread(self, epoch: int, sample_ids: NDArray[np.int64]) -> None:
+        # Create or attach shard_states array.
+        name = f'{self._prefix}_shard_states'
+        size = len(self.shard_sizes) * np.uint8(0).nbytes
+        try:
+            shm = SharedMemory(name, True, size)
+        except:
+            shm = SharedMemory(name)
+        shard_states = np.ndarray(len(self.shard_sizes), buffer=shm.buf, dtype=np.uint8)
+
+        filename = os.path.join('/tmp', 'mds', self._prefix, '_shard_states_filelock')
+        shard_states_lock = FileLock(filename)
+
+        # Download loop.
+        num_samples = len(sample_ids)
+        while True:
+            # If we've started a new epoch early (__iter__ was called again), exit this thread
+            # because there can only be one epoch at once.
+            if epoch != self.next_epoch - 1:
+                break
+
+            # If we're out of samples this epoch, exit this thread because we are done downloading.
+            if self._download_index == num_samples:
+                break
+
+            # If we are requested to only pre-download so many samples, if we have as many or more
+            # downloaded already, we wait and check again later.
+            if self.predownload is not None:
+                samples_ahead = self._download_index - self._iter_index
+                if self.predownload <= samples_ahead:
+                    sleep(0.07)
+                    continue
+
+            # Download and decompress the shard for this sample, if not already done.
+            sample_id = sample_ids[self._download_index]
+            shard_id, _ = self.index.find_sample(sample_id)
+            self._download_or_await_shard(shard_states_lock, shard_states, shard_id)
+            self._download_index += 1
+
     def __iter__(self) -> Iterator[Dict[str, Any]]:
         """Iterate over all the samples in our partition.
 
@@ -261,32 +517,23 @@ class LocalResumableDataset(IterableDataset):
 
         self._barrier()
 
-        # Local leader generates the partitions.
-        if world.is_local_leader:
-            sessions = old_sessions + [cur_session]
-            sequences = get_epoch(self.shard_sizes, self.shuffle, self.seed, epoch, sessions)
-            base = world.node * world.ranks_per_node * world.workers_per_rank
-            for rank_of_node in range(world.ranks_per_node):
-                for worker_of_rank in range(world.workers_per_rank):
-                    worker = base + rank_of_node * world.workers_per_rank + worker_of_rank
-                    name = f'{self._prefix}_part_{worker:03}'
-                    sequence = sequences[worker]
-                    size = len(sequence) * np.int64(0).nbytes
-                    shm = SharedMemory(name, True, size)
-                    shm.buf[:] = sequence.tobytes()
+        # Get the samples for this worker to process.
+        sessions = old_sessions + [cur_session]
+        sample_ids = self._get_partition(epoch, sessions, world)
 
-        self._barrier()
-
-        # Load our partition.
-        name = f'{self._prefix}_part_{world.worker:03}'
-        shm = SharedMemory(name)
-        todos = np.frombuffer(shm.buf, np.int64).copy()
-        shm.unlink()
-
-        # Iterate over our partition's samples.
-        for index in todos:
-            cur_session[world.worker] += 1
-            yield self[index]
+        # Iterate while downloading.
+        self._iter_index = 0
+        self._download_index = 0
+        Thread(target=self._download_thread, args=(epoch, sample_ids)).run()
+        num_samples = len(sample_ids)
+        while self._iter_index < num_samples:
+            if self._iter_index < self._download_index:
+                cur_session[world.worker] += 1
+                sample_id = sample_ids[self._iter_index]
+                yield self[sample_id]
+                self._iter_index += 1
+                continue
+            sleep(0.07)
 
         # Any code after the yields will never be reached by the Composer trainer.
 
