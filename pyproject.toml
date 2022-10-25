@@ -54,6 +54,8 @@ reportUnusedCoroutine = "error"
 addopts = "--codeblocks --strict-markers -m 'not daily and not remote' -ra --tb=native"
 
 markers = [
+    # For distributed testing
+    "world_size(val)",
     # Should be run during daily regression
     "daily",
     # Whether the test will be reading data from a remote source, and may require credentials
