@@ -253,8 +253,9 @@ class Dataset(IterableDataset):
             shard (int): Shard ID.
             partition (Partition): Our rank and worker's partition of the dataset.
             raw_info (FileInfo): Raw file info.
-            zip_info (FileInfo, optional): Zip file info. Default: ``None``.
-            compression (str, optional): Compression algorithm used for zip_info. Default: ``None``.
+            zip_info (FileInfo, optional): Zip file info. Defaults to ``None``.
+            compression (str, optional): Compression algorithm used for zip_info. Defaults to
+                ``None``.
 
         Returns:
             bool: Whether shard is present.
@@ -385,8 +386,9 @@ class Dataset(IterableDataset):
             shard (int): Shard ID.
             partition (Partition): Our rank and worker's partition of the dataset.
             raw_info (FileInfo): Raw file info.
-            zip_info (FileInfo, optional): Zip file info. Default: ``None``.
-            compression (str, optional): Compression algorithm used for zip_info. Default: ``None``.
+            zip_info (FileInfo, optional): Zip file info. Defaults to ``None``.
+            compression (str, optional): Compression algorithm used for zip_info. Defaults to
+                ``None``.
         """
         # If the local raw file already exists, this is a no-op.
         raw_filename = os.path.join(self.local, self.split, raw_info.basename)
