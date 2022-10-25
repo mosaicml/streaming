@@ -80,7 +80,7 @@ Getting started guides, examples, API reference, and other useful information ca
 # 💫 Contributors
 We welcome any contributions, pull requests, or issues!
 
-To start contributing, see our [Contributing](https://github.com/mosaicml/streaming/blob/dev/CONTRIBUTING.md) page.
+To start contributing, see our [Contributing](https://github.com/mosaicml/streaming/blob/main/CONTRIBUTING.md) page.
 
 P.S.: [We're hiring](https://mosaicml.com/jobs)!
 
