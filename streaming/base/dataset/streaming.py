@@ -456,8 +456,9 @@ class Dataset(IterableDataset):
             shard_states[shard_id] = _ShardState.DOWNLOADING
             lock.release()
             self._download_shard(shard_id)
-            with lock:
-                shard_states[shard_id] = _ShardState.DOWNLOADED
+            # A shard state that is DOWNLOADING will never be written to elsewhere, so we don't
+            # need to take the lock here.
+            shard_states[shard_id] = _ShardState.DOWNLOADED
         elif state == _ShardState.DOWNLOADING:
             lock.release()
             while shard_states[shard_id] != _ShardState.DOWNLOADED:
