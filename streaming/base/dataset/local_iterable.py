@@ -18,9 +18,10 @@ class LocalIterableDataset(IterableDataset):
     """A streaming dataset whose shards reside locally as a pytorch IterableDataset.
 
     Args:
-        local (str): Local dataset directory where the dataset is present.
+        local (str): Local dataset directory where shards are cached by split.
         split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
-        shuffle (bool): Whether to shuffle the samples while iterating. Defaults to ``False``.
+        shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
+            ``False``.
     """
 
     def __init__(self, local: str, split: Optional[str] = None, shuffle: bool = False):

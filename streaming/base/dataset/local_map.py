@@ -18,7 +18,7 @@ class LocalMapDataset(Dataset):
     """A streaming dataset whose shards reside locally as a pytorch Dataset.
 
     Args:
-        local (str): Local dataset directory where the dataset is present.
+        local (str): Local dataset directory where shards are cached by split.
         split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
     """
 
