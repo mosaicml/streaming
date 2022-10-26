@@ -20,10 +20,10 @@ class LocalIterableDataset(IterableDataset):
     Args:
         local (str): Local dataset directory where the dataset is present.
         split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
-        shuffle (bool): Whether to shuffle the samples while iterating. Defaults to ``True``.
+        shuffle (bool): Whether to shuffle the samples while iterating. Defaults to ``False``.
     """
 
-    def __init__(self, local: str, split: Optional[str] = None, shuffle: bool = True):
+    def __init__(self, local: str, split: Optional[str] = None, shuffle: bool = False):
         self.local = local
         self.split = split or ''
         self.shuffle = shuffle
