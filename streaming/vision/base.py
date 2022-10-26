@@ -54,15 +54,16 @@ class VisionDataset(Dataset):
             rank and worker's partition of the dataset must all exist locally. Defaults to
             ``None``.
         split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
-        shuffle (bool): Whether to shuffle the samples while iterating. Defaults to ``False``.
+        shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
+            ``False``.
         transforms (callable, optional): A function/transforms that takes in an image and a label
             and returns the transformed versions of both. Default to ``None``.
         transform (callable, optional): A function/transform that takes in an image and returns a
             transformed version. Defaults to ``None``.
         target_transform (callable, optional): A function/transform that takes in the target and
             transforms it. Defaults to ``None``.
-        predownload (int, optional): Target number of samples remaining to prefetch while
-            iterating. Defaults to ``None``.
+        predownload (int, optional): Target number of samples ahead to download the shards of while
+            iterating. Defaults to ``100_000``.
         keep_zip (bool, optional): Whether to keep or delete the compressed file when
             decompressing downloaded shards. If set to None, keep iff remote is local. Defaults to
             ``None``.
@@ -71,8 +72,6 @@ class VisionDataset(Dataset):
             an exception. Defaults to ``60``.
         validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
-        batch_size (int, optional): Hint the batch_size that will be used on each device's
-            DataLoader. Defaults to ``None``.
         seed (int, optional): Seed for shuffling, or ``None`` for random seed. Defaults to
             ``None``.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
@@ -136,13 +135,14 @@ class ImageClassDataset(VisionDataset):
             rank and worker's partition of the dataset must all exist locally. Defaults to
             ``None``.
         split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
-        shuffle (bool): Whether to shuffle the samples while iterating. Defaults to ``False``.
+        shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
+            ``False``.
         transform (callable, optional): A function/transform that takes in an image and returns a
             transformed version. Defaults to ``None``.
         target_transform (callable, optional): A function/transform that takes in the target and
             transforms it. Defaults to ``None``.
-        predownload (int, optional): Target number of samples remaining to prefetch while
-            iterating. Defaults to ``None``.
+        predownload (int, optional): Target number of samples ahead to download the shards of while
+            iterating. Defaults to ``100_000``.
         keep_zip (bool, optional): Whether to keep or delete the compressed file when
             decompressing downloaded shards. If set to None, keep iff remote is local. Defaults to
             ``None``.
@@ -151,8 +151,6 @@ class ImageClassDataset(VisionDataset):
             an exception. Defaults to ``60``.
         validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
-        batch_size (int, optional): Hint the batch_size that will be used on each device's
-            DataLoader. Defaults to ``None``.
         seed (int, optional): Seed for shuffling, or ``None`` for random seed. Defaults to
             ``None``.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
