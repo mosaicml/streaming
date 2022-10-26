@@ -162,7 +162,7 @@ class Dataset(IterableDataset):
         size = np.int64().nbytes
         try:
             self._next_epoch_shm = SharedMemory(name, True, size)
-        except:
+        except FileExistsError:
             self._next_epoch_shm = SharedMemory(name)
         self._next_epoch_arr = np.ndarray(1, buffer=self._next_epoch_shm.buf, dtype=np.int64)
         self._next_epoch_arr[0] = 0
@@ -273,7 +273,7 @@ class Dataset(IterableDataset):
         shm_bytes = world.num_workers * np.int64().nbytes
         try:
             shm = SharedMemory(shm_name, True, shm_bytes)
-        except:
+        except FileExistsError:
             shm = SharedMemory(shm_name)
         cur_session = np.ndarray(world.num_workers, buffer=shm.buf, dtype=np.int64)
         cur_session[:] = 0
@@ -304,7 +304,7 @@ class Dataset(IterableDataset):
         return cur_session, shm
 
     def _get_partition(self, epoch: int, sessions: List[NDArray[np.int64]],
-                       world: World) -> NDArray[np.int64]:
+                       world: World) -> Optional[NDArray[np.int64]]:
         # Local leader generates the partitions.
         if world.is_local_leader:
             sequences = get_epoch(self.shard_sizes, self.shuffle, self.seed, epoch, sessions)
@@ -315,6 +315,8 @@ class Dataset(IterableDataset):
                     name = f'{self._prefix}_part_{worker:03}'
                     sequence = sequences[worker]
                     size = len(sequence) * np.int64(0).nbytes
+                    if not size:
+                        continue
                     shm = SharedMemory(name, True, size)
                     shm.buf[:] = sequence.tobytes()
 
@@ -322,7 +324,10 @@ class Dataset(IterableDataset):
 
         # Load our partition.
         name = f'{self._prefix}_part_{world.worker:03}'
-        shm = SharedMemory(name)
+        try:
+            shm = SharedMemory(name)
+        except:
+            return None
         todos = np.frombuffer(shm.buf, np.int64).copy()
         shm.unlink()
 
@@ -534,6 +539,8 @@ class Dataset(IterableDataset):
         # Get the samples for this worker to process.
         sessions = old_sessions + [cur_session]
         sample_ids = self._get_partition(epoch, sessions, world)
+        if sample_ids is None:
+            return
 
         # Iterate while downloading.
         self._iter_index = 0
@@ -627,6 +634,6 @@ class Dataset(IterableDataset):
         try:
             self._resume_shm = SharedMemory(name, True, len(data))
             self._resume_shm.buf[:] = data
-        except:
+        except FileExistsError:
             self._resume_shm = SharedMemory(name)
             assert len(self._resume_shm.buf) == len(data)

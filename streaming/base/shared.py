@@ -40,7 +40,7 @@ class SharedBarrier:
         size = 3 * np.int32().nbytes
         try:
             self._shm = SharedMemory(shm_path, True, size)
-        except:
+        except FileExistsError:
             self._shm = SharedMemory(shm_path)
         self._arr = np.ndarray(3, buffer=self._shm.buf, dtype=np.int32)
         self.num_enter = 0
@@ -49,7 +49,10 @@ class SharedBarrier:
 
     def __del__(self):
         """Destructor clears array that references shm."""
-        del self._arr
+        try:
+            del self._arr
+        except:
+            pass
 
     @property
     def num_enter(self) -> int:
