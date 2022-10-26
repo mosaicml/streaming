@@ -57,7 +57,7 @@ class VisionDataset(Dataset):
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
             ``False``.
         transforms (callable, optional): A function/transforms that takes in an image and a label
-            and returns the transformed versions of both. Default to ``None``.
+            and returns the transformed versions of both. Defaults to ``None``.
         transform (callable, optional): A function/transform that takes in an image and returns a
             transformed version. Defaults to ``None``.
         target_transform (callable, optional): A function/transform that takes in the target and
