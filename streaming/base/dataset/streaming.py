@@ -383,7 +383,6 @@ class Dataset(IterableDataset):
             os.remove(zip_filename)
 
     def _download_shard_part(self,
-                             shard: int,
                              raw_info: FileInfo,
                              zip_info: Optional[FileInfo] = None,
                              compression: Optional[str] = None) -> None:
@@ -394,7 +393,6 @@ class Dataset(IterableDataset):
         metadata in a separate file).
 
         Args:
-            shard (int): Shard ID.
             raw_info (FileInfo): Raw file info.
             zip_info (FileInfo, optional): Zip file info. Defaults to ``None``.
             compression (str, optional): Compression algorithm used for zip_info. Defaults to
@@ -431,7 +429,7 @@ class Dataset(IterableDataset):
         """
         reader = self.shards[shard_id]
         for raw_info, zip_info in reader.file_pairs:
-            self._download_shard_part(shard_id, raw_info, zip_info, reader.compression)
+            self._download_shard_part(raw_info, zip_info, reader.compression)
 
     def _download_or_await_shard(self, lock: FileLock, shard_states: NDArray[np.uint8],
                                  shard_id: int) -> None:
