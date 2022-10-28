@@ -5,7 +5,7 @@
 
 from torch.utils.data import get_worker_info
 
-from streaming.base.distributed import get_local_world_size, get_rank, get_world_size
+from streaming.base import distributed as dist
 
 
 class World:
@@ -36,9 +36,9 @@ class World:
     """
 
     def __init__(self):
-        self.rank = get_rank()
-        self.num_ranks = get_world_size()
-        self.ranks_per_node = get_local_world_size()
+        self.rank = dist.get_rank()
+        self.num_ranks = dist.get_world_size()
+        self.ranks_per_node = dist.get_local_world_size()
         self.rank_of_node = self.rank % self.ranks_per_node
 
         self.node = self.rank // self.ranks_per_node

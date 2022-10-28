@@ -15,9 +15,9 @@ import numpy as np
 import torch
 from filelock import FileLock
 from numpy.typing import NDArray
-from torch import distributed as dist
 from torch.utils.data import IterableDataset
 
+from streaming.base import distributed as dist
 from streaming.base.download import download
 from streaming.base.format import reader_from_json
 from streaming.base.format.base.reader import FileInfo
