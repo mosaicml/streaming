@@ -308,10 +308,10 @@ class Dataset(IterableDataset):
         # Local leader generates the partitions.
         if world.is_local_leader:
             sequences = get_epoch(self.shard_sizes, self.shuffle, self.seed, epoch, sessions)
-            base = world.node * world.ranks_per_node * world.workers_per_rank
+            node_offset = world.node * world.ranks_per_node * world.workers_per_rank
             for rank_of_node in range(world.ranks_per_node):
                 for worker_of_rank in range(world.workers_per_rank):
-                    worker = base + rank_of_node * world.workers_per_rank + worker_of_rank
+                    worker = node_offset + rank_of_node * world.workers_per_rank + worker_of_rank
                     name = f'{self._prefix}_part_{worker:03}'
                     sequence = sequences[worker]
                     size = len(sequence) * np.int64(0).nbytes
