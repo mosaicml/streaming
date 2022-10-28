@@ -469,6 +469,11 @@ class Dataset(IterableDataset):
     def _download_thread(self, epoch: int, sample_ids: NDArray[np.int64]) -> None:
         """Download the relevant shards in the background while we are being iterated.
 
+        This thread is started at the beginning of each epoch, and exits when it detects a new
+        epoch has started (only one epoch is valid at a time) or when it is out of samples.
+
+        Each worker has its own download thread, which iterates ahead of the main thread.
+
         Args:
             epoch (int): Which epoch. On noticing that a new epoch has started, we exit this thread
                 because a new one will soon be running, with different sample IDs.
