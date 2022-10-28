@@ -172,7 +172,8 @@ class Dataset(IterableDataset):
 
         # Create the barrier.
         total_workers = world.ranks_per_node * (self.num_workers or 1)
-        self._barrier_filelock_path = os.path.join('/tmp', 'mds', self._prefix, 'barrier_filelock')
+        self._barrier_filelock_path = os.path.join(os.path.sep, 'tmp', 'streaming', self._prefix,
+                                                   'barrier_filelock')
         self._barrier_shm_path = f'{self._prefix}_barrier_shm'
         self._barrier = SharedBarrier(total_workers, self._barrier_filelock_path,
                                       self._barrier_shm_path)
@@ -488,7 +489,8 @@ class Dataset(IterableDataset):
             shm = SharedMemory(name)
         shard_states = np.ndarray(len(self.shard_sizes), buffer=shm.buf, dtype=np.uint8)
 
-        filename = os.path.join('/tmp', 'mds', self._prefix, '_shard_states_filelock')
+        filename = os.path.join(os.path.sep, 'tmp', 'streaming', self._prefix,
+                                '_shard_states_filelock')
         shard_states_lock = FileLock(filename)
 
         # Download loop.
