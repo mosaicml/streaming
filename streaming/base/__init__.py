@@ -3,10 +3,11 @@
 
 """MosaicML Streaming Datasets for cloud-native model training."""
 
+from streaming.base.dataloader import StreamingDataLoader
 from streaming.base.dataset import Dataset, LocalIterableDataset, LocalMapDataset
 from streaming.base.format import CSVWriter, JSONWriter, MDSWriter, TSVWriter, XSVWriter
 
 __all__ = [
     'Dataset', 'CSVWriter', 'JSONWriter', 'LocalIterableDataset', 'LocalMapDataset', 'MDSWriter',
-    'TSVWriter', 'XSVWriter'
+    'StreamingDataLoader', 'TSVWriter', 'XSVWriter'
 ]
