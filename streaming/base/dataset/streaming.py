@@ -591,17 +591,19 @@ class Dataset(IterableDataset):
         # Wait for local leaders to load session state from the other nodes.
         dist.barrier()
 
-    def state_dict(self, batches_in_epoch: int) -> Dict[str, Any]:
+    def state_dict(self, samples_in_epoch: int) -> Dict[str, Any]:
         """Get a dict containing training state (called from non-worker process).
 
         This is called on rank zero.
 
         Args:
-            batches_in_epoch (int): The number of batches processed so far in current epoch.
+            samples_in_epoch (int): The number of batches processed so far in current epoch.
         Returns:
             Dict[str, Any]: The state.
         """
-        # TODO: Use batches_in_epoch to compute status of workers instead of shm / cur_session
+
+        # TODO @james: Use samples_in_epoch to compute status of workers instead of shm / cur_session
+        print('\n', samples_in_epoch)
 
         # Attempt to load resume state, if it exists.
         epoch, old_sessions = self._resume(self.next_epoch - 1)
