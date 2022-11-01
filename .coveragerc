@@ -1,7 +1,6 @@
 [run]
 branch = True
 omit = streaming/text/convert/enwiki/mds/*,streaming/text/convert/enwiki/tfrecord/*
-timid = True
 
 [report]
 show_missing = True
