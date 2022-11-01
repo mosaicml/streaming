@@ -596,14 +596,19 @@ class Dataset(IterableDataset):
         # Wait for local leaders to load session state from the other nodes.
         dist.barrier()
 
-    def state_dict(self) -> Dict[str, Any]:
+    def state_dict(self, samples_in_epoch: int) -> Dict[str, Any]:
         """Get a dict containing training state (called from non-worker process).
 
         This is called on rank zero.
 
+        Args:
+            samples_in_epoch (int): The number of samples processed so far in the current epoch.
+
         Returns:
             Dict[str, Any]: The state.
         """
+        # TODO: use samples_in_epoch.
+
         # Attempt to load resume state, if it exists.
         epoch, old_sessions = self._resume(self.next_epoch - 1)
 
