@@ -51,7 +51,7 @@ reportUnusedCoroutine = "error"
 # Pytest
 [tool.pytest.ini_options]
 # By default, do not run remote tests
-addopts = "--codeblocks --strict-markers -m 'not daily and not remote' -ra --tb=native"
+addopts = "--cov=streaming --cov-fail-under=50 --codeblocks --strict-markers -m 'not daily and not remote' -ra --tb=native"
 
 markers = [
     # For distributed testing
