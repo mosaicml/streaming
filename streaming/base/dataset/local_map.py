@@ -13,7 +13,7 @@ from torch.utils.data import Dataset
 from streaming.base.format import reader_from_json
 from streaming.base.index import Index
 
-__all__ = ['LocalDataset']
+__all__ = ['LocalMapDataset']
 
 
 class LocalMapDataset(Dataset):

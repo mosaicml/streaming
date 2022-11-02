@@ -46,9 +46,9 @@ class TestInit(DistributedTest):
                                      drop_last: bool, num_workers: int, num_samples: int,
                                      size_limit: int):
 
-        global_rank = ms_dist.get_global_rank()
+        global_rank = ms_dist.get_rank()
         global_num_ranks = ms_dist.get_world_size()
-        node_rank = ms_dist.get_global_rank()
+        node_rank = ms_dist.get_local_rank()
 
         assert batch_size % global_num_ranks == 0
         per_rank_batch_size = batch_size // global_num_ranks
