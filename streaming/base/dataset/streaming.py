@@ -555,12 +555,6 @@ class Dataset(IterableDataset):
         Returns:
             Iterator[Dict[str, Any]]: Each sample.
         """
-        '''
-        # Exit the thread that is downloading the shards for last epoch, if it exists.
-        # We only allow one epoch (call to __iter__) at a time.
-        if self._downloader:
-            self._downloader.stop()
-        '''
         # Exit the thread that is downloading the shards for last epoch, if it exists.
         if self._download_state:
             self._download_state.stop()
