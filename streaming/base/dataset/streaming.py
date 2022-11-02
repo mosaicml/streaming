@@ -491,7 +491,7 @@ class Dataset(IterableDataset):
         or when a new epoch is started, calling stop() on its state (only one epoch is valid at a
         time).
 
-        Each worker has its own donwload thread, which iterates ahead of the main thread.
+        Each worker has its own download thread, which iterates ahead of the main thread.
 
         Args:
             state (_DownloadState): The download state.
