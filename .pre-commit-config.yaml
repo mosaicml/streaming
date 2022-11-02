@@ -2,7 +2,7 @@ default_language_version:
   python: python3
 # Skip the pre-commit check for below directories to have
 # a consistency with the official tfrecord preprocessing scripts
-exclude: '^(streaming/text/convert/enwiki/)'
+exclude: "^(streaming/text/convert/enwiki/)"
 repos:
   - repo: https://github.com/google/yapf
     rev: v0.32.0
@@ -11,7 +11,7 @@ repos:
         name: yapf
         description: "A formatter for Python files."
         entry: yapf
-        args: [-i, -vv, -p] #inplace
+        args: [-i, -vv, -p]   # inplace
         language: python
         types: [python]
         additional_dependencies:
@@ -83,7 +83,16 @@ repos:
         entry: pydocstyle
         language: python
         types: [python]
-        exclude: '(tests|.ci|.github)'
+        exclude: "(tests|.ci|.github)"
         additional_dependencies:
           - "toml"
     rev: 6.1.1
+  - repo: https://github.com/adrienverge/yamllint.git
+    rev: v1.28.0
+    hooks:
+      - id: yamllint
+        name: yamllint
+        description: This hook runs yamllint.
+        entry: yamllint
+        language: python
+        types: [file, yaml]

@@ -9,6 +9,8 @@ The most widely used dataset for Image Classification algorithms. Please refer t
 
 from streaming.vision.base import ImageClassDataset
 
+__all__ = ['ImageNet']
+
 
 class ImageNet(ImageClassDataset):
     """Implementation of the ImageNet dataset using streaming Dataset.

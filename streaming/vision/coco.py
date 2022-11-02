@@ -11,6 +11,8 @@ from typing import Any, Callable, Optional
 
 from streaming.base import Dataset
 
+__all__ = ['COCO']
+
 
 class COCO(Dataset):
     """Implementation of the COCO dataset using streaming Dataset.

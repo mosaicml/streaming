@@ -5,6 +5,7 @@
 
 from typing import Any, Callable, Optional, Tuple
 
+from torchvision.datasets import VisionDataset as TorchVisionVisionDataset
 from torchvision.transforms.functional import to_tensor
 
 from streaming.base import Dataset
@@ -45,8 +46,8 @@ class StandardTransform:
         return x, y
 
 
-class VisionDataset(Dataset):
-    """Base class for creating a Vision streaming datasets.
+class VisionDataset(Dataset, TorchVisionVisionDataset):
+    """A streaming, iterable, torchvision VisionDataset.
 
     Args:
         local (str): Local dataset directory where shards are cached by split.

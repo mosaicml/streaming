@@ -1,40 +1,74 @@
+# Copyright 2022 MosaicML Streaming authors
+# SPDX-License-Identifier: Apache-2.0
+
+"""Post-process a set of subdirectories containing shards into one unified dataset."""
+
+from argparse import ArgumentParser, Namespace
 from glob import glob
 import json
 import os
+import shutil
 
-subdir_pattern = '/tmp/mds-enwiki/train/group-*/'
-out_dir = '/dataset/mds-enwiki/train/'
-os.makedirs(out_dir)
-subdirs = sorted(glob(subdir_pattern))
-offset = 0
-infos = []
-for subdir in subdirs:
-    shards_this_group = len(os.listdir(subdir)) - 1
 
-    # Move shard files.
-    for shard in range(shards_this_group):
-        old_filename = f'{subdir}/shard.{shard:05d}.mds.zstd'
-        new_filename = f'{out_dir}/shard.{offset + shard:05d}.mds.zstd'
-        os.rename(old_filename, new_filename)
+def parse_args() -> Namespace:
+    """Parse commmand-line arguments.
 
-    # Collect shard infos.
-    index_filename = f'{subdir}/index.json'
-    obj = json.load(open(index_filename))
-    infos += obj['shards']
+    Returns:
+        Namespace: Command-line arguments.
+    """
+    args = ArgumentParser()
+    args.add_argument('--in_root', type=str, required=True,
+                      help='Location of input shard directories named like group-###')
+    args.add_argument('--out_root', type=str, required=True,
+                      help='Location of merged shards (a valid streaming dataset)')
+    return args.parse_args()
 
-    # Update offset.
-    offset += shards_this_group
 
-# Update the indices of the collected shard infos to be global.
-for shard, info in enumerate(infos):
-    info['raw_data']['basename'] = f'shard.{shard:05d}.mds'
-    info['zip_data']['basename'] = f'shard.{shard:05d}.mds.zstd'
+def main(args: Namespace) -> None:
+    """Post-process a set of shard subdirectories into one unified dataset.
 
-# Create new index.
-obj = {
-    'version': 2,
-    'shards': infos,
-}
-index_filename = f'{out_dir}/index.json'
-with open(index_filename, 'w') as out:
-    json.dump(obj, out)
+    Args:
+        args (Namespace): Command-line arguments.
+    """
+    os.makedirs(args.out_root)
+    pattern = os.path.join(args.in_root, 'group-*')
+    subdirs = sorted(glob(pattern))
+    offset = 0
+    infos = []
+    for subdir in subdirs:
+        shards_this_group = len(os.listdir(subdir)) - 1
+
+        # Move shard files.
+        for shard in range(shards_this_group):
+            old_filename = os.path.join(subdir, f'shard.{shard:05d}.mds.zstd')
+            new_filename = os.path.join(args.out_root, f'shard.{offset + shard:05d}.mds.zstd')
+            os.rename(old_filename, new_filename)
+
+        # Collect shard infos.
+        index_filename = os.path.join(subdir, 'index.json')
+        obj = json.load(open(index_filename))
+        infos += obj['shards']
+
+        # Update offset.
+        offset += shards_this_group
+
+    # Update the indices of the collected shard infos to be global.
+    for shard, info in enumerate(infos):
+        info['raw_data']['basename'] = f'shard.{shard:05d}.mds'
+        info['zip_data']['basename'] = f'shard.{shard:05d}.mds.zstd'
+
+    # Create new index.
+    obj = {
+        'version': 2,
+        'shards': infos,
+    }
+    index_filename = os.path.join(args.out_root, 'index.json')
+    with open(index_filename, 'w') as out:
+        json.dump(obj, out)
+
+    # Remove leftover old index files.
+    shutil.rmtree(args.in_root)
+
+
+if __name__ == '__main__':
+    main(parse_args())

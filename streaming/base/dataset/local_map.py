@@ -13,6 +13,8 @@ from torch.utils.data import Dataset
 from streaming.base.format import reader_from_json
 from streaming.base.index import Index
 
+__all__ = ['LocalDataset']
+
 
 class LocalMapDataset(Dataset):
     """A streaming dataset whose shards reside locally as a pytorch Dataset.

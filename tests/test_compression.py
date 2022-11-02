@@ -1,14 +1,18 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any
+from filecmp import dircmp
+from typing import Any, Optional, Tuple, Union
 
 import numpy as np
 import pytest
 
+from streaming.base import Dataset
 from streaming.base.compression.compression import (Brotli, Bzip2, Gzip, Snappy, Zstandard,
                                                     compress, decompress,
                                                     get_compression_extension, is_compression)
+from tests.common.datasets import *
+from tests.common.utils import *
 
 
 class TestBrotli:
@@ -27,11 +31,15 @@ class TestBrotli:
         assert brotli.levels == levels
 
     @pytest.mark.parametrize('level', list(range(12)))
-    @pytest.mark.parametrize('data', [
-        str.encode('Hello World 789*!' * 10, encoding='utf-8'),
-        np.int64(1234).tobytes(),
-        np.random.randint(0, 255, (32, 32, 3)).tobytes(),
-    ])
+    @pytest.mark.parametrize(
+        'data',
+        [
+            str.encode('Hello World 789*!' * 10, encoding='utf-8'),
+            np.int64(1234).tobytes(),
+            np.random.randint(0, 255, (32, 32, 3)).tobytes(),
+        ],
+        ids=['string', 'int', 'image'],
+    )
     def test_comp_decomp(self, level: int, data: bytes):
         brotli = Brotli(level)
         output = brotli.decompress(brotli.compress(data))
@@ -60,11 +68,15 @@ class TestBzip2:
         assert bzip2.levels == levels
 
     @pytest.mark.parametrize('level', list(range(1, 10)))
-    @pytest.mark.parametrize('data', [
-        str.encode('Hello World 789*!' * 10, encoding='utf-8'),
-        np.int64(1234).tobytes(),
-        np.random.randint(0, 255, (32, 32, 3)).tobytes(),
-    ])
+    @pytest.mark.parametrize(
+        'data',
+        [
+            str.encode('Hello World 789*!' * 10, encoding='utf-8'),
+            np.int64(1234).tobytes(),
+            np.random.randint(0, 255, (32, 32, 3)).tobytes(),
+        ],
+        ids=['string', 'int', 'image'],
+    )
     def test_comp_decomp(self, level: int, data: bytes):
         bzip2 = Bzip2(level)
         output = bzip2.decompress(bzip2.compress(data))
@@ -93,11 +105,15 @@ class TestGzip:
         assert gzip.levels == levels
 
     @pytest.mark.parametrize('level', list(range(10)))
-    @pytest.mark.parametrize('data', [
-        str.encode('Hello World 789*!' * 10, encoding='utf-8'),
-        np.int64(1234).tobytes(),
-        np.random.randint(0, 255, (32, 32, 3)).tobytes(),
-    ])
+    @pytest.mark.parametrize(
+        'data',
+        [
+            str.encode('Hello World 789*!' * 10, encoding='utf-8'),
+            np.int64(1234).tobytes(),
+            np.random.randint(0, 255, (32, 32, 3)).tobytes(),
+        ],
+        ids=['string', 'int', 'image'],
+    )
     def test_comp_decomp(self, level: int, data: bytes):
         gzip = Gzip(level)
         output = gzip.decompress(gzip.compress(data))
@@ -116,11 +132,15 @@ class TestSnappy:
         snappy = Snappy()
         assert snappy.extension == 'snappy'
 
-    @pytest.mark.parametrize('data', [
-        str.encode('Hello World 789*!' * 10, encoding='utf-8'),
-        np.int64(1234).tobytes(),
-        np.random.randint(0, 255, (32, 32, 3)).tobytes(),
-    ])
+    @pytest.mark.parametrize(
+        'data',
+        [
+            str.encode('Hello World 789*!' * 10, encoding='utf-8'),
+            np.int64(1234).tobytes(),
+            np.random.randint(0, 255, (32, 32, 3)).tobytes(),
+        ],
+        ids=['string', 'int', 'image'],
+    )
     def test_comp_decomp(self, data: bytes):
         snappy = Snappy()
         output = snappy.decompress(snappy.compress(data))
@@ -149,11 +169,15 @@ class TestZstandard:
         assert zstd.levels == levels
 
     @pytest.mark.parametrize('level', list(range(1, 23)))
-    @pytest.mark.parametrize('data', [
-        str.encode('Hello World 789*!' * 10, encoding='utf-8'),
-        np.int64(1234).tobytes(),
-        np.random.randint(0, 255, (32, 32, 3)).tobytes(),
-    ])
+    @pytest.mark.parametrize(
+        'data',
+        [
+            str.encode('Hello World 789*!' * 10, encoding='utf-8'),
+            np.int64(1234).tobytes(),
+            np.random.randint(0, 255, (32, 32, 3)).tobytes(),
+        ],
+        ids=['string', 'int', 'image'],
+    )
     def test_comp_decomp(self, level: int, data: bytes):
         zstd = Zstandard(level)
         output = zstd.decompress(zstd.compress(data))
@@ -197,3 +221,49 @@ def test_decompress():
     data = decompress('br:1', b'\x0b\x02\x80hello\x03')
     expected_data = b'hello'
     assert data == expected_data
+
+
+def check_for_diff_files(dir: dircmp, compression_ext: Union[None, str]):
+    """Check recursively for different files in a dircmp object.
+
+    Local directory also has the uncompressed files, ignore it during file comparison.
+    """
+    if compression_ext:
+        for file in dir.diff_files:
+            assert not file.endswith(compression_ext)
+    else:
+        assert len(dir.diff_files) == 0
+    for subdir in dir.subdirs:
+        check_for_diff_files(subdir, compression_ext)
+
+
+@pytest.mark.parametrize('compression', [None, 'br:11', 'bz2:9', 'gz:5', 'snappy', 'zstd:15'])
+@pytest.mark.parametrize('num_samples', [9867])
+@pytest.mark.parametrize('size_limit', [16_384])
+def test_dataset_compression(compressed_remote_local: Tuple[str, str, str],
+                             compression: Optional[str], num_samples: int, size_limit: int):
+    shuffle = True
+    compressed, remote, local = compressed_remote_local
+    samples = SequenceDataset(num_samples)
+    columns = dict(zip(samples.column_names, samples.column_encodings))
+    compression_ext = compression.split(':')[0] if compression else None
+
+    write_synthetic_streaming_dataset(dirname=compressed,
+                                      columns=columns,
+                                      samples=samples,
+                                      size_limit=size_limit,
+                                      compression=compression)
+    samples = SequenceDataset(num_samples)
+    write_synthetic_streaming_dataset(dirname=remote,
+                                      columns=columns,
+                                      samples=samples,
+                                      size_limit=size_limit,
+                                      compression=None)
+
+    dataset = Dataset(local=local, remote=compressed, shuffle=shuffle)
+
+    for _ in dataset:
+        pass  # download sample
+
+    dcmp = dircmp(remote, local)
+    check_for_diff_files(dcmp, compression_ext)

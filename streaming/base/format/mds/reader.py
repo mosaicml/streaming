@@ -13,6 +13,8 @@ from typing_extensions import Self
 from streaming.base.format.base.reader import FileInfo, JointReader
 from streaming.base.format.mds.encodings import mds_decode
 
+__all__ = ['MDSReader']
+
 
 class MDSReader(JointReader):
     """Provides random access to the samples of an MDS shard.

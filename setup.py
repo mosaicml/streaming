@@ -16,6 +16,24 @@ with open(os.path.join(os.path.dirname(__file__), 'streaming', '_version.py')) a
     exec(f.read(), version_globals, version_locals)
     streaming_version = version_locals['__version__']
 
+# Use repo README for PyPi description
+with open('README.md', 'r', encoding='utf-8') as fh:
+    long_description = fh.read()
+
+# Hide the content between <!-- SETUPTOOLS_LONG_DESCRIPTION_HIDE_BEGIN --> and
+# <!-- SETUPTOOLS_LONG_DESCRIPTION_HIDE_END --> tags in the README
+while True:
+    start_tag = '<!-- SETUPTOOLS_LONG_DESCRIPTION_HIDE_BEGIN -->'
+    end_tag = '<!-- SETUPTOOLS_LONG_DESCRIPTION_HIDE_END -->'
+    start = long_description.find(start_tag)
+    end = long_description.find(end_tag)
+    if start == -1:
+        assert end == -1, 'there should be a balanced number of start and ends'
+        break
+    else:
+        assert end != -1, 'there should be a balanced number of start and ends'
+        long_description = long_description[:start] + long_description[end + len(end_tag):]
+
 classifiers = [
     'Programming Language :: Python :: 3',
     'Programming Language :: Python :: 3.7',
@@ -24,49 +42,50 @@ classifiers = [
 ]
 
 install_requires = [
-    'boto3==1.24.37',
-    'Brotli==1.0.9',
-    'datasets==2.4.0',
-    'matplotlib==3.5.2',
-    'paramiko==2.11.0',
-    'python-snappy==0.6.1',
+    'boto3>=1.21.45,<2',
+    'Brotli>=1.0.9',
+    'datasets>=2.4.0,<3',
+    'matplotlib>=3.5.2,<4',
+    'paramiko>=2.11.0,<3',
+    'python-snappy>=0.6.1,<1',
     'torch>=1.10,<2',
     'torchtext>=0.10',
     'torchvision>=0.10',
-    'tqdm==4.64.0',
-    'transformers==4.21.3',
-    'xxhash==3.0.0',
-    'zstd==1.5.2.5',
+    'tqdm>=4.64.0,<5',
+    'transformers>=4.21.3,<5',
+    'xxhash>=3.0.0,<4',
+    'zstd>=1.5.2.5,<2',
 ]
 
 extra_deps = {}
 
 extra_deps['dev'] = [
-    'docformatter==1.4',
+    'docformatter>=1.4',
     'jupyter==1.0.0',
     'pre-commit>=2.18.1,<3',
-    'pytest==7.1.2',
+    'pytest==7.2.0',
     'pytest_codeblocks==0.16.1',
+    'pytest-cov>=4,<5',
     'toml==0.10.2',
-    'yamllint==1.26.3',
+    'yamllint==1.28.0',
 ]
 
 extra_deps['docs'] = [
-    'GitPython==3.1.27',
+    'GitPython==3.1.29',
     'docutils==0.17.1',
-    'furo==2022.3.4',
-    'myst-parser==0.16.1',
-    'nbsphinx==0.8.8',
+    'furo==2022.9.29',
+    'myst-parser==0.18.1',
+    'nbsphinx==0.8.9',
     'pandoc==2.2',
-    'pypandoc==1.8.1',
-    'sphinx-argparse==0.3.1',
+    'pypandoc==1.10',
+    'sphinx-argparse==0.3.2',
     'sphinx-copybutton==0.5.0',
     'sphinx==4.4.0',
     'sphinx_panels==0.6.0',
     'sphinxcontrib-images==0.9.4',
-    'sphinxcontrib.katex==0.8.6',
+    'sphinxcontrib.katex==0.9.0',
     'sphinxemoji==0.2.0',
-    'sphinxext.opengraph==0.6.1',
+    'sphinxext.opengraph==0.6.3',
 ]
 
 extra_deps['all'] = set(dep for deps in extra_deps.values() for dep in deps)
@@ -75,10 +94,6 @@ package_name = os.environ.get('MOSAIC_PACKAGE_NAME', 'mosaicml-streaming')
 
 if package_name != 'mosaicml-streaming':
     print(f'Building mosaicml-streaming as {package_name}')
-
-# Use repo README for PyPi description
-with open('README.md', 'r', encoding='utf-8') as fh:
-    long_description = fh.read()
 
 setup(
     name=package_name,

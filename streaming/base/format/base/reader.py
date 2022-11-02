@@ -7,6 +7,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Dict, Iterator, List, Optional
 
+__all__ = ['FileInfo', 'Reader', 'JointReader', 'SplitReader']
+
 
 @dataclass
 class FileInfo(object):

@@ -13,6 +13,8 @@ from transformers.models.auto.tokenization_auto import AutoTokenizer
 
 from streaming.base import Dataset
 
+__all__ = ['C4']
+
 
 class C4(Dataset):
     """Implementation of the C4 (Colossal Cleaned Common Crawl) dataset using streaming Dataset.
@@ -22,24 +24,24 @@ class C4(Dataset):
         max_seq_len (int): The max sequence length of each token sample.
         group_method (str): How to group text samples into token samples. Currently only supporting
             ``'truncate'``.
-        local (str): Local dataset directory where shards are cached by split.
-        remote (str, optional): Download shards from this remote path or directory. If None, this
-            rank and worker's partition of the dataset must all exist locally. Defaults to
+        local (str): Local filesystem directory where dataset is cached during operation.
+        remote (str, optional): Remote directory (S3 or local filesystem) where dataset is stored.
+            Defaults to ``None``.
+        split (str, optional): The dataset split to use, either 'train' or 'val'. Defaults to
             ``None``.
-        split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
-        shuffle (bool): Whether to shuffle the samples while iterating. Defaults to ``True``.
+        shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
+            ``True``.
         prefetch (int, optional): Target number of samples remaining to prefetch while iterating.
-            Defaults to ``None``.
-        keep_zip (bool, optional): Whether to keep or delete the compressed file when
-            decompressing downloaded shards. If set to None, keep iff remote is local. Defaults to
-            ``None``.
+            Defaults to ``100_000``.
+        keep_zip (bool, optional): Whether to keep or delete the compressed file when decompressing
+            downloaded shards. If set to None, keep iff remote is local. Defaults to ``None``.
         retry (int): Number of download re-attempts before giving up. Defaults to ``2``.
-        timeout (float): Number of seconds to wait for a shard to download before raising an
-            exception. Defaults to ``60``.
-        hash (str, optional): Optional hash or checksum algorithm to use to validate shards.
+        timeout (float): Number of seconds to wait for a shard to download before raising
+            an exception. Defaults to ``60``.
+        hash (str, optional): Hash or checksum algorithm to use to validate shards. Defaults to
+            ``None``.
+        batch_size (int, optional): Hint the batch size that will be used on each device's DataLoader.
             Defaults to ``None``.
-        batch_size (int, optional): Hint the batch_size that will be used on each device's
-            DataLoader. Defaults to ``None``.
     """
 
     def __init__(self,

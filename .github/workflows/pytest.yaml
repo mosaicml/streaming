@@ -1,4 +1,5 @@
-name: Pytest
+name: Test
+
 on:
   push:
     branches:
@@ -8,18 +9,25 @@ on:
     branches:
       - main
       - release/*
+  workflow_call:
   workflow_dispatch: {}
 jobs:
   pytest:
     timeout-minutes: 30
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python_version:
+          - "3.9"
+        install_version:
+          - "[dev]"
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
         with:
-          python-version: 3.8
+          python-version: ${{ matrix.python_version }}
       - name: Cache pip
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           # This path is specific to Ubuntu
           path: ~/.cache/pip
@@ -32,7 +40,7 @@ jobs:
         run: |
           set -ex
           python -m pip install --upgrade pip wheel
-          python -m pip install -e .[dev]
+          python -m pip install -e .${{ matrix.install_version }}
       - name: Run Tests
         id: tests
         run: |

@@ -9,6 +9,8 @@ It is one of the most widely used datasets for machine learning research. Please
 
 from streaming.vision.base import ImageClassDataset
 
+__all__ = ['CIFAR10']
+
 
 class CIFAR10(ImageClassDataset):
     """Implementation of the CIFAR-10 dataset using streaming Dataset.

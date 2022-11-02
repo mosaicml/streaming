@@ -9,29 +9,31 @@ import numpy as np
 
 from streaming.base import Dataset
 
+__all__ = ['EnWiki']
+
 
 class EnWiki(Dataset):
     """Implementation of the English Wikipedia 2020-01-01 streaming dataset.
 
     Args:
-        local (str): Local dataset directory where shards are cached by split.
-        remote (str, optional): Download shards from this remote path or directory. If None, this
-            rank and worker's partition of the dataset must all exist locally. Defaults to
+        local (str): Local filesystem directory where dataset is cached during operation.
+        remote (str, optional): Remote directory (S3 or local filesystem) where dataset is stored.
+            Defaults to ``None``.
+        split (str, optional): The dataset split to use, either 'train' or 'val'. Defaults to
             ``None``.
-        split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
-        shuffle (bool): Whether to shuffle the samples while iterating. Defaults to ``True``.
+        shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
+            ``True``.
         prefetch (int, optional): Target number of samples remaining to prefetch while iterating.
-            Defaults to ``None``.
-        keep_zip (bool, optional): Whether to keep or delete the compressed file when
-            decompressing downloaded shards. If set to None, keep iff remote is local. Defaults to
-            ``None``.
+            Defaults to ``100_000``.
+        keep_zip (bool, optional): Whether to keep or delete the compressed file when decompressing
+            downloaded shards. If set to None, keep iff remote is local. Defaults to ``None``.
         retry (int): Number of download re-attempts before giving up. Defaults to ``2``.
-        timeout (float): Number of seconds to wait for a shard to download before raising an
-            exception. Defaults to ``60``.
-        hash (str, optional): Optional hash or checksum algorithm to use to validate shards.
+        timeout (float): Number of seconds to wait for a shard to download before raising
+            an exception. Defaults to ``60``.
+        hash (str, optional): Hash or checksum algorithm to use to validate shards. Defaults to
+            ``None``.
+        batch_size (int, optional): Hint the batch size that will be used on each device's DataLoader.
             Defaults to ``None``.
-        batch_size (int, optional): Hint the batch_size that will be used on each device's
-            DataLoader. Defaults to ``None``.
     """
 
     def __init__(self,
@@ -70,17 +72,18 @@ class EnWiki(Dataset):
             Any: Sample data.
         """
         obj = super().__getitem__(idx)
+
         for key, value in obj.items():
             dtype = self.field_dtypes[key]
-            obj[key] = np.copy(np.frombuffer(value, dtype))
-
-        ret_obj = {}
-        ret_obj['input_ids'] = obj['input_ids']
-        ret_obj['token_type_ids'] = obj['segment_ids']
-        ret_obj['attention_mask'] = obj['input_mask']
+            obj[key] = np.frombuffer(value, dtype)
 
         input_len = len(obj['input_ids'])
-        ret_obj['labels'] = np.full((input_len,), -100)
-        ret_obj['labels'][obj['masked_lm_positions']] = obj['masked_lm_ids']
+        labels = np.full((input_len,), -100)
+        labels[obj['masked_lm_positions']] = obj['masked_lm_ids']
 
-        return ret_obj
+        return {
+            'input_ids': obj['input_ids'].copy(),
+            'token_type_ids': obj['segment_ids'].copy(),
+            'attention_mask': obj['input_mask'].copy(),
+            'labels': labels,
+        }

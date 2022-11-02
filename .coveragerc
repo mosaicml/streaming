@@ -1,0 +1,8 @@
+[run]
+branch = True
+omit = streaming/text/convert/enwiki/mds/*,streaming/text/convert/enwiki/tfrecord/*
+
+[report]
+show_missing = True
+precision = 2
+exclude_lines = raise NotImplementedError.*

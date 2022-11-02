@@ -51,9 +51,11 @@ reportUnusedCoroutine = "error"
 # Pytest
 [tool.pytest.ini_options]
 # By default, do not run remote tests
-addopts = "--codeblocks --strict-markers -m 'not daily and not remote' -ra --tb=native"
+addopts = "--cov=streaming --cov-fail-under=50 --codeblocks --strict-markers -m 'not daily and not remote' -ra --tb=native"
 
 markers = [
+    # For distributed testing
+    "world_size(val)",
     # Should be run during daily regression
     "daily",
     # Whether the test will be reading data from a remote source, and may require credentials
@@ -72,6 +74,12 @@ filterwarnings = [
     'ignore::DeprecationWarning:tensorboard',  # ignore tensorboard
 ]
 timeout_func_only = true  # exclude fixtures from the timeout
+
+# Enable logging for pytest
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "%(asctime)s [%(levelname)8s] %(message)s (%(filename)s:%(lineno)s)"
+log_cli_date_format = "%Y-%m-%d %H:%M:%S"
 
 
 # Yapf

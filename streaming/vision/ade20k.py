@@ -11,6 +11,8 @@ from typing import Any, Callable, Optional, Tuple
 
 from streaming.base import Dataset
 
+__all__ = ['ADE20K']
+
 
 class ADE20K(Dataset):
     """Implementation of the ADE20K dataset using streaming Dataset.
