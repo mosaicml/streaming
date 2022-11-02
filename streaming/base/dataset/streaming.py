@@ -9,7 +9,7 @@ from enum import IntEnum
 from multiprocessing.shared_memory import SharedMemory
 from threading import Thread
 from time import sleep
-from typing import Any, Dict, Iterator, List, Optional, Tuple
+from typing import Any, Dict, Iterator, Optional, Tuple
 
 import numpy as np
 import torch
@@ -24,8 +24,11 @@ from streaming.base.format.base.reader import FileInfo
 from streaming.base.hashing import get_hash
 from streaming.base.index import Index, get_index_basename
 from streaming.base.shared import SharedBarrier
-from streaming.base.shuffle import get_epoch
+from streaming.base.shuffle import get_shuffle
 from streaming.base.world import World
+
+# Time to wait, in seconds.
+TICK = 0.07
 
 
 class _ShardState(IntEnum):
@@ -40,25 +43,48 @@ class _ShardState(IntEnum):
     DOWNLOADED = 2
 
 
+class _DownloadState:
+    """The download status of a partition of samples.
+
+    Args:
+        sample_ids (NDArray[np.int64]): This worker's partition of the sample space.
+    """
+
+    def __init__(self, sample_ids: NDArray[np.int64]) -> None:
+        self.sample_ids = sample_ids
+        self._total = len(sample_ids)
+        self._iter_index = 0
+        self._download_index = 0
+        self._is_stopped = False
+
+    def stop(self) -> None:
+        """Stop the thread and exit."""
+        self._is_stopped = True
+
+    def __iter__(self) -> Iterator[int]:
+        """Iterate over our samples while waiting for them to download first.
+
+        Returns:
+            Iterator[int]: Each sample, having been downloaded.
+        """
+        while self._iter_index < self._total:
+            if self._iter_index < self._download_index:
+                yield self.sample_ids[self._iter_index]
+                self._iter_index += 1
+                continue
+            if self._is_stopped:
+                break
+            sleep(TICK)
+
+
 class Dataset(IterableDataset):
-    """A streaming pytorch IterableDataset, resumable mid-epoch, whose shards reside locally.
-
-    Training is represented as sequence of one or more training sessions, which are cleared between
-    epochs. A training session is an array of how many samples each worker has processed during
-    this session.
-
-    To restore from checkpoint, even while changing the number of worker partitions, we recreate
-    the deterministic initial shuffle then replay the training history: splitting, truncating from
-    front, and rejoining for each session in order.
-
-    We communicate this state across all ranks and worker processes by putting it in shared memory
-    objects which are updated during checkpointing and training.
+    """A streaming pytorch IterableDataset that is also resumable mid-epoch.
 
     Checkpoints are represented in JSON as follows:
 
         {
             'epoch': int,
-            'sessions': List[List[int]],
+            'sample_in_epoch': int,
         }
 
     Args:
@@ -79,12 +105,12 @@ class Dataset(IterableDataset):
             an exception. Defaults to ``60``.
         validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
-        seed (int, optional): Seed for shuffling, or ``None`` for random seed. Defaults to
+        shuffle_seed (int, optional): Seed for shuffling, or ``None`` for random seed. Defaults to
             ``None``.
+        shuffle_world_size (int, optional): Canonical world size for shuffling. Defaults to
+            ``None``, which is interpreted as the world size of the initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
-        num_workers (int, optional): Number of workers of its DataLoader, which determines the size
-            of the barrier to coordinate workers while iterating. Defaults to ``None``.
     """
 
     def __init__(self,
@@ -97,9 +123,9 @@ class Dataset(IterableDataset):
                  download_retry: int = 2,
                  download_timeout: float = 60,
                  validate_hash: Optional[str] = None,
-                 seed: Optional[int] = None,
-                 batch_size: Optional[int] = None,
-                 num_workers: Optional[int] = None):
+                 shuffle_seed: Optional[int] = None,
+                 shuffle_world_size: Optional[int] = None,
+                 batch_size: Optional[int] = None):
         self.local = local
         self.remote = remote
         self.split = split or ''  # Empty string for os.path.join().
@@ -110,12 +136,16 @@ class Dataset(IterableDataset):
         self.download_timeout = download_timeout
         self.validate_hash = validate_hash or None
         # Seed is set below.
+        world = World()
+        if shuffle_world_size is None:
+            shuffle_world_size = world.num_ranks
+        if shuffle_world_size < 1:
+            raise ValueError('Interleave must be at least one.')
+        self.shuffle_world_size = shuffle_world_size  # TODO: handle correctly on resume.
         self.batch_size = batch_size
-        self.num_workers = num_workers
 
         # Load the index.json file.
         basename = get_index_basename()
-        world = World()
         if world.is_local_leader:
             filename = self._download_file(basename)
         else:
@@ -138,13 +168,13 @@ class Dataset(IterableDataset):
         device = torch.device(f'cuda:{world.rank_of_node}')
         tensor = torch.zeros(1, dtype=torch.int64, device=device)
 
-        # Coordinate the seed across ranks.
+        # Coordinate the shuffle seed across ranks.
         if world.is_leader:
-            if seed is None:
-                seed = np.random.randint(1 << 60)
-            tensor[0] = seed
+            if shuffle_seed is None:
+                shuffle_seed = np.random.randint(1 << 60)
+            tensor[0] = shuffle_seed
         dist.broadcast(tensor, 0)
-        self.seed = int(tensor)
+        self.shuffle_seed = int(tensor)
 
         # Add a coordinated random prefix to all shm names for uniqueness.
         if world.is_leader:
@@ -171,15 +201,14 @@ class Dataset(IterableDataset):
         self._resume_shm = None
 
         # Create the barrier.
-        total_workers = world.ranks_per_node * (self.num_workers or 1)
-        self._barrier_filelock_path = os.path.join(os.path.sep, 'tmp', 'streaming', self._prefix,
-                                                   'barrier_filelock')
-        self._barrier_shm_path = f'{self._prefix}_barrier_shm'
-        self._barrier = SharedBarrier(total_workers, self._barrier_filelock_path,
-                                      self._barrier_shm_path)
+        self._worker_barrier_filelock_path = os.path.join(os.path.sep, 'tmp', 'streaming',
+                                                          self._prefix, 'barrier_filelock')
+        self._worker_barrier_shm_path = f'{self._prefix}_barrier'
+        self._worker_barrier = SharedBarrier(self._worker_barrier_filelock_path,
+                                             self._worker_barrier_shm_path)
 
-        self._iter_index = 0
-        self._download_index = 0
+        # Download state.
+        self._download_state = None
 
     @property
     def next_epoch(self) -> int:
@@ -220,24 +249,23 @@ class Dataset(IterableDataset):
         reader = self.shards[shard]
         return reader[index_in_shard]
 
-    def _resume(self, epoch: int) -> Tuple[int, List[NDArray[np.int64]]]:
-        """Resume from checkpoint.
+    def _resume(self, world: World, epoch: int) -> Tuple[int, int]:
+        """Either resume from checkpoint or start at the beginning.
 
         Args:
+            world (World): World state.
             epoch (int): What epoch we think it is (pre-checkpoint).
 
         Returns:
-            Tuple[int, List[NDArray[np.int64]]]: Pair of (resumed epoch, old sessions).
+            Tuple[int, int]: What epoch this is, and sample offset in that epoch.
         """
-        world = World()
-
         # Get the resume state, if it exists.
         name = f'{self._prefix}_resume'
         try:
             shm = SharedMemory(name)
         except:
             # There is nothing to resume.
-            return epoch, []
+            return epoch, 0
 
         # Parse the existent resume state.
         obj = json.loads(bytes(shm.buf).decode('utf-8'))
@@ -247,91 +275,80 @@ class Dataset(IterableDataset):
             # Clean up stale state.
             if world.is_local_leader:
                 shm.unlink()
-            return epoch, []
+            return epoch, 0
 
-        # Load the correct epoch and previous training sessions this epoch.
+        # Load the correct epoch and sample offset.
         epoch = obj['epoch']
-        old_sessions = [np.array(x) for x in obj['sessions']]
-        return epoch, old_sessions
+        sample_in_epoch = obj['sample_in_epoch']
+        return epoch, sample_in_epoch
 
-    def _create_cur_session(self, epoch: int) -> Tuple[NDArray[np.int64], SharedMemory]:
-        """Create the current session, as we have just started an epoch.
-
-        Called by __iter__() in a worker process, or a per-rank process if workers aren't used.
-
-        Note: this also returns the underlying shared memory object, because the returned array
-        will become invalidated when it goes out of scope.
+    def _get_progress(self, world: World) -> Tuple[int, int]:
+        """Start or resume training, pre-incrementing next_epoch.
 
         Args:
-            epoch (int): The current epoch.
+            world (World): World state.
 
         Returns:
-            Tuple[NDArray[np.int64], SharedMemory]: Session and handle to shared memory.
+            Tuple[int, int]: What epoch this is, and sample offset in that epoch.
         """
-        world = World()
-        shm_name = f'{self._prefix}_session_{epoch}'
-        shm_bytes = world.num_workers * np.int64().nbytes
-        try:
-            shm = SharedMemory(shm_name, True, shm_bytes)
-        except FileExistsError:
-            shm = SharedMemory(shm_name)
-        cur_session = np.ndarray(world.num_workers, buffer=shm.buf, dtype=np.int64)
-        cur_session[:] = 0
-        return cur_session, shm
+        # Either resume from checkpoint, or start from scratch.
+        presumed_epoch = self.next_epoch
+        epoch, sample_in_epoch = self._resume(world, presumed_epoch)
 
-    def _lookup_cur_session(
-            self, epoch: int) -> Tuple[Optional[NDArray[np.int64]], Optional[SharedMemory]]:
-        """Look up the current session, which exists if we are currently training.
+        # Wait for everyone to get the epoch above.
+        self._worker_barrier(world.num_workers)
 
-        Called by state_dict() in a per-rank process.
-
-        Note: this also returns the underlying shared memory object (if it exists), because the
-        returned array will become invalidated when it goes out of scope.
-
-        Args:
-            epoch (int): The current epoch.
-
-        Returns:
-            Tuple[Optional[NDArray[np.int64]], Optional[SharedMemory]]: Maybe session, maybe shm.
-        """
-        shm_name = f'{self._prefix}_session_{epoch}'
-        try:
-            shm = SharedMemory(shm_name)
-        except:
-            return None, None
-        num_workers = shm.size // np.int64().nbytes
-        cur_session = np.ndarray(num_workers, buffer=shm.buf, dtype=np.int64)
-        return cur_session, shm
-
-    def _get_partition(self, epoch: int, sessions: List[NDArray[np.int64]],
-                       world: World) -> Optional[NDArray[np.int64]]:
-        # Local leader generates the partitions.
+        # Set the new next epoch.
         if world.is_local_leader:
-            sequences = get_epoch(self.shard_sizes, self.shuffle, self.seed, epoch, sessions)
-            node_offset = world.node * world.ranks_per_node * world.workers_per_rank
-            for rank_of_node in range(world.ranks_per_node):
-                for worker_of_rank in range(world.workers_per_rank):
-                    worker = node_offset + rank_of_node * world.workers_per_rank + worker_of_rank
-                    name = f'{self._prefix}_part_{worker:03}'
-                    sequence = sequences[worker]
-                    size = len(sequence) * np.int64(0).nbytes
-                    if not size:
-                        continue
-                    shm = SharedMemory(name, True, size)
-                    shm.buf[:] = sequence.tobytes()
+            self.next_epoch = epoch + 1
 
-        self._barrier()
+        return epoch, sample_in_epoch
 
-        # Load our partition.
-        name = f'{self._prefix}_part_{world.worker:03}'
-        try:
-            shm = SharedMemory(name)
-        except:
-            return None
-        todos = np.frombuffer(shm.buf, np.int64).copy()
+    def _get_partition(self, world: World, epoch: int,
+                       sample_in_epoch: int) -> Optional[NDArray[np.int64]]:
+        """Get this worker's partition of this epoch's sample space.
+
+        Args:
+            world (World): World state.
+            epoch (int): Which epoch it is.
+            sample_in_epoch (int): Where we are in the epoch.
+
+        Returns:
+            Optional[NDArray[np.int64]]: Our partition of the epoch.
+        """
+        shm_name = '{self._prefix}_ordering'
+
+        # Local leader generates the global ordering of samples this epoch.
+        if world.is_local_leader:
+            ids = get_shuffle(self.shard_sizes, self.shuffle, self.shuffle_seed,
+                              self.shuffle_world_size, epoch)
+            ids = ids[sample_in_epoch:]
+            if not len(ids):
+                return None
+            shm_size = len(ids.tobytes())
+            leader_shm = SharedMemory(shm_name, True, shm_size)
+            leader_shm.buf[:] = ids.tobytes()
+
+        # Wait for local leader to populate the shared memory object.
+        self._worker_barrier(world.num_workers)
+
+        # Each worker extracts its partition from the global shuffle.
+        shm = SharedMemory(shm_name)
+        num_samples = len(shm.buf) // np.int64(0).nbytes
+        ids = np.ndarray(num_samples, buffer=shm.buf, dtype=np.int64)
+        ids = ids[:num_samples - num_samples % world.num_workers]  # TODO: don't round down.
+        ids = ids.reshape(-1, world.num_workers)
+        ids = ids.copy()
         shm.unlink()
 
-        return todos
+        # Wait for all workers to load from that shared memory.
+        self._worker_barrier(world.num_workers)
+
+        # Clean up shared memory.
+        if world.is_local_leader:
+            leader_shm.unlink()  # pyright: ignore
+
+        return ids
 
     def _download_file(self, basename: str) -> str:
         """Safely download a file from remote to local cache.
@@ -461,26 +478,31 @@ class Dataset(IterableDataset):
         elif state == _ShardState.DOWNLOADING:
             lock.release()
             while shard_states[shard_id] != _ShardState.DOWNLOADED:
-                sleep(0.07)
+                sleep(TICK)
         elif state == _ShardState.DOWNLOADED:
             lock.release()
         else:
             raise RuntimeError('Unknown shard state')
 
-    def _download_thread(self, epoch: int, sample_ids: NDArray[np.int64]) -> None:
+    def _download_thread(self, state: _DownloadState) -> None:
         """Download the relevant shards in the background while we are being iterated.
 
-        This thread is started at the beginning of each epoch, and exits when it detects a new
-        epoch has started (only one epoch is valid at a time) or when it is out of samples.
+        This thread is started at the beginning of each epoch, and exits either when out of samples
+        or when a new epoch is started, calling stop() on its state (only one epoch is valid at a
+        time).
 
-        Each worker has its own download thread, which iterates ahead of the main thread.
+        Each worker has its own donwload thread, which iterates ahead of the main thread.
 
         Args:
-            epoch (int): Which epoch. On noticing that a new epoch has started, we exit this thread
-                because a new one will soon be running, with different sample IDs.
-            sample_ids (NDArray[np.int64]): The samples to download the shards of.
+            state (_DownloadState): The download state.
         """
-        # Create or attach shard_states array.
+        # Get the filelock that protects shard_states shared memory array.
+        filename = os.path.join(os.path.sep, 'tmp', 'streaming', self._prefix,
+                                '_shard_states_filelock')
+        shard_states_lock = FileLock(filename)
+
+        # Create or attach shard_states array (tells if each shard is unknown, downlaoding, or
+        # downloaded).
         name = f'{self._prefix}_shard_states'
         size = len(self.shard_sizes) * np.uint8(0).nbytes
         try:
@@ -489,35 +511,43 @@ class Dataset(IterableDataset):
             shm = SharedMemory(name)
         shard_states = np.ndarray(len(self.shard_sizes), buffer=shm.buf, dtype=np.uint8)
 
-        filename = os.path.join(os.path.sep, 'tmp', 'streaming', self._prefix,
-                                '_shard_states_filelock')
-        shard_states_lock = FileLock(filename)
-
         # Download loop.
-        num_samples = len(sample_ids)
         while True:
             # If we've started a new epoch early (__iter__ was called again), exit this thread
             # because there can only be one epoch at once.
-            if epoch != self.next_epoch - 1:
+            if state._is_stopped:
                 break
 
             # If we're out of samples this epoch, exit this thread because we are done downloading.
-            if self._download_index == num_samples:
+            if state._download_index == state._total:
                 break
 
             # If we are requested to only pre-download so many samples, if we have as many or more
             # downloaded already, we wait and check again later.
             if self.predownload is not None:
-                samples_ahead = self._download_index - self._iter_index
+                samples_ahead = state._download_index - state._iter_index
                 if self.predownload <= samples_ahead:
-                    sleep(0.07)
+                    sleep(TICK)
                     continue
 
             # Download and decompress the shard for this sample, if not already done.
-            sample_id = sample_ids[self._download_index]
+            sample_id = state.sample_ids[state._download_index]
             shard_id, _ = self.index.find_sample(sample_id)
             self._download_or_await_shard(shard_states_lock, shard_states, shard_id)
-            self._download_index += 1
+            state._download_index += 1
+
+    def _each_sample(self, sample_ids: NDArray[np.int64]) -> Iterator[int]:
+        """Iterate over each sample ID, while downloading ahead in the background.
+
+        Args:
+            sample_ids (NDArray[np.int64]): The sample IDs to download and iterate.
+
+        Returns:
+            Iterator[int]: Each sample ID, having been downloaded.
+        """
+        self._download_state = _DownloadState(sample_ids)
+        Thread(target=self._download_thread, args=(self._download_state,), daemon=True).run()
+        yield from self._download_state
 
     def __iter__(self) -> Iterator[Dict[str, Any]]:
         """Iterate over all the samples in our partition.
@@ -525,76 +555,29 @@ class Dataset(IterableDataset):
         Returns:
             Iterator[Dict[str, Any]]: Each sample.
         """
-        # Load resume state and create the new training session.
-        presumed_epoch = self.next_epoch
-        epoch, old_sessions = self._resume(presumed_epoch)
-        cur_session, _ = self._create_cur_session(epoch)
+        '''
+        # Exit the thread that is downloading the shards for last epoch, if it exists.
+        # We only allow one epoch (call to __iter__) at a time.
+        if self._downloader:
+            self._downloader.stop()
+        '''
+        # Exit the thread that is downloading the shards for last epoch, if it exists.
+        if self._download_state:
+            self._download_state.stop()
 
+        # Discover where we left off, if there is a checkpoint, or start at the next epoch.
+        # Also pre-increment the epoch counter.
         world = World()
-        assert world.num_workers == self._barrier.count
-        self._barrier()
+        epoch, sample_in_epoch = self._get_progress(world)
 
-        # Update the pre-incremented epoch counter.
-        world = World()
-        if world.is_local_leader:
-            self.next_epoch = epoch + 1
-
-        self._barrier()
-
-        # Get the samples for this worker to process.
-        sessions = old_sessions + [cur_session]
-        sample_ids = self._get_partition(epoch, sessions, world)
+        # Get this worker's partition of samples to process.
+        sample_ids = self._get_partition(world, epoch, sample_in_epoch)
         if sample_ids is None:
             return
 
-        # Iterate while downloading.
-        self._iter_index = 0
-        self._download_index = 0
-        Thread(target=self._download_thread, args=(epoch, sample_ids)).run()
-        num_samples = len(sample_ids)
-        while self._iter_index < num_samples:
-            if self._iter_index < self._download_index:
-                cur_session[world.worker] += 1
-                sample_id = sample_ids[self._iter_index]
-                yield self[sample_id]
-                self._iter_index += 1
-                continue
-            sleep(0.07)
-
-        # Any code after the yields will never be reached by the Composer trainer.
-
-    def _all_gather_current_session(self, session: NDArray[np.int64]) -> None:
-        """All-gather the current session data.
-
-        This is done in order to checkpoint.
-
-        Args:
-            session (NDArray[np.int64]): The current session.
-        """
-        # Bail if we are not multi-node.
-        world = World()
-        if not world.is_multinode:
-            return
-
-        # Do the all_gather on the last session counts.
-        device = torch.device(f'cuda:{world.rank}')
-        source = torch.tensor(session, device=device)
-        dests = [
-            torch.empty(len(session), dtype=torch.int64, device=device)
-            for _ in range(world.num_ranks)
-        ]
-        dist.all_gather(dests, source)
-
-        # Each rank provides ground truth for its workers.
-        if world.is_local_leader:
-            dests = torch.stack(dests).cpu().numpy()  # Shape: (world size, total workers).
-            for rank in range(world.num_ranks):
-                rank_start = rank * world.workers_per_rank
-                rank_end = (rank + 1) * world.workers_per_rank
-                session[rank_start:rank_end] = dests[rank]
-
-        # Wait for local leaders to load session state from the other nodes.
-        dist.barrier()
+        # Iterate over the samples while downloading ahead.
+        for sample_id in self._each_sample(sample_ids):
+            yield self[sample_id]
 
     def state_dict(self, samples_in_epoch: int) -> Dict[str, Any]:
         """Get a dict containing training state (called from non-worker process).
@@ -607,24 +590,10 @@ class Dataset(IterableDataset):
         Returns:
             Dict[str, Any]: The state.
         """
-        # TODO: use samples_in_epoch.
-
-        # Attempt to load resume state, if it exists.
-        epoch, old_sessions = self._resume(self.next_epoch - 1)
-
-        # Get the current training session array, if we are currently training.
-        cur_session, _ = self._lookup_cur_session(epoch)
-
-        # Concatenate the sessions, synchronizing current session if we have one.
-        if cur_session is not None:
-            self._all_gather_current_session(cur_session)
-            sessions = old_sessions + [cur_session]
-        else:
-            sessions = old_sessions
-
+        epoch = self.next_epoch - 1
         return {
             'epoch': epoch,
-            'sessions': [x.tolist() for x in sessions],
+            'sessions': samples_in_epoch,
         }
 
     def load_state_dict(self, obj: Dict[str, Any]) -> None:
@@ -632,13 +601,13 @@ class Dataset(IterableDataset):
 
         This is called on each copy of the dataset when resuming.
 
+        We just save the state to shared memory for workers to pick up when __iter__ is next
+        called. We use shm because changes to this copy of the dataset wouldn't be picked up by
+        persistent workers.
+
         Args:
             obj (Dict[str, Any]): The state.
         """
-        # Set the number of the next epoch.
-        self.next_epoch = obj['epoch']
-
-        # Save the resume state (old sessions).
         name = f'{self._prefix}_resume'
         data = json.dumps(obj, sort_keys=True).encode('utf-8')
         try:

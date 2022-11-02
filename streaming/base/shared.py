@@ -14,20 +14,22 @@ from time import sleep
 import numpy as np
 from filelock import FileLock
 
-TICK = 0.007
+TICK = 0.07
 
 
 class SharedBarrier:
     """A barrier that works inter-process using a file lock and shared memory.
 
+    We set the number of processes (and thereby initialilze num_exit) on the first time this object
+    is called. This is because the object is created in a per-rank process, and called by worker
+    processes.
+
     Args:
-        count (int): Number of processes to synchronize.
         filelock_path (str): Path to lock file on local filesystem.
         shm_path (str): Shared memory object name in /dev/shm.
     """
 
-    def __init__(self, count: int, filelock_path: str, shm_path: str) -> None:
-        self.count = count
+    def __init__(self, filelock_path: str, shm_path: str) -> None:
         self.filelock_path = filelock_path
         self.shm_path = shm_path
 
@@ -44,7 +46,7 @@ class SharedBarrier:
             self._shm = SharedMemory(shm_path, False, size)
         self._arr = np.ndarray(3, buffer=self._shm.buf, dtype=np.int32)
         self.num_enter = 0
-        self.num_exit = count
+        self.num_exit = -1
         self.flag = True
 
     def __del__(self):
@@ -108,13 +110,22 @@ class SharedBarrier:
         """
         self._arr[2] = bool(flag)
 
-    def __call__(self) -> None:
-        """A set number of processes enter, wait, and exit the barrier."""
+    def __call__(self, num_procs: int) -> None:
+        """A set number of processes enter, wait, and exit the barrier.
+
+        Args:
+            num_procs (int): How many processes are sharing this barrier.
+        """
+        # Initialize num_exit to the number of processes.
+        with self.lock:
+            if self.num_exit == -1:
+                self.num_exit = num_procs
+
         # If we are the first to arrive, wait for everyone to exit, then set flag to "don't go".
         self.lock.acquire()
         if not self.num_enter:
             self.lock.release()
-            while self.num_exit != self.count:
+            while self.num_exit != num_procs:
                 sleep(TICK)
             self.lock.acquire()
             self.flag = False
@@ -123,7 +134,7 @@ class SharedBarrier:
         self.num_enter += 1
 
         # If we are the last to arrive, reset `enter` and `exit`, and set flag to "go".
-        if self.num_enter == self.count:
+        if self.num_enter == num_procs:
             self.num_enter = 0
             self.num_exit = 0
             self.flag = True
@@ -134,6 +145,5 @@ class SharedBarrier:
             sleep(TICK)
 
         # Note that we exited.
-        self.lock.acquire()
-        self.num_exit += 1
-        self.lock.release()
+        with self.lock:
+            self.num_exit += 1

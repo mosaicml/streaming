@@ -35,10 +35,10 @@ class ImageNet(ImageClassDataset):
             an exception. Defaults to ``60``.
         validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
-        seed (int, optional): Seed for shuffling, or ``None`` for random seed. Defaults to
+        shuffle_seed (int, optional): Seed for shuffling, or ``None`` for random seed. Defaults to
             ``None``.
+        shuffle_world_size (int, optional): Canonical world size for shuffling. Defaults to
+            ``None``, which is interpreted as the world size of the initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
-        num_workers (int, optional): Number of workers of its DataLoader, which determines the size
-            of the barrier to coordinate workers while iterating. Defaults to ``None``.
     """
