@@ -586,10 +586,12 @@ class Dataset(IterableDataset):
         Returns:
             Dict[str, Any]: The state.
         """
+        world = World()
         epoch = self.next_epoch - 1
+        epoch, offset = self._resume(world, epoch)
         return {
             'epoch': epoch,
-            'sample_in_epoch': sample_in_epoch,
+            'sample_in_epoch': offset + sample_in_epoch,
         }
 
     def load_state_dict(self, obj: Dict[str, Any]) -> None:
