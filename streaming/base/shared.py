@@ -39,7 +39,7 @@ class SharedBarrier:
         self.lock = FileLock(filelock_path)
 
         # Create three int32 fields in shared memory: num_enter, num_exit, flag.
-        size = 3 * np.int32().nbytes
+        size = 3 * np.int32(0).nbytes
         try:
             self._shm = SharedMemory(shm_path, True, size)
         except FileExistsError:

@@ -192,7 +192,7 @@ class Dataset(IterableDataset):
         try:
             self._next_epoch_shm = SharedMemory(name, True, size)
         except FileExistsError:
-            self._next_epoch_shm = SharedMemory(name)
+            self._next_epoch_shm = SharedMemory(name, False, size)
         self._next_epoch_arr = np.ndarray(1, buffer=self._next_epoch_shm.buf, dtype=np.int64)
         self._next_epoch_arr[0] = 0
 
@@ -274,6 +274,7 @@ class Dataset(IterableDataset):
         if obj['epoch'] < epoch:
             # Clean up stale state.
             if world.is_local_leader:
+                shm.close()
                 shm.unlink()
             return epoch, 0
 
@@ -316,7 +317,7 @@ class Dataset(IterableDataset):
         Returns:
             Optional[NDArray[np.int64]]: Our partition of the epoch.
         """
-        shm_name = '{self._prefix}_ordering'
+        shm_name = f'{self._prefix}_ordering'
 
         # Local leader generates the global ordering of samples this epoch.
         if world.is_local_leader:
@@ -338,14 +339,15 @@ class Dataset(IterableDataset):
         ids = np.ndarray(num_samples, buffer=shm.buf, dtype=np.int64)
         ids = ids[:num_samples - num_samples % world.num_workers]  # TODO: don't round down.
         ids = ids.reshape(-1, world.num_workers)
-        ids = ids.copy()
-        shm.unlink()
+        ids = ids[:, world.worker].copy()
+        shm.close()
 
         # Wait for all workers to load from that shared memory.
         self._worker_barrier(world.num_workers)
 
         # Clean up shared memory.
         if world.is_local_leader:
+            leader_shm.close()
             leader_shm.unlink()  # pyright: ignore
 
         return ids
@@ -507,7 +509,7 @@ class Dataset(IterableDataset):
         size = len(self.shard_sizes) * np.uint8(0).nbytes
         try:
             shm = SharedMemory(name, True, size)
-        except:
+        except FileExistsError:
             shm = SharedMemory(name)
         shard_states = np.ndarray(len(self.shard_sizes), buffer=shm.buf, dtype=np.uint8)
 
@@ -573,13 +575,13 @@ class Dataset(IterableDataset):
         for sample_id in self._each_sample(sample_ids):
             yield self[sample_id]
 
-    def state_dict(self, samples_in_epoch: int) -> Dict[str, Any]:
+    def state_dict(self, sample_in_epoch: int) -> Dict[str, Any]:
         """Get a dict containing training state (called from non-worker process).
 
         This is called on rank zero.
 
         Args:
-            samples_in_epoch (int): The number of samples processed so far in the current epoch.
+            sample_in_epoch (int): The number of samples processed so far in the current epoch.
 
         Returns:
             Dict[str, Any]: The state.
@@ -587,7 +589,7 @@ class Dataset(IterableDataset):
         epoch = self.next_epoch - 1
         return {
             'epoch': epoch,
-            'sessions': samples_in_epoch,
+            'sample_in_epoch': sample_in_epoch,
         }
 
     def load_state_dict(self, obj: Dict[str, Any]) -> None:
