@@ -53,14 +53,14 @@ class _DownloadState:
 
     def __init__(self, sample_ids: NDArray[np.int64]) -> None:
         self.sample_ids = sample_ids
-        self._total = len(sample_ids)
-        self._iter_index = 0
-        self._download_index = 0
-        self._is_stopped = False
+        self.total = len(sample_ids)
+        self.iter_index = 0
+        self.download_index = 0
+        self.is_stopped = False
 
     def stop(self) -> None:
         """Stop the thread and exit."""
-        self._is_stopped = True
+        self.is_stopped = True
 
     def __iter__(self) -> Iterator[int]:
         """Iterate over our samples while waiting for them to download first.
@@ -68,12 +68,12 @@ class _DownloadState:
         Returns:
             Iterator[int]: Each sample, having been downloaded.
         """
-        while self._iter_index < self._total:
-            if self._iter_index < self._download_index:
-                yield self.sample_ids[self._iter_index]
-                self._iter_index += 1
+        while self.iter_index < self.total:
+            if self.iter_index < self.download_index:
+                yield self.sample_ids[self.iter_index]
+                self.iter_index += 1
                 continue
-            if self._is_stopped:
+            if self.is_stopped:
                 break
             sleep(TICK)
 
@@ -519,26 +519,26 @@ class Dataset(IterableDataset):
         while True:
             # If we've started a new epoch early (__iter__ was called again), exit this thread
             # because there can only be one epoch at once.
-            if state._is_stopped:
+            if state.is_stopped:
                 break
 
             # If we're out of samples this epoch, exit this thread because we are done downloading.
-            if state._download_index == state._total:
+            if state.download_index == state.total:
                 break
 
             # If we are requested to only pre-download so many samples, if we have as many or more
             # downloaded already, we wait and check again later.
             if self.predownload is not None:
-                samples_ahead = state._download_index - state._iter_index
+                samples_ahead = state.download_index - state.iter_index
                 if self.predownload <= samples_ahead:
                     sleep(TICK)
                     continue
 
             # Download and decompress the shard for this sample, if not already done.
-            sample_id = state.sample_ids[state._download_index]
+            sample_id = state.sample_ids[state.download_index]
             shard_id, _ = self.index.find_sample(sample_id)
             self._download_or_await_shard(shard_states_lock, shard_states, shard_id)
-            state._download_index += 1
+            state.download_index += 1
 
     def _each_sample(self, sample_ids: NDArray[np.int64]) -> Iterator[int]:
         """Iterate over each sample ID, while downloading ahead in the background.
