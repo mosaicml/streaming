@@ -338,9 +338,7 @@ class Dataset(IterableDataset):
         shm = SharedMemory(shm_name)
         num_samples = len(shm.buf) // np.int64(0).nbytes
         ids = np.ndarray(num_samples, buffer=shm.buf, dtype=np.int64)
-        ids = ids[:num_samples - num_samples % world.num_workers]  # TODO: don't round down.
-        ids = ids.reshape(-1, world.num_workers)
-        ids = ids[:, world.worker].copy()
+        ids = ids[world.worker::world.num_workers].copy()  # TODO: partition correctly.
         shm.close()
 
         # Wait for all workers to load from that shared memory.
