@@ -548,7 +548,7 @@ class Dataset(IterableDataset):
             Iterator[int]: Each sample ID, having been downloaded.
         """
         self._download_state = _DownloadState(sample_ids)
-        Thread(target=self._download_thread, args=(self._download_state,), daemon=True).run()
+        Thread(target=self._download_thread, args=(self._download_state,), daemon=True).start()
         yield from self._download_state
 
     def __iter__(self) -> Iterator[Dict[str, Any]]:
