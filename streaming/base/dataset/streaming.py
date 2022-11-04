@@ -389,7 +389,8 @@ class Dataset(IterableDataset):
 
         # Validate what was downloaded.
         if self.validate_hash:
-            assert get_hash(self.validate_hash, data) == zip_info.hashes[self.validate_hash]
+            if get_hash(self.validate_hash, data) != zip_info.hashes[self.validate_hash]:
+                raise ValueError(f'Checksum failure: {zip_filename}')
 
         # Decompress and save that.
         data = decompress(compression, data)  # pyright: ignore
@@ -439,7 +440,8 @@ class Dataset(IterableDataset):
             # Validate if requested.
             if self.validate_hash:
                 data = open(raw_filename, 'rb').read()
-                assert get_hash(self.validate_hash, data) == raw_info.hashes[self.validate_hash]
+                if get_hash(self.validate_hash, data) != raw_info.hashes[self.validate_hash]:
+                    raise ValueError(f'Checksum failure: {raw_filename}')
 
     def _download_shard(self, shard_id: int) -> None:
         """Download the given shard.
