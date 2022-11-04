@@ -264,7 +264,7 @@ class Dataset(IterableDataset):
         name = f'{self._prefix}_resume'
         try:
             shm = SharedMemory(name)
-        except:
+        except FileNotFoundError:
             # There is nothing to resume.
             return epoch, 0
 
