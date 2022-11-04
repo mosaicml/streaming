@@ -139,10 +139,10 @@ class Dataset(IterableDataset):
         # Seed is set below.
         world = World()
         if shuffle_world_size is None:
-            shuffle_world_size = world.num_ranks
+            shuffle_world_size = world.num_workers
         if shuffle_world_size < 1:
             raise ValueError('Interleave must be at least one.')
-        self.shuffle_world_size = shuffle_world_size  # TODO: handle correctly on resume.
+        self.shuffle_world_size = shuffle_world_size
         self.batch_size = batch_size
 
         # Load the index.json file.
