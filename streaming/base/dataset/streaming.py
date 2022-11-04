@@ -18,6 +18,7 @@ from numpy.typing import NDArray
 from torch.utils.data import IterableDataset
 
 from streaming.base import distributed as dist
+from streaming.base.compression import decompress
 from streaming.base.download import download
 from streaming.base.format import reader_from_json
 from streaming.base.format.base.reader import FileInfo
@@ -347,7 +348,7 @@ class Dataset(IterableDataset):
 
         # Clean up shared memory.
         if world.is_local_leader:
-            leader_shm.close()
+            leader_shm.close()  # pyright: ignore
             leader_shm.unlink()  # pyright: ignore
 
         return ids

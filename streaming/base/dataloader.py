@@ -7,6 +7,7 @@ from typing import Any, Dict, Iterator, Optional
 
 from torch import Tensor
 from torch.utils.data import DataLoader
+from transformers.tokenization_utils_base import BatchEncoding
 
 from streaming.base.dataset import Dataset
 from streaming.base.world import World
@@ -27,6 +28,24 @@ class StreamingDataLoader(DataLoader):
         super().__init__(*args, **kwargs)
         self.num_samples_yielded = 0
 
+    def _get_batch_size(self, batch: Any) -> int:
+        """Get the number of samples in a batch.
+
+        Args:
+            batch (Any): The batch.
+
+        Returns:
+            int: Number of samples.
+        """
+        if isinstance(batch, (dict, BatchEncoding)):
+            for value in batch.values():
+                return len(value)
+            raise ValueError('Batch is empty')
+        elif isinstance(batch, Tensor):
+            return len(batch)
+        else:
+            return len(batch[0])
+
     def __iter__(self) -> Iterator[Any]:
         """Iterate over this DataLoader, yielding batches.
 
@@ -37,11 +56,7 @@ class StreamingDataLoader(DataLoader):
         """
         self.num_samples_yielded = 0
         for batch in super().__iter__():
-            if isinstance(batch, Tensor):
-                count = len(batch)
-            else:
-                count = len(batch[0])
-            self.num_samples_yielded += count
+            self.num_samples_yielded += self._get_batch_size(batch)
             yield batch
 
     def state_dict(self) -> Optional[Dict[str, Any]]:
