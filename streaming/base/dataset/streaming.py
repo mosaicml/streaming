@@ -153,7 +153,8 @@ class Dataset(IterableDataset):
             filename = os.path.join(local, split, basename)  # pyright: ignore
         dist.barrier()
         obj = json.load(open(filename))
-        assert obj['version'] == 2
+        if obj['version'] != 2:
+            raise ValueError('Unsupported version')
 
         # Initialize shard readers according to the loaded info.
         self.shards = []
