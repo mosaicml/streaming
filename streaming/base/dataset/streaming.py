@@ -567,7 +567,7 @@ class Dataset(IterableDataset):
 
         # Get this worker's partition of samples to process.
         sample_ids = self._get_partition(world, epoch, sample_in_epoch)
-        if sample_ids is None:
+        if sample_ids is None:  # Hit end of epoch, out of samples.
             return
 
         # Iterate over the samples while downloading ahead.
