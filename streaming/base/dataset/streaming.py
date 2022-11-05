@@ -44,7 +44,7 @@ class _ShardState(IntEnum):
     DOWNLOADED = 2
 
 
-class _DownloadState:
+class _PartitionState:
     """The download status of a partition of samples.
 
     Args:
@@ -209,8 +209,8 @@ class Dataset(IterableDataset):
         self._worker_barrier = SharedBarrier(self._worker_barrier_filelock_path,
                                              self._worker_barrier_shm_path)
 
-        # Download state.
-        self._download_state = None
+        # Partition state.
+        self._partition_state = None
 
     @property
     def next_epoch(self) -> int:
@@ -488,7 +488,7 @@ class Dataset(IterableDataset):
         else:
             raise RuntimeError('Unknown shard state')
 
-    def _download_thread(self, state: _DownloadState) -> None:
+    def _download_thread(self, state: _PartitionState) -> None:
         """Download the relevant shards in the background while we are being iterated.
 
         This thread is started at the beginning of each epoch, and exits either when out of samples
@@ -498,7 +498,7 @@ class Dataset(IterableDataset):
         Each worker has its own download thread, which iterates ahead of the main thread.
 
         Args:
-            state (_DownloadState): The download state.
+            state (_PartitionState): The partition state.
         """
         # Get the filelock that protects shard_states shared memory array.
         filename = os.path.join(os.path.sep, 'tmp', 'streaming', self._prefix,
@@ -549,9 +549,9 @@ class Dataset(IterableDataset):
         Returns:
             Iterator[int]: Each sample ID, having been downloaded.
         """
-        self._download_state = _DownloadState(sample_ids)
-        Thread(target=self._download_thread, args=(self._download_state,), daemon=True).start()
-        yield from self._download_state
+        self._partition_state = _PartitionState(sample_ids)
+        Thread(target=self._download_thread, args=(self._partition_state,), daemon=True).start()
+        yield from self._partition_state
 
     def __iter__(self) -> Iterator[Dict[str, Any]]:
         """Iterate over all the samples in our partition.
@@ -560,8 +560,8 @@ class Dataset(IterableDataset):
             Iterator[Dict[str, Any]]: Each sample.
         """
         # Exit the thread that is downloading the shards for last epoch, if it exists.
-        if self._download_state:
-            self._download_state.stop()
+        if self._partition_state:
+            self._partition_state.stop()
 
         # Discover where we left off, if there is a checkpoint, or start at the next epoch.
         # Also pre-increment the epoch counter.
