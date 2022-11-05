@@ -179,13 +179,14 @@ class Dataset(IterableDataset):
             if world.is_leader:
                 tensor[0] = shuffle_seed
             dist.broadcast(tensor, 0)
-            self.shuffle_seed = int(tensor)
+            shuffle_seed = int(tensor)
 
             # Add a coordinated random prefix to all shm names for uniqueness.
             if world.is_leader:
                 tensor[0] = prefix_int
             dist.broadcast(tensor, 0)
             prefix_int = int(tensor)
+        self.shuffle_seed = shuffle_seed
         self._prefix = f'{prefix_int:016x}_{self.split}'
 
         # Set up the epoch counter.
