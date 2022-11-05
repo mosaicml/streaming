@@ -166,23 +166,27 @@ class Dataset(IterableDataset):
         self.shard_sizes = np.array([x.samples for x in self.shards])
         self.index = Index(self.shard_sizes)
 
-        # Setup for coordinating.
-        device = torch.device(f'cuda:{world.rank_of_node}')
-        tensor = torch.zeros(1, dtype=torch.int64, device=device)
+        # Determine and distribute shuffle seed and shm prefix.
+        if shuffle_seed is None:
+            shuffle_seed = np.random.randint(1 << 60)
+        prefix_int = np.random.randint(1 << 60)
+        if 1 < world.num_ranks:
+            # Setup for coordinating.
+            device = torch.device(f'cuda:{world.rank_of_node}')
+            tensor = torch.zeros(1, dtype=torch.int64, device=device)
 
-        # Coordinate the shuffle seed across ranks.
-        if world.is_leader:
-            if shuffle_seed is None:
-                shuffle_seed = np.random.randint(1 << 60)
-            tensor[0] = shuffle_seed
-        dist.broadcast(tensor, 0)
-        self.shuffle_seed = int(tensor)
+            # Coordinate the shuffle seed across ranks.
+            if world.is_leader:
+                tensor[0] = shuffle_seed
+            dist.broadcast(tensor, 0)
+            self.shuffle_seed = int(tensor)
 
-        # Add a coordinated random prefix to all shm names for uniqueness.
-        if world.is_leader:
-            tensor[0] = np.random.randint(1 << 60)
-        dist.broadcast(tensor, 0)
-        self._prefix = f'{int(tensor):016x}_{self.split}'
+            # Add a coordinated random prefix to all shm names for uniqueness.
+            if world.is_leader:
+                tensor[0] = prefix_int
+            dist.broadcast(tensor, 0)
+            prefix_int = int(tensor)
+        self._prefix = f'{prefix_int:016x}_{self.split}'
 
         # Set up the epoch counter.
         #
