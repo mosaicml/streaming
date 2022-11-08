@@ -47,6 +47,11 @@ jobs:
       #     password: ${{ secrets.TEST_PYPI_API_TOKEN }}
       #     repository_url: https://test.pypi.org/legacy/
 
+      - name: Create release branch
+        run: git checkout -b release/${{ github.ref_name }}
+      - name: Push release branch
+        run: git push origin release/${{ github.ref_name }}
+
       - name: Create GitHub Release
         id: create_release
         uses: actions/create-release@v1
