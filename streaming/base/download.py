@@ -15,7 +15,7 @@ S3_NOT_FOUND_CODES = {'403', '404', 'NoSuchKey'}
 
 
 def download_from_s3(remote: str, local: str, timeout: float) -> None:
-    """Download a file from remote to local.
+    """Download a file from remote AWS S3 to local.
 
     Args:
         remote (str): Remote path (S3).
@@ -94,6 +94,32 @@ def download_from_sftp(remote: str, local: str) -> None:
     os.rename(local_tmp, local)
 
 
+def download_from_gcs(remote: str, local: str) -> None:
+    """Download a file from remote GCS to local.
+
+    Args:
+        remote (str): Remote path (S3).
+        local (str): Local path (local filesystem).
+    """
+    import boto3
+    from botocore.exceptions import ClientError
+
+    obj = urllib.parse.urlparse(remote)
+    if obj.scheme != 's3':
+        raise ValueError(f'Expected obj.scheme to be "gs", got {obj.scheme} for remote={remote}')
+
+    gcs_client = boto3.client('s3',
+                              region_name='auto',
+                              endpoint_url='https://storage.googleapis.com',
+                              aws_access_key_id=os.environ['GCS_KEY'],
+                              aws_secret_access_key=os.environ['GCS_SECRET'])
+    try:
+        gcs_client.download_file(obj.netloc, obj.path.lstrip('/'), local)
+    except ClientError as e:
+        if e.response['Error']['Code'] in S3_NOT_FOUND_CODES:
+            raise FileNotFoundError(f'Object {remote} not found.') from e
+
+
 def download_from_local(remote: str, local: str) -> None:
     """Download a file from remote to local.
 
@@ -129,6 +155,8 @@ def download(remote: Optional[str], local: str, timeout: float):
         download_from_s3(remote, local, timeout)
     elif remote.startswith('sftp://'):
         download_from_sftp(remote, local)
+    elif remote.startswith('gs://'):
+        download_from_gcs(remote, local)
     else:
         download_from_local(remote, local)
 
