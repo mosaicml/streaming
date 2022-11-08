@@ -85,7 +85,7 @@ extra_deps['docs'] = [
     'sphinxcontrib-images==0.9.4',
     'sphinxcontrib.katex==0.9.0',
     'sphinxemoji==0.2.0',
-    'sphinxext.opengraph==0.6.3',
+    'sphinxext.opengraph==0.7.2',
 ]
 
 extra_deps['all'] = set(dep for deps in extra_deps.values() for dep in deps)
