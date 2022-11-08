@@ -105,7 +105,7 @@ def download_from_gcs(remote: str, local: str) -> None:
     from botocore.exceptions import ClientError
 
     obj = urllib.parse.urlparse(remote)
-    if obj.scheme != 's3':
+    if obj.scheme != 'gs':
         raise ValueError(f'Expected obj.scheme to be "gs", got {obj.scheme} for remote={remote}')
 
     gcs_client = boto3.client('s3',
