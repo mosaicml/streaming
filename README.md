@@ -28,6 +28,9 @@
     <a href="https://pypi.org/project/mosaicml-streaming/">
         <img alt="PyPi Package Version" src="https://img.shields.io/pypi/v/mosaicml-streaming">
     </a>
+    <a href="https://github.com/mosaicml/streaming/actions?query=workflow%3ATest">
+        <img alt="Unit test" src="https://github.com/mosaicml/streaming/actions/workflows/pytest.yaml/badge.svg">
+    </a>
     <a href="https://pypi.org/project/mosaicml-streaming/">
         <img alt="PyPi Downloads" src="https://img.shields.io/pypi/dm/mosaicml-streaming">
     </a>
