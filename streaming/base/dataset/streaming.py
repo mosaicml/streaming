@@ -326,6 +326,7 @@ class Dataset(IterableDataset):
             Optional[NDArray[np.int64]]: Our partition of the epoch.
         """
         shm_name = f'{self._prefix}_ordering'
+        shm_actual_num_sample = f'{self._prefix}_num_sample'
 
         # Local leader generates the global ordering of samples this epoch.
         if world.is_local_leader:
@@ -335,15 +336,25 @@ class Dataset(IterableDataset):
             if not len(ids):
                 return None
             shm_size = len(ids.tobytes())
+            shm_num_sample_size = np.int64(0).nbytes
             leader_shm = SharedMemory(shm_name, True, shm_size)
-            leader_shm.buf[:] = ids.tobytes()
+            # Sometimes, SharedMemory allocates more memory block than expected and hard to get
+            # the actual data size. Hence, hold a second SharedMemory object to save the actual
+            # data size to calculate total number of samples across all `num_workers`.
+            leader_shm_num_samples = SharedMemory(shm_actual_num_sample, True, shm_num_sample_size)
+            # Sometimes, the exact size of the shared memory block may be larger or
+            # equal to the size requested
+            leader_shm.buf[:shm_size] = ids.tobytes()
+            leader_shm_num_samples.buf[:shm_num_sample_size] = np.int64(shm_size).tobytes()
 
         # Wait for local leader to populate the shared memory object.
         self._worker_barrier(world.num_workers)
 
         # Each worker extracts its partition from the global shuffle.
+        shm_actual_num_sample = SharedMemory(shm_actual_num_sample)
+        shm_size = np.ndarray(1, buffer=shm_actual_num_sample.buf, dtype=np.int64)
         shm = SharedMemory(shm_name)
-        num_samples = len(shm.buf) // np.int64(0).nbytes
+        num_samples = shm_size // np.int64(0).nbytes
         ids = np.ndarray(num_samples, buffer=shm.buf, dtype=np.int64)
         ids = ids[world.worker::world.num_workers].copy()  # TODO: partition correctly.
         shm.close()
