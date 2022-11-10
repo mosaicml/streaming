@@ -172,7 +172,8 @@ class Dataset(IterableDataset):
         prefix_int = np.random.randint(1 << 60)
         if 1 < world.num_ranks:
             # Setup for coordinating.
-            device = torch.device(f'cuda:{world.rank_of_node}')
+            device_prefix = 'cuda' if torch.cuda.is_available() else 'cpu'
+            device = torch.device(f'{device_prefix}:{world.rank_of_node}')
             tensor = torch.zeros(1, dtype=torch.int64, device=device)
 
             # Coordinate the shuffle seed across ranks.
