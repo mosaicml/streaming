@@ -53,6 +53,8 @@ class SharedBarrier:
         """Destructor clears array that references shm."""
         try:
             del self._arr
+            self._shm.close()
+            self._shm.unlink()
         except:
             pass
 
