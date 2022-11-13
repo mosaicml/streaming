@@ -19,13 +19,13 @@ from torch.utils.data import IterableDataset
 
 from streaming.base import distributed as dist
 from streaming.base.compression import decompress
-from streaming.base.download import download
 from streaming.base.format import reader_from_json
 from streaming.base.format.base.reader import FileInfo
 from streaming.base.hashing import get_hash
 from streaming.base.index import Index, get_index_basename
 from streaming.base.shared import SharedBarrier
 from streaming.base.shuffle import get_shuffle
+from streaming.base.storage import download
 from streaming.base.world import World
 
 # Time to wait, in seconds.
