@@ -45,7 +45,7 @@ class TestBrotli:
         assert output == data
 
     @pytest.mark.parametrize('data', [100, 1.2, 'bigdata'])
-    def test_exception(self, data: Any):
+    def test_invalid_data(self, data: Any):
         brotli = Brotli()
         with pytest.raises(TypeError):
             _ = brotli.compress(data)
@@ -82,7 +82,7 @@ class TestBzip2:
         assert output == data
 
     @pytest.mark.parametrize('data', [100, 1.2, 'bigdata'])
-    def test_exception(self, data: Any):
+    def test_invalid_data(self, data: Any):
         bzip2 = Bzip2()
         with pytest.raises(TypeError):
             _ = bzip2.compress(data)
@@ -119,7 +119,7 @@ class TestGzip:
         assert output == data
 
     @pytest.mark.parametrize('data', [100, 1.2, 'bigdata'])
-    def test_exception(self, data: Any):
+    def test_invalid_data(self, data: Any):
         gzip = Gzip()
         with pytest.raises(TypeError):
             _ = gzip.compress(data)
@@ -146,7 +146,7 @@ class TestSnappy:
         assert output == data
 
     @pytest.mark.parametrize('data', [100, 1.2])
-    def test_exception(self, data: Any):
+    def test_invalid_data(self, data: Any):
         snappy = Snappy()
         with pytest.raises(TypeError):
             _ = snappy.compress(data)
@@ -183,7 +183,7 @@ class TestZstandard:
         assert output == data
 
     @pytest.mark.parametrize('data', [100, 1.2, 'bigdata'])
-    def test_exception(self, data: Any):
+    def test_invalid_data(self, data: Any):
         zstd = Zstandard()
         with pytest.raises(TypeError):
             _ = zstd.compress(data)
@@ -204,22 +204,38 @@ def test_success_get_compression_extension(algo: str):
 
 
 @pytest.mark.parametrize('algo', ['xyz'])
-def test_exception_get_compression_extension(algo: str):
+def test_invalid_compression_extension(algo: str):
     with pytest.raises(ValueError) as exc_info:
         _ = get_compression_extension(algo)
     assert exc_info.match(r'.*is not a supported compression algorithm.*')
 
 
-def test_compress():
-    data = compress('br:1', b'hello')
-    expected_data = b'\x0b\x02\x80hello\x03'
-    assert data == expected_data
+@pytest.mark.parametrize(
+    ('algo', 'data', 'expected_data'), [('br:1', b'hello', b'\x0b\x02\x80hello\x03'),
+                                        (None, b'hello', b'hello')])
+def test_compress(algo: Optional[str], data: bytes, expected_data: bytes):
+    output = compress(algo, data)
+    assert output == expected_data
 
 
-def test_decompress():
-    data = decompress('br:1', b'\x0b\x02\x80hello\x03')
-    expected_data = b'hello'
-    assert data == expected_data
+def test_compress_invalid_compression_algo():
+    with pytest.raises(ValueError) as exc_info:
+        _ = compress('br:99', b'hello')
+    assert exc_info.match(r'.*is not a supported compression algorithm.*')
+
+
+@pytest.mark.parametrize(('algo', 'data', 'expected_data'),
+                         [('br:1', b'\x0b\x02\x80hello\x03', b'hello'),
+                          (None, b'\x0b\x02\x80hello\x03', b'\x0b\x02\x80hello\x03')])
+def test_decompress(algo: Optional[str], data: bytes, expected_data: bytes):
+    output = decompress(algo, data)
+    assert output == expected_data
+
+
+def test_decompress_invalid_compression_algo():
+    with pytest.raises(ValueError) as exc_info:
+        _ = decompress('gz:99', b'\x0b\x02\x80hello\x03')
+    assert exc_info.match(r'.*is not a supported compression algorithm.*')
 
 
 def check_for_diff_files(dir: dircmp, compression_ext: Union[None, str]):

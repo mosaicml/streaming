@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 @pytest.mark.parametrize('batch_size', [None, 1, 2])
 @pytest.mark.parametrize('remote_arg', ['none', 'same', 'different'])
 @pytest.mark.parametrize('shuffle', [False, True])
+@pytest.mark.usefixtures('remote_local')
 def test_reader(remote_local: Tuple[str, str], batch_size: int, remote_arg: str, shuffle: bool):
     num_samples = 117
     size_limit = 1 << 8
@@ -84,6 +85,7 @@ def test_reader(remote_local: Tuple[str, str], batch_size: int, remote_arg: str,
         'shard',
     ],
 )
+@pytest.mark.usefixtures('remote_local')
 def test_reader_download_fail(remote_local: Tuple[str, str], missing_file: str):
     num_samples = 117
     size_limit = 1 << 8
@@ -112,6 +114,7 @@ def test_reader_download_fail(remote_local: Tuple[str, str], missing_file: str):
 @pytest.mark.parametrize('created_ago', [0.5, 3])
 @pytest.mark.parametrize('download_timeout', [1])
 @pytest.mark.parametrize('compression', [None])
+@pytest.mark.usefixtures('remote_local')
 def test_reader_after_crash(remote_local: Tuple[str, str], created_ago: float,
                             download_timeout: float, compression: str) -> None:
     compression_ext = f'.{compression.split(":")[0]}' if compression is not None else ''
@@ -151,6 +154,7 @@ def test_reader_after_crash(remote_local: Tuple[str, str], created_ago: float,
         False,
     ],
 )
+@pytest.mark.usefixtures('remote_local')
 def test_reader_getitem(remote_local: Tuple[str, str], share_remote_local: bool) -> None:
     num_samples = 117
     size_limit = 1 << 8
@@ -176,6 +180,7 @@ def test_reader_getitem(remote_local: Tuple[str, str], share_remote_local: bool)
 @pytest.mark.parametrize('num_workers', [1, 8])
 @pytest.mark.parametrize('num_samples', [9867, 100_000])
 @pytest.mark.parametrize('size_limit', [8_192, 65_536])
+@pytest.mark.usefixtures('remote_local')
 def test_dataloader_single_device(remote_local: Tuple[str, str], batch_size: int, drop_last: bool,
                                   num_workers: int, num_samples: int, size_limit: int):
     dataset = SequenceDataset(num_samples)

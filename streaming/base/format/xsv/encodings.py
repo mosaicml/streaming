@@ -15,28 +15,34 @@ class Encoding(ABC):
     @classmethod
     @abstractmethod
     def encode(cls, obj: Any) -> str:
-        """Encode the object.
+        """Encode the given data from the original object to string.
 
         Args:
-            obj (Any): The object.
+            obj (Any): Decoded object.
 
         Returns:
-            str: String form.
+            str: Encoded data in string form.
         """
         raise NotImplementedError
 
     @classmethod
     @abstractmethod
     def decode(cls, obj: str) -> Any:
-        """Decode the object.
+        """Decode the given data from string to the original object.
 
         Args:
-            obj (str): String form.
+            obj (str): Encoded data in string form.
 
         Returns:
-            Any: The object.
+            Any: Decoded object.
         """
         raise NotImplementedError
+
+    @staticmethod
+    def _validate(data: Any, expected_type: Any) -> None:
+        if not isinstance(data, expected_type):
+            raise AttributeError(
+                f'data should be of type {expected_type}, but instead, found as {type(data)}')
 
 
 class Str(Encoding):
@@ -44,7 +50,7 @@ class Str(Encoding):
 
     @classmethod
     def encode(cls, obj: Any) -> str:
-        assert isinstance(obj, str)
+        cls._validate(obj, str)
         return obj
 
     @classmethod
@@ -57,7 +63,7 @@ class Int(Encoding):
 
     @classmethod
     def encode(cls, obj: Any) -> str:
-        assert isinstance(obj, int)
+        cls._validate(obj, int)
         return str(obj)
 
     @classmethod
@@ -70,7 +76,7 @@ class Float(Encoding):
 
     @classmethod
     def encode(cls, obj: Any) -> str:
-        assert isinstance(obj, float)
+        cls._validate(obj, float)
         return str(obj)
 
     @classmethod
@@ -82,7 +88,7 @@ _encodings = {'str': Str, 'int': Int, 'float': Float}
 
 
 def is_xsv_encoding(encoding: str) -> bool:
-    """Get whether this is a supported encoding.
+    """Get whether the given encoding is supported.
 
     Args:
         encoding (str): Encoding.
@@ -94,28 +100,28 @@ def is_xsv_encoding(encoding: str) -> bool:
 
 
 def xsv_encode(encoding: str, value: Any) -> str:
-    """Encode the object.
+    """Encode the given data from the original object to string.
 
     Args:
-        encoding (str): The encoding.
-        value (Any): The object.
+        encoding (str): Encoding name.
+        value (Any): Object to encode.
 
     Returns:
-        str: String form.
+        str: Data in string form.
     """
     cls = _encodings[encoding]
     return cls.encode(value)
 
 
 def xsv_decode(encoding: str, value: str) -> Any:
-    """Encode the object.
+    """Decode the given data from string to the original object.
 
     Args:
-        encoding (str): The encoding.
-        value (str): String form.
+        encoding (str): Encoding name.
+        value (str): Object to decode.
 
     Returns:
-        Any: The object.
+        Any: Decoded object.
     """
     cls = _encodings[encoding]
     return cls.decode(value)
