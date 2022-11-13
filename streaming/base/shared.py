@@ -20,7 +20,7 @@ TICK = 0.07
 class SharedBarrier:
     """A barrier that works inter-process using a file lock and shared memory.
 
-    We set the number of processes (and thereby initialilze num_exit) on the first time this object
+    We set the number of processes (and thereby initialize num_exit) on the first time this object
     is called. This is because the object is created in a per-rank process, and called by worker
     processes.
 
