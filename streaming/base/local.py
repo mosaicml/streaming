@@ -11,12 +11,12 @@ import numpy as np
 from torch.utils.data import Dataset
 
 from streaming.base.format import reader_from_json
-from streaming.base.index import Index
+from streaming.base.index import Index, get_index_basename
 
-__all__ = ['LocalMapDataset']
+__all__ = ['LocalDataset']
 
 
-class LocalMapDataset(Dataset):
+class LocalDataset(Dataset):
     """A streaming dataset whose shards reside locally as a pytorch Dataset.
 
     Args:
@@ -30,9 +30,10 @@ class LocalMapDataset(Dataset):
         self.local = local
         self.split = split
 
-        filename = os.path.join(local, split, 'index.json')  # pyright: ignore
+        filename = os.path.join(local, split, get_index_basename())  # pyright: ignore
         obj = json.load(open(filename))
-        assert obj['version'] == 2
+        if obj['version'] != 2:
+            raise ValueError('Unsupported version')
 
         self.shards = []
         for info in obj['shards']:
@@ -50,15 +51,15 @@ class LocalMapDataset(Dataset):
         """
         return self.index.total_samples
 
-    def __getitem__(self, index: int) -> Dict[str, Any]:
-        """Get sample by global index.
+    def __getitem__(self, sample_id: int) -> Dict[str, Any]:
+        """Get sample by global sample ID.
 
         Args:
-            index (int): Sample index.
+            sample_id (int): Sample ID.
 
         Returns:
             Dict[str, Any]: Column name with sample data.
         """
-        shard, index_in_shard = self.index.find_sample(index)
-        reader = self.shards[shard]
-        return reader[index_in_shard]
+        shard_id, index_in_shard = self.index.find_sample(sample_id)
+        shard = self.shards[shard_id]
+        return shard[index_in_shard]
