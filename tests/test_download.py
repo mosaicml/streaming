@@ -23,14 +23,18 @@ def bucket_name():
     return MY_BUCKET
 
 
-@pytest.fixture()
+@pytest.fixture(scope='function')
 def remote_local_file() -> Any:
+    """Creates a temporary directory and then deletes it when the calling function is done."""
 
     def _method(cloud_prefix: str = '', filename: str = 'file.txt') -> Tuple[str, str]:
-        mock_local_dir = tempfile.TemporaryDirectory()
-        mock_local_filepath = os.path.join(mock_local_dir.name, filename)
-        mock_remote_filepath = os.path.join(cloud_prefix, MY_BUCKET, MY_PREFIX, filename)
-        return mock_remote_filepath, mock_local_filepath
+        try:
+            mock_local_dir = tempfile.TemporaryDirectory()
+            mock_local_filepath = os.path.join(mock_local_dir.name, filename)
+            mock_remote_filepath = os.path.join(cloud_prefix, MY_BUCKET, MY_PREFIX, filename)
+            return mock_remote_filepath, mock_local_filepath
+        finally:
+            mock_local_dir.cleanup()  # pyright: ignore
 
     return _method
 

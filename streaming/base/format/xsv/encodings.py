@@ -103,8 +103,8 @@ def xsv_encode(encoding: str, value: Any) -> str:
     """Encode the given data from the original object to string.
 
     Args:
-        encoding (str): Encoding.
-        value (Any): Decoded object.
+        encoding (str): Encoding name.
+        value (Any): Object to encode.
 
     Returns:
         str: Data in string form.
@@ -117,8 +117,8 @@ def xsv_decode(encoding: str, value: str) -> Any:
     """Decode the given data from string to the original object.
 
     Args:
-        encoding (str): Encoding.
-        value (str): Encoded data.
+        encoding (str): Encoding name.
+        value (str): Object to decode.
 
     Returns:
         Any: Decoded object.

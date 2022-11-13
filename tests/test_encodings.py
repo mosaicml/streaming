@@ -79,7 +79,7 @@ class TestMDSEncodings:
         pil_enc = mdsEnc.PIL()
         assert pil_enc.size is None
 
-        # Creating the 32 X 32 NumPy Array with random values
+        # Creating the (32 x 32) NumPy Array with random values
         np_data = np.random.randint(255, size=(32, 32), dtype=np.uint32)
         # Default image mode of PIL Image is 'I'
         img = Image.fromarray(np_data).convert(mode)
@@ -108,7 +108,7 @@ class TestMDSEncodings:
         jpeg_enc = mdsEnc.JPEG()
         assert jpeg_enc.size is None
 
-        # Creating the 32 X 32 NumPy Array with random values
+        # Creating the (32 x 32) NumPy Array with random values
         np_data = np.random.randint(255, size=(32, 32), dtype=np.uint32)
         # Default image mode of PIL Image is 'I'
         img = Image.fromarray(np_data).convert(mode)
@@ -133,7 +133,7 @@ class TestMDSEncodings:
         png_enc = mdsEnc.PNG()
         assert png_enc.size is None
 
-        # Creating the 32 X 32 NumPy Array with random values
+        # Creating the (32 x 32) NumPy Array with random values
         np_data = np.random.randint(255, size=(32, 32), dtype=np.uint32)
         # Default image mode of PIL Image is 'I'
         img = Image.fromarray(np_data).convert(mode)

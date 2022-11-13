@@ -5,6 +5,7 @@ import logging
 import math
 import os
 from typing import Tuple
+from unittest import mock
 
 import pytest
 import torch.distributed as dist
@@ -51,8 +52,8 @@ class TestAllgatherObject(DistributedTest):
         assert output == expected_data
 
 
+@mock.patch.dict(os.environ, {'WORLD_SIZE': '2'})
 def test_all_gather_object_non_dist_exception():
-    os.environ['WORLD_SIZE'] = '2'
     with pytest.raises(RuntimeError):
         _ = ms_dist.all_gather_object(5)
 
