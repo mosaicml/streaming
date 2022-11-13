@@ -7,12 +7,12 @@ from typing import Any, Optional
 
 import numpy as np
 
-from streaming.base import Dataset
+from streaming.base import StreamingDataset
 
-__all__ = ['EnWiki']
+__all__ = ['StreamingEnWiki']
 
 
-class EnWiki(Dataset):
+class StreamingEnWiki(StreamingDataset):
     """Implementation of the English Wikipedia 2020-01-01 streaming dataset.
 
     Args:

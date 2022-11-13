@@ -9,13 +9,13 @@ dataset.
 
 from typing import Any, Callable, Optional, Tuple
 
-from streaming.base import Dataset
+from streaming.base import StreamingDataset
 
-__all__ = ['ADE20K']
+__all__ = ['StreamingADE20K']
 
 
-class ADE20K(Dataset):
-    """Implementation of the ADE20K dataset using streaming Dataset.
+class StreamingADE20K(StreamingDataset):
+    """Implementation of the ADE20K dataset using StreamingDataset.
 
     Args:
         local (str): Local dataset directory where shards are cached by split.

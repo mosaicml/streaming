@@ -11,7 +11,7 @@ import torch.distributed as dist
 from torch.utils.data import DataLoader
 
 import streaming.base.distributed as ms_dist
-from streaming.base import Dataset
+from streaming.base import StreamingDataset
 from tests.common.datasets import *
 from tests.common.distributed import DistributedTest
 from tests.common.utils import *
@@ -68,11 +68,11 @@ class TestInit(DistributedTest):
                                               size_limit=size_limit)
         dist.barrier()
 
-        # Build a streaming Dataset
-        dataset = Dataset(local=node_local,
-                          remote=remote,
-                          shuffle=True,
-                          batch_size=per_rank_batch_size)
+        # Build a StreamingDataset
+        dataset = StreamingDataset(local=node_local,
+                                   remote=remote,
+                                   shuffle=True,
+                                   batch_size=per_rank_batch_size)
 
         # Build DataLoader
         dataloader = DataLoader(dataset=dataset,

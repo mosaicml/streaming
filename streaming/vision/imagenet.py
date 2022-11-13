@@ -7,13 +7,13 @@ The most widely used dataset for Image Classification algorithms. Please refer t
 2012 Classification Dataset <http://image-net.org/>`_ for more details.
 """
 
-from streaming.vision.base import ImageClassDataset
+from streaming.vision.base import StreamingImageClassDataset
 
-__all__ = ['ImageNet']
+__all__ = ['StreamingImageNet']
 
 
-class ImageNet(ImageClassDataset):
-    """Implementation of the ImageNet dataset using streaming Dataset.
+class StreamingImageNet(StreamingImageClassDataset):
+    """Implementation of the ImageNet dataset using StreamingDataset.
 
     Args:
         local (str): Local dataset directory where shards are cached by split.

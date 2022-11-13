@@ -9,13 +9,13 @@ COCO is a large-scale object detection, segmentation, and captioning dataset. Pl
 
 from typing import Any, Callable, Optional
 
-from streaming.base import Dataset
+from streaming.base import StreamingDataset
 
-__all__ = ['COCO']
+__all__ = ['StreamingCOCO']
 
 
-class COCO(Dataset):
-    """Implementation of the COCO dataset using streaming Dataset.
+class StreamingCOCO(StreamingDataset):
+    """Implementation of the COCO dataset using StreamingDataset.
 
     Args:
         local (str): Local dataset directory where shards are cached by split.

@@ -1,7 +1,7 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""A streaming pytorch IterableDataset, resumable mid-epoch, whose shards reside locally."""
+"""A mid-epoch-resumable streaming pytorch IterableDataset."""
 
 import json
 import os
@@ -78,7 +78,7 @@ class _PartitionState:
             sleep(TICK)
 
 
-class Dataset(IterableDataset):
+class StreamingDataset(IterableDataset):
     """A streaming pytorch IterableDataset that is also resumable mid-epoch.
 
     Checkpoints are represented in JSON as follows:

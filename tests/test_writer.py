@@ -9,7 +9,7 @@ from typing import Tuple
 import numpy as np
 import pytest
 
-from streaming import CSVWriter, Dataset, JSONWriter, MDSWriter, TSVWriter, XSVWriter
+from streaming import CSVWriter, JSONWriter, MDSWriter, StreamingDataset, TSVWriter, XSVWriter
 from tests.common.datasets import *
 from tests.common.utils import *
 
@@ -107,7 +107,7 @@ class TestMDSWriter:
         # Apply the seed again for numpy determinism
         dataset.seed = seed
 
-        mds_dataset = Dataset(dirname, shuffle=False)
+        mds_dataset = StreamingDataset(dirname, shuffle=False)
         # Ensure length of dataset is equal
         assert len(dataset) == len(mds_dataset) == num_samples
 
@@ -163,7 +163,7 @@ class TestJSONWriter:
         # Apply the seed again for numpy determinism
         dataset.seed = seed
 
-        mds_dataset = Dataset(dirname, shuffle=False)
+        mds_dataset = StreamingDataset(dirname, shuffle=False)
         # Ensure length of dataset is equal
         assert len(dataset) == len(mds_dataset) == num_samples
 
@@ -243,7 +243,7 @@ class TestXSVWriter:
         # Apply the seed again for numpy determinism
         dataset.seed = seed
 
-        mds_dataset = Dataset(dirname, shuffle=False)
+        mds_dataset = StreamingDataset(dirname, shuffle=False)
         # Ensure length of dataset is equal
         assert len(dataset) == len(mds_dataset) == num_samples
 

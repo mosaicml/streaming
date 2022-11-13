@@ -7,7 +7,7 @@ from typing import Any, Optional, Tuple, Union
 import numpy as np
 import pytest
 
-from streaming.base import Dataset
+from streaming.base import StreamingDataset
 from streaming.base.compression import (Brotli, Bzip2, Gzip, Snappy, Zstandard, compress,
                                         decompress, get_compression_extension, is_compression)
 from tests.common.datasets import *
@@ -259,7 +259,7 @@ def test_dataset_compression(compressed_remote_local: Tuple[str, str, str],
                                       size_limit=size_limit,
                                       compression=None)
 
-    dataset = Dataset(local=local, remote=compressed, shuffle=shuffle)
+    dataset = StreamingDataset(local=local, remote=compressed, shuffle=shuffle)
 
     for _ in dataset:
         pass  # download sample

@@ -48,18 +48,18 @@ Start training your model with the Streaming dataset in a few steps!
     $ aws s3 cp dirname s3://mybucket/myfolder --recursive
     ```
 
-3. Replace the original {class}`torch.utils.data.IterableDataset` with your new {class}`streaming.Dataset`.
+3. Replace the original {class}`torch.utils.data.IterableDataset` with your new {class}`streaming.StreamingDataset`.
     <!--pytest.mark.skip-->
     ```python
     from torch.utils.data import DataLoader
-    from streaming import Dataset
+    from streaming import StreamingDataset
 
     # Remote directory (S3 or local filesystem) where dataset is stored
     remote_dir = 's3://datapath'
 
     # Local directory where dataset is cached during operation
     local_dir = 'local_dir'
-    dataset = Dataset(local=local_dir, remote=remote_dir, split=None, shuffle=True)
+    dataset = StreamingDataset(local=local_dir, remote=remote_dir, split=None, shuffle=True)
 
     # Create PyTorch DataLoader
     dataloader = DataLoader(dataset)

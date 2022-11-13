@@ -7,13 +7,13 @@ It is one of the most widely used datasets for machine learning research. Please
 `CIFAR-10 Dataset <https://www.cs.toronto.edu/~kriz/cifar.html>`_ for more details.
 """
 
-from streaming.vision.base import ImageClassDataset
+from streaming.vision.base import StreamingImageClassDataset
 
-__all__ = ['CIFAR10']
+__all__ = ['StreamingCIFAR10']
 
 
-class CIFAR10(ImageClassDataset):
-    """Implementation of the CIFAR-10 dataset using streaming Dataset.
+class StreamingCIFAR10(StreamingImageClassDataset):
+    """Implementation of the CIFAR-10 dataset using StreamingDataset.
 
     Args:
         local (str): Local dataset directory where shards are cached by split.

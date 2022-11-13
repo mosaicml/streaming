@@ -9,7 +9,7 @@ from torch import Tensor
 from torch.utils.data import DataLoader
 from transformers.tokenization_utils_base import BatchEncoding
 
-from streaming.base.dataset import Dataset
+from streaming.base.dataset import StreamingDataset
 from streaming.base.world import World
 
 
@@ -70,7 +70,7 @@ class StreamingDataLoader(DataLoader):
         Returns:
             Optional[Dict[str, Any]]: The state, if a streaming dataset.
         """
-        if isinstance(self.dataset, Dataset):
+        if isinstance(self.dataset, StreamingDataset):
             world = World()
             return self.dataset.state_dict(self.num_samples_yielded * world.num_ranks)
         return None
@@ -83,5 +83,5 @@ class StreamingDataLoader(DataLoader):
         Args:
             obj (Dict[str, Any]): The state.
         """
-        if isinstance(self.dataset, Dataset):
+        if isinstance(self.dataset, StreamingDataset):
             return self.dataset.load_state_dict(obj)

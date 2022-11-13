@@ -1,16 +1,16 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Base class for making Computer Vision datasets which are compatible with :class:`Dataset`."""
+"""Base classes for computer vision :class:`StreamingDataset`s."""
 
 from typing import Any, Callable, Optional, Tuple
 
-from torchvision.datasets import VisionDataset as TorchVisionVisionDataset
+from torchvision.datasets import VisionDataset
 from torchvision.transforms.functional import to_tensor
 
-from streaming.base import Dataset
+from streaming.base import StreamingDataset
 
-__all__ = ['VisionDataset', 'ImageClassDataset']
+__all__ = ['StreamingVisionDataset', 'StreamingImageClassDataset']
 
 
 class StandardTransform:
@@ -46,7 +46,7 @@ class StandardTransform:
         return x, y
 
 
-class VisionDataset(Dataset, TorchVisionVisionDataset):
+class StreamingVisionDataset(StreamingDataset, VisionDataset):
     """A streaming, iterable, torchvision VisionDataset.
 
     Args:
@@ -128,8 +128,8 @@ class VisionDataset(Dataset, TorchVisionVisionDataset):
         return self.transforms(x, y)
 
 
-class ImageClassDataset(VisionDataset):
-    """Base class for creating an Image Classification streaming datasets.
+class StreamingImageClassDataset(StreamingVisionDataset):
+    """A streaming, iterable, image classification dataset.
 
     Args:
         local (str): Local dataset directory where shards are cached by split.
