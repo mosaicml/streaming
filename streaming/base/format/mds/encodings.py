@@ -46,14 +46,21 @@ class Encoding(ABC):
         """
         raise NotImplementedError
 
+    @staticmethod
+    def _validate(data: Any, expected_type: Any) -> None:
+        if not isinstance(data, expected_type):
+            raise AttributeError(
+                f'data should be of type {expected_type}, but instead, found as {type(data)}')
+
 
 class Bytes(Encoding):
     """Store bytes (no-op encoding)."""
 
-    def encode(self, obj: Any) -> bytes:
+    def encode(self, obj: bytes) -> bytes:
+        self._validate(obj, bytes)
         return obj
 
-    def decode(self, data: bytes) -> Any:
+    def decode(self, data: bytes) -> bytes:
         return data
 
 
@@ -61,6 +68,7 @@ class Str(Encoding):
     """Store UTF-8."""
 
     def encode(self, obj: str) -> bytes:
+        self._validate(obj, str)
         return obj.encode('utf-8')
 
     def decode(self, data: bytes) -> str:
@@ -73,6 +81,7 @@ class Int(Encoding):
     size = 8
 
     def encode(self, obj: int) -> bytes:
+        self._validate(obj, int)
         return np.int64(obj).tobytes()
 
     def decode(self, data: bytes) -> int:
@@ -86,6 +95,7 @@ class PIL(Encoding):
     """
 
     def encode(self, obj: Image.Image) -> bytes:
+        self._validate(obj, Image.Image)
         mode = obj.mode.encode('utf-8')
         width, height = obj.size
         raw = obj.tobytes()
@@ -106,6 +116,7 @@ class JPEG(Encoding):
     """Store PIL image as JPEG."""
 
     def encode(self, obj: Image.Image) -> bytes:
+        self._validate(obj, Image.Image)
         out = BytesIO()
         obj.save(out, format='JPEG')
         return out.getvalue()
@@ -119,6 +130,7 @@ class PNG(Encoding):
     """Store PIL image as PNG."""
 
     def encode(self, obj: Image.Image) -> bytes:
+        self._validate(obj, Image.Image)
         out = BytesIO()
         obj.save(out, format='PNG')
         return out.getvalue()
@@ -142,10 +154,19 @@ class JSON(Encoding):
     """Store arbitrary data as JSON."""
 
     def encode(self, obj: Any) -> bytes:
-        return json.dumps(obj).encode('utf-8')
+        data = json.dumps(obj)
+        self._is_valid(obj, data)
+        return data.encode('utf-8')
 
     def decode(self, data: bytes) -> Any:
         return json.loads(data.decode('utf-8'))
+
+    def _is_valid(self, original: Any, converted: Any) -> None:
+        try:
+            json.loads(converted)
+        except json.decoder.JSONDecodeError as e:
+            e.msg = f'Invalid JSON data: {original}'
+            raise
 
 
 # Encodings (name -> class).
