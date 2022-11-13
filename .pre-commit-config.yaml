@@ -76,6 +76,7 @@ repos:
     hooks:
       - id: docformatter
         args: [--in-place, --wrap-summaries=99, --wrap-descriptions=99]
+        exclude: "(tests)"
   - repo: https://github.com/PyCQA/pydocstyle
     hooks:
       - id: pydocstyle

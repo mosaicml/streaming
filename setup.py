@@ -68,6 +68,7 @@ extra_deps['dev'] = [
     'pytest-cov>=4,<5',
     'toml==0.10.2',
     'yamllint==1.28.0',
+    'moto>=4.0,<5',
 ]
 
 extra_deps['docs'] = [

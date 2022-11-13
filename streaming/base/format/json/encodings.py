@@ -10,7 +10,7 @@ __all__ = ['is_json_encoded', 'is_json_encoding']
 
 
 class Encoding(ABC):
-    """JSON types."""
+    """Encoding of an object of JSON type."""
 
     @classmethod
     @abstractmethod
@@ -18,12 +18,19 @@ class Encoding(ABC):
         """Get whether the given object is of this type.
 
         Args:
-            obj (Any): The object.
+            obj (Any): Encoded object.
 
         Returns:
             bool: Whether of this type.
         """
         raise NotImplementedError
+
+    @staticmethod
+    def _validate(data: Any, expected_type: Any) -> bool:
+        if not isinstance(data, expected_type):
+            raise AttributeError(
+                f'data should be of type {expected_type}, but instead, found as {type(data)}')
+        return True
 
 
 class Str(Encoding):
@@ -31,7 +38,7 @@ class Str(Encoding):
 
     @classmethod
     def is_encoded(cls, obj: Any) -> bool:
-        return isinstance(obj, str)
+        return cls._validate(obj, str)
 
 
 class Int(Encoding):
@@ -39,7 +46,7 @@ class Int(Encoding):
 
     @classmethod
     def is_encoded(cls, obj: Any) -> bool:
-        return isinstance(obj, int)
+        return cls._validate(obj, int)
 
 
 class Float(Encoding):
@@ -47,7 +54,7 @@ class Float(Encoding):
 
     @classmethod
     def is_encoded(cls, obj: Any) -> bool:
-        return isinstance(obj, float)
+        return cls._validate(obj, float)
 
 
 _encodings = {'str': Str, 'int': Int, 'float': Float}
@@ -68,7 +75,7 @@ def is_json_encoded(encoding: str, value: Any) -> bool:
 
 
 def is_json_encoding(encoding: str) -> bool:
-    """Get whether this is a supported encoding.
+    """Get whether the given encoding is supported.
 
     Args:
         encoding (str): Encoding.
