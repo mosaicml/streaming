@@ -168,7 +168,7 @@ def get_shuffle(shard_sizes: NDArray[np.int64],
     # Pad the end of each worker's segment to be even.
     max_len = max(map(len, arrs))
     for i, arr in enumerate(arrs):
-        pad = [-1] * (max_len - len(arr))
+        pad = np.array([-1] * (max_len - len(arr)), np.int64)
         arrs[i] = np.concatenate([arr, pad])
 
     # Return a single interleaved list of sample IDs in order (via stack, transpose, and flatten).
