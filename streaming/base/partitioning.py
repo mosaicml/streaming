@@ -1,10 +1,38 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+"""Calculates how to partition the sample space to devices and workers."""
+
 from math import ceil
 from typing import List, Optional, Tuple
 
 import numpy as np
+
+
+def _get_min_max_size(start: int, total: int, part: int, num_parts: int):
+    """Splits a range (start, start+total) into num_parts.
+
+    Requirements:
+    * Each part spans a continguous range [part_min_id, part_max_id]
+    * Each part_i starts immediately from where the previous part_[i-1] stopped
+    * All parts have the same number of items,
+    * Except the first K parts may have exactly 1 more item
+
+    Args:
+        start (int): Start sample.
+        total (int): Total samples.
+        part (int): Parttition.
+        num_parts (int): Number of partitions.
+
+    Returns:
+        Tuple[int, int, int]: Partition min ID, partition max ID, partition size.
+    """
+    sizes = [ceil((total - p) / num_parts) for p in range(num_parts)]
+    min_ids = np.cumsum([0] + sizes)
+    part_min_id = start + min_ids[part]
+    part_max_id = start + min_ids[part + 1] - 1
+    part_size = sizes[part]
+    return part_min_id, part_max_id, part_size
 
 
 def _get_partition(global_device: int,
@@ -62,20 +90,6 @@ def _get_partition(global_device: int,
     Returns:
         Partition: This worker's partition of the dataset.
     """
-
-    # Splits a range (start, start+total) into num_parts such that:
-    # each part spans a continguous range [part_min_id, part_max_id]
-    # each part_i starts immediately from where the previous part_[i-1] stopped
-    # all parts have the same number of items,
-    # except the first K parts may have exactly 1 more item
-    def _get_min_max_size(start: int, total: int, part: int, num_parts: int):
-        sizes = [ceil((total - p) / num_parts) for p in range(num_parts)]
-        min_ids = np.cumsum([0] + sizes)
-        part_min_id = start + min_ids[part]
-        part_max_id = start + min_ids[part + 1] - 1
-        part_size = sizes[part]
-        return part_min_id, part_max_id, part_size
-
     device_min_id, _, device_samples = _get_min_max_size(0, dataset_size, global_device,
                                                          global_num_devices)
 
