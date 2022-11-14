@@ -4,11 +4,10 @@
 """Helper methods to get the shard attributes."""
 
 from math import ceil
-from typing import List, Optional, Tuple
+from typing import Tuple
 
 import numpy as np
 from numpy.typing import NDArray
-from torch.utils.data import get_worker_info
 
 from streaming.base import distributed as dist
 
@@ -35,7 +34,6 @@ class Index(object):
 
     def __init__(self, samples_per_shard: NDArray[np.int64]) -> None:
         self.samples_per_shard = samples_per_shard
-        self.batch_size = batch_size
 
         self.total_samples = sum(samples_per_shard)
         self.shard_offsets = samples_per_shard.cumsum() - samples_per_shard

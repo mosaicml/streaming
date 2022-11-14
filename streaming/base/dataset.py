@@ -70,7 +70,9 @@ class _PartitionState:
         """
         while self.iter_index < self.total:
             if self.iter_index < self.download_index:
-                yield self.sample_ids[self.iter_index]
+                sample_id = self.sample_ids[self.iter_index]
+                if sample_id != -1:  # If -1, we skip.
+                    yield sample_id
                 self.iter_index += 1
                 continue
             if self.is_stopped:
@@ -331,7 +333,8 @@ class StreamingDataset(IterableDataset):
         # Local leader generates the global ordering of samples this epoch.
         if world.is_local_leader:
             sample_ids = get_shuffle(self.shard_sizes, self.shuffle, self.shuffle_seed,
-                                     self.shuffle_world_size, epoch)
+                                     self.shuffle_world_size, world.workers_per_rank, epoch,
+                                     self.batch_size)
             sample_ids = sample_ids[sample_in_epoch:]
             if not len(sample_ids):
                 return None
@@ -351,8 +354,7 @@ class StreamingDataset(IterableDataset):
         shm_size = np.ndarray(1, buffer=shm.buf[:int64_bytes], dtype=np.int64)
         num_samples = shm_size // int64_bytes
         sample_ids = np.ndarray(num_samples, buffer=shm.buf[int64_bytes:], dtype=np.int64)
-        sample_ids = sample_ids[world.worker::world.num_workers].copy(
-        )  # TODO: partition correctly.
+        sample_ids = sample_ids[world.worker::world.num_workers].copy()
         shm.close()
 
         # Wait for all workers to load from that shared memory.
@@ -547,8 +549,13 @@ class StreamingDataset(IterableDataset):
                     sleep(TICK)
                     continue
 
-            # Download and decompress the shard for this sample, if not already done.
+            # If we hit -1, we skip.
             sample_id = state.sample_ids[state.download_index]
+            if sample_id == -1:
+                state.download_index += 1
+                continue
+
+            # Download and decompress the shard for this sample, if not already done.
             shard_id, _ = self.index.find_sample(sample_id)
             self._download_or_await_shard(shard_states_lock, shard_states, shard_id)
             state.download_index += 1

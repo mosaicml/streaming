@@ -3,10 +3,12 @@
 
 """Slice, shuffle, and dice epochs of samples across worker partitions."""
 
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 from numpy.typing import NDArray
+
+from streaming.base.partitioning import get_partitions
 
 
 class _Shard(object):
@@ -56,7 +58,7 @@ def _shards_to_samples(shards: List[_Shard]) -> NDArray[np.int64]:
     return np.array([], np.int64)
 
 
-def _break_into_balanced_parts(shards: List[_Shard], num_parts: int) -> List[List[_Shard]]:
+def _partition(shards: List[_Shard], num_parts: int) -> List[List[_Shard]]:
     """Divide the given shards into partitions (groupings of shards).
 
     Warning: don't use `shards` after this, as its memory is recycled into the returned partitions
@@ -73,9 +75,9 @@ def _break_into_balanced_parts(shards: List[_Shard], num_parts: int) -> List[Lis
     lists = []
     shard_index = 0
     samples_so_far = 0
-    part_sizes = [total_samples // num_parts] * num_parts
-    part_ends = np.array(part_sizes).cumsum()
-    for part_end in part_ends:
+    for part in range(num_parts):
+        part_end = total_samples * (part + 1) // num_parts
+
         new_shards = []
         while True:
             if shard_index == len(shards):
@@ -101,8 +103,13 @@ def _break_into_balanced_parts(shards: List[_Shard], num_parts: int) -> List[Lis
     return lists
 
 
-def get_shuffle(shard_sizes: NDArray[np.int64], shuffle: bool, seed: int, world_size: int,
-                epoch: int) -> NDArray[np.int64]:
+def get_shuffle(shard_sizes: NDArray[np.int64],
+                shuffle: bool,
+                seed: int,
+                num_ranks: int,
+                workers_per_rank: int,
+                epoch: int,
+                batch_size: Optional[int] = None) -> NDArray[np.int64]:
     """Get the global ordering of samples for an epoch.
 
     Approximate shuffling:
@@ -119,9 +126,11 @@ def get_shuffle(shard_sizes: NDArray[np.int64], shuffle: bool, seed: int, world_
         shuffle (bool): Whether to approximately randomize the sample ordering (see notes), while
             still using the same shards across epochs as long as workers/world size is the same.
         seed (int): Base random seed, which is held constant over an entire training run.
-        world_size (int): Canonical world size for which this shuffle is optimized.
+        num_ranks (int): Canonical world size for which this shuffle is optimized.
+        workers_per_rank (int): Number of worker partitions per device.
         epoch (int): Current epoch, which is added to the seed to get a different deterministic
             shuffle each epoch.
+        batch_size (int, optional): Batch size.
 
     Returns:
         NDArray[np.int64]: World size interleaved sequences of sample IDs giving the epoch.
@@ -137,7 +146,7 @@ def get_shuffle(shard_sizes: NDArray[np.int64], shuffle: bool, seed: int, world_
             rng.shuffle(shard.samples)
 
     # Shuffle uniquely for the current epoch within each canonical rank.
-    parts = _break_into_balanced_parts(shards, world_size)
+    parts = _partition(shards, num_ranks * workers_per_rank)
     if shuffle:
         rng = np.random.default_rng(seed + epoch)
         for shards in parts:
@@ -145,6 +154,23 @@ def get_shuffle(shard_sizes: NDArray[np.int64], shuffle: bool, seed: int, world_
             for shard in shards:
                 rng.shuffle(shard.samples)
 
+    # Flatten the shard spans to their sample IDs, then concatenate those into a global list.
     arrs = list(map(_shards_to_samples, parts))
-    arr = np.stack(arrs)
-    return arr.transpose().flatten()
+    sample_ids = np.concatenate(arrs)
+
+    # Calculate and apply each worker's partition.
+    spans = get_partitions(num_ranks, workers_per_rank, len(sample_ids), batch_size)
+    arrs = []
+    for begin, end in spans:
+        arr = sample_ids[begin:end + 1]
+        arrs.append(arr)
+
+    # Pad the end of each worker's segment to be even.
+    max_len = max(map(len, arrs))
+    for i, arr in enumerate(arrs):
+        pad = [-1] * (max_len - len(arr))
+        arrs[i] = np.concatenate([arr, pad])
+
+    # Return a single interleaved list of sample IDs in order (via stack, transpose, and flatten).
+    arrs = np.stack(arrs)
+    return arrs.transpose().flatten()
