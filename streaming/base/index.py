@@ -69,6 +69,8 @@ class Index(object):
         Returns:
             Tuple[int, int]: Shard and sample index within that shard.
         """
+        if not (0 <= idx < self.total_samples):
+            raise ValueError(f'Invalid sample index: 0 <= {idx} < {self.total_samples}')
         slot_idx = min(idx // self.slot_size, len(self.slots) - 1)
         shard, div = self.slots[slot_idx]
         if div <= idx:
