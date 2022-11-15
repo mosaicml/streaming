@@ -1,185 +1,21 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-import logging
 import math
-import os
-import shutil
-import time
-from typing import Tuple
+from typing import Any, Tuple
 
 import pytest
 from torch.utils.data import DataLoader
 
 from streaming.base import StreamingDataset
-from tests.common.datasets import *
-from tests.common.utils import *
-
-logger = logging.getLogger(__name__)
-
-
-@pytest.mark.xfail(
-    reason='Fetches shard greedily. See https://mosaicml.atlassian.net/browse/CO-1042')
-@pytest.mark.parametrize('batch_size', [None, 1, 2])
-@pytest.mark.parametrize('remote_arg', ['none', 'same', 'different'])
-@pytest.mark.parametrize('shuffle', [False, True])
-@pytest.mark.usefixtures('remote_local')
-def test_reader(remote_local: Tuple[str, str], batch_size: int, remote_arg: str, shuffle: bool):
-    num_samples = 117
-    size_limit = 1 << 8
-    dataset = SequenceDataset(num_samples)
-    columns = dict(zip(dataset.column_names, dataset.column_encodings))
-    if remote_arg == 'none':
-        remote, local = remote_local
-        dirname = local
-        remote = None
-    elif remote_arg == 'same':
-        remote, local = remote_local
-        dirname = local
-        remote = local
-    elif remote_arg == 'different':
-        remote, local = remote_local
-        dirname = remote
-    else:
-        assert False, f'Unknown value of remote_arg: {remote_arg}'
-
-    write_synthetic_streaming_dataset(dirname=dirname,
-                                      columns=columns,
-                                      samples=dataset,
-                                      size_limit=size_limit)
-
-    # Build StreamingDataset
-    dataset = StreamingDataset(local=local, remote=remote, shuffle=shuffle, batch_size=batch_size)
-
-    # Test basic sample order
-    rcvd_samples = 0
-    shuffle_matches = 0
-    for ix, sample in enumerate(dataset):
-        rcvd_samples += 1
-        id = sample['id']
-        data = sample['data']
-        expected_id = f'{ix:06}'
-        expected_data = 3 * ix
-        if shuffle:
-            shuffle_matches += (expected_id == id)
-        else:
-            assert id == expected_id, f'sample ix={ix} has id={id}, expected {expected_id}'
-            assert data == expected_data, f'sample ix={ix} has data={data}, expected {expected_data}'
-
-    # If shuffling, there should be few matches
-    # The probability of k matches in a random permutation is ~1/(e*(k!))
-    if shuffle:
-        assert shuffle_matches < 10
-
-    # Test length
-    assert rcvd_samples == num_samples, f'Only received {rcvd_samples} samples, expected {num_samples}'
-    assert len(
-        dataset
-    ) == num_samples, f'Got dataset length={len(dataset)} samples, expected {num_samples}'
-
-
-@pytest.mark.parametrize(
-    'missing_file',
-    [
-        'index',
-        'shard',
-    ],
-)
-@pytest.mark.usefixtures('remote_local')
-def test_reader_download_fail(remote_local: Tuple[str, str], missing_file: str):
-    num_samples = 117
-    size_limit = 1 << 8
-    dataset = SequenceDataset(num_samples)
-    columns = dict(zip(dataset.column_names, dataset.column_encodings))
-    remote, local = remote_local
-    write_synthetic_streaming_dataset(dirname=remote,
-                                      columns=columns,
-                                      samples=dataset,
-                                      size_limit=size_limit)
-
-    if missing_file == 'index':
-        os.remove(os.path.join(remote, 'index.json'))
-    elif missing_file == 'shard':
-        os.remove(os.path.join(remote, 'shard.00000.mds'))
-
-    # Build and iterate over a StreamingDataset
-    try:
-        dataset = StreamingDataset(local=local, remote=remote, shuffle=False, download_timeout=1)
-        for _ in dataset:
-            pass
-    except FileNotFoundError as e:
-        logger.debug(f'Successfully raised error: {e}')
-
-
-@pytest.mark.parametrize('created_ago', [0.5, 3])
-@pytest.mark.parametrize('download_timeout', [1])
-@pytest.mark.parametrize('compression', [None])
-@pytest.mark.usefixtures('remote_local')
-def test_reader_after_crash(remote_local: Tuple[str, str], created_ago: float,
-                            download_timeout: float, compression: str) -> None:
-    compression_ext = f'.{compression.split(":")[0]}' if compression is not None else ''
-    num_samples = 117
-    size_limit = 1 << 8
-    dataset = SequenceDataset(num_samples)
-    columns = dict(zip(dataset.column_names, dataset.column_encodings))
-    remote, local = remote_local
-    write_synthetic_streaming_dataset(dirname=remote,
-                                      columns=columns,
-                                      samples=dataset,
-                                      size_limit=size_limit,
-                                      compression=compression)
-
-    if not os.path.exists(local):
-        os.mkdir(local)
-
-    shutil.copy(os.path.join(remote, f'index.json'), os.path.join(local, f'index.json.tmp'))
-    shutil.copy(os.path.join(remote, f'shard.00003.mds{compression_ext}'),
-                os.path.join(local, f'shard.00003.mds.tmp{compression_ext}'))
-    time.sleep(created_ago)
-
-    dataset = StreamingDataset(local=local,
-                               remote=remote,
-                               shuffle=False,
-                               download_timeout=download_timeout)
-
-    # Iterate over dataset and make sure there are no TimeoutErrors
-    for _ in dataset:
-        pass
-
-
-@pytest.mark.parametrize(
-    'share_remote_local',
-    [
-        True,
-        False,
-    ],
-)
-@pytest.mark.usefixtures('remote_local')
-def test_reader_getitem(remote_local: Tuple[str, str], share_remote_local: bool) -> None:
-    num_samples = 117
-    size_limit = 1 << 8
-    dataset = SequenceDataset(num_samples)
-    columns = dict(zip(dataset.column_names, dataset.column_encodings))
-    remote, local = remote_local
-    if share_remote_local:
-        local = remote
-    write_synthetic_streaming_dataset(dirname=remote,
-                                      columns=columns,
-                                      samples=dataset,
-                                      size_limit=size_limit)
-
-    # Build a StreamingDataset
-    dataset = StreamingDataset(local=local, remote=remote, shuffle=False)
-
-    # Test retrieving random sample
-    _ = dataset[17]
+from tests.common.datasets import SequenceDataset, write_synthetic_streaming_dataset
 
 
 @pytest.mark.parametrize('batch_size', [128])
 @pytest.mark.parametrize('drop_last', [False, True])
-@pytest.mark.parametrize('num_workers', [1, 8])
-@pytest.mark.parametrize('num_samples', [9867, 100_000])
-@pytest.mark.parametrize('size_limit', [8_192, 65_536])
+@pytest.mark.parametrize('num_workers', [0, 1, 8])
+@pytest.mark.parametrize('num_samples', [9867, 30_000])
+@pytest.mark.parametrize('size_limit', [8_192])
 @pytest.mark.usefixtures('remote_local')
 def test_dataloader_single_device(remote_local: Tuple[str, str], batch_size: int, drop_last: bool,
                                   num_workers: int, num_samples: int, size_limit: int):
@@ -192,7 +28,11 @@ def test_dataloader_single_device(remote_local: Tuple[str, str], batch_size: int
                                       size_limit=size_limit)
 
     # Build a StreamingDataset
-    dataset = StreamingDataset(local=local, remote=remote, shuffle=True, batch_size=batch_size)
+    dataset = StreamingDataset(local=local,
+                               remote=remote,
+                               shuffle=True,
+                               batch_size=batch_size,
+                               shuffle_seed=123)
 
     # Build DataLoader
     dataloader = DataLoader(dataset=dataset,
@@ -231,3 +71,46 @@ def test_dataloader_single_device(remote_local: Tuple[str, str], batch_size: int
     assert len(set(sample_order)) == expected_num_samples
     if not drop_last:
         assert len(set(sample_order)) == num_samples
+
+
+@pytest.mark.parametrize('batch_size', [None, 1, 2])
+@pytest.mark.parametrize('seed', [987])
+@pytest.mark.parametrize('shuffle', [False, True])
+@pytest.mark.parametrize('num_workers', [0, 1, 8])
+@pytest.mark.usefixtures('mds_dataset_dir')
+def test_dataloader_determinism(mds_dataset_dir: Any, batch_size: int, seed: int, shuffle: bool,
+                                num_workers: int):
+    remote_dir, local_dir = mds_dataset_dir
+
+    # Build StreamingDataset
+    dataset = StreamingDataset(local=local_dir,
+                               remote=remote_dir,
+                               shuffle=shuffle,
+                               batch_size=batch_size,
+                               shuffle_seed=seed)
+
+    # Build DataLoader
+    dataloader = DataLoader(dataset=dataset, batch_size=batch_size, num_workers=num_workers)
+
+    # Append sample ID
+    sample_order = []
+    for batch in dataloader:
+        sample_order.append(batch['id'][:])
+
+    # Build StreamingDataset again to test deterministic sample ID
+    dataset = StreamingDataset(local=local_dir,
+                               remote=remote_dir,
+                               shuffle=shuffle,
+                               batch_size=batch_size,
+                               shuffle_seed=seed)
+
+    # Build DataLoader
+    dataloader = DataLoader(dataset=dataset, batch_size=batch_size, num_workers=num_workers)
+
+    # Append sample ID
+    second_sample_order = []
+    for batch in dataloader:
+        second_sample_order.append(batch['id'][:])
+
+    assert len(sample_order) == len(second_sample_order)
+    assert sample_order == second_sample_order

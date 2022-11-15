@@ -120,4 +120,8 @@ class MDSReader(JointReader):
             begin, end = np.frombuffer(pair, np.uint32)
             fp.seek(begin)
             data = fp.read(end - begin)
+        if not data:
+            raise IndexError(
+                f'Relative sample index {idx} is not present in the {self.raw_data.basename} file.'
+            )
         return data

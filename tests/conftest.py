@@ -1,10 +1,20 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+import multiprocessing as mp
 import os
 from typing import Any
 
 import pytest
+
+from tests.common.utils import compressed_remote_local, remote_local  # pyright: ignore
+from tests.test_reader import mds_dataset_dir  # pyright: ignore
+
+
+@pytest.fixture(scope='session', autouse=True)
+def tests_setup_and_teardown():
+    # Will be executed before the first test
+    mp.set_start_method('fork', force=True)
 
 
 # Override of pytest "runtest" for DistributedTest class

@@ -10,8 +10,7 @@ import pytest
 from streaming.base import StreamingDataset
 from streaming.base.compression import (Brotli, Bzip2, Gzip, Snappy, Zstandard, compress,
                                         decompress, get_compression_extension, is_compression)
-from tests.common.datasets import *
-from tests.common.utils import *
+from tests.common.datasets import SequenceDataset, write_synthetic_streaming_dataset
 
 
 class TestBrotli:

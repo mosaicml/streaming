@@ -138,7 +138,7 @@ class DistributedTest:
         Args:
             nproc (int): Total number of processes
         """
-        mp.set_start_method('forkserver', force=True)
+        mp.set_start_method('fork', force=True)
         skip_msg = mp.Queue()  # Allows forked processes to share pytest.skip reason
         processes = []
         for global_rank in range(nproc):
