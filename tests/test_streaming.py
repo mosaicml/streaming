@@ -95,7 +95,7 @@ def test_dataloader_determinism(mds_dataset_dir: Any, batch_size: int, seed: int
     # Append sample ID
     sample_order = []
     for batch in dataloader:
-        sample_order.append(batch['id'][:])
+        sample_order.extend(batch['id'][:])
 
     # Build StreamingDataset again to test deterministic sample ID
     dataset = StreamingDataset(local=local_dir,
@@ -110,7 +110,54 @@ def test_dataloader_determinism(mds_dataset_dir: Any, batch_size: int, seed: int
     # Append sample ID
     second_sample_order = []
     for batch in dataloader:
-        second_sample_order.append(batch['id'][:])
+        second_sample_order.extend(batch['id'][:])
 
     assert len(sample_order) == len(second_sample_order)
     assert sample_order == second_sample_order
+
+
+@pytest.mark.parametrize('batch_size', [1, 2])
+@pytest.mark.parametrize('seed', [987])
+@pytest.mark.parametrize('shuffle', [False])
+@pytest.mark.parametrize('num_workers', [0, 1, 8])
+@pytest.mark.usefixtures('mds_dataset_dir')
+def test_dataloader_sample_order(mds_dataset_dir: Any, batch_size: int, seed: int, shuffle: bool,
+                                 num_workers: int):
+    remote_dir, local_dir = mds_dataset_dir
+
+    # Build StreamingDataset
+    dataset = StreamingDataset(local=local_dir,
+                               remote=remote_dir,
+                               shuffle=shuffle,
+                               batch_size=batch_size,
+                               shuffle_seed=seed)
+
+    # Build DataLoader
+    dataloader = DataLoader(dataset=dataset,
+                            batch_size=batch_size,
+                            num_workers=num_workers,
+                            drop_last=False)
+
+    # Append sample ID
+    sample_order = []
+    for batch in dataloader:
+        sample_order.extend(batch['id'][:])
+
+    # Calculate the expected sample order based on batch_size and num_workers
+    expected_sample_order = [''] * len(dataset)
+    index = 0
+    value = 0
+    num_workers = num_workers or 1
+    for w in range(num_workers):
+        index = w * batch_size
+        while index < len(expected_sample_order):
+            for _ in range(batch_size):
+                if index < len(expected_sample_order):
+                    expected_sample_order[index] = f'{value:06}'
+                    index += 1
+                    value += 1
+                else:
+                    break
+            index += (num_workers - 1) * batch_size
+
+    assert expected_sample_order == sample_order

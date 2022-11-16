@@ -11,7 +11,7 @@ import pytest
 from moto import mock_s3
 
 from streaming.base.storage import (download, download_from_gcs, download_from_local,
-                                     download_from_s3, download_or_wait)
+                                    download_from_s3, download_or_wait)
 
 MY_BUCKET = 'streaming-test-bucket'
 MY_PREFIX = 'train'

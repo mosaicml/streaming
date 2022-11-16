@@ -13,8 +13,6 @@ import pytest
 from streaming.base import StreamingDataset
 from tests.common.datasets import SequenceDataset, write_synthetic_streaming_dataset
 
-# from typing import Tuple
-
 logger = logging.getLogger(__name__)
 
 

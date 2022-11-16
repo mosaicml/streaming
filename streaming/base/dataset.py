@@ -335,6 +335,7 @@ class StreamingDataset(IterableDataset):
             sample_ids = get_shuffle(self.shard_sizes, self.shuffle, self.shuffle_seed,
                                      self.shuffle_world_size, world.workers_per_rank, epoch,
                                      self.batch_size)
+            # print(f"sample_ids: {sample_ids}")
             sample_ids = sample_ids[sample_in_epoch:]
             if not len(sample_ids):
                 return None
@@ -354,6 +355,9 @@ class StreamingDataset(IterableDataset):
         shm_size = np.ndarray(1, buffer=shm.buf[:int64_bytes], dtype=np.int64)
         num_samples = shm_size // int64_bytes
         sample_ids = np.ndarray(num_samples, buffer=shm.buf[int64_bytes:], dtype=np.int64)
+        # print(f"world.worker: {world.worker}")
+        # print(f"world.num_workers: {world.num_workers}")
+        # print(f"sample_ids: {sample_ids}")
         sample_ids = sample_ids[world.worker::world.num_workers].copy()
         shm.close()
 
@@ -632,7 +636,7 @@ class StreamingDataset(IterableDataset):
         data = json.dumps(obj, sort_keys=True).encode('utf-8')
         try:
             self._resume_shm = SharedMemory(name, True, len(data))
-            self._resume_shm.buf[:] = data
+            self._resume_shm.buf[:len(data)] = data
         except FileExistsError:
             self._resume_shm = SharedMemory(name)
             assert len(self._resume_shm.buf) == len(data)

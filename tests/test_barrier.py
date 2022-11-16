@@ -13,6 +13,7 @@ import pytest
 
 from streaming.base.shared import SharedBarrier
 
+
 class TestSharedBarrier:
 
     @pytest.mark.parametrize('filelock_path', ['/tmp/file_path'])

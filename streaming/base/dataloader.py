@@ -16,11 +16,11 @@ from streaming.base.world import World
 class StreamingDataLoader(DataLoader):
     """A streaming data loader.
 
-    Provides an additional checkpointing/resumption interface, for which it tracks the number of
+    Provides an additional checkpoint/resumption interface, for which it tracks the number of
     samples seen by the model this rank.
 
     Args:
-        *args: Llist arguments.
+        *args: List arguments.
         **kwargs: Keyword arguments.
     """
 
