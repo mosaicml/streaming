@@ -277,8 +277,12 @@ class StreamingDataset(IterableDataset):
             # There is nothing to resume.
             return epoch, 0
 
-        # Parse the existent resume state.
-        obj = json.loads(bytes(shm.buf).decode('utf-8'))
+        resume_meta_data = bytes(shm.buf)
+        # SharedMemory adds a garbage data to fill up a rest of the buffer memory. Find the first
+        # index of the garbage since the data before that is the actual data.
+        index = resume_meta_data.find(b'\0')
+        resume_meta_data = resume_meta_data[:index] if index != -1 else resume_meta_data
+        obj = json.loads(resume_meta_data.decode('utf-8'))
 
         # Check if the resume state is stale.
         if obj['epoch'] < epoch:
@@ -335,7 +339,6 @@ class StreamingDataset(IterableDataset):
             sample_ids = get_shuffle(self.shard_sizes, self.shuffle, self.shuffle_seed,
                                      self.shuffle_world_size, world.workers_per_rank, epoch,
                                      self.batch_size)
-            # print(f"sample_ids: {sample_ids}")
             sample_ids = sample_ids[sample_in_epoch:]
             if not len(sample_ids):
                 return None
@@ -355,9 +358,6 @@ class StreamingDataset(IterableDataset):
         shm_size = np.ndarray(1, buffer=shm.buf[:int64_bytes], dtype=np.int64)
         num_samples = shm_size // int64_bytes
         sample_ids = np.ndarray(num_samples, buffer=shm.buf[int64_bytes:], dtype=np.int64)
-        # print(f"world.worker: {world.worker}")
-        # print(f"world.num_workers: {world.num_workers}")
-        # print(f"sample_ids: {sample_ids}")
         sample_ids = sample_ids[world.worker::world.num_workers].copy()
         shm.close()
 
@@ -635,6 +635,9 @@ class StreamingDataset(IterableDataset):
         name = f'{self._prefix}_resume'
         data = json.dumps(obj, sort_keys=True).encode('utf-8')
         try:
+            # some platforms choose to allocate chunks of memory based upon that platform’s memory
+            # page size, hence, the exact size of the shared memory block may be larger or
+            # equal to the size requested.
             self._resume_shm = SharedMemory(name, True, len(data))
             self._resume_shm.buf[:len(data)] = data
         except FileExistsError:

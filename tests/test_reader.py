@@ -11,7 +11,7 @@ from typing import Any
 import pytest
 
 from streaming.base import StreamingDataset
-from tests.common.datasets import SequenceDataset, write_synthetic_streaming_dataset
+from tests.common.datasets import SequenceDataset, write_mds_dataset
 
 logger = logging.getLogger(__name__)
 
@@ -27,10 +27,10 @@ def mds_dataset_dir():
         dataset = SequenceDataset(num_samples)
         columns = dict(zip(dataset.column_names, dataset.column_encodings))
 
-        write_synthetic_streaming_dataset(dirname=remote_dir,
-                                          columns=columns,
-                                          samples=dataset,
-                                          size_limit=size_limit)
+        write_mds_dataset(dirname=remote_dir,
+                          columns=columns,
+                          samples=dataset,
+                          size_limit=size_limit)
         yield remote_dir, local_dir
     finally:
         mock_dir.cleanup()  # pyright: ignore

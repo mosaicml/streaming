@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 
 import streaming.base.distributed as ms_dist
 from streaming.base import StreamingDataset
-from tests.common.datasets import SequenceDataset, write_synthetic_streaming_dataset
+from tests.common.datasets import SequenceDataset, write_mds_dataset
 from tests.common.distributed import DistributedTest
 
 logger = logging.getLogger(__name__)
@@ -88,10 +88,10 @@ class TestInit(DistributedTest):
         dataset = SequenceDataset(num_samples)
         columns = dict(zip(dataset.column_names, dataset.column_encodings))
         if global_rank == 0:
-            write_synthetic_streaming_dataset(dirname=remote,
-                                              columns=columns,
-                                              samples=dataset,
-                                              size_limit=size_limit)
+            write_mds_dataset(dirname=remote,
+                              columns=columns,
+                              samples=dataset,
+                              size_limit=size_limit)
         dist.barrier()
 
         # Build a StreamingDataset

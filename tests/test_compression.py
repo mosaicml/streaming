@@ -10,7 +10,7 @@ import pytest
 from streaming.base import StreamingDataset
 from streaming.base.compression import (Brotli, Bzip2, Gzip, Snappy, Zstandard, compress,
                                         decompress, get_compression_extension, is_compression)
-from tests.common.datasets import SequenceDataset, write_synthetic_streaming_dataset
+from tests.common.datasets import SequenceDataset, write_mds_dataset
 
 
 class TestBrotli:
@@ -262,17 +262,17 @@ def test_dataset_compression(compressed_remote_local: Tuple[str, str, str],
     columns = dict(zip(samples.column_names, samples.column_encodings))
     compression_ext = compression.split(':')[0] if compression else None
 
-    write_synthetic_streaming_dataset(dirname=compressed,
-                                      columns=columns,
-                                      samples=samples,
-                                      size_limit=size_limit,
-                                      compression=compression)
+    write_mds_dataset(dirname=compressed,
+                      columns=columns,
+                      samples=samples,
+                      size_limit=size_limit,
+                      compression=compression)
     samples = SequenceDataset(num_samples)
-    write_synthetic_streaming_dataset(dirname=remote,
-                                      columns=columns,
-                                      samples=samples,
-                                      size_limit=size_limit,
-                                      compression=None)
+    write_mds_dataset(dirname=remote,
+                      columns=columns,
+                      samples=samples,
+                      size_limit=size_limit,
+                      compression=None)
 
     dataset = StreamingDataset(local=local, remote=compressed, shuffle=shuffle)
 

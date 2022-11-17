@@ -7,8 +7,8 @@ from typing import Any, Tuple
 import pytest
 from torch.utils.data import DataLoader
 
-from streaming.base import StreamingDataset
-from tests.common.datasets import SequenceDataset, write_synthetic_streaming_dataset
+from streaming.base import StreamingDataLoader, StreamingDataset
+from tests.common.datasets import SequenceDataset, write_mds_dataset
 
 
 @pytest.mark.parametrize('batch_size', [128])
@@ -22,10 +22,7 @@ def test_dataloader_single_device(remote_local: Tuple[str, str], batch_size: int
     dataset = SequenceDataset(num_samples)
     columns = dict(zip(dataset.column_names, dataset.column_encodings))
     remote, local = remote_local
-    write_synthetic_streaming_dataset(dirname=remote,
-                                      columns=columns,
-                                      samples=dataset,
-                                      size_limit=size_limit)
+    write_mds_dataset(dirname=remote, columns=columns, samples=dataset, size_limit=size_limit)
 
     # Build a StreamingDataset
     dataset = StreamingDataset(local=local,
@@ -161,3 +158,59 @@ def test_dataloader_sample_order(mds_dataset_dir: Any, batch_size: int, seed: in
             index += (num_workers - 1) * batch_size
 
     assert expected_sample_order == sample_order
+
+
+@pytest.mark.skip('Enable this test once global sample order and partition logic is improved')
+@pytest.mark.parametrize('batch_size', [1, 2, 4])
+@pytest.mark.parametrize('seed', [987])
+@pytest.mark.parametrize('shuffle', [False, True])
+@pytest.mark.parametrize('num_workers', [0, 1, 4, 8])
+@pytest.mark.usefixtures('mds_dataset_dir')
+def test_streamingdataloader_mid_epoch_resumption(mds_dataset_dir: Any, batch_size: int, seed: int,
+                                                  shuffle: bool, num_workers: int):
+    remote_dir, local_dir = mds_dataset_dir
+
+    # Build StreamingDataset
+    dataset = StreamingDataset(local=local_dir,
+                               remote=remote_dir,
+                               shuffle=shuffle,
+                               batch_size=batch_size,
+                               shuffle_seed=seed)
+
+    # Build DataLoader
+    dataloader = StreamingDataLoader(dataset=dataset,
+                                     batch_size=batch_size,
+                                     num_workers=num_workers,
+                                     drop_last=False)
+
+    expected_sample_order = [f'{ix:06}' for ix in range(len(dataset))]
+
+    sample_order = []
+    for idx, batch in enumerate(dataloader):
+        if idx == len(dataset) // (batch_size * 2):
+            sample_order.extend(batch['id'][:])
+            state_dict = dataloader.state_dict()
+            assert state_dict is not None
+            break
+        sample_order.extend(batch['id'][:])
+
+    dataset = StreamingDataset(local=local_dir,
+                               remote=remote_dir,
+                               shuffle=shuffle,
+                               batch_size=batch_size,
+                               shuffle_seed=seed)
+
+    dataloader = StreamingDataLoader(dataset=dataset,
+                                     batch_size=batch_size,
+                                     num_workers=num_workers,
+                                     drop_last=False)
+
+    dataloader.load_state_dict(state_dict)  # pyright: ignore
+    for idx, batch in enumerate(dataloader):
+        sample_order.extend(batch['id'][:])
+
+    # sort the sample to check for missing and duplicate samples
+    sample_order.sort()
+    assert len(sample_order) == len(expected_sample_order), 'Missing samples'
+    assert len(set(sample_order)) == len(set(expected_sample_order)), 'Duplicate samples'
+    assert sample_order == expected_sample_order, 'Incorrect sample order'

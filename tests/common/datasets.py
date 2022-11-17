@@ -133,7 +133,7 @@ class NumberAndSayDataset:
         np.random.seed(self._seed)
 
 
-def write_synthetic_streaming_dataset(
+def write_mds_dataset(
     dirname: str,
     columns: Dict[str, str],
     samples: Any,
