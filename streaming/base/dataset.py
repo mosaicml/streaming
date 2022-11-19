@@ -277,12 +277,11 @@ class StreamingDataset(IterableDataset):
             # There is nothing to resume.
             return epoch, 0
 
-        resume_meta_data = bytes(shm.buf)
-        # SharedMemory adds a garbage data to fill up a rest of the buffer memory. Find the first
-        # index of the garbage since the data before that is the actual data.
-        index = resume_meta_data.find(b'\0')
-        resume_meta_data = resume_meta_data[:index] if index != -1 else resume_meta_data
-        obj = json.loads(resume_meta_data.decode('utf-8'))
+        # SharedMemory buffers may contain additional null bytes at the end.
+        buf = bytes(shm.buf)
+        index = buf.find(b'\0')
+        buf = buf[:index] if index != -1 else buf
+        obj = json.loads(buf.decode('utf-8'))
 
         # Check if the resume state is stale.
         if obj['epoch'] < epoch:
