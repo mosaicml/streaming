@@ -23,6 +23,7 @@ from streaming.base.format import reader_from_json
 from streaming.base.format.base.reader import FileInfo
 from streaming.base.hashing import get_hash
 from streaming.base.index import Index, get_index_basename
+from streaming.base.partitioning import get_partitions
 from streaming.base.shared import SharedBarrier
 from streaming.base.shuffle import get_shuffle
 from streaming.base.storage import download
@@ -80,6 +81,21 @@ class _PartitionState:
             sleep(TICK)
 
 
+def _is_pow2(x: int):
+    """Tell whether a number is an integer power of 2.
+
+    Args:
+        x (int): The number.
+
+    Returns:
+        bool: Whether an integer power of 2.
+    """
+    if x < 1:
+        return False
+    a = int(np.log2(x))
+    return 2**a == x
+
+
 class StreamingDataset(IterableDataset):
     """A streaming pytorch IterableDataset that is also resumable mid-epoch.
 
@@ -110,8 +126,8 @@ class StreamingDataset(IterableDataset):
             shards. Defaults to ``None``.
         shuffle_seed (int, optional): Seed for shuffling, or ``None`` for random seed. Defaults to
             ``None``.
-        shuffle_world_size (int, optional): Canonical world size for shuffling with resumption.
-            Defaults to ``None``, which is interpreted as the world size of the initial run.
+        num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with resumption.
+            Defaults to ``None``, which is interpreted as the number of nodes of the initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
     """
@@ -127,7 +143,7 @@ class StreamingDataset(IterableDataset):
                  download_timeout: float = 60,
                  validate_hash: Optional[str] = None,
                  shuffle_seed: Optional[int] = None,
-                 shuffle_world_size: Optional[int] = None,
+                 num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None):
         self.local = local
         self.remote = remote
@@ -140,11 +156,11 @@ class StreamingDataset(IterableDataset):
         self.validate_hash = validate_hash or None
         # Seed is set below.
         world = World()
-        if shuffle_world_size is None:
-            shuffle_world_size = world.num_workers
-        if shuffle_world_size < 1:
-            raise ValueError('Interleave must be at least one.')
-        self.shuffle_world_size = shuffle_world_size
+        if num_canonical_nodes is None:
+            num_canonical_nodes = world.num_nodes
+        if not _is_pow2(num_canonical_nodes):
+            raise ValueError('num_canonical_nodes must be an integer power of 2')
+        self.num_canonical_nodes = num_canonical_nodes
         self.batch_size = batch_size
 
         # Load the index.json file.
@@ -318,8 +334,7 @@ class StreamingDataset(IterableDataset):
 
         return epoch, sample_in_epoch
 
-    def _get_partition(self, world: World, epoch: int,
-                       sample_in_epoch: int) -> Optional[NDArray[np.int64]]:
+    def _get_partition(self, world: World, epoch: int, sample_in_epoch: int) -> NDArray[np.int64]:
         """Get this worker's partition of this epoch's sample space.
 
         Args:
@@ -330,45 +345,12 @@ class StreamingDataset(IterableDataset):
         Returns:
             Optional[NDArray[np.int64]]: Our partition of the epoch.
         """
-        shm_name = f'{self._prefix}_ordering'
-        int64_bytes = np.int64(0).nbytes
-
-        # Local leader generates the global ordering of samples this epoch.
-        if world.is_local_leader:
-            sample_ids = get_shuffle(self.shard_sizes, self.shuffle, self.shuffle_seed,
-                                     self.shuffle_world_size, world.workers_per_rank, epoch,
-                                     self.batch_size)
-            sample_ids = sample_ids[sample_in_epoch:]
-            if not len(sample_ids):
-                return None
-
-            sample_ids_bytes = sample_ids.tobytes()
-            num_samples_bytes = np.int64(len(sample_ids_bytes)).tobytes()
-            # Sometimes, the exact size of the shared memory block may be larger or
-            # equal to the size requested. Hence, we put the actual samples size in the first 8 bytes
-            shm_size = len(num_samples_bytes) + len(sample_ids_bytes)
-            leader_shm = SharedMemory(shm_name, True, shm_size)
-            leader_shm.buf[:shm_size] = num_samples_bytes + sample_ids_bytes
-
-        # Wait for local leader to populate the shared memory object.
-        self._worker_barrier(world.num_workers)
-
-        shm = SharedMemory(shm_name)
-        shm_size = np.ndarray(1, buffer=shm.buf[:int64_bytes], dtype=np.int64)
-        num_samples = shm_size // int64_bytes
-        sample_ids = np.ndarray(num_samples, buffer=shm.buf[int64_bytes:], dtype=np.int64)
-        sample_ids = sample_ids[world.worker::world.num_workers].copy()
-        shm.close()
-
-        # Wait for all workers to load from that shared memory.
-        self._worker_barrier(world.num_workers)
-
-        # Clean up shared memory.
-        if world.is_local_leader:
-            leader_shm.close()  # pyright: ignore
-            leader_shm.unlink()  # pyright: ignore
-
-        return sample_ids
+        indices = get_partitions(self.index.total_samples, self.num_canonical_nodes,
+                                 world.num_nodes, world.ranks_per_node, world.workers_per_rank,
+                                 sample_in_epoch)
+        shuffle = get_shuffle(self.shard_sizes, self.num_canonical_nodes, self.shuffle_seed, epoch)
+        partitions = np.where(indices == -1, -1, shuffle[indices])
+        return partitions[world.node, world.rank_of_node, world.worker_of_rank]
 
     def _download_file(self, basename: str) -> str:
         """Safely download a file from remote to local cache.
@@ -593,7 +575,7 @@ class StreamingDataset(IterableDataset):
 
         # Get this worker's partition of samples to process.
         sample_ids = self._get_partition(world, epoch, sample_in_epoch)
-        if sample_ids is None:  # Hit end of epoch, out of samples.
+        if not len(sample_ids):  # Resumed at end of epoch, out of samples.
             return
 
         # Iterate over the samples while downloading ahead.

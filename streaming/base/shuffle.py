@@ -3,12 +3,10 @@
 
 """Slice, shuffle, and dice epochs of samples across worker partitions."""
 
-from typing import List, Optional
+from typing import List
 
 import numpy as np
 from numpy.typing import NDArray
-
-from streaming.base.partitioning import get_partitions
 
 
 class _Shard(object):
@@ -71,7 +69,7 @@ def _partition(shards: List[_Shard], num_parts: int) -> List[List[_Shard]]:
     Returns:
         List[List[_Shard]]: Partitions of shards.
     """
-    total_samples = sum([len(x.samples) for x in shards])
+    total_samples = sum(len(x.samples) for x in shards)
     lists = []
     shard_index = 0
     samples_so_far = 0
@@ -103,74 +101,40 @@ def _partition(shards: List[_Shard], num_parts: int) -> List[List[_Shard]]:
     return lists
 
 
-def get_shuffle(shard_sizes: NDArray[np.int64],
-                shuffle: bool,
-                seed: int,
-                num_ranks: int,
-                workers_per_rank: int,
-                epoch: int,
-                batch_size: Optional[int] = None) -> NDArray[np.int64]:
-    """Get the global ordering of samples for an epoch.
+def get_shuffle(shard_sizes: NDArray[np.int64], num_canonical_nodes: int, seed: int,
+                epoch: int) -> NDArray[np.int64]:
+    """Get the shuffled global ordering of samples for an epoch.
 
-    Approximate shuffling:
-    - Shuffles shards and samples within shards, but not samples across shards.
-    - This is due to the scattering effect of additional sessions with changed workers/world size
-      on the shards needed by each worker for its samples, which could easily overwhelm i/o.
-    - It's also low compute enough to be able to shuffle large datasets in pure numpy in reasonable
-      time.
-    - Shuffle quality is not expected to be a practical concern outside of the very low data with
-      low device regime. We are targeting at-scale.
+    The assignment of shards to nodes is fixed across epochs, but each grouping of shards is
+    processed concurrently in a different order by each node's workers each epoch.
 
     Args:
         shard_sizes (NDArray[np.int64]): Number of samples contained in each shard, in order.
-        shuffle (bool): Whether to approximately randomize the sample ordering (see notes), while
-            still using the same shards across epochs as long as workers/world size is the same.
+        num_canonical_nodes (int): Number of canonical nodes.
         seed (int): Base random seed, which is held constant over an entire training run.
-        num_ranks (int): Canonical world size for which this shuffle is optimized.
-        workers_per_rank (int): Number of worker partitions per device.
         epoch (int): Current epoch, which is added to the seed to get a different deterministic
             shuffle each epoch.
-        batch_size (int, optional): Batch size.
 
     Returns:
-        NDArray[np.int64]: World size interleaved sequences of sample IDs giving the epoch.
+        NDArray[np.int64]: 1:1 mapping of sample ID to shuffled sample ID.
     """
     # Initiailze the sample ID range for each shard.
     shards = _create_shards(shard_sizes)
 
     # Do the initial fixed scattering of shards over the sample space.
-    if shuffle:
-        rng = np.random.default_rng(seed)
-        rng.shuffle(shards)  # pyright: ignore
-        for shard in shards:
-            rng.shuffle(shard.samples)
+    fixed_rng = np.random.default_rng(seed)
+    fixed_rng.shuffle(shards)  # pyright: ignore
+    for shard in shards:
+        fixed_rng.shuffle(shard.samples)
 
     # Shuffle uniquely for the current epoch within each canonical rank.
-    parts = _partition(shards, num_ranks * workers_per_rank)
-    if shuffle:
-        rng = np.random.default_rng(seed + epoch)
-        for shards in parts:
-            rng.shuffle(shards)  # pyright: ignore
-            for shard in shards:
-                rng.shuffle(shard.samples)
+    parts = _partition(shards, num_canonical_nodes)
+    epoch_rng = np.random.default_rng(seed + epoch)
+    for shards in parts:
+        epoch_rng.shuffle(shards)  # pyright: ignore
+        for shard in shards:
+            epoch_rng.shuffle(shard.samples)
 
     # Flatten the shard spans to their sample IDs, then concatenate those into a global list.
     arrs = list(map(_shards_to_samples, parts))
-    sample_ids = np.concatenate(arrs)
-
-    # Calculate and apply each worker's partition.
-    spans = get_partitions(num_ranks, workers_per_rank, len(sample_ids), batch_size)
-    arrs = []
-    for begin, end in spans:
-        arr = sample_ids[begin:end + 1]
-        arrs.append(arr)
-
-    # Pad the end of each worker's segment to be even.
-    max_len = max(map(len, arrs))
-    for i, arr in enumerate(arrs):
-        pad = np.array([-1] * (max_len - len(arr)), np.int64)
-        arrs[i] = np.concatenate([arr, pad])
-
-    # Return a single interleaved list of sample IDs in order (via stack, transpose, and flatten).
-    arrs = np.stack(arrs)
-    return arrs.transpose().flatten()
+    return np.concatenate(arrs)
