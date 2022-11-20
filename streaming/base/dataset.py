@@ -345,12 +345,14 @@ class StreamingDataset(IterableDataset):
         Returns:
             Optional[NDArray[np.int64]]: Our partition of the epoch.
         """
-        indices = get_partitions(self.index.total_samples, self.num_canonical_nodes,
-                                 world.num_nodes, world.ranks_per_node, world.workers_per_rank,
-                                 sample_in_epoch)
-        shuffle = get_shuffle(self.shard_sizes, self.num_canonical_nodes, self.shuffle_seed, epoch)
-        partitions = np.where(indices == -1, -1, shuffle[indices])
-        return partitions[world.node, world.rank_of_node, world.worker_of_rank]
+        sample_ids = get_partitions(self.index.total_samples, self.num_canonical_nodes,
+                                    world.num_nodes, world.ranks_per_node, world.workers_per_rank,
+                                    sample_in_epoch)
+        if self.shuffle:
+            mapping = get_shuffle(self.shard_sizes, self.num_canonical_nodes, self.shuffle_seed,
+                                  epoch)
+            sample_ids = np.where(sample_ids == -1, -1, mapping[sample_ids])
+        return sample_ids[world.node, world.rank_of_node, world.worker_of_rank]
 
     def _download_file(self, basename: str) -> str:
         """Safely download a file from remote to local cache.
