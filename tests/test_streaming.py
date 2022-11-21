@@ -13,12 +13,14 @@ from tests.common.datasets import SequenceDataset, write_mds_dataset
 
 @pytest.mark.parametrize('batch_size', [128])
 @pytest.mark.parametrize('drop_last', [False, True])
+@pytest.mark.parametrize('shuffle', [False, True])
 @pytest.mark.parametrize('num_workers', [0, 1, 8])
 @pytest.mark.parametrize('num_samples', [9867, 30_000])
 @pytest.mark.parametrize('size_limit', [8_192])
 @pytest.mark.usefixtures('remote_local')
 def test_dataloader_single_device(remote_local: Tuple[str, str], batch_size: int, drop_last: bool,
-                                  num_workers: int, num_samples: int, size_limit: int):
+                                  shuffle: bool, num_workers: int, num_samples: int,
+                                  size_limit: int):
     dataset = SequenceDataset(num_samples)
     columns = dict(zip(dataset.column_names, dataset.column_encodings))
     remote, local = remote_local
@@ -27,7 +29,7 @@ def test_dataloader_single_device(remote_local: Tuple[str, str], batch_size: int
     # Build a StreamingDataset
     dataset = StreamingDataset(local=local,
                                remote=remote,
-                               shuffle=False,
+                               shuffle=shuffle,
                                batch_size=batch_size,
                                shuffle_seed=123)
 
