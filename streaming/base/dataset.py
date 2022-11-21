@@ -168,7 +168,7 @@ class StreamingDataset(IterableDataset):
         if world.is_local_leader:
             filename = self._download_file(basename)
         else:
-            filename = os.path.join(local, split, basename)  # pyright: ignore
+            filename = os.path.join(local, self.split, basename)  # pyright: ignore
         dist.barrier()
         obj = json.load(open(filename))
         if obj['version'] != 2:
@@ -177,7 +177,7 @@ class StreamingDataset(IterableDataset):
         # Initialize shard readers according to the loaded info.
         self.shards = []
         for info in obj['shards']:
-            shard = reader_from_json(local, split, info)
+            shard = reader_from_json(local, self.split, info)
             self.shards.append(shard)
 
         # Build the Index (for partitioning and mapping samples to shards).
