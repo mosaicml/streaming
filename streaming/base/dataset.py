@@ -347,7 +347,7 @@ class StreamingDataset(IterableDataset):
         """
         sample_ids = get_partitions(self.index.total_samples, self.num_canonical_nodes,
                                     world.num_nodes, world.ranks_per_node, world.workers_per_rank,
-                                    sample_in_epoch)
+                                    self.batch_size, sample_in_epoch)
         if self.shuffle:
             mapping = get_shuffle(self.shard_sizes, self.num_canonical_nodes, self.shuffle_seed,
                                   epoch)

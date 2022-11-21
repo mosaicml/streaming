@@ -27,7 +27,7 @@ def test_dataloader_single_device(remote_local: Tuple[str, str], batch_size: int
     # Build a StreamingDataset
     dataset = StreamingDataset(local=local,
                                remote=remote,
-                               shuffle=True,
+                               shuffle=False,
                                batch_size=batch_size,
                                shuffle_seed=123)
 
@@ -70,7 +70,7 @@ def test_dataloader_single_device(remote_local: Tuple[str, str], batch_size: int
         assert len(set(sample_order)) == num_samples
 
 
-@pytest.mark.parametrize('batch_size', [None, 1, 2])
+@pytest.mark.parametrize('batch_size', [None, 1, 2, 4])
 @pytest.mark.parametrize('seed', [987])
 @pytest.mark.parametrize('shuffle', [False, True])
 @pytest.mark.parametrize('num_workers', [0, 1, 8])
@@ -113,13 +113,14 @@ def test_dataloader_determinism(mds_dataset_dir: Any, batch_size: int, seed: int
     assert sample_order == second_sample_order
 
 
-@pytest.mark.parametrize('batch_size', [1, 2])
+@pytest.mark.parametrize('batch_size', [1, 2, 4])
 @pytest.mark.parametrize('seed', [987])
 @pytest.mark.parametrize('shuffle', [False])
+@pytest.mark.parametrize('drop_last', [False, True])
 @pytest.mark.parametrize('num_workers', [0, 1, 8])
 @pytest.mark.usefixtures('mds_dataset_dir')
 def test_dataloader_sample_order(mds_dataset_dir: Any, batch_size: int, seed: int, shuffle: bool,
-                                 num_workers: int):
+                                 drop_last: bool, num_workers: int):
     remote_dir, local_dir = mds_dataset_dir
 
     # Build StreamingDataset
@@ -130,37 +131,25 @@ def test_dataloader_sample_order(mds_dataset_dir: Any, batch_size: int, seed: in
                                shuffle_seed=seed)
 
     # Build DataLoader
-    dataloader = DataLoader(dataset=dataset,
-                            batch_size=batch_size,
-                            num_workers=num_workers,
-                            drop_last=False)
+    dataloader = StreamingDataLoader(dataset=dataset,
+                                     batch_size=batch_size,
+                                     num_workers=num_workers,
+                                     drop_last=drop_last)
+
+    if drop_last:
+        num_samples = (len(dataset) // batch_size) * batch_size
+        expected_sample_order = [f'{value:06}' for value in range(num_samples)]
+    else:
+        expected_sample_order = [f'{value:06}' for value in range(len(dataset))]
 
     # Append sample ID
     sample_order = []
     for batch in dataloader:
         sample_order.extend(batch['id'][:])
 
-    # Calculate the expected sample order based on batch_size and num_workers
-    expected_sample_order = [''] * len(dataset)
-    index = 0
-    value = 0
-    num_workers = num_workers or 1
-    for w in range(num_workers):
-        index = w * batch_size
-        while index < len(expected_sample_order):
-            for _ in range(batch_size):
-                if index < len(expected_sample_order):
-                    expected_sample_order[index] = f'{value:06}'
-                    index += 1
-                    value += 1
-                else:
-                    break
-            index += (num_workers - 1) * batch_size
-
     assert expected_sample_order == sample_order
 
 
-@pytest.mark.skip('Enable this test once global sample order and partition logic is improved')
 @pytest.mark.parametrize('batch_size', [1, 2, 4])
 @pytest.mark.parametrize('seed', [987])
 @pytest.mark.parametrize('shuffle', [False, True])
