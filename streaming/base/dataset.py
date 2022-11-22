@@ -48,6 +48,14 @@ class _ShardState(IntEnum):
 class _PartitionState:
     """The download status of a partition of samples.
 
+    0 <= yield <= ready <= download <= total
+
+    Cursors
+    * The yield cursor points to the (downloaded) sample we are yielding.
+    * The ready cursor points to the last contiguously downloaded sample.
+    * The download cursor points to the sample we are downloading (skipping other workers'
+      downloads in progress).
+
     Args:
         sample_ids (NDArray[np.int64]): This worker's partition of the sample space.
     """
@@ -55,7 +63,8 @@ class _PartitionState:
     def __init__(self, sample_ids: NDArray[np.int64]) -> None:
         self.sample_ids = sample_ids
         self.total = len(sample_ids)
-        self.iter_index = 0
+        self.yield_index = 0
+        self.ready_index = 0
         self.download_index = 0
         self.is_stopped = False
 
@@ -69,12 +78,12 @@ class _PartitionState:
         Returns:
             Iterator[int]: Each sample, having been downloaded.
         """
-        while self.iter_index < self.total:
-            if self.iter_index < self.download_index:
-                sample_id = self.sample_ids[self.iter_index]
+        while self.yield_index < self.total:
+            if self.yield_index < self.ready_index:
+                sample_id = self.sample_ids[self.yield_index]
                 if sample_id != -1:  # If -1, we skip.
                     yield sample_id
-                self.iter_index += 1
+                self.yield_index += 1
                 continue
             if self.is_stopped:
                 break
@@ -455,9 +464,9 @@ class StreamingDataset(IterableDataset):
         for raw_info, zip_info in reader.file_pairs:
             self._download_shard_part(raw_info, zip_info, reader.compression)
 
-    def _download_or_await_shard(self, lock: FileLock, shard_states: NDArray[np.uint8],
-                                 shard_id: int) -> None:
-        """Either download the given shard or wait on its download.
+    def _download_or_skip_shard(self, lock: FileLock, shard_states: NDArray[np.uint8],
+                                shard_id: int) -> None:
+        """Download a shard, skipping if in progress by another worker.
 
         Args:
             lock (FileLock): The lock protecting ``shard_states``.
@@ -483,12 +492,36 @@ class StreamingDataset(IterableDataset):
             shard_states[shard_id] = _ShardState.DOWNLOADED
         elif state == _ShardState.DOWNLOADING:
             lock.release()
-            while shard_states[shard_id] != _ShardState.DOWNLOADED:
-                sleep(TICK)
         elif state == _ShardState.DOWNLOADED:
             lock.release()
         else:
             raise RuntimeError('Unknown shard state')
+
+    def _get_shard_states(self) -> Tuple[FileLock, NDArray[np.uint8], SharedMemory]:
+        """Get the shared shard states array and its protecting lock.
+
+        Also returns the shared memory object to keep a reference around, preventing garbage
+        collection.
+
+        Returns:
+            Tuple[FileLock, NDArray[np.uint8], SharedMemory]: Lock, array, and shared memory.
+        """
+        # Get the filelock that protects shard_states shared memory array.
+        filename = os.path.join(os.path.sep, 'tmp', 'streaming', self._prefix,
+                                '_shard_states_filelock')
+        lock = FileLock(filename)
+
+        # Create or attach shard_states array (tells if each shard is unknown, downlaoding, or
+        # downloaded).
+        name = f'{self._prefix}_shard_states'
+        size = len(self.shard_sizes) * np.uint8(0).nbytes
+        try:
+            shm = SharedMemory(name, True, size)
+        except FileExistsError:
+            shm = SharedMemory(name)
+        shard_states = np.ndarray(len(self.shard_sizes), buffer=shm.buf, dtype=np.uint8)
+
+        return lock, shard_states, shm
 
     def _download_thread(self, state: _PartitionState) -> None:
         """Download the relevant shards in the background while we are being iterated.
@@ -502,20 +535,7 @@ class StreamingDataset(IterableDataset):
         Args:
             state (_PartitionState): The partition state.
         """
-        # Get the filelock that protects shard_states shared memory array.
-        filename = os.path.join(os.path.sep, 'tmp', 'streaming', self._prefix,
-                                '_shard_states_filelock')
-        shard_states_lock = FileLock(filename)
-
-        # Create or attach shard_states array (tells if each shard is unknown, downlaoding, or
-        # downloaded).
-        name = f'{self._prefix}_shard_states'
-        size = len(self.shard_sizes) * np.uint8(0).nbytes
-        try:
-            shm = SharedMemory(name, True, size)
-        except FileExistsError:
-            shm = SharedMemory(name)
-        shard_states = np.ndarray(len(self.shard_sizes), buffer=shm.buf, dtype=np.uint8)
+        shard_states_lock, shard_states, shm = self._get_shard_states()
 
         # Download loop.
         while True:
@@ -531,7 +551,7 @@ class StreamingDataset(IterableDataset):
             # If we are requested to only pre-download so many samples, if we have as many or more
             # downloaded already, we wait and check again later.
             if self.predownload is not None:
-                samples_ahead = state.download_index - state.iter_index
+                samples_ahead = state.download_index - state.yield_index
                 if self.predownload <= samples_ahead:
                     sleep(TICK)
                     continue
@@ -544,8 +564,57 @@ class StreamingDataset(IterableDataset):
 
             # Download and decompress the shard for this sample, if not already done.
             shard_id, _ = self.index.find_sample(sample_id)
-            self._download_or_await_shard(shard_states_lock, shard_states, shard_id)
+            self._download_or_skip_shard(shard_states_lock, shard_states, shard_id)
             state.download_index += 1
+
+        del shm
+
+    def _ready_thread(self, state: _PartitionState) -> None:
+        """Download the relevant shards in the background while we are being iterated.
+
+        This thread is started at the beginning of each epoch, and exits either when out of samples
+        or when a new epoch is started, calling stop() on its state (only one epoch is valid at a
+        time).
+
+        Each worker has its own ready thread, which iterates ahead of the main thread.
+
+        Args:
+            state (_PartitionState): The partition state.
+        """
+        _, shard_states, shm = self._get_shard_states()
+
+        # Download loop.
+        while True:
+            # If we've started a new epoch early (__iter__ was called again), exit this thread
+            # because there can only be one epoch at once.
+            if state.is_stopped:
+                break
+
+            # If we're out of samples this epoch, exit this thread because we are done downloading.
+            if state.ready_index == state.total:
+                break
+
+            # If we are requested to only pre-download so many samples, if we have as many or more
+            # downloaded already, we wait and check again later.
+            if self.predownload is not None:
+                samples_ahead = state.ready_index - state.yield_index
+                if self.predownload <= samples_ahead:
+                    sleep(TICK)
+                    continue
+
+            # If we hit -1, we skip.
+            sample_id = state.sample_ids[state.ready_index]
+            if sample_id == -1:
+                state.ready_index += 1
+                continue
+
+            # Download and decompress the shard for this sample, if not already done.
+            shard_id, _ = self.index.find_sample(sample_id)
+            while shard_states[shard_id] != _ShardState.DOWNLOADED:
+                sleep(TICK)
+            state.ready_index += 1
+
+        del shm
 
     def _each_sample(self, sample_ids: NDArray[np.int64]) -> Iterator[int]:
         """Iterate over each sample ID, while downloading ahead in the background.
@@ -558,6 +627,7 @@ class StreamingDataset(IterableDataset):
         """
         self._partition_state = _PartitionState(sample_ids)
         Thread(target=self._download_thread, args=(self._partition_state,), daemon=True).start()
+        Thread(target=self._ready_thread, args=(self._partition_state,), daemon=True).start()
         yield from self._partition_state
 
     def __iter__(self) -> Iterator[Dict[str, Any]]:
