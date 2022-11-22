@@ -227,6 +227,7 @@ class StreamingDataset(IterableDataset):
         try:
             self._next_epoch_shm = SharedMemory(name, True, size)
         except FileExistsError:
+            sleep(TICK)
             self._next_epoch_shm = SharedMemory(name, False, size)
         self._next_epoch_arr = np.ndarray(1, buffer=self._next_epoch_shm.buf, dtype=np.int64)
         self._next_epoch_arr[0] = 0
@@ -518,7 +519,8 @@ class StreamingDataset(IterableDataset):
         try:
             shm = SharedMemory(name, True, size)
         except FileExistsError:
-            shm = SharedMemory(name)
+            sleep(TICK)
+            shm = SharedMemory(name, False, size)
         shard_states = np.ndarray(len(self.shard_sizes), buffer=shm.buf, dtype=np.uint8)
 
         return lock, shard_states, shm
@@ -694,5 +696,6 @@ class StreamingDataset(IterableDataset):
             self._resume_shm = SharedMemory(name, True, len(data))
             self._resume_shm.buf[:len(data)] = data
         except FileExistsError:
+            sleep(TICK)
             self._resume_shm = SharedMemory(name)
             assert len(self._resume_shm.buf) == len(data)
