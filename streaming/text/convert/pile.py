@@ -116,6 +116,63 @@ def file_to_dir(args: Tuple[str, str, str, List[str], int]) -> Dict[str, int]:
     return counts
 
 
+def with_id(basename: str, shard_id: int) -> str:
+    """Get a new basename with the given shard_id.
+
+    Args:
+        basename (str): Old basename of file.
+        shard_id (int): New shard ID.
+
+    Returns:
+        str: New basename of file.
+    """
+    parts = basename.split('.')
+    parts[1] = f'{shard_id:05}'
+    return '.'.join(parts)
+
+
+def merge_shard_groups(root: str) -> None:
+    """Merge ephemeral sub-datasets created in parallel into one dataset.
+
+    Args:
+        root (str): Root directory.
+    """
+    pattern = os.path.join(root, '*')
+    subdirs = sorted(glob(pattern))
+    shard_id = 0
+    infos = []
+    for subdir in subdirs:
+        index_filename = os.path.join(subdir, 'index.json')
+        obj = json.load(open(index_filename))
+        for info in obj['shards']:
+            old_basename = info['raw_data']['basename']
+            new_basename = with_id(old_basename, shard_id)
+            info['raw_data']['basename'] = new_basename
+
+            old_basename = info['zip_data']['basename']
+            new_basename = with_id(old_basename, shard_id)
+            info['zip_data']['basename'] = new_basename
+
+            old_filename = os.path.join(subdir, old_basename)
+            new_filename = os.path.join(root, new_basename)
+            assert not os.rename(old_filename, new_filename)
+
+            shard_id += 1
+            infos.append(info)
+
+        assert not os.remove(index_filename)
+        assert not os.rmdir(subdir)
+
+    index_filename = os.path.join(root, 'index.json')
+    obj = {
+        'version': 2,
+        'shards': infos,
+    }
+    text = json.dumps(obj, sort_keys=True)
+    with open(index_filename, 'w') as out:
+        out.write(text)
+
+
 def main(args: Namespace) -> None:
     """Convert the Pile to streaming format.
 
@@ -144,6 +201,10 @@ def main(args: Namespace) -> None:
                 'counts': counts,
             }
             print(json.dumps(obj, sort_keys=True))
+
+    # Merge shard groups.
+    train_root = os.path.join(args.out_root, 'train')
+    merge_shard_groups(train_root)
 
 
 if __name__ == '__main__':
