@@ -142,7 +142,7 @@ class Snappy(Compression):
 class Zstandard(LevelledCompression):
     """Zstandard compression."""
 
-    extension = 'zst'
+    extension = 'zstd'
     levels = list(range(1, 23))
 
     def __init__(self, level: int = 3) -> None:
@@ -162,7 +162,6 @@ _families: Dict[str, Type[Compression]] = {
     'bz2': Bzip2,
     'gz': Gzip,
     'snappy': Snappy,
-    'zst': Zstandard,
     'zstd': Zstandard,
 }
 

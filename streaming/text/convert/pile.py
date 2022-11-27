@@ -37,8 +37,8 @@ def parse_args() -> Namespace:
     args.add_argument(
         '--compression',
         type=str,
-        default='zst:16',
-        help='Compression algorithm to use. Default: zst:16',
+        default='zstd:16',
+        help='Compression algorithm to use. Default: zstd:16',
     )
     args.add_argument(
         '--hashes',
