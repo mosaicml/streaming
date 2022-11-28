@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import json
-from typing import Any
+from typing import Any, Tuple
 
 import numpy as np
 import pytest
@@ -73,6 +73,62 @@ class TestMDSEncodings:
         with pytest.raises(AttributeError):
             int_enc = mdsEnc.Int()
             _ = int_enc.encode(data)
+
+    @pytest.mark.parametrize('dtype_str', [
+        'uint8',
+        'uint16',
+        'uint32',
+        'uint64',
+        'int8',
+        'int16',
+        'int32',
+        'int64',
+        'float16',
+        'float32',
+        'float64',
+    ])
+    @pytest.mark.parametrize('shape', [
+        (1,),
+        (1, 1),
+        (2, 3, 4, 5),
+        (1, 3, 1, 3, 1),
+        (300,),
+        (1, 256, 1),
+        (65536, 7, 1),
+    ])
+    def test_ndarray_encode_decode(self, dtype_str: str, shape: Tuple[int]):
+        dtype = getattr(np, dtype_str)
+        a = np.random.randint(0, 1000, shape).astype(dtype)
+
+        encoding = 'ndarray'
+        assert mdsEnc.is_mds_encoding(encoding)
+        assert mdsEnc.get_mds_encoded_size(encoding) is None
+        b = mdsEnc.mds_encode(encoding, a)
+        c = mdsEnc.mds_decode(encoding, b)
+        assert (a == c).all()
+        b1_len = len(b)
+
+        encoding = f'ndarray:{dtype.__name__}'
+        assert mdsEnc.is_mds_encoding(encoding)
+        assert mdsEnc.get_mds_encoded_size(encoding) is None
+        b = mdsEnc.mds_encode(encoding, a)
+        c = mdsEnc.mds_decode(encoding, b)
+        assert (a == c).all()
+        b2_len = len(b)
+
+        shape_str = 'x'.join(map(str, shape))
+        encoding = f'ndarray:{dtype.__name__},{shape_str}'
+        assert mdsEnc.is_mds_encoding(encoding)
+        b_size = mdsEnc.get_mds_encoded_size(encoding)
+        assert b_size is not None
+        b = mdsEnc.mds_encode(encoding, a)
+        c = mdsEnc.mds_decode(encoding, b)
+        assert (a == c).all()
+        assert len(b) == b_size
+        b3_len = len(b)
+
+        assert b3_len < b2_len < b1_len
+        assert b3_len == np.prod(shape) * dtype().nbytes
 
     @pytest.mark.parametrize('mode', ['I', 'L', 'RGB'])
     def test_pil_encode_decode(self, mode: str):
@@ -196,7 +252,9 @@ class TestMDSEncodings:
             json_enc._is_valid(wrong_json_with_single_quotes, wrong_json_with_single_quotes)
 
     def test_get_mds_encodings(self):
-        expected_encodings = {'int', 'bytes', 'json', 'png', 'jpeg', 'str', 'pil', 'pkl'}
+        expected_encodings = {
+            'int', 'bytes', 'json', 'ndarray', 'png', 'jpeg', 'str', 'pil', 'pkl'
+        }
         enc = mdsEnc.get_mds_encodings()
         assert len(enc) == len(expected_encodings)
         assert enc == expected_encodings
