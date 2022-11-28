@@ -77,7 +77,7 @@ extra_deps['docs'] = [
     'furo==2022.9.29',
     'myst-parser==0.18.1',
     'nbsphinx==0.8.10',
-    'pandoc==2.2',
+    'pandoc==2.3',
     'pypandoc==1.10',
     'sphinx-argparse==0.4.0',
     'sphinx-copybutton==0.5.0',
