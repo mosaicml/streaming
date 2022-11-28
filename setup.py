@@ -84,7 +84,7 @@ extra_deps['docs'] = [
     'sphinx==4.4.0',
     'sphinx_panels==0.6.0',
     'sphinxcontrib-images==0.9.4',
-    'sphinxcontrib.katex==0.9.0',
+    'sphinxcontrib.katex==0.9.3',
     'sphinxemoji==0.2.0',
     'sphinxext.opengraph==0.7.2',
 ]
