@@ -1,7 +1,53 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Convert the Pile dataset to streaming format."""
+"""Convert the Pile dataset to streaming format.
+
+    Instructions:
+
+Download the Pile dataset (cf https://pile.eleuther.ai/) from the download site
+(https://the-eye.eu/public/AI/pile/).
+
+That will result in this directory structure:
+
+    SHA256SUMS.txt
+    test.jsonl.zst
+    train/
+        00.jsonl.zst
+        01.jsonl.zst
+        02.jsonl.zst
+        03.jsonl.zst
+        04.jsonl.zst
+        05.jsonl.zst
+        06.jsonl.zst
+        07.jsonl.zst
+        08.jsonl.zst
+        09.jsonl.zst
+        10.jsonl.zst
+        11.jsonl.zst
+        12.jsonl.zst
+        13.jsonl.zst
+        14.jsonl.zst
+        15.jsonl.zst
+        16.jsonl.zst
+        17.jsonl.zst
+        18.jsonl.zst
+        19.jsonl.zst
+        20.jsonl.zst
+        21.jsonl.zst
+        22.jsonl.zst
+        23.jsonl.zst
+        24.jsonl.zst
+        25.jsonl.zst
+        26.jsonl.zst
+        27.jsonl.zst
+        28.jsonl.zst
+        29.jsonl.zst
+    val.jsonl.zst
+
+You then run this script specifying --in_root (the above dir), --out_root (the dir to create),
+and any other flags as appropriate.
+"""
 
 import json
 import os
@@ -38,7 +84,9 @@ def parse_args() -> Namespace:
         '--compression',
         type=str,
         default='zstd:16',
-        help='Compression algorithm to use. Default: zstd:16',
+        help='Compression algorithm to use. Empirically, Zstandard has the best performance in ' +
+        'our benchmarks. Tune the compresion level (from 1 to 22) to trade off time for ' +
+        'quality. Default: zstd:16',
     )
     args.add_argument(
         '--hashes',
