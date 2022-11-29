@@ -336,7 +336,7 @@ class StreamingDataset(IterableDataset):
         epoch, sample_in_epoch = self._resume(world, presumed_epoch)
 
         # Wait for everyone to get the epoch above.
-        self._worker_barrier(world.num_workers)
+        self._worker_barrier(world.workers_per_node)
 
         # Set the new next epoch.
         if world.is_local_leader:
