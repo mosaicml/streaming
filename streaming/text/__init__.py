@@ -5,5 +5,6 @@
 
 from streaming.text.c4 import StreamingC4 as StreamingC4
 from streaming.text.enwiki import StreamingEnWiki as StreamingEnWiki
+from streaming.text.pile import Pile as Pile
 
-__all__ = ['StreamingC4', 'StreamingEnWiki']
+__all__ = ['Pile', 'StreamingC4', 'StreamingEnWiki']
