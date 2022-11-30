@@ -17,7 +17,7 @@ __all__ = ['StreamingPile']
 
 
 class StreamingPile(StreamingDataset):
-    """Implementation of the the Pile using streaming Dataset.
+    """Implementation of the the Pile using StreamingDataset.
 
     Args:
         tokenizer_name (str): The name of the HuggingFace tokenizer to use to tokenize samples.
