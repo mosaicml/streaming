@@ -11,12 +11,12 @@ from typing import Any, Dict, Optional
 
 from transformers.models.auto.tokenization_auto import AutoTokenizer
 
-from streaming.base import Dataset
+from streaming.base import StreamingDataset
 
 __all__ = ['Pile']
 
 
-class Pile(Dataset):
+class Pile(StreamingDataset):
     """Implementation of the the Pile using streaming Dataset.
 
     Args:
