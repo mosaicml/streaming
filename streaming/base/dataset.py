@@ -15,6 +15,7 @@ import numpy as np
 import torch
 from filelock import FileLock
 from numpy.typing import NDArray
+from torch import distributed as tdist
 from torch.utils.data import IterableDataset
 
 from streaming.base import distributed as dist
@@ -163,6 +164,10 @@ class StreamingDataset(IterableDataset):
         self.download_retry = download_retry
         self.download_timeout = download_timeout
         self.validate_hash = validate_hash or None
+
+        if tdist.is_available() and not tdist.is_initialized():
+            tdist.init_process_group('nccl')
+
         # Seed is set below.
         world = World()
         if num_canonical_nodes is None:

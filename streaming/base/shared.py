@@ -46,9 +46,9 @@ class SharedBarrier:
             sleep(TICK)
             self._shm = SharedMemory(shm_path, False, size)
         self._arr = np.ndarray(3, buffer=self._shm.buf, dtype=np.int32)
-        self.num_enter = 0
-        self.num_exit = -1
-        self.flag = True
+        self._arr[0] = 0
+        self._arr[1] = -1
+        self._arr[2] = True
 
     def __del__(self):
         """Destructor clears array that references shm."""
