@@ -37,7 +37,6 @@ class World:
 
     def __init__(self):
         self.rank = dist.get_rank()
-        self.local_rank = dist.get_local_rank()
         self.num_ranks = dist.get_world_size()
         self.ranks_per_node = dist.get_local_world_size()
         self.rank_of_node = self.rank % self.ranks_per_node
@@ -59,5 +58,5 @@ class World:
         self.worker_of_node = self.rank_of_node * self.workers_per_rank + self.worker_of_rank
         self.workers_per_node = self.ranks_per_node * self.workers_per_rank
 
-        self.is_leader = not self.rank
-        self.is_local_leader = not self.local_rank
+        self.is_leader = not self.worker
+        self.is_local_leader = not self.worker_of_node
