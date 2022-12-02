@@ -16,8 +16,8 @@
 
 <h4><p align='center'>
 <a href="https://www.mosaicml.com">[Website]</a>
-- <a href="https://docs.mosaicml.com/projects/streaming/en/latest/getting_started/user_guide.html">[Getting Started]</a>
-- <a href="https://docs.mosaicml.com/projects/streaming/">[Docs]
+- <a href="https://streaming.docs.mosaicml.com/en/latest/getting_started/user_guide.html">[Getting Started]</a>
+- <a href="https://streaming.docs.mosaicml.com/">[Docs]
 - <a href="https://www.mosaicml.com/team">[We're Hiring!]</a>
 </p></h4>
 
@@ -34,7 +34,7 @@
     <a href="https://pypi.org/project/mosaicml-streaming/">
         <img alt="PyPi Downloads" src="https://img.shields.io/pypi/dm/mosaicml-streaming">
     </a>
-    <a href="https://docs.mosaicml.com/projects/streaming">
+    <a href="https://streaming.docs.mosaicml.com">
         <img alt="Documentation" src="https://readthedocs.org/projects/streaming/badge/?version=stable">
     </a>
     <a href="https://join.slack.com/t/mosaicml-community/shared_invite/zt-w0tiddn9-WGTlRpfjcO9J5jyrMub1dg">
@@ -54,7 +54,7 @@ Streaming is a PyTorch compatible dataset that enables users to stream training 
 dataloader = torch.utils.data.DataLoader(dataset=ImageStreamingDataset(remote='s3://...'))
 ```
 
-Please check the [quick start guide](https://docs.mosaicml.com/projects/streaming/en/latest/getting_started/quick_start.html) and [user guide](https://docs.mosaicml.com/projects/streaming/en/latest/getting_started/user_guide.html) on how to use the Streaming Dataset.
+Please check the [quick start guide](https://streaming.docs.mosaicml.com/en/latest/getting_started/quick_start.html) and [user guide](https://streaming.docs.mosaicml.com/en/latest/getting_started/user_guide.html) on how to use the Streaming Dataset.
 
 # Key Benefits
 
@@ -75,10 +75,10 @@ pip install mosaicml-streaming
 ```
 
 # Examples
-Please check our [Examples](https://docs.mosaicml.com/projects/streaming/) section for the end-to-end model training workflow using Streaming datasets.
+Please check our [Examples](https://streaming.docs.mosaicml.com/) section for the end-to-end model training workflow using Streaming datasets.
 
 # 📚 Documentation
-Getting started guides, examples, API reference, and other useful information can be found in our [docs](https://docs.mosaicml.com/projects/streaming).
+Getting started guides, examples, API reference, and other useful information can be found in our [docs](https://streaming.docs.mosaicml.com).
 
 # 💫 Contributors
 We welcome any contributions, pull requests, or issues!
