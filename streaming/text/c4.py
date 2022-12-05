@@ -7,7 +7,7 @@ This dataset is a colossal, cleaned version of Common Crawl's web crawl corpus a
 the `Common Crawl <https://commoncrawl.org>`_ dataset.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Iterator, Optional
 
 from transformers.models.auto.tokenization_auto import AutoTokenizer
 
@@ -59,7 +59,8 @@ class C4(Dataset):
                  hash: Optional[str] = None,
                  batch_size: Optional[int] = None) -> None:
         if group_method not in ['truncate']:
-            raise ValueError(f'Only group_method="truncate" is supported at this time.')
+            raise ValueError(
+                f"group_method='{group_method}' must be one of ['truncate', 'concat'].")
 
         super().__init__(local, remote, split, shuffle, prefetch, keep_zip, retry, timeout, hash,
                          batch_size)
@@ -72,6 +73,8 @@ class C4(Dataset):
         if self.tokenizer.pad_token is None:
             # Some tokenizers (e.g. GPT2 tokenizer) have no padding token which causes bugs
             self.tokenizer.pad_token = self.tokenizer.eos_token
+        # suppress warnings when using group_method='concat' and no truncation
+        self.tokenizer.model_max_length = int(1e30)
 
     def _tokenize(self, text_sample: Dict[str, Any]):
         """Apply the tokenizer to a sample.
@@ -83,7 +86,7 @@ class C4(Dataset):
             truncation = True
             padding = 'max_length'
             max_length = self.max_seq_len
-        else:
+        else:  # group_method = 'concat'
             truncation = False
             padding = False
             max_length = None
@@ -105,3 +108,45 @@ class C4(Dataset):
         token_sample = self._tokenize(text_sample)
         # Skip any token grouping, currently only supporting group_method='truncate'
         return token_sample
+
+    def __iter__(self) -> Iterator[Any]:
+        """Iterable over samples.
+
+        Since concatenating samples has a custom behavior, it requires extending the
+        parent iterator class.
+
+        For `group_method = truncate`, simply return the token sample.
+        For `group_method = concat`, keep fetching token samples until it fills up the max_seq_len.
+
+        Yields:
+            Iterator[Any]: Sample iterator
+        """
+        if self.group_method == 'truncate':
+            yield from super().__iter__()
+        else:  # group_method = 'concat'
+            buffer = {}
+            while True:
+                iterator = super().__iter__()
+                for sample in iterator:
+                    for k, v in sample.items():
+                        buffer[k] = buffer.get(k, []) + v
+                    while len(buffer['input_ids']) >= self.max_seq_len:
+                        concat_sample = {}
+                        for k, v in buffer.items():
+                            concat_sample[k] = v[:self.max_seq_len]
+                            buffer[k] = v[self.max_seq_len:]
+                        yield concat_sample
+
+    def __len__(self) -> Optional[int]:
+        """Number of samples in a dataset.
+
+        For `group_method = truncate`, return the number of samples.
+        For `group_method = concat`, since it repeat forever, it doesn't have any defined length.
+
+        Returns:
+            Optional[int]: Number of samples
+        """
+        if self.group_method == 'truncate':
+            return super().__len__()
+        else:  # group_method = 'concat'
+            return None
