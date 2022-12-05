@@ -120,6 +120,29 @@ def download_from_gcs(remote: str, local: str) -> None:
             raise FileNotFoundError(f'Object {remote} not found.') from e
 
 
+def download_from_oci(remote: str, local: str) -> None:
+    """Download a file from remote OCI to local.
+
+    Args:
+        remote (str): Remote path (S3).
+        local (str): Local path (local filesystem).
+    """
+    import oci
+    config = oci.config.from_file()
+    client = oci.object_storage.ObjectStorageClient(
+        config=config, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
+    namespace = client.get_namespace().data
+    obj = urllib.parse.urlparse(remote)
+    if obj.scheme != 'oci':
+        raise ValueError(f'Expected obj.scheme to be "oci", got {obj.scheme} for remote={remote}')
+
+    bucket_name = obj.netloc.split('@' + namespace)[0]
+    object_details = client.get_object(namespace, bucket_name, obj.path)
+    with open(local, 'wb') as f:
+        for chunk in object_details.data.raw.stream(2048**2, decode_content=False):
+            f.write(chunk)
+
+
 def download_from_local(remote: str, local: str) -> None:
     """Download a file from remote to local.
 
@@ -157,6 +180,8 @@ def download(remote: Optional[str], local: str, timeout: float):
         download_from_sftp(remote, local)
     elif remote.startswith('gs://'):
         download_from_gcs(remote, local)
+    elif remote.startswith('oci://'):
+        download_from_oci(remote, local)
     else:
         download_from_local(remote, local)
 
