@@ -122,14 +122,12 @@ class C4(Dataset):
             Iterator[Any]: Sample iterator
         """
         if self.group_method == 'truncate':
-            iterator = super().__iter__()
-            yield from iterator
+            yield from super().__iter__()
         else:  # group_method = 'concat'
             buffer = {}
             while True:
                 iterator = super().__iter__()
                 for sample in iterator:
-
                     for k, v in sample.items():
                         buffer[k] = buffer.get(k, []) + v
                     while len(buffer['input_ids']) >= self.max_seq_len:
