@@ -170,12 +170,9 @@ class StreamingDataset(IterableDataset):
 
         # Seed is set below.
         world = World()
-        if num_canonical_nodes is None:
-            num_canonical_nodes = world.num_nodes
-        if not _is_pow2(num_canonical_nodes):
-            raise ValueError('num_canonical_nodes must be an integer power of 2')
         self.num_canonical_nodes = num_canonical_nodes
         self.batch_size = batch_size
+        self.shuffle_seed = shuffle_seed
 
         # Load the index.json file.
         basename = get_index_basename()
@@ -290,6 +287,20 @@ class StreamingDataset(IterableDataset):
         reader = self.shards[shard]
         return reader[index_in_shard]
 
+    def _set_canonical_num_nodes(self, world: World):
+        """Set the canonical numbers of nodes.
+
+        Args:
+            world (World): World state.
+
+        Raises:
+            ValueError: Number of canonical nodes must be an integer power of 2
+        """
+        if self.num_canonical_nodes is None:
+            self.num_canonical_nodes = world.num_nodes
+        if not _is_pow2(self.num_canonical_nodes):
+            raise ValueError('num_canonical_nodes must be an integer power of 2')
+
     def _resume(self, world: World, epoch: int) -> Tuple[int, int]:
         """Either resume from checkpoint or start at the beginning.
 
@@ -306,6 +317,7 @@ class StreamingDataset(IterableDataset):
             shm = SharedMemory(name)
         except FileNotFoundError:
             # There is nothing to resume.
+            self._set_canonical_num_nodes(world)
             return epoch, 0
 
         # SharedMemory buffers may contain additional null bytes at the end.
@@ -320,11 +332,15 @@ class StreamingDataset(IterableDataset):
             if world.is_local_leader:
                 shm.close()
                 shm.unlink()
+            self._set_canonical_num_nodes(world)
             return epoch, 0
 
-        # Load the correct epoch and sample offset.
+        # Load the correct resumption meta data.
         epoch = obj['epoch']
         sample_in_epoch = obj['sample_in_epoch']
+        self.num_canonical_nodes = obj['num_canonical_nodes']
+        self.shuffle_seed = obj['shuffle_seed']
+
         return epoch, sample_in_epoch
 
     def _get_progress(self, world: World) -> Tuple[int, int]:
@@ -360,6 +376,13 @@ class StreamingDataset(IterableDataset):
         Returns:
             Optional[NDArray[np.int64]]: Our partition of the epoch.
         """
+        # Ensure the parameters are not None. The parameters are either in _resume() or
+        # in constructor method.
+        if self.num_canonical_nodes is None:
+            raise RuntimeError('Number of canonical nodes can never be None')
+        if self.shuffle_seed is None:
+            raise RuntimeError('Shuffle seed can never be None')
+
         sample_ids = get_partitions(self.index.total_samples, self.num_canonical_nodes,
                                     world.num_nodes, world.ranks_per_node, world.workers_per_rank,
                                     self.batch_size, sample_in_epoch)
@@ -678,6 +701,8 @@ class StreamingDataset(IterableDataset):
         return {
             'epoch': epoch,
             'sample_in_epoch': offset + sample_in_epoch,
+            'num_canonical_nodes': self.num_canonical_nodes,
+            'shuffle_seed': self.shuffle_seed
         }
 
     def load_state_dict(self, obj: Dict[str, Any]) -> None:

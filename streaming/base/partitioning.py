@@ -59,9 +59,6 @@ def get_partitions(num_samples: int,
             too_few = ratio - too_many
             last = x[:, -ratio - too_few + 1:-ratio + 1]
             x = np.concatenate([x, last], 1)
-        x = x.reshape(ratio, -1, num_canonical_nodes)
-        x = x.transpose(2, 1, 0)
-        x = x.reshape(num_canonical_nodes, -1)
 
     # Drop samples that have already been seen and reshape.
     # -> Shape: (physical nodes x samples).
