@@ -3,8 +3,10 @@
 
 """Convert and upload LAION-400M parquet shards."""
 
+import json
 import os
 from argparse import ArgumentParser, Namespace
+from time import sleep, time
 from typing import Iterator, List, Optional, Union
 
 import numpy as np
@@ -40,6 +42,10 @@ def parse_args() -> Namespace:
                       type=str,
                       default='sha1,xxh64',
                       help='Hashes for validating shards, if any.')
+    args.add_argument('--poll_interval',
+                      type=float,
+                      default=30,
+                      help='Interval between polling for newly downloaded shards to process.')
     return args.parse_args()
 
 
@@ -178,11 +184,14 @@ def upload(local: str, remote: str) -> None:
     assert not os.system(cmd)
 
 
-def main(args: Namespace) -> None:
-    """Convert and upload shards as they are created.
+def convert_and_upload_shards(args: Namespace) -> bool:
+    """Process any newly downloaded shards.
 
     Args:
         args (Namespace): Command-line arguments.
+
+    Returns:
+        bool: Whether shard downloading is done.
     """
     hashes = args.hashes.split(',') if args.hashes else []
     for idx in each_downloaded_shard(args.local):
@@ -215,6 +224,54 @@ def main(args: Namespace) -> None:
         if not args.keep_mds:
             os.remove(mds_shard_filename)
         print(f'Shard {idx:05}: done')
+
+    # Check for the "done" marker.
+    filename = os.path.join(args.local, 'done')
+    return os.path.exists(filename)
+
+
+def collect_and_upload_index(args: Namespace) -> None:
+    """Finally, collect and upload the index.
+
+    Args:
+        args (Namespace): Command-line arguments.
+    """
+    infos = []
+    for idx in each_downloaded_shard(args.local):
+        sub_index_filename = os.path.join(args.local, f'{idx:05}.mds', 'index.json')
+        obj = json.load(open(sub_index_filename))
+        info, = obj['shards']
+        infos.append(info)
+
+    obj = {
+        'version': 2,
+        'shards': infos,
+    }
+    local = os.path.join(args.local, 'index.json')
+    with open(local, 'w') as out:
+        json.dump(obj, out)
+
+    remote = os.path.join(args.remote, 'index.json')
+    upload(local, remote)
+
+
+def main(args: Namespace) -> None:
+    """Convert and upload shards as they are created.
+
+    Args:
+        args (Namespace): Command-line arguments.
+    """
+    while True:
+        last_poll = time()
+        is_done = convert_and_upload_shards(args)
+        if is_done:
+            break
+        now = time()
+        elapsed = now - last_poll
+        if elapsed < args.poll_interval:
+            sleep(args.poll_interval - elapsed)
+
+    collect_and_upload_index(args)
 
 
 if __name__ == '__main__':
