@@ -88,6 +88,149 @@ class Int(Encoding):
         return int(np.frombuffer(data, np.int64)[0])
 
 
+class UInt8(Encoding):
+    """Store uint8."""
+
+    size = 1
+
+    def encode(self, obj: int) -> bytes:
+        self._validate(obj, int)
+        return np.uint8(obj).tobytes()
+
+    def decode(self, data: bytes) -> int:
+        return int(np.frombuffer(data, np.uint8)[0])
+
+
+class UInt16(Encoding):
+    """Store uint16."""
+
+    size = 2
+
+    def encode(self, obj: int) -> bytes:
+        self._validate(obj, int)
+        return np.uint16(obj).tobytes()
+
+    def decode(self, data: bytes) -> int:
+        return int(np.frombuffer(data, np.uint16)[0])
+
+
+class UInt32(Encoding):
+    """Store uint32."""
+
+    size = 4
+
+    def encode(self, obj: int) -> bytes:
+        self._validate(obj, int)
+        return np.uint32(obj).tobytes()
+
+    def decode(self, data: bytes) -> int:
+        return int(np.frombuffer(data, np.uint32)[0])
+
+
+class UInt64(Encoding):
+    """Store uint64."""
+
+    size = 8
+
+    def encode(self, obj: int) -> bytes:
+        self._validate(obj, int)
+        return np.uint64(obj).tobytes()
+
+    def decode(self, data: bytes) -> int:
+        return int(np.frombuffer(data, np.uint64)[0])
+
+
+class Int8(Encoding):
+    """Store int8."""
+
+    size = 1
+
+    def encode(self, obj: int) -> bytes:
+        self._validate(obj, int)
+        return np.int8(obj).tobytes()
+
+    def decode(self, data: bytes) -> int:
+        return int(np.frombuffer(data, np.int8)[0])
+
+
+class Int16(Encoding):
+    """Store int16."""
+
+    size = 2
+
+    def encode(self, obj: int) -> bytes:
+        self._validate(obj, int)
+        return np.int16(obj).tobytes()
+
+    def decode(self, data: bytes) -> int:
+        return int(np.frombuffer(data, np.int16)[0])
+
+
+class Int32(Encoding):
+    """Store int32."""
+
+    size = 4
+
+    def encode(self, obj: int) -> bytes:
+        self._validate(obj, int)
+        return np.int32(obj).tobytes()
+
+    def decode(self, data: bytes) -> int:
+        return int(np.frombuffer(data, np.int32)[0])
+
+
+class Int64(Encoding):
+    """Store int64."""
+
+    size = 8
+
+    def encode(self, obj: int) -> bytes:
+        self._validate(obj, int)
+        return np.int64(obj).tobytes()
+
+    def decode(self, data: bytes) -> int:
+        return int(np.frombuffer(data, np.int64)[0])
+
+
+class Float16(Encoding):
+    """Store float16."""
+
+    size = 2
+
+    def encode(self, obj: float) -> bytes:
+        self._validate(obj, float)
+        return np.float16(obj).tobytes()
+
+    def decode(self, data: bytes) -> float:
+        return float(np.frombuffer(data, np.float16)[0])
+
+
+class Float32(Encoding):
+    """Store float32."""
+
+    size = 4
+
+    def encode(self, obj: float) -> bytes:
+        self._validate(obj, float)
+        return np.float32(obj).tobytes()
+
+    def decode(self, data: bytes) -> float:
+        return float(np.frombuffer(data, np.float32)[0])
+
+
+class Float64(Encoding):
+    """Store float64."""
+
+    size = 8
+
+    def encode(self, obj: float) -> bytes:
+        self._validate(obj, float)
+        return np.int64(obj).tobytes()
+
+    def decode(self, data: bytes) -> float:
+        return float(np.frombuffer(data, np.float64)[0])
+
+
 class PIL(Encoding):
     """Store PIL image raw.
 
@@ -174,6 +317,17 @@ _encodings = {
     'bytes': Bytes,
     'str': Str,
     'int': Int,
+    'uint8': UInt8,
+    'uint16': UInt16,
+    'uint32': UInt32,
+    'uint64': UInt64,
+    'int8': Int8,
+    'int16': Int16,
+    'int32': Int32,
+    'int64': Int64,
+    'float16': Float16,
+    'float32': Float32,
+    'float64': Float64,
     'pil': PIL,
     'jpeg': JPEG,
     'png': PNG,
