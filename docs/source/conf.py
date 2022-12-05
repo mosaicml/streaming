@@ -163,7 +163,7 @@ html_static_path = ['_static']
 html_title = ' Streaming'
 
 # Customize CSS
-html_css_files = ['css/custom.css', 'https://cdn.jsdelivr.net/npm/@docsearch/css@3']
+html_css_files = ['css/custom.css']
 html_js_files = [
     'js/posthog.js',
 ]
@@ -521,7 +521,7 @@ class PatchedHTMLTranslator(HTML5Translator):
             if 'refid' not in node and (
                     not any(node['refuri'].startswith(x)
                             for x in ('/', 'https://docs.mosaicml.com', '#')) or
-                    node['refuri'].startswith('https://docs.mosaicml.com/projects/streaming') or
+                    node['refuri'].startswith('https://streaming.docs.mosaicml.com') or
                     node['refuri'].startswith('https://docs.mosaicml.com/projects/yahp')):
                 # If there's a refid, or the refuri starts with a non-external uri scheme, then it's an internal
                 # (hardcoded) link, so don't open that in a new tab

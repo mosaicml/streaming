@@ -14,7 +14,8 @@ include = [
 exclude = [
     "build/**",
     "node_modules/**",
-    "streaming/text/convert/enwiki/**"
+    "streaming/text/convert/enwiki/**",
+    "docs/source/conf.py"
 ]
 
 reportUnnecessaryIsInstance = "warning"
