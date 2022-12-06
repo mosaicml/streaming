@@ -94,7 +94,7 @@ class StreamingC4(StreamingDataset):
             truncation = True
             padding = 'max_length'
             max_length = self.max_seq_len
-        elif self.group_method = 'concat':
+        elif self.group_method == 'concat':
             truncation = False
             padding = False
             max_length = None
