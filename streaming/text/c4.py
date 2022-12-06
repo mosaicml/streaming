@@ -65,7 +65,7 @@ class StreamingC4(StreamingDataset):
                  shuffle_seed: Optional[int] = None,
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None):
-        if group_method not in ['truncate']:
+        if group_method not in {'truncate', 'concat'}:
             raise ValueError(
                 f"group_method='{group_method}' must be one of ['truncate', 'concat'].")
 
@@ -94,10 +94,12 @@ class StreamingC4(StreamingDataset):
             truncation = True
             padding = 'max_length'
             max_length = self.max_seq_len
-        else:  # group_method = 'concat'
+        elif self.group_method = 'concat':
             truncation = False
             padding = False
             max_length = None
+        else:
+            raise ValueError(f'Got unknown group_method={self.group_method}.')
         return self.tokenizer(text_sample['text'],
                               truncation=truncation,
                               padding=padding,
