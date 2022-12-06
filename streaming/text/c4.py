@@ -131,7 +131,7 @@ class StreamingC4(StreamingDataset):
         """
         if self.group_method == 'truncate':
             yield from super().__iter__()
-        else:  # group_method = 'concat'
+        elif self.group_method == 'concat':
             buffer = {}
             while True:
                 iterator = super().__iter__()
@@ -144,6 +144,8 @@ class StreamingC4(StreamingDataset):
                             concat_sample[k] = v[:self.max_seq_len]
                             buffer[k] = v[self.max_seq_len:]
                         yield concat_sample
+        else:
+            raise ValueError(f'Got unknown group_method={self.group_method}.')
 
     def __len__(self) -> Optional[int]:
         """Number of samples in a dataset.
@@ -156,5 +158,7 @@ class StreamingC4(StreamingDataset):
         """
         if self.group_method == 'truncate':
             return super().__len__()
-        else:  # group_method = 'concat'
+        elif self.group_method == 'concat':
             return None
+        else:
+            raise ValueError(f'Got unknown group_method={self.group_method}.')
