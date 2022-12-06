@@ -23,16 +23,20 @@ def download_from_s3(remote: str, local: str, timeout: float) -> None:
         timeout (float): How long to wait for shard to download before raising an exception.
     """
     import boto3
+    from botocore import UNSIGNED
     from botocore.config import Config
-    from botocore.exceptions import ClientError
+    from botocore.exceptions import ClientError, NoCredentialsError
 
     obj = urllib.parse.urlparse(remote)
     if obj.scheme != 's3':
         raise ValueError(f'Expected obj.scheme to be "s3", got {obj.scheme} for remote={remote}')
 
-    config = Config(read_timeout=timeout)
-    s3 = boto3.client('s3', config=config)
     try:
+        s3 = boto3.client('s3', config=Config(read_timeout=timeout))
+        s3.download_file(obj.netloc, obj.path.lstrip('/'), local)
+    except NoCredentialsError:
+        # Public S3 buckets without credentials
+        s3 = boto3.client('s3', config=Config(read_timeout=timeout, signature_version=UNSIGNED))
         s3.download_file(obj.netloc, obj.path.lstrip('/'), local)
     except ClientError as e:
         if e.response['Error']['Code'] in S3_NOT_FOUND_CODES:
