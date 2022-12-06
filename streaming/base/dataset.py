@@ -99,6 +99,8 @@ class StreamingDataset(IterableDataset):
         {
             'epoch': int,
             'sample_in_epoch': int,
+            'shuffle_seed': int,
+            'num_canonical_nodes': int,
         }
 
     Args:

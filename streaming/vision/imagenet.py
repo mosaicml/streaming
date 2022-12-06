@@ -39,8 +39,8 @@ class StreamingImageNet(StreamingImageClassDataset):
             shards. Defaults to ``None``.
         shuffle_seed (int, optional): Seed for shuffling, or ``None`` for random seed. Defaults to
             ``None``.
-        shuffle_world_size (int, optional): Canonical world size for shuffling. Defaults to
-            ``None``, which is interpreted as the world size of the initial run.
+        num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with resumption.
+            Defaults to ``None``, which is interpreted as the number of nodes of the initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
     """

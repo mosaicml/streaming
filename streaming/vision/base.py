@@ -75,8 +75,8 @@ class StreamingVisionDataset(StreamingDataset, VisionDataset):
             shards. Defaults to ``None``.
         shuffle_seed (int, optional): Seed for shuffling, or ``None`` for random seed. Defaults to
             ``None``.
-        shuffle_world_size (int, optional): Canonical world size for shuffling. Defaults to
-            ``None``, which is interpreted as the world size of the initial run.
+        num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with resumption.
+            Defaults to ``None``, which is interpreted as the number of nodes of the initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
     """
@@ -95,10 +95,10 @@ class StreamingVisionDataset(StreamingDataset, VisionDataset):
                  download_timeout: float = 60,
                  validate_hash: Optional[str] = None,
                  shuffle_seed: Optional[int] = None,
-                 shuffle_world_size: Optional[int] = None,
+                 num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None):
         super().__init__(local, remote, split, shuffle, predownload, keep_zip, download_retry,
-                         download_timeout, validate_hash, shuffle_seed, shuffle_world_size,
+                         download_timeout, validate_hash, shuffle_seed, num_canonical_nodes,
                          batch_size)
 
         has_transforms = transforms is not None
@@ -155,8 +155,8 @@ class StreamingImageClassDataset(StreamingVisionDataset):
             shards. Defaults to ``None``.
         shuffle_seed (int, optional): Seed for shuffling, or ``None`` for random seed. Defaults to
             ``None``.
-        shuffle_world_size (int, optional): Canonical world size for shuffling. Defaults to
-            ``None``, which is interpreted as the world size of the initial run.
+        num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with resumption.
+            Defaults to ``None``, which is interpreted as the number of nodes of the initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
     """
@@ -174,9 +174,9 @@ class StreamingImageClassDataset(StreamingVisionDataset):
                  download_timeout: float = 60,
                  validate_hash: Optional[str] = None,
                  shuffle_seed: Optional[int] = None,
-                 shuffle_world_size: Optional[int] = None,
+                 num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None):
         transforms = None
         super().__init__(local, remote, split, shuffle, transforms, transform, target_transform,
                          predownload, keep_zip, download_retry, download_timeout, validate_hash,
-                         shuffle_seed, shuffle_world_size, batch_size)
+                         shuffle_seed, num_canonical_nodes, batch_size)
