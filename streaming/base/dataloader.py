@@ -85,3 +85,8 @@ class StreamingDataLoader(DataLoader):
         """
         if isinstance(self.dataset, StreamingDataset):
             return self.dataset.load_state_dict(obj)
+
+    def __del__(self) -> None:
+        """Terminate the workers during cleanup."""
+        if self._iterator is not None:
+            self._iterator._shutdown_workers()  # type: ignore [reportGeneralTypeIssues]

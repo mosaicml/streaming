@@ -91,21 +91,6 @@ class _PartitionState:
             sleep(TICK)
 
 
-def _is_pow2(x: int):
-    """Tell whether a number is an integer power of 2.
-
-    Args:
-        x (int): The number.
-
-    Returns:
-        bool: Whether an integer power of 2.
-    """
-    if x < 1:
-        return False
-    a = int(np.log2(x))
-    return 2**a == x
-
-
 class StreamingDataset(IterableDataset):
     """A streaming pytorch IterableDataset that is also resumable mid-epoch.
 
@@ -292,14 +277,9 @@ class StreamingDataset(IterableDataset):
 
         Args:
             world (World): World state.
-
-        Raises:
-            ValueError: Number of canonical nodes must be an integer power of 2
         """
         if self.num_canonical_nodes is None:
             self.num_canonical_nodes = world.num_nodes
-        if not _is_pow2(self.num_canonical_nodes):
-            raise ValueError('num_canonical_nodes must be an integer power of 2')
 
     def _resume(self, world: World, epoch: int) -> Tuple[int, int]:
         """Either resume from checkpoint or start at the beginning.
