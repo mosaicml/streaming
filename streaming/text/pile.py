@@ -56,7 +56,7 @@ class StreamingPile(StreamingDataset):
                  local: str,
                  remote: Optional[str] = None,
                  split: Optional[str] = None,
-                 shuffle: bool = True,
+                 shuffle: bool = False,
                  predownload: Optional[int] = 100_000,
                  keep_zip: Optional[bool] = None,
                  download_retry: int = 2,
