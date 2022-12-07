@@ -22,21 +22,42 @@ def download_from_s3(remote: str, local: str, timeout: float) -> None:
         local (str): Local path (local filesystem).
         timeout (float): How long to wait for shard to download before raising an exception.
     """
+
+    def _download_file(unsigned: bool = False) -> None:
+        """Download the file from AWS S3 bucket. The bucket can be either public or private.
+
+        Args:
+            unsigned (bool, optional): Set to True if it is a public bucket. Defaults to False.
+        """
+        if unsigned:
+            # Client will be using unsigned mode in which public
+            # resources can be accessed without credentials
+            config = Config(read_timeout=timeout, signature_version=UNSIGNED)
+        else:
+            config = Config(read_timeout=timeout)
+        s3 = boto3.client('s3', config=config)
+        s3.download_file(obj.netloc, obj.path.lstrip('/'), local)
+
     import boto3
+    from botocore import UNSIGNED
     from botocore.config import Config
-    from botocore.exceptions import ClientError
+    from botocore.exceptions import ClientError, NoCredentialsError
 
     obj = urllib.parse.urlparse(remote)
     if obj.scheme != 's3':
         raise ValueError(f'Expected obj.scheme to be "s3", got {obj.scheme} for remote={remote}')
 
-    config = Config(read_timeout=timeout)
-    s3 = boto3.client('s3', config=config)
     try:
-        s3.download_file(obj.netloc, obj.path.lstrip('/'), local)
+        _download_file()
+    except NoCredentialsError:
+        # Public S3 buckets without credentials
+        _download_file(unsigned=True)
     except ClientError as e:
         if e.response['Error']['Code'] in S3_NOT_FOUND_CODES:
             raise FileNotFoundError(f'Object {remote} not found.') from e
+        elif e.response['Error']['Code'] == '400':
+            # Public S3 buckets without credentials
+            _download_file(unsigned=True)
 
 
 def download_from_sftp(remote: str, local: str) -> None:
