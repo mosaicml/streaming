@@ -3,8 +3,8 @@
 
 """Natively supported NLP datasets."""
 
-from streaming.text.c4 import C4 as C4
-from streaming.text.enwiki import EnWiki as EnWiki
-from streaming.text.pile import Pile as Pile
+from streaming.text.c4 import StreamingC4 as StreamingC4
+from streaming.text.enwiki import StreamingEnWiki as StreamingEnWiki
+from streaming.text.pile import StreamingPile as StreamingPile
 
-__all__ = ['C4', 'EnWiki', 'Pile']
+__all__ = ['StreamingPile', 'StreamingC4', 'StreamingEnWiki']

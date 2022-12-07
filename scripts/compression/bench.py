@@ -9,7 +9,7 @@ from typing import Iterator
 
 import numpy as np
 
-from streaming.base.compression.compression import compress, decompress, get_compressions
+from streaming.base.compression import compress, decompress, get_compressions
 
 
 def parse_args() -> Namespace:

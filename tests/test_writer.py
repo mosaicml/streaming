@@ -4,14 +4,14 @@
 import logging
 import math
 import os
-from typing import Tuple
+from typing import Any, Tuple
 
 import numpy as np
 import pytest
 
-from streaming import CSVWriter, Dataset, JSONWriter, MDSWriter, TSVWriter, XSVWriter
-from tests.common.datasets import *
-from tests.common.utils import *
+from streaming import CSVWriter, JSONWriter, MDSWriter, StreamingDataset, TSVWriter, XSVWriter
+from tests.common.datasets import NumberAndSayDataset, SequenceDataset
+from tests.common.utils import get_config_in_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +107,7 @@ class TestMDSWriter:
         # Apply the seed again for numpy determinism
         dataset.seed = seed
 
-        mds_dataset = Dataset(dirname, shuffle=False)
+        mds_dataset = StreamingDataset(dirname, shuffle=False)
         # Ensure length of dataset is equal
         assert len(dataset) == len(mds_dataset) == num_samples
 
@@ -163,7 +163,7 @@ class TestJSONWriter:
         # Apply the seed again for numpy determinism
         dataset.seed = seed
 
-        mds_dataset = Dataset(dirname, shuffle=False)
+        mds_dataset = StreamingDataset(dirname, shuffle=False)
         # Ensure length of dataset is equal
         assert len(dataset) == len(mds_dataset) == num_samples
 
@@ -243,7 +243,7 @@ class TestXSVWriter:
         # Apply the seed again for numpy determinism
         dataset.seed = seed
 
-        mds_dataset = Dataset(dirname, shuffle=False)
+        mds_dataset = StreamingDataset(dirname, shuffle=False)
         # Ensure length of dataset is equal
         assert len(dataset) == len(mds_dataset) == num_samples
 

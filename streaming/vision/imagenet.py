@@ -7,35 +7,40 @@ The most widely used dataset for Image Classification algorithms. Please refer t
 2012 Classification Dataset <http://image-net.org/>`_ for more details.
 """
 
-from streaming.vision.base import ImageClassDataset
+from streaming.vision.base import StreamingImageClassDataset
 
-__all__ = ['ImageNet']
+__all__ = ['StreamingImageNet']
 
 
-class ImageNet(ImageClassDataset):
-    """Implementation of the ImageNet dataset using streaming Dataset.
+class StreamingImageNet(StreamingImageClassDataset):
+    """Implementation of the ImageNet dataset using StreamingDataset.
 
     Args:
-        local (str): Local filesystem directory where dataset is cached during operation.
-        remote (str, optional): Remote directory (S3 or local filesystem) where dataset is stored.
-            Defaults to ``None``.
-        split (str, optional): The dataset split to use, either 'train' or 'val'. Defaults to
+        local (str): Local dataset directory where shards are cached by split.
+        remote (str, optional): Download shards from this remote path or directory. If None, this
+            rank and worker's partition of the dataset must all exist locally. Defaults to
             ``None``.
-        shuffle (bool, optional): Whether to iterate over the samples in randomized order. Defaults to
-            ``True``.
+        split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
+        shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
+            ``False``.
         transform (callable, optional): A function/transform that takes in an image and returns a
             transformed version. Defaults to ``None``.
         target_transform (callable, optional): A function/transform that takes in the target and
             transforms it. Defaults to ``None``.
-        prefetch (int, optional): Target number of samples remaining to prefetch while iterating.
-            Defaults to ``100_000``.
-        keep_zip (bool, optional): Whether to keep or delete the compressed file when decompressing
-            downloaded shards. If set to None, keep iff remote is local. Defaults to ``None``.
-        retry (int, optional): Number of download re-attempts before giving up. Defaults to ``2``.
-        timeout (float, optional): Number of seconds to wait for a shard to download before raising
-            an exception. Defaults to ``60``.
-        hash (str, optional): Hash or checksum algorithm to use to validate shards. Defaults to
+        predownload (int, optional): Target number of samples ahead to download the shards of while
+            iterating. Defaults to ``100_000``.
+        keep_zip (bool, optional): Whether to keep or delete the compressed file when
+            decompressing downloaded shards. If set to None, keep iff remote is local. Defaults to
             ``None``.
-        batch_size (int, optional): Hint the batch size that will be used on each device's DataLoader.
-            Defaults to ``None``.
+        download_retry (int): Number of download re-attempts before giving up. Defaults to ``2``.
+        download_timeout (float): Number of seconds to wait for a shard to download before raising
+            an exception. Defaults to ``60``.
+        validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
+            shards. Defaults to ``None``.
+        shuffle_seed (int, optional): Seed for shuffling, or ``None`` for random seed. Defaults to
+            ``None``.
+        num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with resumption.
+            Defaults to ``None``, which is interpreted as the number of nodes of the initial run.
+        batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
+            partitioned over the workers. Defaults to ``None``.
     """
