@@ -137,7 +137,9 @@ def download_from_oci(remote: str, local: str) -> None:
         raise ValueError(f'Expected obj.scheme to be "oci", got {obj.scheme} for remote={remote}')
 
     bucket_name = obj.netloc.split('@' + namespace)[0]
-    object_details = client.get_object(namespace, bucket_name, obj.path)
+    # Remove leading and trailing forward slash from string
+    object_path = obj.path.strip('/')
+    object_details = client.get_object(namespace, bucket_name, object_path)
     with open(local, 'wb') as f:
         for chunk in object_details.data.raw.stream(2048**2, decode_content=False):
             f.write(chunk)
