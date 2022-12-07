@@ -186,7 +186,7 @@ class StreamingDataset(IterableDataset):
         if shuffle_seed is None:
             shuffle_seed = np.random.randint(1 << 60)
         prefix_int = np.random.randint(1 << 60)
-        if 1 < world.num_ranks:
+        if world.num_ranks > 1:
             # Setup for coordinating.
             device_prefix = 'cuda' if torch.cuda.is_available() else 'cpu'
             device = torch.device(f'{device_prefix}:{world.rank_of_node}')
