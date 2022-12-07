@@ -28,7 +28,7 @@ class StreamingCOCO(StreamingDataset):
         transform (callable, optional): A function/transform that takes in an image and bboxes and
             returns a transformed version. Defaults to ``None``.
         predownload (int, optional): Target number of samples ahead to download the shards of while
-            iterating. Defaults to ``100_000``.
+            iterating. Defaults to ``20_000``.
         keep_zip (bool, optional): Whether to keep or delete the compressed file when
             decompressing downloaded shards. If set to None, keep iff remote is local. Defaults to
             ``None``.
@@ -51,7 +51,7 @@ class StreamingCOCO(StreamingDataset):
                  split: Optional[str] = None,
                  shuffle: bool = False,
                  transform: Optional[Callable] = None,
-                 predownload: Optional[int] = 100_000,
+                 predownload: Optional[int] = 20_000,
                  keep_zip: Optional[bool] = None,
                  download_retry: int = 2,
                  download_timeout: float = 60,

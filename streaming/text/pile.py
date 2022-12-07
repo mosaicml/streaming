@@ -32,7 +32,7 @@ class StreamingPile(StreamingDataset):
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
             ``False``.
         predownload (int, optional): Target number of samples ahead to download the shards of while
-            iterating. Defaults to ``100_000``.
+            iterating. Defaults to ``20_000``.
         keep_zip (bool, optional): Whether to keep or delete the compressed file when
             decompressing downloaded shards. If set to None, keep iff remote is local. Defaults to
             ``None``.
@@ -57,7 +57,7 @@ class StreamingPile(StreamingDataset):
                  remote: Optional[str] = None,
                  split: Optional[str] = None,
                  shuffle: bool = False,
-                 predownload: Optional[int] = 100_000,
+                 predownload: Optional[int] = 20_000,
                  keep_zip: Optional[bool] = None,
                  download_retry: int = 2,
                  download_timeout: float = 60,

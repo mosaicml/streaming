@@ -28,7 +28,7 @@ class StreamingCIFAR10(StreamingImageClassDataset):
         target_transform (callable, optional): A function/transform that takes in the target and
             transforms it. Defaults to ``None``.
         predownload (int, optional): Target number of samples ahead to download the shards of while
-            iterating. Defaults to ``100_000``.
+            iterating. Defaults to ``20_000``.
         keep_zip (bool, optional): Whether to keep or delete the compressed file when
             decompressing downloaded shards. If set to None, keep iff remote is local. Defaults to
             ``None``.

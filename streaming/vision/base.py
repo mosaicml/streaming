@@ -64,7 +64,7 @@ class StreamingVisionDataset(StreamingDataset, VisionDataset):
         target_transform (callable, optional): A function/transform that takes in the target and
             transforms it. Defaults to ``None``.
         predownload (int, optional): Target number of samples ahead to download the shards of while
-            iterating. Defaults to ``100_000``.
+            iterating. Defaults to ``20_000``.
         keep_zip (bool, optional): Whether to keep or delete the compressed file when
             decompressing downloaded shards. If set to None, keep iff remote is local. Defaults to
             ``None``.
@@ -89,7 +89,7 @@ class StreamingVisionDataset(StreamingDataset, VisionDataset):
                  transforms: Optional[Callable] = None,
                  transform: Optional[Callable] = None,
                  target_transform: Optional[Callable] = None,
-                 predownload: Optional[int] = 100_000,
+                 predownload: Optional[int] = 20_000,
                  keep_zip: Optional[bool] = None,
                  download_retry: int = 2,
                  download_timeout: float = 60,
@@ -144,7 +144,7 @@ class StreamingImageClassDataset(StreamingVisionDataset):
         target_transform (callable, optional): A function/transform that takes in the target and
             transforms it. Defaults to ``None``.
         predownload (int, optional): Target number of samples ahead to download the shards of while
-            iterating. Defaults to ``100_000``.
+            iterating. Defaults to ``20_000``.
         keep_zip (bool, optional): Whether to keep or delete the compressed file when
             decompressing downloaded shards. If set to None, keep iff remote is local. Defaults to
             ``None``.
@@ -168,7 +168,7 @@ class StreamingImageClassDataset(StreamingVisionDataset):
                  shuffle: bool = False,
                  transform: Optional[Callable] = None,
                  target_transform: Optional[Callable] = None,
-                 predownload: Optional[int] = 100_000,
+                 predownload: Optional[int] = 20_000,
                  keep_zip: Optional[bool] = None,
                  download_retry: int = 2,
                  download_timeout: float = 60,
