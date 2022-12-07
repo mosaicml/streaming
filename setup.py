@@ -55,6 +55,7 @@ install_requires = [
     'transformers>=4.21.3,<5',
     'xxhash>=3.0.0,<4',
     'zstd>=1.5.2.5,<2',
+    'oci>=2.88,<3',
 ]
 
 extra_deps = {}
