@@ -124,7 +124,7 @@ def download_from_oci(remote: str, local: str) -> None:
     """Download a file from remote OCI to local.
 
     Args:
-        remote (str): Remote path (S3).
+        remote (str): Remote path (OCI).
         local (str): Local path (local filesystem).
     """
     import oci
