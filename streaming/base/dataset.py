@@ -666,13 +666,18 @@ class StreamingDataset(IterableDataset):
         for sample_id in self._each_sample(sample_ids):
             yield self[sample_id]
 
-    def state_dict(self, sample_in_epoch: int) -> Dict[str, Any]:
+    def state_dict(self, num_samples: int, from_beginning: bool) -> Dict[str, Any]:
         """Get a dict containing training state (called from non-worker process).
 
         This is called on rank zero.
 
+        Our stock StreamingDataLoader counts samples from start of training (from_beginning=false).
+        However, if you are always counting from the start of the epoch, set from_beginning=true.
+
         Args:
-            sample_in_epoch (int): The number of samples processed so far in the current epoch.
+            num_samples (int): The number of samples processed so far in the current epoch.
+            from_beginning (int): Whether we are counting samples from the start of this epoch, or
+                the start of just this potentially resumed training run this epoch.
 
         Returns:
             Dict[str, Any]: The state.
@@ -680,9 +685,13 @@ class StreamingDataset(IterableDataset):
         world = World()
         epoch = self.next_epoch - 1
         epoch, offset = self._resume(world, epoch)
+        if from_beginning:
+            sample_in_epoch = num_samples
+        else:
+            sample_in_epoch = offset + num_samples
         return {
             'epoch': epoch,
-            'sample_in_epoch': offset + sample_in_epoch,
+            'sample_in_epoch': sample_in_epoch,
             'num_canonical_nodes': self.num_canonical_nodes,
             'shuffle_seed': self.shuffle_seed
         }
