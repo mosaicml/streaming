@@ -72,7 +72,9 @@ class StreamingDataLoader(DataLoader):
         """
         if isinstance(self.dataset, StreamingDataset):
             world = World()
-            return self.dataset.state_dict(self.num_samples_yielded * world.num_ranks)
+            num_samples = self.num_samples_yielded * world.num_ranks
+            from_beginning = False
+            return self.dataset.state_dict(num_samples, from_beginning)
         return None
 
     def load_state_dict(self, obj: Dict[str, Any]) -> None:
@@ -84,7 +86,7 @@ class StreamingDataLoader(DataLoader):
             obj (Dict[str, Any]): The state.
         """
         if isinstance(self.dataset, StreamingDataset):
-            return self.dataset.load_state_dict(obj)
+            self.dataset.load_state_dict(obj)
 
     def __del__(self) -> None:
         """Terminate the workers during cleanup."""
