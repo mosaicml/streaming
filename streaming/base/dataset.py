@@ -671,6 +671,9 @@ class StreamingDataset(IterableDataset):
 
         This is called on rank zero.
 
+        Our stock StreamingDataLoader counts samples from start of training (from_beginning=false).
+        However, if you are always counting from the start of the epoch, set from_beginning=true.
+
         Args:
             num_samples (int): The number of samples processed so far in the current epoch.
             from_beginning (int): Whether we are counting samples from the start of this epoch, or
