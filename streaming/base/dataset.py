@@ -673,8 +673,8 @@ class StreamingDataset(IterableDataset):
 
         Args:
             num_samples (int): The number of samples processed so far in the current epoch.
-            from_beginning (int): Whether we are counting from start of this epoch, or start of
-                just this (potentially resumed) training run this epoch.
+            from_beginning (int): Whether we are counting samples from the start of this epoch, or
+                the start of just this potentially resumed training run this epoch.
 
         Returns:
             Dict[str, Any]: The state.
