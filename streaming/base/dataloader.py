@@ -73,8 +73,7 @@ class StreamingDataLoader(DataLoader):
         if isinstance(self.dataset, StreamingDataset):
             world = World()
             num_samples = self.num_samples_yielded * world.num_ranks
-            from_beginning = False
-            return self.dataset.state_dict(num_samples, from_beginning)
+            return self.dataset.state_dict(num_samples, False)
         return None
 
     def load_state_dict(self, obj: Dict[str, Any]) -> None:
