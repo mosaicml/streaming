@@ -420,6 +420,7 @@ class StreamingDataset(IterableDataset):
         fp = open(filename, 'rb', 0)
         fp.seek(offset_in_bytes)
         data = fp.read(bytes_to_read)
+        fp.close()
         sample_ids = np.frombuffer(data, np.int64)
 
         # Wait for everyone to read their part.
