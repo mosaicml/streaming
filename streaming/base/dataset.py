@@ -371,6 +371,7 @@ class StreamingDataset(IterableDataset):
         if self.shuffle_seed is None:
             raise RuntimeError('Shuffle seed can never be None')
 
+        # Decide where to save shuffle data.
         tmp_filename = os.path.join(os.path.sep, 'tmp', 'streaming', self._prefix,
                                     'shuffle.npy.tmp')
         filename = os.path.join(os.path.sep, 'tmp', 'streaming', self._prefix, 'shuffle.npy')
@@ -413,14 +414,11 @@ class StreamingDataset(IterableDataset):
         if num_samples % num_workers:
             raise ValueError(f'Generated shuffle is invalid: {filename} ({num_bytes} bytes).')
         samples_per_worker = num_samples // num_workers
-        worker_id = world.node * world.ranks_per_node * world.workers_per_rank + \
-            world.rank_of_node * world.workers_per_rank + world.worker_of_rank
-        offset_in_bytes = worker_id * samples_per_worker * sample_id_nbytes
+        offset_in_bytes = world.worker * samples_per_worker * sample_id_nbytes
         bytes_to_read = samples_per_worker * sample_id_nbytes
-        fp = open(filename, 'rb', 0)
-        fp.seek(offset_in_bytes)
-        data = fp.read(bytes_to_read)
-        fp.close()
+        with open(filename, 'rb', 0) as fp:
+            fp.seek(offset_in_bytes)
+            data = fp.read(bytes_to_read)
         sample_ids = np.frombuffer(data, np.int64)
 
         # Wait for everyone to read their part.
