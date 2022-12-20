@@ -76,7 +76,7 @@ class Index(object):
         if div <= idx:
             shard += 1
         offset = idx - self.shard_offsets[shard]
-        return shard, offset
+        return shard, offset  # pyright: ignore
 
     def get_samples_per_device(self) -> int:
         """Get the per-device dataset size (i.e., IterableDataset.__len__).
