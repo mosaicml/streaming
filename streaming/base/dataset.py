@@ -186,7 +186,7 @@ class StreamingDataset(IterableDataset):
         # Determine and distribute shuffle seed and shm prefix.
         if shuffle_seed is None:
             shuffle_seed = np.random.randint(1 << 60)
-        prefix_int = np.random.randint(1 << 60)
+        prefix_int = np.random.randint(1 << 24)
         if world.num_ranks > 1:
             # Setup for coordinating.
             device_prefix = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -205,7 +205,7 @@ class StreamingDataset(IterableDataset):
             dist.broadcast(tensor, 0)
             prefix_int = int(tensor)
         self.shuffle_seed = shuffle_seed
-        self._prefix = f'{prefix_int:016x}_{self.split}'
+        self._prefix = f'{prefix_int:06x}'
 
         # Set up the epoch counter.
         #
