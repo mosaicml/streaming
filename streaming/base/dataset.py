@@ -366,14 +366,53 @@ class StreamingDataset(IterableDataset):
         if self.shuffle_seed is None:
             raise RuntimeError('Shuffle seed can never be None')
 
-        sample_ids = get_partitions(self.index.total_samples, self.num_canonical_nodes,
-                                    world.num_nodes, world.ranks_per_node, world.workers_per_rank,
-                                    self.batch_size, sample_in_epoch)
-        if self.shuffle:
-            mapping = get_shuffle(self.shard_sizes, self.num_canonical_nodes, self.shuffle_seed,
-                                  epoch)
-            sample_ids = np.where(sample_ids == -1, -1, mapping[sample_ids])
-        return sample_ids[world.node, world.rank_of_node, world.worker_of_rank]
+        tmp_filename = os.path.join(os.path.sep, 'tmp', 'streaming', self._prefix,
+                                    'shuffle.npy.tmp')
+        filename = os.path.join(os.path.sep, 'tmp', 'streaming', self._prefix, 'shuffle.npy')
+
+        # In the local leader, generate this epoch's global sample ordering, then save to file.
+        # This operation is expensive.
+        if world.is_local_leader:
+            sample_ids = get_partitions(self.index.total_samples, self.num_canonical_nodes,
+                                        world.num_nodes, world.ranks_per_node,
+                                        world.workers_per_rank, self.batch_size, sample_in_epoch)
+            if self.shuffle:
+                mapping = get_shuffle(self.shard_sizes, self.num_canonical_nodes,
+                                      self.shuffle_seed, epoch)
+                sample_ids = np.where(sample_ids == -1, -1, mapping[sample_ids])
+            sample_ids.tofile(tmp_filename)
+            os.rename(tmp_filename, filename)
+
+        # Everyone waits for the file to become populated.
+        while True:
+            sleep(TICK)
+            if os.path.exists(filename):
+                sleep(TICK)
+                break
+
+        # Everyone loads their slice of the sample IDs to iterate.
+        num_bytes = os.path.getsize(filename)
+        assert not num_bytes % 8
+        num_samples = num_bytes // 8
+        num_workers = world.num_nodes * world.ranks_per_node * world.workers_per_rank
+        assert not num_samples % num_workers
+        samples_per_worker = num_samples // num_workers
+        worker_id = world.node * world.ranks_per_node * world.workers_per_rank + \
+            world.rank_of_node * world.workers_per_rank + world.worker_of_rank
+        begin = worker_id * samples_per_worker * 8
+        fp = open(filename, 'rb', 0)
+        fp.seek(begin)
+        data = fp.read(samples_per_worker * 8)
+        sample_ids = np.frombuffer(data, np.int64)
+
+        # Wait for everyone to become done.
+        self._worker_barrier(world.workers_per_node)
+
+        # Now clean up after ourselves.
+        if world.is_local_leader:
+            os.remove(filename)
+
+        return sample_ids
 
     def _download_file(self, basename: str) -> str:
         """Safely download a file from remote to local cache.
