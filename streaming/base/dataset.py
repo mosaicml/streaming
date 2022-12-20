@@ -439,17 +439,26 @@ class StreamingDataset(IterableDataset):
         Returns:
             str: Local cache filename.
         """
+        # Calculate paths.
         if self.remote is None:
             remote = None
         else:
             remote = os.path.join(self.remote, self.split, basename)
         local = os.path.join(self.local, self.split, basename)
+
+        # Attempt to download, possibly repeating on faiure.
         for _ in range(1 + self.download_retry):
             try:
                 download(remote, local, self.download_timeout)
-            except:
+            except Exception as e:
+                print('Download exception:', e)
                 continue
             break
+
+        # Verify the local file exists.
+        if not os.path.exists(local):
+            raise RuntimeError(f'Download has failed: {remote} to {local}.')
+
         return local
 
     def _decompress_shard_part(self, zip_info: FileInfo, zip_filename: str, raw_filename: str,
