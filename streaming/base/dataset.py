@@ -8,7 +8,7 @@ import os
 from enum import IntEnum
 from multiprocessing.shared_memory import SharedMemory
 from threading import Thread
-from time import sleep
+from time import sleep, time
 from typing import Any, Dict, Iterator, Optional, Tuple
 
 import numpy as np
@@ -348,13 +348,18 @@ class StreamingDataset(IterableDataset):
 
         return epoch, sample_in_epoch
 
-    def _get_partition(self, world: World, epoch: int, sample_in_epoch: int) -> NDArray[np.int64]:
+    def _get_partition(self,
+                       world: World,
+                       epoch: int,
+                       sample_in_epoch: int,
+                       timeout: float = 60) -> NDArray[np.int64]:
         """Get this worker's partition of this epoch's sample space.
 
         Args:
             world (World): World state.
             epoch (int): Which epoch it is.
             sample_in_epoch (int): Where we are in the epoch.
+            timeout (float): Max seconds to wait for the partitioning/shuffle to be generated.
 
         Returns:
             Optional[NDArray[np.int64]]: Our partition of the epoch.
@@ -371,6 +376,7 @@ class StreamingDataset(IterableDataset):
         filename = os.path.join(os.path.sep, 'tmp', 'streaming', self._prefix, 'shuffle.npy')
 
         # In the local leader, generate this epoch's global sample ordering, then save to file.
+        # Tensor shape: (num nodes, ranks per node, workers per rank, samples per worker).
         # This operation is expensive.
         if world.is_local_leader:
             sample_ids = get_partitions(self.index.total_samples, self.num_canonical_nodes,
@@ -384,28 +390,38 @@ class StreamingDataset(IterableDataset):
             os.rename(tmp_filename, filename)
 
         # Everyone waits for the file to become populated.
+        t0 = time()
         while True:
             sleep(TICK)
             if os.path.exists(filename):
                 sleep(TICK)
                 break
+            dt = time() - t0
+            if timeout < dt:
+                raise RuntimeError('Partitioning and shuffling took too long, bailing out: ' +
+                                   f'{timeout:.3f} < {dt:.3f} sec.')
 
-        # Everyone loads their slice of the sample IDs to iterate.
+        # Each worker loads its slice of the sample ID tensor to iterate through.
+        # Tensor shape: (num nodes, ranks per node, workers per rank, samples per worker).
+        sample_id_nbytes = np.int64().nbytes
         num_bytes = os.path.getsize(filename)
-        assert not num_bytes % 8
-        num_samples = num_bytes // 8
+        if num_bytes % sample_id_nbytes:
+            raise ValueError(f'Generated shuffle is invalid: {filename} ({num_bytes} bytes).')
+        num_samples = num_bytes // sample_id_nbytes
         num_workers = world.num_nodes * world.ranks_per_node * world.workers_per_rank
-        assert not num_samples % num_workers
+        if num_samples % num_workers:
+            raise ValueError(f'Generated shuffle is invalid: {filename} ({num_bytes} bytes).')
         samples_per_worker = num_samples // num_workers
         worker_id = world.node * world.ranks_per_node * world.workers_per_rank + \
             world.rank_of_node * world.workers_per_rank + world.worker_of_rank
-        begin = worker_id * samples_per_worker * 8
+        offset_in_bytes = worker_id * samples_per_worker * sample_id_nbytes
+        bytes_to_read = samples_per_worker * sample_id_nbytes
         fp = open(filename, 'rb', 0)
-        fp.seek(begin)
-        data = fp.read(samples_per_worker * 8)
+        fp.seek(offset_in_bytes)
+        data = fp.read(bytes_to_read)
         sample_ids = np.frombuffer(data, np.int64)
 
-        # Wait for everyone to become done.
+        # Wait for everyone to read their part.
         self._worker_barrier(world.workers_per_node)
 
         # Now clean up after ourselves.
