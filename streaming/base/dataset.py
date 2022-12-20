@@ -352,7 +352,7 @@ class StreamingDataset(IterableDataset):
                        world: World,
                        epoch: int,
                        sample_in_epoch: int,
-                       timeout: float = 60) -> NDArray[np.int64]:
+                       timeout: Optional[float] = 60) -> NDArray[np.int64]:
         """Get this worker's partition of this epoch's sample space.
 
         Args:
@@ -396,10 +396,11 @@ class StreamingDataset(IterableDataset):
             if os.path.exists(filename):
                 sleep(TICK)
                 break
-            dt = time() - t0
-            if timeout < dt:
-                raise RuntimeError('Partitioning and shuffling took too long, bailing out: ' +
-                                   f'{timeout:.3f} < {dt:.3f} sec.')
+            if timeout is not None:
+                dt = time() - t0
+                if timeout < dt:
+                    raise RuntimeError('Partitioning and shuffling took too long, bailing out: ' +
+                                       f'{timeout:.3f} < {dt:.3f} sec.')
 
         # Each worker loads its slice of the sample ID tensor to iterate through.
         # Tensor shape: (num nodes, ranks per node, workers per rank, samples per worker).
