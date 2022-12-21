@@ -123,9 +123,7 @@ def test_dataset_determinism(mds_dataset_dir: Any, batch_size: int, seed: int, s
 
 @pytest.mark.parametrize(
     'missing_file',
-    [
-        'index'
-    ],
+    ['index'],
 )
 @pytest.mark.usefixtures('mds_dataset_dir')
 def test_reader_download_fail(mds_dataset_dir: Any, missing_file: str):
