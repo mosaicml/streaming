@@ -450,8 +450,7 @@ class StreamingDataset(IterableDataset):
         for _ in range(1 + self.download_retry):
             try:
                 download(remote, local, self.download_timeout)
-            except Exception as e:
-                print('Download exception:', e)
+            except:
                 continue
             break
 
