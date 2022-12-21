@@ -650,8 +650,9 @@ class StreamingDataset(IterableDataset):
         """
         # Lazily create the worker barrier, because it contains a FileLock, which contains a
         # threading Lock, which is unpickleable.
-        self._worker_barrier = SharedBarrier(self._worker_barrier_filelock_path,
-                                             self._worker_barrier_shm_path)
+        if not hasattr(self, '_worker_barrier'):
+            self._worker_barrier = SharedBarrier(self._worker_barrier_filelock_path,
+                                                 self._worker_barrier_shm_path)
 
         # Exit the thread that is downloading the shards for last epoch, if it exists.
         if self._partition_state:
