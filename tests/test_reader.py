@@ -138,15 +138,14 @@ def test_reader_download_fail(mds_dataset_dir: Any, missing_file: str):
         os.remove(os.path.join(remote_dir, 'shard.00000.mds'))
 
     # Build and iterate over a StreamingDataset
-    try:
+    with pytest.raises(FileNotFoundError) as exc_info:
         dataset = StreamingDataset(local=local_dir,
                                    remote=remote_dir,
                                    shuffle=False,
                                    download_timeout=1)
         for _ in dataset:
             pass
-    except FileNotFoundError as e:
-        logger.debug(f'Successfully raised error: {e}')
+    assert exc_info.match(r'.*No such file or directory*')
 
 
 @pytest.mark.parametrize('created_ago', [0.5, 1.0])

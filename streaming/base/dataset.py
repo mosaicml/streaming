@@ -454,10 +454,6 @@ class StreamingDataset(IterableDataset):
                 continue
             break
 
-        # Verify the local file exists.
-        if not os.path.exists(local):
-            raise RuntimeError(f'Download has failed: {remote} to {local}.')
-
         return local
 
     def _decompress_shard_part(self, zip_info: FileInfo, zip_filename: str, raw_filename: str,
