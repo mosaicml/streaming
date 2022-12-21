@@ -153,7 +153,7 @@ class StreamingDataset(IterableDataset):
         self.validate_hash = validate_hash or None
 
         if tdist.is_available() and not tdist.is_initialized() and torch.cuda.is_available() and \
-                hasattr(os.environ, 'RANK'):
+                'RANK' in os.environ:
             tdist.init_process_group('nccl')
 
         # Seed is set below.
