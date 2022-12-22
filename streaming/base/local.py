@@ -26,7 +26,7 @@ class LocalDataset(Sliceable, Dataset):
     """
 
     def __init__(self, local: str, split: Optional[str] = None):
-        Sliceable.__init__(self, self.get_sample)
+        Sliceable.__init__(self, self.get_sample, self.get_num_samples)
 
         split = split or ''
 
@@ -47,10 +47,18 @@ class LocalDataset(Sliceable, Dataset):
         self.index = Index(shard_sizes)
 
     def __len__(self) -> int:
-        """Get the length as an IterableDataset.
+        """Get the length as a PyTorch MapDataset (i.e., total samples).
 
         Returns:
             int: Dataset length.
+        """
+        return self.index.total_samples
+
+    def get_num_samples(self) -> int:
+        """Get the total number of samples in the dataset.
+
+        Returns:
+            int: Number of samples.
         """
         return self.index.total_samples
 

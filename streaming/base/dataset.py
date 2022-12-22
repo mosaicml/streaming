@@ -143,7 +143,7 @@ class StreamingDataset(Sliceable, IterableDataset):
                  shuffle_seed: Optional[int] = None,
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None):
-        Sliceable.__init__(self, self.get_sample)
+        Sliceable.__init__(self, self.get_sample, self.get_num_samples)
 
         self.local = local
         self.remote = remote
@@ -264,6 +264,14 @@ class StreamingDataset(Sliceable, IterableDataset):
             int: Dataset length.
         """
         return self.index.get_samples_per_device()
+
+    def get_num_samples(self) -> int:
+        """Get the total number of samples in the dataset.
+
+        Returns:
+            int: Number of samples.
+        """
+        return self.index.total_samples
 
     def get_sample(self, index: int) -> Dict[str, Any]:
         """Get sample by global index.
