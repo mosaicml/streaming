@@ -113,7 +113,7 @@ class StreamingVisionDataset(StreamingDataset, VisionDataset):
             transforms = StandardTransform(transform, target_transform)
         self.transforms = transforms
 
-    def __getitem__(self, idx: int) -> Any:
+    def get_sample(self, idx: int) -> Any:
         """Get sample by global index, blocking to load its shard if missing.
 
         Args:
@@ -122,7 +122,7 @@ class StreamingVisionDataset(StreamingDataset, VisionDataset):
         Returns:
             Any: Sample data.
         """
-        obj = super().__getitem__(idx)
+        obj = super().get_sample(idx)
         x = obj['x']
         y = obj['y']
         return self.transforms(x, y)

@@ -27,6 +27,7 @@ from streaming.base.index import Index, get_index_basename
 from streaming.base.partitioning import get_partitions
 from streaming.base.shared import SharedBarrier
 from streaming.base.shuffle import get_shuffle
+from streaming.base.sliceable import Sliceable
 from streaming.base.storage import download
 from streaming.base.world import World
 
@@ -91,7 +92,7 @@ class _PartitionState:
             sleep(TICK)
 
 
-class StreamingDataset(IterableDataset):
+class StreamingDataset(Sliceable, IterableDataset):
     """A streaming pytorch IterableDataset that is also resumable mid-epoch.
 
     Checkpoints are represented in JSON as follows:
@@ -142,6 +143,8 @@ class StreamingDataset(IterableDataset):
                  shuffle_seed: Optional[int] = None,
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None):
+        Sliceable.__init__(self, self.get_sample)
+
         self.local = local
         self.remote = remote
         self.split = split or ''  # Empty string for os.path.join().
@@ -262,8 +265,11 @@ class StreamingDataset(IterableDataset):
         """
         return self.index.get_samples_per_device()
 
-    def __getitem__(self, index: int) -> Dict[str, Any]:
+    def get_sample(self, index: int) -> Dict[str, Any]:
         """Get sample by global index.
+
+        Do your dataset's sample preprocessing here by overriding this method, getting the raw
+        sample dict from ``super().get_sample()``.
 
         Args:
             index (int): Sample index.

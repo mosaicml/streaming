@@ -64,7 +64,7 @@ class StreamingCOCO(StreamingDataset):
                          batch_size)
         self.transform = transform
 
-    def __getitem__(self, idx: int) -> Any:
+    def get_sample(self, idx: int) -> Any:
         """Get sample by global index, blocking to load its shard if missing.
 
         Args:
@@ -73,7 +73,7 @@ class StreamingCOCO(StreamingDataset):
         Returns:
             Any: Sample data.
         """
-        x = super().__getitem__(idx)
+        x = super().get_sample(idx)
         img = x['img'].convert('RGB')
         img_id = x['img_id']
         htot = x['htot']

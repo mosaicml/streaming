@@ -12,11 +12,12 @@ from torch.utils.data import Dataset
 
 from streaming.base.format import reader_from_json
 from streaming.base.index import Index, get_index_basename
+from streaming.base.sliceable import Sliceable
 
 __all__ = ['LocalDataset']
 
 
-class LocalDataset(Dataset):
+class LocalDataset(Sliceable, Dataset):
     """A streaming dataset whose shards reside locally as a pytorch Dataset.
 
     Args:
@@ -25,6 +26,8 @@ class LocalDataset(Dataset):
     """
 
     def __init__(self, local: str, split: Optional[str] = None):
+        Sliceable.__init__(self, self.get_sample)
+
         split = split or ''
 
         self.local = local
@@ -51,8 +54,11 @@ class LocalDataset(Dataset):
         """
         return self.index.total_samples
 
-    def __getitem__(self, sample_id: int) -> Dict[str, Any]:
+    def get_sample(self, sample_id: int) -> Dict[str, Any]:
         """Get sample by global sample ID.
+
+        Do your dataset's sample preprocessing here by overriding this method, getting the raw
+        sample dict from ``super().get_sample()``.
 
         Args:
             sample_id (int): Sample ID.

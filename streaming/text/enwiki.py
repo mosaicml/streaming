@@ -70,7 +70,7 @@ class StreamingEnWiki(StreamingDataset):
             'labels': np.int32,
         }
 
-    def __getitem__(self, idx: int) -> Any:
+    def get_sample(self, idx: int) -> Any:
         """Get sample by global index, blocking to load its shard if missing.
 
         Args:
@@ -79,7 +79,7 @@ class StreamingEnWiki(StreamingDataset):
         Returns:
             Any: Sample data.
         """
-        obj = super().__getitem__(idx)
+        obj = super().get_sample(idx)
 
         for key, value in obj.items():
             dtype = self.field_dtypes[key]
