@@ -119,6 +119,9 @@ class SharedBarrier:
         Args:
             num_procs (int): How many processes are sharing this barrier.
         """
+        # reinit the numpy array pointing to shared memory. Necessary when spawn is the multiprocessing method used
+        self._arr = np.ndarray(3, buffer=self._shm.buf, dtype=np.int32)
+
         # Initialize num_exit to the number of processes.
         with self.lock:
             if self.num_exit == -1:
