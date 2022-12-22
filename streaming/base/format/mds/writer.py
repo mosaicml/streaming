@@ -45,7 +45,8 @@ class MDSWriter(JointWriter):
         self.column_sizes = []
         for name in sorted(columns):
             encoding = columns[name]
-            assert is_mds_encoding(encoding), f'MDSWriter passed column "{name}" with encoding "{encoding}" that is not supported. Supported encodings are {get_mds_encodings()}'
+            if not is_mds_encoding(encoding):
+                raise TypeError(f'MDSWriter passed column "{name}" with encoding "{encoding}" is unsupported. Supported encodings are {get_mds_encodings()}')
             size = get_mds_encoded_size(encoding)
             self.column_names.append(name)
             self.column_encodings.append(encoding)
