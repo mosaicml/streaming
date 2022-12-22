@@ -123,10 +123,7 @@ def test_dataset_determinism(mds_dataset_dir: Any, batch_size: int, seed: int, s
 
 @pytest.mark.parametrize(
     'missing_file',
-    [
-        'index',
-        'shard',
-    ],
+    ['index'],
 )
 @pytest.mark.usefixtures('mds_dataset_dir')
 def test_reader_download_fail(mds_dataset_dir: Any, missing_file: str):
@@ -134,8 +131,6 @@ def test_reader_download_fail(mds_dataset_dir: Any, missing_file: str):
 
     if missing_file == 'index':
         os.remove(os.path.join(remote_dir, 'index.json'))
-    elif missing_file == 'shard':
-        os.remove(os.path.join(remote_dir, 'shard.00000.mds'))
 
     # Build and iterate over a StreamingDataset
     with pytest.raises(FileNotFoundError) as exc_info:

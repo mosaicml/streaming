@@ -58,6 +58,8 @@ def download_from_s3(remote: str, local: str, timeout: float) -> None:
         elif e.response['Error']['Code'] == '400':
             # Public S3 buckets without credentials
             _download_file(unsigned=True)
+    except Exception:
+        raise
 
 
 def download_from_sftp(remote: str, local: str) -> None:
@@ -139,6 +141,8 @@ def download_from_gcs(remote: str, local: str) -> None:
     except ClientError as e:
         if e.response['Error']['Code'] in S3_NOT_FOUND_CODES:
             raise FileNotFoundError(f'Object {remote} not found.') from e
+    except Exception:
+        raise
 
 
 def download_from_oci(remote: str, local: str) -> None:

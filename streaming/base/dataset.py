@@ -5,6 +5,7 @@
 
 import json
 import os
+import sys
 from enum import IntEnum
 from multiprocessing.shared_memory import SharedMemory
 from threading import Thread
@@ -28,6 +29,7 @@ from streaming.base.partitioning import get_partitions
 from streaming.base.shared import SharedBarrier
 from streaming.base.shuffle import get_shuffle
 from streaming.base.storage import download
+from streaming.base.util import set_mp_start_method
 from streaming.base.world import World
 
 # Time to wait, in seconds.
@@ -151,6 +153,7 @@ class StreamingDataset(IterableDataset):
         self.download_retry = download_retry
         self.download_timeout = download_timeout
         self.validate_hash = validate_hash or None
+        set_mp_start_method(sys.platform)
 
         if tdist.is_available() and not tdist.is_initialized() and torch.cuda.is_available() and \
                 'RANK' in os.environ:
@@ -446,13 +449,21 @@ class StreamingDataset(IterableDataset):
             remote = os.path.join(self.remote, self.split, basename)
         local = os.path.join(self.local, self.split, basename)
 
-        # Attempt to download, possibly repeating on faiure.
+        # Attempt to download, possibly repeating on failure.
+        errors = []
         for _ in range(1 + self.download_retry):
             try:
                 download(remote, local, self.download_timeout)
-            except:
+            except FileNotFoundError:  # Bubble up file not found error.
+                raise
+            except Exception as e:  # Retry for all other causes of failure.
+                errors.append(e)
                 continue
             break
+
+        if self.download_retry < len(errors):
+            raise RuntimeError(
+                f'Failed to download {remote} -> {local}. Got errors:\n{errors}') from errors[-1]
 
         return local
 
