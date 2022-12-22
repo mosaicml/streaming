@@ -446,13 +446,21 @@ class StreamingDataset(IterableDataset):
             remote = os.path.join(self.remote, self.split, basename)
         local = os.path.join(self.local, self.split, basename)
 
-        # Attempt to download, possibly repeating on faiure.
+        # Attempt to download, possibly repeating on failure.
+        errors = []
         for _ in range(1 + self.download_retry):
             try:
                 download(remote, local, self.download_timeout)
-            except:
+            except FileNotFoundError:  # Bubble up file not found error.
+                raise
+            except Exception as e:  # Retry for all other causes of failure.
+                errors.append(e)
                 continue
             break
+
+        if self.download_retry < len(errors):
+            raise RuntimeError(
+                f'Failed to download {remote} -> {local}. Got errors:\n{errors}') from errors[-1]
 
         return local
 
