@@ -1,7 +1,6 @@
 # Copyright 2022 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-import multiprocessing as mp
 import os
 from typing import Any
 
