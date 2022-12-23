@@ -9,7 +9,8 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 
 from streaming.base.format.base.writer import JointWriter
-from streaming.base.format.mds.encodings import get_mds_encoded_size, is_mds_encoding, mds_encode, get_mds_encodings
+from streaming.base.format.mds.encodings import (get_mds_encoded_size, get_mds_encodings,
+                                                 is_mds_encoding, mds_encode)
 
 __all__ = ['MDSWriter']
 
@@ -46,7 +47,9 @@ class MDSWriter(JointWriter):
         for name in sorted(columns):
             encoding = columns[name]
             if not is_mds_encoding(encoding):
-                raise TypeError(f'MDSWriter passed column "{name}" with encoding "{encoding}" is unsupported. Supported encodings are {get_mds_encodings()}')
+                raise TypeError(
+                    f'MDSWriter passed column "{name}" with encoding "{encoding}" is unsupported. Supported encodings are {get_mds_encodings()}'
+                )
             size = get_mds_encoded_size(encoding)
             self.column_names.append(name)
             self.column_encodings.append(encoding)
