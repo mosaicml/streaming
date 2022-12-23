@@ -5,7 +5,6 @@
 
 import json
 import os
-import sys
 from typing import Any, Dict, Optional
 
 import numpy as np
@@ -13,7 +12,6 @@ from torch.utils.data import Dataset
 
 from streaming.base.format import reader_from_json
 from streaming.base.index import Index, get_index_basename
-from streaming.base.util import set_mp_start_method
 
 __all__ = ['LocalDataset']
 
@@ -31,7 +29,6 @@ class LocalDataset(Dataset):
 
         self.local = local
         self.split = split
-        set_mp_start_method(sys.platform)
 
         filename = os.path.join(local, split, get_index_basename())  # pyright: ignore
         obj = json.load(open(filename))

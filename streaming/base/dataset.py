@@ -5,7 +5,6 @@
 
 import json
 import os
-import sys
 from enum import IntEnum
 from multiprocessing.shared_memory import SharedMemory
 from threading import Thread
@@ -29,7 +28,6 @@ from streaming.base.partitioning import get_partitions
 from streaming.base.shared import SharedBarrier
 from streaming.base.shuffle import get_shuffle
 from streaming.base.storage import download
-from streaming.base.util import set_mp_start_method
 from streaming.base.world import World
 
 # Time to wait, in seconds.
@@ -153,7 +151,6 @@ class StreamingDataset(IterableDataset):
         self.download_retry = download_retry
         self.download_timeout = download_timeout
         self.validate_hash = validate_hash or None
-        set_mp_start_method(sys.platform)
 
         if tdist.is_available() and not tdist.is_initialized() and torch.cuda.is_available() and \
                 'RANK' in os.environ:
