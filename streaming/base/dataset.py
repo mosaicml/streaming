@@ -5,7 +5,6 @@
 
 import json
 import os
-import sys
 from enum import IntEnum
 from multiprocessing.shared_memory import SharedMemory
 from threading import Thread
@@ -29,7 +28,6 @@ from streaming.base.partitioning import get_partitions
 from streaming.base.shared import SharedBarrier
 from streaming.base.shuffle import get_shuffle
 from streaming.base.storage import download
-from streaming.base.util import set_mp_start_method
 from streaming.base.world import World
 
 # Time to wait, in seconds.
@@ -153,7 +151,6 @@ class StreamingDataset(IterableDataset):
         self.download_retry = download_retry
         self.download_timeout = download_timeout
         self.validate_hash = validate_hash or None
-        set_mp_start_method(sys.platform)
 
         if tdist.is_available() and not tdist.is_initialized() and torch.cuda.is_available() and \
                 'RANK' in os.environ:
@@ -229,12 +226,12 @@ class StreamingDataset(IterableDataset):
         # data to be picked up by __iter__().
         self._resume_shm = None
 
-        # Create the barrier.
-        self._worker_barrier_filelock_path = os.path.join(os.path.sep, 'tmp', 'streaming',
-                                                          self._prefix, 'barrier_filelock')
-        self._worker_barrier_shm_path = f'{self._prefix}_barrier'
-        self._worker_barrier = SharedBarrier(self._worker_barrier_filelock_path,
-                                             self._worker_barrier_shm_path)
+        # Create the shared memory-backed worker barrier, without its lock, which is unpickleable.
+        worker_barrier_filelock_path = os.path.join(os.path.sep, 'tmp', 'streaming', self._prefix,
+                                                    'barrier_filelock')
+        worker_barrier_shm_path = f'{self._prefix}_barrier'
+        self._worker_barrier = SharedBarrier(worker_barrier_filelock_path, worker_barrier_shm_path)
+        del self._worker_barrier.lock
 
         # Partition state.
         self._partition_state = None
@@ -719,6 +716,11 @@ class StreamingDataset(IterableDataset):
         Returns:
             Iterator[Dict[str, Any]]: Each sample.
         """
+        # Lazily create the worker barrier's FileLock, which contains a threading Lock, which is
+        # unpickleable.
+        if not hasattr(self._worker_barrier, 'lock'):
+            self._worker_barrier.lock = FileLock(self._worker_barrier.filelock_path)
+
         # Exit the thread that is downloading the shards for last epoch, if it exists.
         if self._partition_state:
             self._partition_state.stop()
