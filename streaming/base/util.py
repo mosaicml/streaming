@@ -3,6 +3,8 @@
 
 """Utility and helper functions for datasets."""
 
+import os
+from time import sleep, time
 from typing import List
 
 __all__ = ['get_list_arg']
@@ -18,3 +20,26 @@ def get_list_arg(text: str) -> List[str]:
         List[str]: Splits, if any.
     """
     return text.split(',') if text else []
+
+
+def is_file_exist(filename: str, sleep_time: float, timeout: float, err_msg: str) -> None:
+    """Wait for the file to exist till timeout seconds. Raise an Exception after that.
+
+    Args:
+        filename (str): A file name
+        sleep_time (float): Number of seconds to wait before next polling
+        timeout (float): Number of seconds to wait for a file to exist before raising an exception
+        err_msg (str): Error message description for an exception
+
+    Raises:
+        RuntimeError: Raise an Exception if file does not exist after timeout
+    """
+    start_time = time()
+    while True:
+        sleep(sleep_time)
+        if os.path.exists(filename):
+            sleep(sleep_time)
+            break
+        dt = time() - start_time
+        if dt > timeout:
+            raise RuntimeError(f'{err_msg}, bailing out: ' + f'{timeout:.3f} < {dt:.3f} sec.')
