@@ -11,12 +11,6 @@ from tests.common.utils import compressed_remote_local, remote_local  # pyright:
 from tests.test_reader import mds_dataset_dir  # pyright: ignore
 
 
-@pytest.fixture(scope='session', autouse=True)
-def tests_setup_and_teardown():
-    # Will be executed before the first test
-    mp.set_start_method('fork', force=True)
-
-
 # Override of pytest "runtest" for DistributedTest class
 # This hook is run before the default pytest_runtest_call
 @pytest.hookimpl(tryfirst=True)  # pyright: ignore
