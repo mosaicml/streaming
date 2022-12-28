@@ -22,12 +22,13 @@ def get_list_arg(text: str) -> List[str]:
     return text.split(',') if text else []
 
 
-def is_file_exist(filename: str, sleep_time: float, timeout: float, err_msg: str) -> None:
+def wait_for_file_to_exist(filename: str, poll_interval: float, timeout: float,
+                           err_msg: str) -> None:
     """Wait for the file to exist till timeout seconds. Raise an Exception after that.
 
     Args:
         filename (str): A file name
-        sleep_time (float): Number of seconds to wait before next polling
+        poll_interval (float): Number of seconds to wait before next polling
         timeout (float): Number of seconds to wait for a file to exist before raising an exception
         err_msg (str): Error message description for an exception
 
@@ -36,9 +37,9 @@ def is_file_exist(filename: str, sleep_time: float, timeout: float, err_msg: str
     """
     start_time = time()
     while True:
-        sleep(sleep_time)
+        sleep(poll_interval)
         if os.path.exists(filename):
-            sleep(sleep_time)
+            sleep(poll_interval)
             break
         dt = time() - start_time
         if dt > timeout:

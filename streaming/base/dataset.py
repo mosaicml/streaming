@@ -25,7 +25,7 @@ from streaming.base.partitioning import get_partitions
 from streaming.base.shared import SharedBarrier
 from streaming.base.shuffle import get_shuffle
 from streaming.base.storage import download
-from streaming.base.util import is_file_exist
+from streaming.base.util import wait_for_file_to_exist
 from streaming.base.world import World
 
 # Time to wait, in seconds.
@@ -151,9 +151,10 @@ class StreamingDataset(IterableDataset):
         self.validate_hash = validate_hash or None
 
         if self.download_retry < 0:
-            raise ValueError('parameter `download_retry` can never be negative.')
+            raise ValueError('Parameter ``download_retry`` must be non-negative')
         if self.download_timeout < 0:
-            raise ValueError('parameter `download_timeout` can never be negative.')
+            raise ValueError(
+                'Parameter ``download_timeout`` (in seconds) must be greater than zero')
 
         # Seed is set below.
         world = World()
@@ -169,10 +170,9 @@ class StreamingDataset(IterableDataset):
             filename = os.path.join(local, self.split, basename)  # pyright: ignore
 
         # Everyone waits for the file to become populated.
-        is_file_exist(filename, TICK, self.download_timeout,
-                      f'{filename} file took too long to download')
+        wait_for_file_to_exist(filename, TICK, self.download_timeout,
+                               f'{filename} file took too long to download')
 
-        # dist.barrier()
         obj = json.load(open(filename))
         if obj['version'] != 2:
             raise ValueError('Unsupported version')
@@ -189,9 +189,10 @@ class StreamingDataset(IterableDataset):
 
         # Determine and distribute shuffle seed and shm prefix.
         if shuffle_seed is None:
-            shuffle_seed = np.random.randint(1 << 60)
+            shuffle_seed = np.random.randint(1 << 24)
+        seed_rng = np.random.default_rng(shuffle_seed)
+        self.shuffle_seed = int(seed_rng.integers(1 << 60))
         prefix_int = np.random.randint(1 << 24)
-        self.shuffle_seed = shuffle_seed
         self._prefix = f'{prefix_int:06x}'
 
         # Set up the epoch counter.
@@ -378,7 +379,7 @@ class StreamingDataset(IterableDataset):
             os.rename(tmp_filename, filename)
 
         # Everyone waits for the file to become populated.
-        is_file_exist(filename, TICK, timeout, 'Partitioning and shuffling took too long')
+        wait_for_file_to_exist(filename, TICK, timeout, 'Partitioning and shuffling took too long')
 
         # Each worker loads its slice of the sample ID tensor to iterate through.
         # Tensor shape: (num nodes, ranks per node, workers per rank, samples per worker).
