@@ -320,6 +320,9 @@ class StreamingDataset(IterableDataset):
         Returns:
             Tuple[int, int]: What epoch this is, and sample offset in that epoch.
         """
+        # Reference the same shared memory object in a worker process
+        self._next_epoch_arr = np.ndarray(1, buffer=self._next_epoch_shm.buf, dtype=np.int64)
+
         # Either resume from checkpoint, or start from scratch.
         presumed_epoch = self.next_epoch
         epoch, sample_in_epoch = self._resume(world, presumed_epoch)
