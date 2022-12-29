@@ -105,6 +105,8 @@ def test_dataset_determinism(mds_dataset_dir: Any, batch_size: int, seed: int, s
     for sample in dataset:
         sample_order.append(sample['id'])
 
+    del dataset
+
     # Build StreamingDataset again to test deterministic sample ID
     dataset = StreamingDataset(local=local_dir,
                                remote=remote_dir,

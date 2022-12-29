@@ -22,7 +22,7 @@ from streaming.base.format.base.reader import FileInfo
 from streaming.base.hashing import get_hash
 from streaming.base.index import Index, get_index_basename
 from streaming.base.partitioning import get_partitions
-from streaming.base.shared import SharedBarrier
+from streaming.base.shared import SharedBarrier, create_shared_memory
 from streaming.base.shuffle import get_shuffle
 from streaming.base.storage import download
 from streaming.base.util import wait_for_file_to_exist
@@ -155,15 +155,22 @@ class StreamingDataset(IterableDataset):
             raise ValueError(
                 'Parameter ``download_timeout`` (in seconds) must be greater than zero')
 
+        # Placeholder for _resume_shm, a shared memory object where load_state_dict() saves its
+        # data to be picked up by __iter__().
+        self._resume_shm = None
+
+        # Partition state.
+        self._partition_state = None
+
         # Seed is set below.
-        world = World()
+        self.world = World()
         self.num_canonical_nodes = num_canonical_nodes
         self.batch_size = batch_size
         self.shuffle_seed = shuffle_seed
 
         # Load the index.json file.
         basename = get_index_basename()
-        if world.is_local_leader:
+        if self.world.is_local_leader:
             filename = self._download_file(basename)
         else:
             filename = os.path.join(local, self.split, basename)  # pyright: ignore
@@ -189,37 +196,51 @@ class StreamingDataset(IterableDataset):
         # Determine and distribute shuffle seed and shm prefix.
         seed_rng = np.random.default_rng(shuffle_seed)
         self.shuffle_seed = int(seed_rng.integers(1 << 60))
-        prefix_int = np.random.randint(1 << 24)
+        prefix_int = int(seed_rng.integers(1 << 24))
         self._prefix = f'{prefix_int:06x}'
+
+        # Create the shared memory-backed worker barrier, without its lock, which is unpickleable.
+        worker_barrier_filelock_path = os.path.join(os.path.sep, 'tmp', 'streaming', self._prefix,
+                                                    'barrier_filelock')
+        worker_barrier_shm_path = f'{self._prefix}_barrier'
+
+        # Should be a unique shared memory block filename per each StreamingDataset instantiation to avoid a conflict
+        # between a different StreamingDataset instance on a same machine.
+        if self.world.is_local_leader:
+            if os.path.exists(os.path.dirname(worker_barrier_filelock_path)):
+                raise ValueError(''.join([
+                    f'`shuffle_seed` value is same for train and val/test dataset. Please have a ',
+                    'different `shuffle_seed` value for every dataset instantiation'
+                ]))
+            # Creates a new shared memory block only from local rank 0
+            self._worker_barrier = SharedBarrier(worker_barrier_filelock_path,
+                                                 worker_barrier_shm_path, True)
+        else:
+            # Attaches to an existing shared memory block
+            self._worker_barrier = SharedBarrier(worker_barrier_filelock_path,
+                                                 worker_barrier_shm_path, False)
+
+        # Remove the lock to make it unpickleable
+        del self._worker_barrier.lock
 
         # Set up the epoch counter.
         #
         # Note: we do not assume that the end of __iter__() will ever be reached, so we need to
         # increment the epoch counter at the start of __iter__() instead of at the end, so we need
         # to track what the next epoch is, not the current epoch.
-        name = f'{self._prefix}_next_epoch'
-        size = np.int64().nbytes
-        try:
-            self._next_epoch_shm = SharedMemory(name, True, size)
-        except FileExistsError:
-            sleep(TICK)
-            self._next_epoch_shm = SharedMemory(name, False, size)
+        self._next_epoch_shm = create_shared_memory(name=f'{self._prefix}_next_epoch',
+                                                    size=np.int64().nbytes)
         self._next_epoch_arr = np.ndarray(1, buffer=self._next_epoch_shm.buf, dtype=np.int64)
         self._next_epoch_arr[0] = 0
 
-        # Placeholder for _resume_shm, a shared memory object where load_state_dict() saves its
-        # data to be picked up by __iter__().
-        self._resume_shm = None
+        # Get the filelock filename that protects shard_states shared memory array.
+        self.shard_states_filename = os.path.join(os.path.sep, 'tmp', 'streaming', self._prefix,
+                                                  '_shard_states_filelock')
 
-        # Create the shared memory-backed worker barrier, without its lock, which is unpickleable.
-        worker_barrier_filelock_path = os.path.join(os.path.sep, 'tmp', 'streaming', self._prefix,
-                                                    'barrier_filelock')
-        worker_barrier_shm_path = f'{self._prefix}_barrier'
-        self._worker_barrier = SharedBarrier(worker_barrier_filelock_path, worker_barrier_shm_path)
-        del self._worker_barrier.lock
-
-        # Partition state.
-        self._partition_state = None
+        # Create or attach shard_states array (tells if each shard is unknown, downloading, or
+        # downloaded).
+        self._shard_states = create_shared_memory(name=f'{self._prefix}_shard_states',
+                                                  size=len(self.shard_sizes) * np.uint8(0).nbytes)
 
     @property
     def next_epoch(self) -> int:
@@ -554,32 +575,20 @@ class StreamingDataset(IterableDataset):
         else:
             raise RuntimeError('Unknown shard state')
 
-    def _get_shard_states(self) -> Tuple[FileLock, NDArray[np.uint8], SharedMemory]:
+    def _get_shard_states(self) -> Tuple[FileLock, NDArray[np.uint8]]:
         """Get the shared shard states array and its protecting lock.
 
-        Also returns the shared memory object to keep a reference around, preventing garbage
-        collection.
-
         Returns:
-            Tuple[FileLock, NDArray[np.uint8], SharedMemory]: Lock, array, and shared memory.
+            Tuple[FileLock, NDArray[np.uint8]]: Lock, and array.
         """
         # Get the filelock that protects shard_states shared memory array.
-        filename = os.path.join(os.path.sep, 'tmp', 'streaming', self._prefix,
-                                '_shard_states_filelock')
-        lock = FileLock(filename)
+        lock = FileLock(self.shard_states_filename)
 
-        # Create or attach shard_states array (tells if each shard is unknown, downlaoding, or
-        # downloaded).
-        name = f'{self._prefix}_shard_states'
-        size = len(self.shard_sizes) * np.uint8(0).nbytes
-        try:
-            shm = SharedMemory(name, True, size)
-        except FileExistsError:
-            sleep(TICK)
-            shm = SharedMemory(name, False, size)
-        shard_states = np.ndarray(len(self.shard_sizes), buffer=shm.buf, dtype=np.uint8)
+        shard_states = np.ndarray(len(self.shard_sizes),
+                                  buffer=self._shard_states.buf,
+                                  dtype=np.uint8)
 
-        return lock, shard_states, shm
+        return lock, shard_states
 
     def _download_thread(self, state: _PartitionState) -> None:
         """Download the relevant shards in the background while we are being iterated.
@@ -593,7 +602,7 @@ class StreamingDataset(IterableDataset):
         Args:
             state (_PartitionState): The partition state.
         """
-        shard_states_lock, shard_states, shm = self._get_shard_states()
+        shard_states_lock, shard_states = self._get_shard_states()
 
         # Download loop.
         while True:
@@ -625,8 +634,6 @@ class StreamingDataset(IterableDataset):
             self._download_or_skip_shard(shard_states_lock, shard_states, shard_id)
             state.download_index += 1
 
-        del shm
-
     def _ready_thread(self, state: _PartitionState) -> None:
         """Download the relevant shards in the background while we are being iterated.
 
@@ -639,7 +646,7 @@ class StreamingDataset(IterableDataset):
         Args:
             state (_PartitionState): The partition state.
         """
-        _, shard_states, shm = self._get_shard_states()
+        _, shard_states = self._get_shard_states()
 
         # Download loop.
         while True:
@@ -671,8 +678,6 @@ class StreamingDataset(IterableDataset):
             while shard_states[shard_id] != _ShardState.DOWNLOADED:
                 sleep(TICK)
             state.ready_index += 1
-
-        del shm
 
     def _each_sample(self, sample_ids: NDArray[np.int64]) -> Iterator[int]:
         """Iterate over each sample ID, while downloading ahead in the background.
@@ -771,3 +776,20 @@ class StreamingDataset(IterableDataset):
             sleep(TICK)
             self._resume_shm = SharedMemory(name)
             assert len(self._resume_shm.buf) == len(data)
+
+    def _cleanup_shared_memory(self, shm: Any, name: str) -> None:
+        """Clean up the shared memory resources.
+
+        Args:
+            shm (Any): A SharedMemory object
+            name (str): An instance variable name
+        """
+        if self.world.is_local_leader:
+            if hasattr(self, name) and shm is not None:
+                shm.close()
+                shm.unlink()
+
+    def __del__(self):
+        self._cleanup_shared_memory(self._next_epoch_shm, '_next_epoch_shm')
+        self._cleanup_shared_memory(self._shard_states, '_shard_states')
+        self._cleanup_shared_memory(self._resume_shm, '_resume_shm')
