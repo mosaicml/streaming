@@ -1,21 +1,25 @@
-# Web app to visualize StreamingDataset sample space partitioning.
-#
-# Install:
-#
-#   pip3 install fastapi pydantic uvicorn
-#
-# Run:
-#
-#   uvicorn scripts.partition.web:app --port 1337 --reload
+# Copyright 2022 MosaicML Streaming authors
+# SPDX-License-Identifier: Apache-2.0
 
+"""Web app to visualize StreamingDataset sample space partitioning.
+
+Install:
+
+    pip3 install fastapi pydantic uvicorn
+
+Run:
+
+    uvicorn scripts.partition.web:app --port 1337 --reload
+"""
+
+import os
+
+import numpy as np
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
-import numpy as np
-import os
 from pydantic import BaseModel
 
 from streaming.base.partitioning import get_partitions
-
 
 INDEX = '''
 <!doctype html>
@@ -310,16 +314,17 @@ clicked_get_partitions();
 </html>
 '''
 
-
 app = FastAPI()
 
 
 @app.get('/')
 def get_root() -> str:
+    """Get the index HTML file."""
     return HTMLResponse(INDEX)
 
 
 class GetPartitionsRequest(BaseModel):
+    """Partitioning configuration."""
     dataset_size: int
     device_batch_size: int
     offset_in_epoch: int
@@ -330,9 +335,19 @@ class GetPartitionsRequest(BaseModel):
 
 
 @app.post('/api/get_partitions')
-def post_api_get_partitions(req: GetPartitionsRequest):
-    ids = get_partitions(req.dataset_size, req.canonical_nodes, req.physical_nodes, req.node_devices,
-                         req.device_workers, req.device_batch_size, req.offset_in_epoch)
+def post_api_get_partitions(req: GetPartitionsRequest) -> dict:
+    """Serve a POST request to get partitions.
+
+    Args:
+        req (GetPartitionsRequest): The partitioning configuration.
+
+    Returns:
+        dict: JSON object containing the sample IDs, of shape (nodes, ranks per node, workers per
+            rank, batches per worker, batch size).
+    """
+    ids = get_partitions(req.dataset_size, req.canonical_nodes, req.physical_nodes,
+                         req.node_devices, req.device_workers, req.device_batch_size,
+                         req.offset_in_epoch)
     ids = ids.reshape(req.physical_nodes, req.node_devices, req.device_workers, -1,
                       req.device_batch_size)
     return {
