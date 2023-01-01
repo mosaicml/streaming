@@ -2,7 +2,7 @@
 #
 # Install:
 #
-#   pip3 install fastapi uvicorn
+#   pip3 install fastapi pydantic uvicorn
 #
 # Run:
 #
