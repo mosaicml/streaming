@@ -209,7 +209,7 @@ var draw_sample_id = function(id, max_id_digits) {
         digits[digits.length - 1] = '<span style="visibility: hidden">0</span>';
     }
     var text = digits.join('');
-    return '<td class="sample">' + text + '</td>';
+    return '<td class="sample"' + (is_neg ? ' style="visibility: hidden"' : '') + '>' + text + '</td>';
 };
 
 var draw_partitions = function(obj) {
