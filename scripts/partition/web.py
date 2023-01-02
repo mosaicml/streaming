@@ -86,8 +86,7 @@ td {
 }
 .keyvalue_outer {
     padding: 6px;
-    padding-right: 16px;
-    margin: 16px;
+    padding-right: 20px;
     background: radial-gradient(black, #08f);
     border-radius: 4px;
     margin: 10px;
@@ -140,7 +139,7 @@ td {
 <body>
   <table>
     <tr>
-      <td style="vertical-align: top">
+      <td style="vertical-align: top; padding-right: 0px">
         <div class="keyvalue_outer">
           <table class="keyvalue_inner">
             <tr>
@@ -183,7 +182,7 @@ td {
           </div>
         </div>
       </td>
-      <td id="result">
+      <td id="result" style="padding-left: 0px">
       </td>
     </tr>
   </table>
