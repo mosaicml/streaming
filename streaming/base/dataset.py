@@ -206,15 +206,8 @@ class StreamingDataset(IterableDataset):
         # Create the shared memory-backed worker barrier, without its lock, which is unpickleable.
         worker_barrier_filelock_path = os.path.join(self._shared_dir, 'barrier_filelock')
         worker_barrier_shm_path = f'{self._prefix}_barrier'
-
-        if self.world.is_local_leader:
-            # Creates a new shared memory block only from local rank 0
-            self._worker_barrier = SharedBarrier(worker_barrier_filelock_path,
-                                                 worker_barrier_shm_path, True)
-        else:
-            # Attaches to an existing shared memory block
-            self._worker_barrier = SharedBarrier(worker_barrier_filelock_path,
-                                                 worker_barrier_shm_path, False)
+        self._worker_barrier = SharedBarrier(worker_barrier_filelock_path, worker_barrier_shm_path,
+                                             self.world.is_local_leader)
 
         # Remove the lock that makes it unpickleable
         del self._worker_barrier.lock
@@ -312,10 +305,6 @@ class StreamingDataset(IterableDataset):
 
         # Check if the resume state is stale.
         if obj['epoch'] < epoch:
-            # Clean up stale state.
-            if world.is_local_leader:
-                shm.close()
-                shm.unlink()
             self._set_canonical_num_nodes(world)
             return epoch, 0
 
@@ -771,19 +760,23 @@ class StreamingDataset(IterableDataset):
             self._resume_shm = SharedMemory(name)
             assert len(self._resume_shm.buf) == len(data)
 
-    def _cleanup_shared_memory(self, shm: Any, name: str) -> None:
+    def _cleanup_shared_memory(self, shm: Any) -> None:
         """Clean up the shared memory resources.
 
         Args:
             shm (Any): A SharedMemory object
-            name (str): An instance variable name
         """
-        if self.world.is_local_leader:
-            if hasattr(self, name) and shm is not None:
-                shm.close()
+        if shm is not None:
+            # Close each SharedMemory instance
+            shm.close()
+            if self.world.is_local_leader:
+                # Call unlink only once to release the shared memory
                 shm.unlink()
 
     def __del__(self):
-        self._cleanup_shared_memory(self._next_epoch_shm, '_next_epoch_shm')
-        self._cleanup_shared_memory(self._shard_states, '_shard_states')
-        self._cleanup_shared_memory(self._resume_shm, '_resume_shm')
+        if hasattr(self, '_next_epoch_shm'):
+            self._cleanup_shared_memory(self._next_epoch_shm)
+        if hasattr(self, '_shard_states'):
+            self._cleanup_shared_memory(self._shard_states)
+        if hasattr(self, '_resume_shm'):
+            self._cleanup_shared_memory(self._resume_shm)

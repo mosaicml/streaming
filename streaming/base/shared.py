@@ -33,10 +33,11 @@ class SharedBarrier:
     Args:
         filelock_path (str): Path to lock file on local filesystem.
         shm_path (str): Shared memory object name in /dev/shm.
-        to_create (bool): Create a new shared memory block or attaches to an existing shared memory block.
+        is_local_leader (bool): Is a local leader process or not
     """
 
-    def __init__(self, filelock_path: str, shm_path: str, to_create: bool) -> None:
+    def __init__(self, filelock_path: str, shm_path: str, is_local_leader: bool) -> None:
+        self.is_local_leader = is_local_leader
         self.filelock_path = filelock_path
         self.shm_path = shm_path
 
@@ -45,7 +46,9 @@ class SharedBarrier:
             try:
                 # Create three int32 fields in shared memory: num_enter, num_exit, flag.
                 size = 3 * np.int32(0).nbytes
-                self._shm = SharedMemory(shm_path, to_create, size)
+                # Creates a new shared memory block only from local rank 0 and attaches
+                # to an existing shared memory block from other ranks
+                self._shm = SharedMemory(shm_path, is_local_leader, size)
 
                 # Create filelock.
                 self.dirname = os.path.dirname(filelock_path)
@@ -67,11 +70,16 @@ class SharedBarrier:
 
     def __del__(self):
         """Destructor clears array that references shm."""
-        self._shm.close()
-        self._shm.unlink()
-        if os.path.islink(self.dirname):
-            os.unlink(self.dirname)
-        shutil.rmtree(self.dirname)
+        if self._shm is not None:
+            # Close each SharedMemory instance
+            self._shm.close()
+            if self.is_local_leader:
+                # Call unlink only once to release the shared memory
+                self._shm.unlink()
+        if self.is_local_leader:
+            if os.path.islink(self.dirname):
+                os.unlink(self.dirname)
+            shutil.rmtree(self.dirname)
 
     @property
     def num_enter(self) -> int:
