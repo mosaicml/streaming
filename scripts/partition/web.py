@@ -49,6 +49,7 @@ td {
     background: radial-gradient(black, #08f);
     border-radius: 4px;
     margin: 10px;
+    padding-right: 10px;
 }
 .node {
     background: #8cf;
@@ -83,14 +84,20 @@ td {
     padding-top: 0px;
     padding-bottom: 0px;
 }
-.keyvalue {
-    padding: 10px;
+.keyvalue_outer {
+    padding: 6px;
+    padding-right: 16px;
     margin: 16px;
-    margin-right: 4px;
+    background: radial-gradient(black, #08f);
+    border-radius: 4px;
+    margin: 10px;
+}
+.keyvalue_inner {
     background: radial-gradient(#bdf, #4af);
-    border: 8px solid #4af;
+    background: #4af;
     border-radius: 4px;
     width: 350px;
+    padding: 8px;
 }
 .key {
     text-align: left;
@@ -102,23 +109,31 @@ td {
     text-align: right;
     font-size: 150%;
     padding: 6px;
-    width: 100px;
+    width: 80px;
     font-family: monospace;
 }
 #button {
+    transition: 0.5s;
     font-size: 125%;
-    padding: 6px;
     font-family: sans-serif;
-    width: 322px;
+    width: 334px;
     font-weight: bold;
+    color: #048;
+    border-color: #048;
+    box-shadow: 0px 0px 20px #048;
 }
 #button:hover {
     color: #840;
+    color: #888;
     background: radial-gradient(white, #fa4);
-    border: 8px solid #fa4;
-    transition: 0.25s;
+    background: #fa4;
+    background: white;
+    transition: 0.5s;
     cursor: pointer;
     box-shadow: 0px 0px 20px #fc4;
+    box-shadow: 0px 0px 20px #fa4;
+    box-shadow: 0px 0px 20px #840;
+    box-shadow: 0px 0px 20px white;
 }
   </style>
 </head>
@@ -126,40 +141,46 @@ td {
   <table>
     <tr>
       <td style="vertical-align: top">
-        <table class="keyvalue">
-          <tr>
-            <td><input id="dataset_size" class="value" type="text" value="678"></input></td>
-            <td class="key">dataset size</td>
-          </tr>
-          <tr>
-            <td><input id="device_batch_size" class="value" type="text" value="7"></input></td>
-            <td class="key">device batch size</td>
-          </tr>
-          <tr>
-            <td><input id="offset_in_epoch" class="value" type="text" value="0"></input></td>
-            <td class="key">offset in epoch</td>
-          </tr>
-        </table>
-        <table class="keyvalue">
-          <tr>
-            <td><input id="canonical_nodes" class="value" type="text" value="2"></input></td>
-            <td class="key">canonical nodes</td>
-          </tr>
-          <tr>
-            <td><input id="physical_nodes" class="value" type="text" value="2"></input></td>
-            <td class="key">physical nodes</td>
-          </tr>
-          <tr>
-            <td><input id="node_devices" class="value" type="text" value="4"></input></td>
-            <td class="key">node devices</td>
-          </tr>
-          <tr>
-            <td><input id="device_workers" class="value" type="text" value="5"></input></td>
-            <td class="key">device workers</td>
-          </tr>
-        </table>
-        <div class="keyvalue" id="button" onclick="clicked_get_partitions()">
-          <center>Partition</center>
+        <div class="keyvalue_outer">
+          <table class="keyvalue_inner">
+            <tr>
+              <td><input id="dataset_size" class="value" type="text" value="678"></input></td>
+              <td class="key">dataset size</td>
+            </tr>
+            <tr>
+              <td><input id="device_batch_size" class="value" type="text" value="7"></input></td>
+              <td class="key">device batch size</td>
+            </tr>
+            <tr>
+              <td><input id="offset_in_epoch" class="value" type="text" value="0"></input></td>
+              <td class="key">offset in epoch</td>
+            </tr>
+          </table>
+        </div>
+        <div class="keyvalue_outer">
+          <table class="keyvalue_inner">
+            <tr>
+              <td><input id="canonical_nodes" class="value" type="text" value="2"></input></td>
+              <td class="key">canonical nodes</td>
+            </tr>
+            <tr>
+              <td><input id="physical_nodes" class="value" type="text" value="2"></input></td>
+              <td class="key">physical nodes</td>
+            </tr>
+            <tr>
+              <td><input id="node_devices" class="value" type="text" value="4"></input></td>
+              <td class="key">node devices</td>
+            </tr>
+            <tr>
+              <td><input id="device_workers" class="value" type="text" value="5"></input></td>
+              <td class="key">device workers</td>
+            </tr>
+          </table>
+        </div>
+        <div class="keyvalue_outer">
+          <div class="keyvalue_inner" id="button" onclick="clicked_get_partitions()">
+            <center>Partition</center>
+          </div>
         </div>
       </td>
       <td id="result">
@@ -209,7 +230,7 @@ var draw_sample_id = function(id, max_id_digits) {
         digits[digits.length - 1] = '<span style="visibility: hidden">0</span>';
     }
     var text = digits.join('');
-    return '<td class="sample"' + (is_neg ? ' style="visibility: hidden"' : '') + '>' + text + '</td>';
+    return '<td class="sample">' + text + '</td>';
 };
 
 var draw_partitions = function(obj) {
