@@ -30,7 +30,7 @@ INDEX = '''
 body {
     font-family: monospace;
     margin: 0px;
-    background: linear-gradient(#08f, #048);
+    margin-bottom: 400px;
 }
 table {
     padding: 2px;
@@ -77,7 +77,7 @@ td {
     margin: 10px;
 }
 .keyvalue_inner {
-    background: #4af;
+    background: white;
     border-radius: 4px;
     width: 350px;
     padding: 8px;
@@ -94,6 +94,7 @@ td {
     padding: 6px;
     width: 80px;
     font-family: monospace;
+    border: none;
 }
 #button {
     transition: 0.5s;
@@ -122,15 +123,15 @@ td {
           <table class="keyvalue_inner">
             <tr>
               <td><input id="dataset_size" class="value" type="text" value="678"></input></td>
-              <td class="key">dataset size</td>
+              <td class="key"><u>s</u>amples</td>
             </tr>
             <tr>
               <td><input id="device_batch_size" class="value" type="text" value="7"></input></td>
-              <td class="key">device batch size</td>
+              <td class="key">device <u>b</u>atch size</td>
             </tr>
             <tr>
               <td><input id="offset_in_epoch" class="value" type="text" value="0"></input></td>
-              <td class="key">offset in epoch</td>
+              <td class="key"><u>o</u>ffset in epoch</td>
             </tr>
           </table>
         </div>
@@ -138,19 +139,19 @@ td {
           <table class="keyvalue_inner">
             <tr>
               <td><input id="canonical_nodes" class="value" type="text" value="6"></input></td>
-              <td class="key">canonical nodes</td>
+              <td class="key"><u>c</u>anonical nodes</td>
             </tr>
             <tr>
               <td><input id="physical_nodes" class="value" type="text" value="3"></input></td>
-              <td class="key">physical nodes</td>
+              <td class="key">physical <u>n</u>odes</td>
             </tr>
             <tr>
               <td><input id="node_devices" class="value" type="text" value="4"></input></td>
-              <td class="key">node devices</td>
+              <td class="key">node <u>d</u>evices</td>
             </tr>
             <tr>
               <td><input id="device_workers" class="value" type="text" value="5"></input></td>
-              <td class="key">device workers</td>
+              <td class="key">device <u>w</u>orkers</td>
             </tr>
           </table>
         </div>
@@ -236,8 +237,9 @@ var draw_partitions = function(obj) {
     }
     var max_id_digits = Math.ceil(Math.log10(num_ids - 1));
 
-    var h = '<table class="all">';
+    var h = '';
     for (var node = 0; node < ids.length; ++node) {
+        h += '<table class="all">';
         h += '<tr>';
         h += '<td>';
         h += '<table class="node">';
@@ -281,8 +283,8 @@ var draw_partitions = function(obj) {
         h += '</table>';
         h += '</td>';
         h += '</tr>';
+        h += '</table>';
     }
-    h += '</table>';
 
     document.getElementById('result').innerHTML = h;
 };
@@ -300,11 +302,38 @@ var clicked_get_partitions = function() {
     post(req, "/api/get_partitions", draw_partitions);
 };
 
-document.addEventListener("keyup", function(event) {
-    if (event.code === "Enter") {
+var event_code2field = {
+    KeyS: "dataset_size",
+    KeyB: "device_batch_size",
+    KeyO: "offset_in_epoch",
+    KeyC: "canonical_nodes",
+    KeyN: "physical_nodes",
+    KeyD: "node_devices",
+    KeyW: "device_workers",
+};
+
+var focus = function(field) {
+    var elem = document.getElementById(field);
+    elem.value = '';
+    elem.focus();
+};
+
+document.onkeypress = function(event) {
+    if (event.code == "Enter") {
         clicked_get_partitions();
+        return;
     }
-});
+
+    var chr = String.fromCharCode(event.keyCode);
+
+    if (chr < '0' || '9' < chr) {
+        var field = event_code2field[event.code];
+        if (field !== undefined) {
+            focus(field);
+        }
+        event.preventDefault();
+    }
+};
 
 clicked_get_partitions();
   </script>
