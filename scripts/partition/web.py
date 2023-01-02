@@ -30,9 +30,7 @@ INDEX = '''
 body {
     font-family: monospace;
     margin: 0px;
-    background: white;
-    background: black;
-    background: #08f;
+    background: linear-gradient(#08f, #048);
 }
 table {
     padding: 2px;
@@ -42,30 +40,20 @@ td {
     text-align: center;
 }
 .all {
-    background: #4af;
-    background: radial-gradient(#4af, #08f);
-    background: radial-gradient(#8cf, #08f);
-    background: radial-gradient(#8cf, #bdf);
     background: radial-gradient(black, #08f);
     border-radius: 4px;
     margin: 10px;
-    padding-right: 10px;
+    padding-right: 16px;
 }
 .node {
-    background: #8cf;
-    background: radial-gradient(#8cf, #4af);
     background: radial-gradient(#bdf, #4af);
     border-radius: 4px;
 }
 .rank {
-    background: #bdf;
-    background: radial-gradient(#bdf, #8cf);
     background: radial-gradient(#def, #8cf);
     border-radius: 4px;
 }
 .worker {
-    background: #def;
-    background: radial-gradient(#def, #bdf);
     background: radial-gradient(white, #bdf);
     border-radius: 4px;
     padding-top: 0px;
@@ -76,23 +64,19 @@ td {
     padding-right: 5px;
 }
 .sample {
-    background: white;
-    background: radial-gradient(white, #bdf);
-    background: radial-gradient(#def, white);
     background: rgba(255, 255, 255, 0.5);
     border-radius: 4px;
     padding-top: 0px;
     padding-bottom: 0px;
 }
 .keyvalue_outer {
+    background: radial-gradient(black, #08f);
     padding: 6px;
     padding-right: 20px;
-    background: radial-gradient(black, #08f);
     border-radius: 4px;
     margin: 10px;
 }
 .keyvalue_inner {
-    background: radial-gradient(#bdf, #4af);
     background: #4af;
     border-radius: 4px;
     width: 350px;
@@ -122,16 +106,10 @@ td {
     box-shadow: 0px 0px 20px #048;
 }
 #button:hover {
-    color: #840;
-    color: #888;
-    background: radial-gradient(white, #fa4);
-    background: #fa4;
+    color: #8ac;
     background: white;
     transition: 0.5s;
     cursor: pointer;
-    box-shadow: 0px 0px 20px #fc4;
-    box-shadow: 0px 0px 20px #fa4;
-    box-shadow: 0px 0px 20px #840;
     box-shadow: 0px 0px 20px white;
 }
   </style>
@@ -159,11 +137,11 @@ td {
         <div class="keyvalue_outer">
           <table class="keyvalue_inner">
             <tr>
-              <td><input id="canonical_nodes" class="value" type="text" value="2"></input></td>
+              <td><input id="canonical_nodes" class="value" type="text" value="6"></input></td>
               <td class="key">canonical nodes</td>
             </tr>
             <tr>
-              <td><input id="physical_nodes" class="value" type="text" value="2"></input></td>
+              <td><input id="physical_nodes" class="value" type="text" value="3"></input></td>
               <td class="key">physical nodes</td>
             </tr>
             <tr>
