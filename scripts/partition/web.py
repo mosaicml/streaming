@@ -166,6 +166,16 @@ td {
     </tr>
   </table>
   <script type="text/javascript">
+var event_code2field = {
+    KeyS: "dataset_size",
+    KeyB: "device_batch_size",
+    KeyO: "offset_in_epoch",
+    KeyC: "canonical_nodes",
+    KeyN: "physical_nodes",
+    KeyD: "node_devices",
+    KeyW: "device_workers",
+};
+
 var get_int = function(id) {
     var text = document.getElementById(id).value;
     return parseInt(text);
@@ -287,6 +297,11 @@ var draw_partitions = function(obj) {
     }
 
     document.getElementById('result').innerHTML = h;
+
+    for (var key in event_code2field) {
+        var field = event_code2field[key];
+        document.getElementById(field).blur();
+    }
 };
 
 var clicked_get_partitions = function() {
@@ -300,16 +315,6 @@ var clicked_get_partitions = function() {
         device_workers: get_int("device_workers"),
     };
     post(req, "/api/get_partitions", draw_partitions);
-};
-
-var event_code2field = {
-    KeyS: "dataset_size",
-    KeyB: "device_batch_size",
-    KeyO: "offset_in_epoch",
-    KeyC: "canonical_nodes",
-    KeyN: "physical_nodes",
-    KeyD: "node_devices",
-    KeyW: "device_workers",
 };
 
 var focus = function(field) {
