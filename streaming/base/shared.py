@@ -54,11 +54,11 @@ class SharedBarrier:
                 break
             except FileNotFoundError:
                 sleep(TICK)
-                dt = time() - start_time
-                if dt > TIMEOUT:
+                elapsed = time() - start_time
+                if elapsed > TIMEOUT:
                     raise RuntimeError(
                         f'Timed out waiting for creating a shared memory block, bailing out: ' +
-                        f'{TIMEOUT:.3f} < {dt:.3f} sec.')
+                        f'{TIMEOUT:.3f} < {elapsed:.3f} sec.')
                 continue
         self._arr = np.ndarray(3, buffer=self._shm.buf, dtype=np.int32)
         self._arr[0] = 0

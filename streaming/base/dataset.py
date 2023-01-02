@@ -196,22 +196,18 @@ class StreamingDataset(IterableDataset):
         # Determine and distribute shuffle seed and shm prefix.
         seed_rng = np.random.default_rng(shuffle_seed)
         self.shuffle_seed = int(seed_rng.integers(1 << 60))
-        prefix_int = int(seed_rng.integers(1 << 24))
+        prefix_int = np.random.randint(1 << 24)
         self._prefix = f'{prefix_int:06x}'
 
+        # Should be a unique shared directory per each StreamingDataset instantiation to avoid a conflict
+        # between a different StreamingDataset instance on a same machine.
+        self._shared_dir = os.path.join(os.path.sep, 'tmp', 'streaming', self._prefix)
+
         # Create the shared memory-backed worker barrier, without its lock, which is unpickleable.
-        worker_barrier_filelock_path = os.path.join(os.path.sep, 'tmp', 'streaming', self._prefix,
-                                                    'barrier_filelock')
+        worker_barrier_filelock_path = os.path.join(self._shared_dir, 'barrier_filelock')
         worker_barrier_shm_path = f'{self._prefix}_barrier'
 
-        # Should be a unique shared memory block filename per each StreamingDataset instantiation to avoid a conflict
-        # between a different StreamingDataset instance on a same machine.
         if self.world.is_local_leader:
-            if os.path.exists(os.path.dirname(worker_barrier_filelock_path)):
-                raise ValueError(''.join([
-                    f'`shuffle_seed` value is same for train and val/test dataset. Please have a ',
-                    'different `shuffle_seed` value for every dataset instantiation'
-                ]))
             # Creates a new shared memory block only from local rank 0
             self._worker_barrier = SharedBarrier(worker_barrier_filelock_path,
                                                  worker_barrier_shm_path, True)
@@ -220,7 +216,7 @@ class StreamingDataset(IterableDataset):
             self._worker_barrier = SharedBarrier(worker_barrier_filelock_path,
                                                  worker_barrier_shm_path, False)
 
-        # Remove the lock to make it unpickleable
+        # Remove the lock that makes it unpickleable
         del self._worker_barrier.lock
 
         # Set up the epoch counter.
@@ -234,8 +230,7 @@ class StreamingDataset(IterableDataset):
         self._next_epoch_arr[0] = 0
 
         # Get the filelock filename that protects shard_states shared memory array.
-        self.shard_states_filename = os.path.join(os.path.sep, 'tmp', 'streaming', self._prefix,
-                                                  '_shard_states_filelock')
+        self.shard_states_filename = os.path.join(self._shared_dir, '_shard_states_filelock')
 
         # Create or attach shard_states array (tells if each shard is unknown, downloading, or
         # downloaded).
@@ -381,9 +376,8 @@ class StreamingDataset(IterableDataset):
             raise RuntimeError('Shuffle seed can never be None')
 
         # Decide where to save shuffle data.
-        tmp_filename = os.path.join(os.path.sep, 'tmp', 'streaming', self._prefix,
-                                    'shuffle.npy.tmp')
-        filename = os.path.join(os.path.sep, 'tmp', 'streaming', self._prefix, 'shuffle.npy')
+        tmp_filename = os.path.join(self._shared_dir, 'shuffle.npy.tmp')
+        filename = os.path.join(self._shared_dir, 'shuffle.npy')
 
         # In the local leader, generate this epoch's global sample ordering, then save to file.
         # Tensor shape: (num nodes, ranks per node, workers per rank, samples per worker).
