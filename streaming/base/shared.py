@@ -175,7 +175,7 @@ class SharedBarrier:
 
 
 def create_shared_memory(name: Optional[str] = None, size: int = 0) -> SharedMemory:
-    """Create a new Shared Memory block or attaches to an existing shared memory block.
+    """Create a new Shared Memory block or attach to an existing shared memory block.
 
     Args:
         name (str, optional): A unique shared memory block name. Defaults to None.
