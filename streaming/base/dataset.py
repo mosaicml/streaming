@@ -25,7 +25,7 @@ from streaming.base.partitioning import get_partitions
 from streaming.base.shared import SharedBarrier, create_shared_memory
 from streaming.base.shuffle import get_shuffle
 from streaming.base.storage import download
-from streaming.base.util import wait_for_file_to_exist
+from streaming.base.util import wait_for_file_to_exist, wait_for_local_leader
 from streaming.base.world import World
 
 # Time to wait, in seconds.
@@ -772,8 +772,15 @@ class StreamingDataset(IterableDataset):
             if self.world.is_local_leader:
                 # Call unlink only once to release the shared memory
                 shm.unlink()
+            else:
+                # Wait for local leader process to execute first
+                sleep(1)
 
     def __del__(self):
+        # Wait for the local rank 0 process
+        wait_for_local_leader(self.world)
+
+        # Clean up shared memory resources
         if hasattr(self, '_next_epoch_shm'):
             self._cleanup_shared_memory(self._next_epoch_shm)
         if hasattr(self, '_shard_states'):

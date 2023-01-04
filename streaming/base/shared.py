@@ -70,13 +70,16 @@ class SharedBarrier:
 
     def __del__(self):
         """Destructor clears array that references shm."""
-        if self._shm is not None:
+        if hasattr(self, '_shm') and self._shm is not None:
             # Close each SharedMemory instance
             self._shm.close()
             if self.is_local_leader:
                 # Call unlink only once to release the shared memory
                 self._shm.unlink()
-        if self.is_local_leader:
+            else:
+                # Wait for local leader process to execute first
+                sleep(1)
+        if hasattr(self, 'dirname') and self.is_local_leader:
             if os.path.islink(self.dirname):
                 os.unlink(self.dirname)
             shutil.rmtree(self.dirname)
