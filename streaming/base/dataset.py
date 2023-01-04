@@ -163,14 +163,14 @@ class StreamingDataset(IterableDataset):
         self._partition_state = None
 
         # Seed is set below.
-        self.world = World()
+        world = World()
         self.num_canonical_nodes = num_canonical_nodes
         self.batch_size = batch_size
         self.shuffle_seed = shuffle_seed
 
         # Load the index.json file.
         basename = get_index_basename()
-        if self.world.is_local_leader:
+        if world.is_local_leader:
             filename = self._download_file(basename)
         else:
             filename = os.path.join(local, self.split, basename)  # pyright: ignore
@@ -207,7 +207,7 @@ class StreamingDataset(IterableDataset):
         worker_barrier_filelock_path = os.path.join(self._shared_dir, 'barrier_filelock')
         worker_barrier_shm_path = f'{self._prefix}_barrier'
         self._worker_barrier = SharedBarrier(worker_barrier_filelock_path, worker_barrier_shm_path,
-                                             self.world.is_local_leader)
+                                             world.is_local_leader)
 
         # Remove the lock that makes it unpickleable
         del self._worker_barrier.lock
@@ -760,16 +760,17 @@ class StreamingDataset(IterableDataset):
             self._resume_shm = SharedMemory(name)
             assert len(self._resume_shm.buf) == len(data)
 
-    def _cleanup_shared_memory(self, shm: Any) -> None:
+    def _cleanup_shared_memory(self, shm: Any, world: World) -> None:
         """Clean up the shared memory resources.
 
         Args:
             shm (Any): A SharedMemory object
+            world (World): World state.
         """
         if shm is not None:
             # Close each SharedMemory instance
             shm.close()
-            if self.world.is_local_leader:
+            if world.is_local_leader:
                 # Call unlink only once to release the shared memory
                 shm.unlink()
             else:
@@ -778,12 +779,13 @@ class StreamingDataset(IterableDataset):
 
     def __del__(self):
         # Wait for the local rank 0 process
-        wait_for_local_leader(self.world)
+        world = World()
+        wait_for_local_leader(world)
 
         # Clean up shared memory resources
         if hasattr(self, '_next_epoch_shm'):
-            self._cleanup_shared_memory(self._next_epoch_shm)
+            self._cleanup_shared_memory(self._next_epoch_shm, world)
         if hasattr(self, '_shard_states'):
-            self._cleanup_shared_memory(self._shard_states)
+            self._cleanup_shared_memory(self._shard_states, world)
         if hasattr(self, '_resume_shm'):
-            self._cleanup_shared_memory(self._resume_shm)
+            self._cleanup_shared_memory(self._resume_shm, world)

@@ -10,7 +10,7 @@ we are coordinating separately instantiated pytorch worker processes.
 import os
 import shutil
 from multiprocessing.shared_memory import SharedMemory
-from time import sleep, time
+from time import sleep
 from typing import Optional
 
 import numpy as np
@@ -41,28 +41,22 @@ class SharedBarrier:
         self.filelock_path = filelock_path
         self.shm_path = shm_path
 
-        start_time = time()
-        while True:
-            try:
-                # Create three int32 fields in shared memory: num_enter, num_exit, flag.
-                size = 3 * np.int32(0).nbytes
-                # Creates a new shared memory block only from local rank 0 and attaches
-                # to an existing shared memory block from other ranks
-                self._shm = SharedMemory(shm_path, is_local_leader, size)
+        # Create three int32 fields in shared memory: num_enter, num_exit, flag.
+        size = 3 * np.int32(0).nbytes
 
-                # Create filelock.
-                self.dirname = os.path.dirname(filelock_path)
-                os.makedirs(self.dirname, exist_ok=True)
-                self.lock = FileLock(filelock_path)
-                break
-            except FileNotFoundError:
-                sleep(TICK)
-                elapsed = time() - start_time
-                if elapsed > TIMEOUT:
-                    raise RuntimeError(
-                        f'Timed out waiting for creating a shared memory block, bailing out: ' +
-                        f'{TIMEOUT:.3f} < {elapsed:.3f} sec.')
-                continue
+        try:
+            # Creates a new shared memory block
+            self._shm = SharedMemory(shm_path, True, size)
+        except FileExistsError:
+            sleep(TICK)
+            # Attaches to an existing shared memory block
+            self._shm = SharedMemory(shm_path, False, size)
+
+        # Create filelock.
+        self.dirname = os.path.dirname(filelock_path)
+        os.makedirs(self.dirname, exist_ok=True)
+        self.lock = FileLock(filelock_path)
+
         self._arr = np.ndarray(3, buffer=self._shm.buf, dtype=np.int32)
         self._arr[0] = 0
         self._arr[1] = -1
