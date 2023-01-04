@@ -79,28 +79,32 @@ td {
 .keyvalue_inner {
     background: white;
     border-radius: 4px;
-    width: 350px;
-    padding: 8px;
+    width: 275px;
+    padding: 0px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+    border-spacing: 0px 10px;
 }
 .key {
     text-align: left;
     font-size: 125%;
-    padding: 6px;
+    padding: 0px;
     font-family: sans-serif;
 }
 .value {
     text-align: right;
     font-size: 150%;
-    padding: 6px;
-    width: 80px;
+    padding: 0px;
+    width: 60px;
     font-family: monospace;
     border: none;
+    border-bottom: 2px solid #08f;
 }
 #button {
     transition: 0.5s;
     font-size: 125%;
     font-family: sans-serif;
-    width: 334px;
+    width: 275px;
     font-weight: bold;
     color: #048;
     border-color: #048;
@@ -123,7 +127,7 @@ td {
           <table class="keyvalue_inner">
             <tr>
               <td><input id="dataset_size" class="value" type="text" value="678"></input></td>
-              <td class="key"><u>s</u>amples</td>
+              <td class="key">dataset <u>s</u>amples</td>
             </tr>
             <tr>
               <td><input id="device_batch_size" class="value" type="text" value="7"></input></td>
