@@ -8,13 +8,19 @@ we are coordinating separately instantiated pytorch worker processes.
 """
 
 import os
+import shutil
 from multiprocessing.shared_memory import SharedMemory
 from time import sleep
+from typing import Optional
 
 import numpy as np
 from filelock import FileLock
 
+# Time to wait, in seconds.
 TICK = 0.07
+
+# Time out to wait before raising exception
+TIMEOUT = 60
 
 
 class SharedBarrier:
@@ -27,24 +33,30 @@ class SharedBarrier:
     Args:
         filelock_path (str): Path to lock file on local filesystem.
         shm_path (str): Shared memory object name in /dev/shm.
+        is_local_leader (bool): Is a local leader process or not
     """
 
-    def __init__(self, filelock_path: str, shm_path: str) -> None:
+    def __init__(self, filelock_path: str, shm_path: str, is_local_leader: bool) -> None:
+        self.is_local_leader = is_local_leader
         self.filelock_path = filelock_path
         self.shm_path = shm_path
 
-        # Create filelock.
-        dirname = os.path.dirname(filelock_path)
-        os.makedirs(dirname, exist_ok=True)
-        self.lock = FileLock(filelock_path)
-
         # Create three int32 fields in shared memory: num_enter, num_exit, flag.
         size = 3 * np.int32(0).nbytes
+
         try:
+            # Creates a new shared memory block
             self._shm = SharedMemory(shm_path, True, size)
         except FileExistsError:
             sleep(TICK)
+            # Attaches to an existing shared memory block
             self._shm = SharedMemory(shm_path, False, size)
+
+        # Create filelock.
+        self.dirname = os.path.dirname(filelock_path)
+        os.makedirs(self.dirname, exist_ok=True)
+        self.lock = FileLock(filelock_path)
+
         self._arr = np.ndarray(3, buffer=self._shm.buf, dtype=np.int32)
         self._arr[0] = 0
         self._arr[1] = -1
@@ -52,12 +64,19 @@ class SharedBarrier:
 
     def __del__(self):
         """Destructor clears array that references shm."""
-        try:
-            del self._arr
+        if hasattr(self, '_shm') and self._shm is not None:
+            # Close each SharedMemory instance
             self._shm.close()
-            self._shm.unlink()
-        except:
-            pass
+            if self.is_local_leader:
+                # Call unlink only once to release the shared memory
+                self._shm.unlink()
+            else:
+                # Wait for local leader process to execute first
+                sleep(1)
+        if hasattr(self, 'dirname') and self.is_local_leader:
+            if os.path.islink(self.dirname):
+                os.unlink(self.dirname)
+            shutil.rmtree(self.dirname)
 
     @property
     def num_enter(self) -> int:
@@ -153,3 +172,22 @@ class SharedBarrier:
         # Note that we exited.
         with self.lock:
             self.num_exit += 1
+
+
+def create_shared_memory(name: Optional[str] = None, size: int = 0) -> SharedMemory:
+    """Create a new Shared Memory block or attach to an existing shared memory block.
+
+    Args:
+        name (str, optional): A unique shared memory block name. Defaults to None.
+        size (int, optional): A size of a shared memory block. Defaults to 0.
+
+    Returns:
+        SharedMemory: An instance of shared memory block
+    """
+    try:
+        # Creates a new shared memory block
+        return SharedMemory(name, True, size)
+    except FileExistsError:
+        sleep(TICK)
+        # Attaches to an existing shared memory block.
+        return SharedMemory(name, False, size)

@@ -4,8 +4,11 @@
 """Utility and helper functions for datasets."""
 
 import os
+import shutil
 from time import sleep, time
 from typing import List
+
+from streaming.base.world import World
 
 __all__ = ['get_list_arg']
 
@@ -44,3 +47,22 @@ def wait_for_file_to_exist(filename: str, poll_interval: float, timeout: float,
         dt = time() - start_time
         if dt > timeout:
             raise RuntimeError(f'{err_msg}, bailing out: ' + f'{timeout:.3f} < {dt:.3f} sec.')
+
+
+def wait_for_local_leader(world: World) -> None:
+    """Wait for local rank 0.
+
+    Args:
+        world (World): World state.
+    """
+    dir_path = os.path.join(os.path.sep, 'tmp', 'streaming', 'local_sync')
+    if world.is_local_leader:
+        os.makedirs(dir_path, exist_ok=True)
+    else:
+        wait_for_file_to_exist(dir_path,
+                               poll_interval=0.07,
+                               timeout=60,
+                               err_msg='Waiting for local rank 0')
+        if os.path.islink(dir_path):
+            os.unlink(dir_path)
+        shutil.rmtree(dir_path)
