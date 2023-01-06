@@ -12,9 +12,6 @@ Run:
     uvicorn scripts.partition.web:app --port 1337 --reload
 """
 
-import os
-
-import numpy as np
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
@@ -354,7 +351,7 @@ app = FastAPI()
 
 
 @app.get('/')
-def get_root() -> str:
+def get_root() -> HTMLResponse:
     """Get the index HTML file."""
     return HTMLResponse(INDEX)
 
