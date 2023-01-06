@@ -90,6 +90,12 @@ extra_deps['docs'] = [
     'sphinxext.opengraph==0.7.4',
 ]
 
+extra_deps['web'] = [
+    'fastapi==0.88.0',
+    'pydantic==1.10.4',
+    'uvicorn==0.20.0',
+]
+
 extra_deps['all'] = set(dep for deps in extra_deps.values() for dep in deps)
 
 package_name = os.environ.get('MOSAIC_PACKAGE_NAME', 'mosaicml-streaming')

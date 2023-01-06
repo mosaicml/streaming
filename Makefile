@@ -25,4 +25,9 @@ longlines:
 test:
 	$(PYTHON) -m $(PYTEST) $(EXTRA_ARGS)
 
+web:
+	uvicorn scripts.partition.web:app --port 1337 --reload
+
+
 .PHONY: test lint style
+
