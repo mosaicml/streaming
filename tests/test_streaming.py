@@ -95,6 +95,8 @@ def test_dataloader_determinism(mds_dataset_dir: Any, batch_size: int, seed: int
     sample_order = []
     for batch in dataloader:
         sample_order.extend(batch['id'][:])
+    del dataloader
+    del dataset
 
     # Build StreamingDataset again to test deterministic sample ID
     dataset = StreamingDataset(local=local_dir,
@@ -184,6 +186,9 @@ def test_streamingdataloader_mid_epoch_resumption(mds_dataset_dir: Any, batch_si
             assert state_dict is not None
             break
         sample_order.extend(batch['id'][:])
+
+    del dataloader
+    del dataset
 
     dataset = StreamingDataset(local=local_dir,
                                remote=remote_dir,
