@@ -39,12 +39,10 @@ def main(args: Namespace) -> None:
                       args.device_batch_size)
     max_id = ids.max()
     max_digits = math.ceil(math.log10(max_id + 1))
-    pre_cols = max(map(len,
-                       [f'Node {args.physical_nodes - 1}', f'Device {args.node_devices - 1}']))
+    pre_cols = len(f'Node {args.physical_nodes - 1} Device {args.node_devices - 1}')
     for i, node in enumerate(ids):
         if i:
-            print()
-            pre = ' ' * pre_cols + ' + '
+            pre = '-' * pre_cols + '-+-'
             _, _, _, batches, samples = ids.shape
             table = []
             for batch in range(batches):
@@ -56,16 +54,13 @@ def main(args: Namespace) -> None:
                 table.append(row)
             line = pre + '--'.join(table)
             print(line)
-            print()
         for j, device in enumerate(node):
             if j:
-                print()
+                print(' ' * pre_cols + ' |')
             for k, worker in enumerate(device):
                 table = []
-                if k == 0:
-                    s = f'Node {i}'.ljust(pre_cols)
-                elif k == 1:
-                    s = f'Device {j}'.ljust(pre_cols)
+                if not k:
+                    s = f'Node {i} Device {j}'
                 else:
                     s = ' ' * pre_cols
                 pre = s + ' | '
