@@ -38,16 +38,37 @@ def main(args: Namespace) -> None:
     ids = ids.reshape(args.physical_nodes, args.node_devices, args.device_workers, -1,
                       args.device_batch_size)
     max_id = ids.max()
-    max_digits = math.ceil(math.log10(max_id))
+    max_digits = math.ceil(math.log10(max_id + 1))
+    pre_cols = max(map(len,
+                       [f'Node {args.physical_nodes - 1}', f'Device {args.node_devices - 1}']))
     for i, node in enumerate(ids):
         if i:
             print()
+            pre = ' ' * pre_cols + ' + '
+            _, _, _, batches, samples = ids.shape
+            table = []
+            for batch in range(batches):
+                row = []
+                for sample in range(samples):
+                    cell = '-' * max_digits
+                    row.append(cell)
+                row = '-'.join(row)
+                table.append(row)
+            line = pre + '--'.join(table)
+            print(line)
             print()
         for j, device in enumerate(node):
             if j:
                 print()
-            for worker in device:
+            for k, worker in enumerate(device):
                 table = []
+                if k == 0:
+                    s = f'Node {i}'.ljust(pre_cols)
+                elif k == 1:
+                    s = f'Device {j}'.ljust(pre_cols)
+                else:
+                    s = ' ' * pre_cols
+                pre = s + ' | '
                 for batch in worker:
                     row = []
                     for sample in batch:
@@ -60,7 +81,7 @@ def main(args: Namespace) -> None:
                     row = ' '.join(row)
                     table.append(row)
                 line = '  '.join(table)
-                print(line)
+                print(pre + line)
 
 
 if __name__ == '__main__':
