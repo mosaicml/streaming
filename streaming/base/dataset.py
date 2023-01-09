@@ -162,8 +162,14 @@ class StreamingDataset(IterableDataset):
         # Partition state.
         self._partition_state = None
 
-        # Seed is set below.
+        # Initialize the World context.
+        #
+        # Beware: This information is for the per-rank process. DataLoader worker processes may see
+        # different values for these fields. We are saving the rank World here because we cannot
+        # instantiate a World inside the StreamingDataset destructor.
         self._rank_world = world = World()
+
+        # Seed is set below.
         self.num_canonical_nodes = num_canonical_nodes
         self.batch_size = batch_size
         self.shuffle_seed = shuffle_seed
