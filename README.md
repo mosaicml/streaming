@@ -89,10 +89,10 @@ P.S.: [We're hiring](https://mosaicml.com/jobs)!
 
 # ✍️ Citation
 ```
-@misc{mosaicml2023streaming,
+@misc{mosaicml2022streaming,
     author = {The Mosaic ML Team},
     title = {streaming},
-    year = {2023},
+    year = {2022},
     howpublished = {\url{https://github.com/mosaicml/streaming/}},
 }
 ```
