@@ -70,14 +70,17 @@ extra_deps['dev'] = [
     'toml==0.10.2',
     'yamllint==1.28.0',
     'moto>=4.0,<5',
+    'fastapi==0.88.0',
+    'pydantic==1.10.4',
+    'uvicorn==0.20.0',
 ]
 
 extra_deps['docs'] = [
-    'GitPython==3.1.29',
+    'GitPython==3.1.30',
     'docutils==0.17.1',
     'furo==2022.9.29',
     'myst-parser==0.18.1',
-    'nbsphinx==0.8.10',
+    'nbsphinx==0.8.11',
     'pandoc==2.3',
     'pypandoc==1.10',
     'sphinx-argparse==0.4.0',
@@ -87,7 +90,7 @@ extra_deps['docs'] = [
     'sphinxcontrib-images==0.9.4',
     'sphinxcontrib.katex==0.9.3',
     'sphinxemoji==0.2.0',
-    'sphinxext.opengraph==0.7.3',
+    'sphinxext.opengraph==0.7.4',
 ]
 
 extra_deps['all'] = set(dep for deps in extra_deps.values() for dep in deps)
