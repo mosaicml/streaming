@@ -262,19 +262,6 @@ class StreamingDataset(IterableDataset):
         """
         return self.index.get_samples_per_device()
 
-    def __getitem__(self, index: int) -> Dict[str, Any]:
-        """Get sample by global index.
-
-        Args:
-            index (int): Sample index.
-
-        Returns:
-            Dict[str, Any]: Column name with sample data.
-        """
-        shard, index_in_shard = self.index.find_sample(index)
-        reader = self.shards[shard]
-        return reader[index_in_shard]
-
     def _set_canonical_num_nodes(self, world: World):
         """Set the canonical numbers of nodes.
 
@@ -532,14 +519,16 @@ class StreamingDataset(IterableDataset):
             self._download_shard_part(raw_info, zip_info, reader.compression)
 
     def _download_or_skip_shard(self, lock: FileLock, shard_states: NDArray[np.uint8],
-                                shard_id: int) -> None:
-        """Download a shard, skipping if in progress by another worker.
+                                shard_id: int, wait_if_downloading: bool) -> None:
+        """Download a shard, waiting or skipping if in progress by another worker.
 
         Args:
             lock (FileLock): The lock protecting ``shard_states``.
             shard_states (NDArray[np.uint8]): The download status of each shard, as an array in
                 shared memory.
             shard_id (int): Shard ID.
+            wait_if_downloading (bool): Whether to wait or skip if the shard is currently being
+                downloaded by someone else.
         """
         # First, the fast path: check the shared memory shard state without taking the lock. The
         # shard states only ever go up, so if we're at the downloaded state, it's downloaded.
@@ -559,6 +548,9 @@ class StreamingDataset(IterableDataset):
             shard_states[shard_id] = _ShardState.DOWNLOADED
         elif state == _ShardState.DOWNLOADING:
             lock.release()
+            if wait_if_downloading:
+                while shard_states[shard_id] != _ShardState.DOWNLOADED:
+                    sleep(TICK)
         elif state == _ShardState.DOWNLOADED:
             lock.release()
         else:
@@ -578,6 +570,54 @@ class StreamingDataset(IterableDataset):
                                   dtype=np.uint8)
 
         return lock, shard_states
+
+    def _get_downloaded_item(self, idx: int) -> Any:
+        """Get sample by global index, assuming its shard is present.
+
+        This is called from __iter__, which downloads shards ahead of time. Will crash if its shard
+        is not downloaded.
+
+        Args:
+            idx (int): Sample index.
+
+        Returns:
+            Dict[str, Any]: Mapping of column name to column data.
+        """
+        shard_idx, idx_in_shard = self.index.find_sample(idx)
+        shard = self.shards[shard_idx]
+        return shard[idx_in_shard]
+
+    def __getitem__(self, idx: int) -> Any:
+        """Get sample by global index, blocking to download its shard if not present.
+
+        If its shard is guaranteed to be downloaded, you may call _get_downloaded_item() which
+        skips the state checking for performance reasons.
+
+        Args:
+            idx (int): Sample index.
+
+        Returns:
+            Dict[str, Any]: Mapping of column name to column data.
+        """
+        # Locate the shard and sample offset within that shard where the sample lives.
+        shard_idx, idx_in_shard = self.index.find_sample(idx)
+        shard = self.shards[shard_idx]
+
+        try:
+            # Attempt to directly access the sample for performance reasons.
+            sample = shard[idx_in_shard]
+        except:
+            # Get handles to the shared shard states array and its protective file lock.
+            lock, shard_states = self._get_shard_states()
+
+            # Download the shard if not already being downloaded. Block if download in progress.
+            self._download_or_skip_shard(lock, shard_states, shard_idx, True)
+
+            # Finally, access the sample.
+            sample = shard[idx_in_shard]
+
+        # Return the retrieved sample.
+        return sample
 
     def _download_thread(self, state: _PartitionState) -> None:
         """Download the relevant shards in the background while we are being iterated.
@@ -620,7 +660,7 @@ class StreamingDataset(IterableDataset):
 
             # Download and decompress the shard for this sample, if not already done.
             shard_id, _ = self.index.find_sample(sample_id)
-            self._download_or_skip_shard(shard_states_lock, shard_states, shard_id)
+            self._download_or_skip_shard(shard_states_lock, shard_states, shard_id, False)
             state.download_index += 1
 
     def _ready_thread(self, state: _PartitionState) -> None:
@@ -709,7 +749,7 @@ class StreamingDataset(IterableDataset):
 
         # Iterate over the samples while downloading ahead.
         for sample_id in self._each_sample(sample_ids):
-            yield self[sample_id]
+            yield self._get_downloaded_item(sample_id)
 
     def state_dict(self, num_samples: int, from_beginning: bool) -> Dict[str, Any]:
         """Get a dict containing training state (called from non-worker process).
