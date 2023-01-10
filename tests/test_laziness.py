@@ -20,31 +20,31 @@ def test_laziness():
             sample = {'value': i}
             out.write(sample)
 
-    # Verify __getitem__() downloads/accesses.
+    # Verify __getitem__ accesses.
     dataset = StreamingDataset(remote)
     for i in range(num_samples):
         sample = dataset[i]
         assert sample['value'] == i
 
-    # Verify _get_downloaded_item() accesses.
+    # Verify __iter__ -> __getitem__ accesses.
     dataset = StreamingDataset(remote)
     for i, sample in zip(range(num_samples), dataset):
         assert sample['value'] == i
 
-    # Re-verify _get_downloaded_item() accesses.
+    # Verify __getitem__ downloads/accesses.
     dataset = StreamingDataset(local, remote)
-    for i, sample in zip(range(num_samples), dataset):
+    for i in range(num_samples):
+        sample = dataset[i]
         assert sample['value'] == i
 
     shutil.rmtree(local)
 
-    # Verify __getitem__() downloads/accesses.
+    # Verify __iter__ -> __getitem__ downloads/accesses.
     dataset = StreamingDataset(local, remote)
-    for i in range(num_samples):
-        sample = dataset[i]
+    for i, sample in zip(range(num_samples), dataset):
         assert sample['value'] == i
 
-    # Re-verify __getitem__() downloads/accesses.
+    # Re-verify __getitem__ downloads/accesses.
     dataset = StreamingDataset(local, remote)
     for i in range(num_samples):
         sample = dataset[i]

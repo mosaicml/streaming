@@ -571,27 +571,8 @@ class StreamingDataset(IterableDataset):
 
         return lock, shard_states
 
-    def _get_downloaded_item(self, idx: int) -> Any:
-        """Get sample by global index, assuming its shard is present.
-
-        This is called from __iter__, which downloads shards ahead of time. Will crash if its shard
-        is not downloaded.
-
-        Args:
-            idx (int): Sample index.
-
-        Returns:
-            Dict[str, Any]: Mapping of column name to column data.
-        """
-        shard_idx, idx_in_shard = self.index.find_sample(idx)
-        shard = self.shards[shard_idx]
-        return shard[idx_in_shard]
-
     def __getitem__(self, idx: int) -> Any:
         """Get sample by global index, blocking to download its shard if not present.
-
-        If its shard is guaranteed to be downloaded, you may call _get_downloaded_item() which
-        skips the state checking for performance reasons.
 
         Args:
             idx (int): Sample index.
@@ -749,7 +730,7 @@ class StreamingDataset(IterableDataset):
 
         # Iterate over the samples while downloading ahead.
         for sample_id in self._each_sample(sample_ids):
-            yield self._get_downloaded_item(sample_id)
+            yield self[sample_id]
 
     def state_dict(self, num_samples: int, from_beginning: bool) -> Dict[str, Any]:
         """Get a dict containing training state (called from non-worker process).
