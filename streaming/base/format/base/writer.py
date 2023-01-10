@@ -1,4 +1,4 @@
-# Copyright 2022 MosaicML Streaming authors
+# Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 """Serialize samples into streaming dataset shards and index."""
