@@ -16,6 +16,7 @@ from filelock import FileLock
 from numpy.typing import NDArray
 from torch.utils.data import IterableDataset
 
+from streaming.base.array import Array
 from streaming.base.format import get_index_basename
 from streaming.base.partition import get_partitions
 from streaming.base.shared import CreateSharedMemory, SharedBarrier, get_shm_prefix
@@ -83,7 +84,7 @@ class _PartitionState:
             sleep(TICK)
 
 
-class StreamingDataset(IterableDataset):
+class StreamingDataset(Array, IterableDataset):
     """A mid-epoch-resumable streaming/caching pytorch IterableDataset.
 
     Features elastically deterministic shuffling, which enables fast mid-epoch resumption.
@@ -381,6 +382,15 @@ class StreamingDataset(IterableDataset):
                 self._locals_shm.buf[:4] = np.int32(0).tobytes()
             except:
                 pass
+
+    @property
+    def size(self) -> int:
+        """Get the size of the dataset in samples.
+
+        Returns:
+            int: Number of samples.
+        """
+        return self.num_samples
 
     def _get_next_epoch(self) -> int:
         """Get the next epoch.
@@ -718,7 +728,8 @@ class StreamingDataset(IterableDataset):
 
         return lock, shard_states
 
-    def __getitem__(self, sample_id: int) -> Any:
+
+    def get_item(self, sample_id: int) -> Any:
         """Get sample by global index, blocking to download its shard if not present.
 
         Args:

@@ -131,7 +131,7 @@ class StreamingC4(StreamingDataset):
                               padding=padding,
                               max_length=max_length)
 
-    def __getitem__(self, idx: int) -> Any:
+    def get_item(self, idx: int) -> Any:
         """Get sample by global index, blocking to load its shard if missing.
 
         Args:
@@ -140,7 +140,7 @@ class StreamingC4(StreamingDataset):
         Returns:
             Any: Sample data.
         """
-        text_sample = super().__getitem__(idx)
+        text_sample = super().get_item(idx)
         token_sample = self._tokenize(text_sample)
         # Skip any token grouping, currently only supporting group_method='truncate'
         return token_sample

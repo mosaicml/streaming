@@ -105,7 +105,7 @@ class StreamingADE20K(StreamingDataset):
         self.transform = transform
         self.target_transform = target_transform
 
-    def __getitem__(self, idx: int) -> Tuple[Any, Any]:
+    def get_item(self, idx: int) -> Tuple[Any, Any]:
         """Get sample by global index, blocking to load its shard if missing.
 
         Args:
@@ -114,7 +114,7 @@ class StreamingADE20K(StreamingDataset):
         Returns:
             Tuple[Any, Any]: Sample data and label.
         """
-        obj = super().__getitem__(idx)
+        obj = super().get_item(idx)
         x = obj['x']
         y = obj['y']
         if self.joint_transform:
