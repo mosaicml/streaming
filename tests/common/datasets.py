@@ -1,4 +1,4 @@
-# Copyright 2022 MosaicML Streaming authors
+# Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 from typing import Any, Dict, List, Optional
@@ -133,7 +133,7 @@ class NumberAndSayDataset:
         np.random.seed(self._seed)
 
 
-def write_synthetic_streaming_dataset(
+def write_mds_dataset(
     dirname: str,
     columns: Dict[str, str],
     samples: Any,

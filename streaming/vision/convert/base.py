@@ -1,4 +1,4 @@
-# Copyright 2022 MosaicML Streaming authors
+# Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 """Utility and helper functions to convert CV datasets."""
@@ -45,7 +45,7 @@ def convert_image_class_dataset(dataset: Dataset,
         'y': 'int',
     }
     hashes = hashes or []
-    indices = np.random.permutation(len(dataset))  # pyright: ignore
+    indices = np.random.permutation(len(dataset)).tolist()  # pyright: ignore
     if progbar:
         indices = tqdm(indices, leave=leave)
     split_dir = os.path.join(root, split)

@@ -1,4 +1,4 @@
-# Copyright 2022 MosaicML Streaming authors
+# Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 """:class:`MDSReader` reads samples from binary ``.mds`` files that were written out by:class:`StreamingDatasetWriter`."""
@@ -120,4 +120,8 @@ class MDSReader(JointReader):
             begin, end = np.frombuffer(pair, np.uint32)
             fp.seek(begin)
             data = fp.read(end - begin)
+        if not data:
+            raise IndexError(
+                f'Relative sample index {idx} is not present in the {self.raw_data.basename} file.'
+            )
         return data

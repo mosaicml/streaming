@@ -1,6 +1,6 @@
 # 🖼️ User Guide
 
-At a very high level, one needs to convert a raw dataset into streaming format files and then use the same streaming format files using {class}`streaming.Dataset` class for model training.
+At a very high level, one needs to convert a raw dataset into streaming format files and then use the same streaming format files using {class}`streaming.StreamingDataset` class for model training.
 
 Streaming supports different dataset writers based on your need for conversion of raw datasets into a streaming format such as
 - {class}`streaming.MDSWriter`: Writes the dataset into `.mds` (Mosaic Data Shard) extension. It supports various encoding/decoding formats(`str`, `int`, `bytes`, `jpeg`, `png`, `pil`, `pkl`, and `json`) which convert the data from that format to bytes and vice-versa.
@@ -11,7 +11,7 @@ Streaming supports different dataset writers based on your need for conversion o
 
 For more information about writers and their parameters, look at the [API reference doc](../api_reference/streaming.rst).
 
-After the dataset has been converted to one of our streaming formats, one just needs to instantiate the {class}`streaming.Dataset` class by providing the dataset path of the streaming formats and use that dataset object in PyTorch {class}`torch.utils.data.DataLoader` class. For more information about `streaming.Dataset` and its parameters, look at the {class}`streaming.Dataset` API reference doc.
+After the dataset has been converted to one of our streaming formats, one just needs to instantiate the {class}`streaming.StreamingDataset` class by providing the dataset path of the streaming formats and use that dataset object in PyTorch {class}`torch.utils.data.DataLoader` class. For more information about `streaming.StreamingDataset` and its parameters, look at the {class}`streaming.StreamingDataset` API reference doc.
 
 Streaming supports various dataset compression formats (Brotli, Bzip2, Gzip, Snappy, and Zstandard) that reduces downloading time and cloud egress fees. Additionally, Streaming also supports various hashing algorithms (SHA2, SHA3, MD5, xxHash, etc.) that ensures data integrity through cryptographic and non-cryptographic hashing algorithm.
 
@@ -19,7 +19,7 @@ Let's jump right into an example on how to convert a raw dataset into a streamin
 
 ## Writing a dataset to streaming format
 
-This guide shows you how to use your custom Dataset with {class}`streaming.MDSWriter`, but the steps would remain the same for other writers.
+This guide shows you how to use your custom StreamingDataset with {class}`streaming.MDSWriter`, but the steps would remain the same for other writers.
 
 The {class}`streaming.MDSWriter` takes the raw dataset and converts it into a sharded `.mds` format for fast data access.
 
@@ -133,12 +133,12 @@ $ aws s3 cp dirname s3://mybucket/myfolder --recursive
 
 After writing a dataset in the streaming format in the previous step and uploading to a cloud object storage as s3, we are ready to start loading the data.
 
-To load the same dataset files that were created in the above steps, create a `CustomDataset` class by inheriting the {class}`streaming.Dataset` class and override the `__getitem__(idx: int)` method to get the samples. The {class}`streaming.Dataset` class requires two mandatory parameters which are `remote` which is a remote directory (S3 or local filesystem) where dataset is stored and `local` which is a local directory where dataset is cached during operation.
+To load the same dataset files that were created in the above steps, create a `CustomDataset` class by inheriting the {class}`streaming.StreamingDataset` class and override the `__getitem__(idx: int)` method to get the samples. The {class}`streaming.StreamingDataset` class requires two mandatory parameters which are `remote` which is a remote directory (S3 or local filesystem) where dataset is stored and `local` which is a local directory where dataset is cached during operation.
 <!--pytest-codeblocks:cont-->
  ```python
-from streaming.base import Dataset
+from streaming import StreamingDataset
 
-class CustomDataset(Dataset):
+class CustomDataset(StreamingDataset):
     def __init__(self, local, remote):
         super().__init__(local, remote)
 
@@ -171,4 +171,4 @@ You've now seen an in-depth look at how to prepare and use streaming datasets wi
 
 ## Other options
 
-Please look at the API reference page for the complete list of {class}`streaming.Dataset` supporting parameters.
+Please look at the API reference page for the complete list of {class}`streaming.StreamingDataset` supporting parameters.

@@ -1,10 +1,13 @@
-# Copyright 2022 MosaicML Streaming authors
+# Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 from typing import Any
 
 import pytest
+
+from tests.common.utils import compressed_remote_local, remote_local  # pyright: ignore
+from tests.test_reader import mds_dataset_dir  # pyright: ignore
 
 
 # Override of pytest "runtest" for DistributedTest class

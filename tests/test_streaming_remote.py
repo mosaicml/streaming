@@ -1,4 +1,4 @@
-# Copyright 2022 MosaicML Streaming authors
+# Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 import pathlib
@@ -7,9 +7,9 @@ from typing import Any, Dict, Optional, Tuple
 
 import pytest
 
-from streaming.base import Dataset
-from streaming.text import C4
-from streaming.vision import ADE20K, CIFAR10, COCO, ImageNet
+from streaming.base import StreamingDataset
+from streaming.text import StreamingC4
+from streaming.vision import StreamingADE20K, StreamingCIFAR10, StreamingCOCO, StreamingImageNet
 
 
 def get_dataset(name: str,
@@ -17,7 +17,7 @@ def get_dataset(name: str,
                 split: str,
                 shuffle: bool,
                 batch_size: Optional[int],
-                other_kwargs: Optional[Dict[str, Any]] = None) -> Tuple[int, Dataset]:
+                other_kwargs: Optional[Dict[str, Any]] = None) -> Tuple[int, StreamingDataset]:
     other_kwargs = {} if other_kwargs is None else other_kwargs
     dataset_map = {
         'ade20k': {
@@ -26,7 +26,7 @@ def get_dataset(name: str,
                 'train': 20206,
                 'val': 2000,
             },
-            'class': ADE20K,
+            'class': StreamingADE20K,
             'kwargs': {},
         },
         'imagenet1k': {
@@ -35,7 +35,7 @@ def get_dataset(name: str,
                 'train': 1281167,
                 'val': 50000,
             },
-            'class': ImageNet,
+            'class': StreamingImageNet,
             'kwargs': {},
         },
         'coco': {
@@ -44,7 +44,7 @@ def get_dataset(name: str,
                 'train': 117266,
                 'val': 4952,
             },
-            'class': COCO,
+            'class': StreamingCOCO,
             'kwargs': {},
         },
         'c4': {
@@ -53,7 +53,7 @@ def get_dataset(name: str,
                 'train': 364868892,
                 'val': 364608,
             },
-            'class': C4,
+            'class': StreamingC4,
             'kwargs': {
                 'tokenizer_name': 'bert-base-uncased',
                 'max_seq_len': 512,
@@ -66,7 +66,7 @@ def get_dataset(name: str,
                 'train': 50000,
                 'val': 10000,
             },
-            'class': CIFAR10,
+            'class': StreamingCIFAR10,
             'kwargs': {},
         },
         'test_streaming_upload': {
@@ -74,7 +74,7 @@ def get_dataset(name: str,
             'num_samples': {
                 'all': 0,
             },
-            'class': Dataset,
+            'class': StreamingDataset,
             'kwargs': {},
         }
     }

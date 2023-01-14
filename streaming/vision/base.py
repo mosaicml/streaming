@@ -1,19 +1,19 @@
-# Copyright 2022 MosaicML Streaming authors
+# Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Base Class for making Computer Vision datasets which are compatible with :class:`Dataset`."""
+"""Base classes for computer vision :class:`StreamingDataset`s."""
 
 from typing import Any, Callable, Optional, Tuple
 
-from torchvision.datasets import VisionDataset as TorchVisionVisionDataset
+from torchvision.datasets import VisionDataset
 from torchvision.transforms.functional import to_tensor
 
-from streaming.base import Dataset
+from streaming.base import StreamingDataset
 
-__all__ = ['VisionDataset', 'ImageClassDataset']
+__all__ = ['StreamingVisionDataset', 'StreamingImageClassDataset']
 
 
-class StandardTransform(object):
+class StandardTransform:
     """Individual input and output transforms called jointly, following torchvision.
 
     Args:
@@ -46,51 +46,58 @@ class StandardTransform(object):
         return x, y
 
 
-class VisionDataset(Dataset, TorchVisionVisionDataset):
-    """Base Class for creating a Vision streaming datasets.
+class StreamingVisionDataset(StreamingDataset, VisionDataset):
+    """A streaming, iterable, torchvision VisionDataset.
 
     Args:
-        local (str): Local filesystem directory where dataset is cached during operation.
-        remote (str, optional): Remote directory (S3 or local filesystem) where dataset is stored.
-            Defaults to ``None``.
-        split (str, optional): The dataset split to use, either 'train' or 'val'. Defaults to
+        local (str): Local dataset directory where shards are cached by split.
+        remote (str, optional): Download shards from this remote path or directory. If None, this
+            rank and worker's partition of the dataset must all exist locally. Defaults to
             ``None``.
-        shuffle (bool, optional): Whether to iterate over the samples in randomized order. Defaults to
-            ``True``.
+        split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
+        shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
+            ``False``.
         transforms (callable, optional): A function/transforms that takes in an image and a label
-            and returns the transformed versions of both. Default to ``None``.
+            and returns the transformed versions of both. Defaults to ``None``.
         transform (callable, optional): A function/transform that takes in an image and returns a
             transformed version. Defaults to ``None``.
         target_transform (callable, optional): A function/transform that takes in the target and
             transforms it. Defaults to ``None``.
-        prefetch (int, optional): Target number of samples remaining to prefetch while iterating.
-            Defaults to ``100_000``.
-        keep_zip (bool, optional): Whether to keep or delete the compressed file when decompressing
-            downloaded shards. If set to None, keep iff remote is local. Defaults to ``None``.
-        retry (int, optional): Number of download re-attempts before giving up. Defaults to ``2``.
-        timeout (float, optional): Number of seconds to wait for a shard to download before raising
-            an exception. Defaults to ``60``.
-        hash (str, optional): Hash or checksum algorithm to use to validate shards. Defaults to
+        predownload (int, optional): Target number of samples ahead to download the shards of while
+            iterating. Defaults to ``100_000``.
+        keep_zip (bool, optional): Whether to keep or delete the compressed file when
+            decompressing downloaded shards. If set to None, keep iff remote is local. Defaults to
             ``None``.
-        batch_size (int, optional): Hint the batch size that will be used on each device's DataLoader.
-            Defaults to ``None``.
+        download_retry (int): Number of download re-attempts before giving up. Defaults to ``2``.
+        download_timeout (float): Number of seconds to wait for a shard to download before raising
+            an exception. Defaults to ``60``.
+        validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
+            shards. Defaults to ``None``.
+        shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
+        num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with resumption.
+            Defaults to ``None``, which is interpreted as the number of nodes of the initial run.
+        batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
+            partitioned over the workers. Defaults to ``None``.
     """
 
     def __init__(self,
                  local: str,
                  remote: Optional[str] = None,
                  split: Optional[str] = None,
-                 shuffle: bool = True,
+                 shuffle: bool = False,
                  transforms: Optional[Callable] = None,
                  transform: Optional[Callable] = None,
                  target_transform: Optional[Callable] = None,
-                 prefetch: Optional[int] = 100_000,
-                 keep_zip: Optional[bool] = True,
-                 retry: int = 2,
-                 timeout: float = 60,
-                 hash: Optional[str] = None,
-                 batch_size: Optional[int] = None) -> None:
-        super().__init__(local, remote, split, shuffle, prefetch, keep_zip, retry, timeout, hash,
+                 predownload: Optional[int] = 100_000,
+                 keep_zip: Optional[bool] = None,
+                 download_retry: int = 2,
+                 download_timeout: float = 60,
+                 validate_hash: Optional[str] = None,
+                 shuffle_seed: int = 9176,
+                 num_canonical_nodes: Optional[int] = None,
+                 batch_size: Optional[int] = None):
+        super().__init__(local, remote, split, shuffle, predownload, keep_zip, download_retry,
+                         download_timeout, validate_hash, shuffle_seed, num_canonical_nodes,
                          batch_size)
 
         has_transforms = transforms is not None
@@ -120,46 +127,54 @@ class VisionDataset(Dataset, TorchVisionVisionDataset):
         return self.transforms(x, y)
 
 
-class ImageClassDataset(VisionDataset):
-    """Base Class for creating an Image Classification streaming datasets.
+class StreamingImageClassDataset(StreamingVisionDataset):
+    """A streaming, iterable, image classification dataset.
 
     Args:
-        local (str): Local filesystem directory where dataset is cached during operation.
-        remote (str, optional): Remote directory (S3 or local filesystem) where dataset is stored.
-            Defaults to ``None``.
-        split (str, optional): The dataset split to use, either 'train' or 'val'. Defaults to
+        local (str): Local dataset directory where shards are cached by split.
+        remote (str, optional): Download shards from this remote path or directory. If None, this
+            rank and worker's partition of the dataset must all exist locally. Defaults to
             ``None``.
-        shuffle (bool, optional): Whether to iterate over the samples in randomized order. Defaults to
-            ``True``.
+        split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
+        shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
+            ``False``.
         transform (callable, optional): A function/transform that takes in an image and returns a
             transformed version. Defaults to ``None``.
         target_transform (callable, optional): A function/transform that takes in the target and
             transforms it. Defaults to ``None``.
-        prefetch (int, optional): Target number of samples remaining to prefetch while iterating.
-            Defaults to ``100_000``.
-        keep_zip (bool, optional): Whether to keep or delete the compressed file when decompressing
-            downloaded shards. If set to None, keep iff remote is local. Defaults to ``None``.
-        retry (int, optional): Number of download re-attempts before giving up. Defaults to ``2``.
-        timeout (float, optional): Number of seconds to wait for a shard to download before raising
-            an exception. Defaults to ``60``.
-        hash (str, optional): Hash or checksum algorithm to use to validate shards. Defaults to
+        predownload (int, optional): Target number of samples ahead to download the shards of while
+            iterating. Defaults to ``100_000``.
+        keep_zip (bool, optional): Whether to keep or delete the compressed file when
+            decompressing downloaded shards. If set to None, keep iff remote is local. Defaults to
             ``None``.
-        batch_size (int, optional): Hint the batch size that will be used on each device's DataLoader.
-            Defaults to ``None``.
+        download_retry (int): Number of download re-attempts before giving up. Defaults to ``2``.
+        download_timeout (float): Number of seconds to wait for a shard to download before raising
+            an exception. Defaults to ``60``.
+        validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
+            shards. Defaults to ``None``.
+        shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
+        num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with resumption.
+            Defaults to ``None``, which is interpreted as the number of nodes of the initial run.
+        batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
+            partitioned over the workers. Defaults to ``None``.
     """
 
     def __init__(self,
                  local: str,
                  remote: Optional[str] = None,
                  split: Optional[str] = None,
-                 shuffle: bool = True,
+                 shuffle: bool = False,
                  transform: Optional[Callable] = None,
                  target_transform: Optional[Callable] = None,
-                 prefetch: Optional[int] = 100_000,
-                 keep_zip: Optional[bool] = True,
-                 retry: int = 2,
-                 timeout: float = 60,
-                 hash: Optional[str] = None,
-                 batch_size: Optional[int] = None) -> None:
-        super().__init__(local, remote, split, shuffle, None, transform, target_transform,
-                         prefetch, keep_zip, retry, timeout, hash, batch_size)
+                 predownload: Optional[int] = 100_000,
+                 keep_zip: Optional[bool] = None,
+                 download_retry: int = 2,
+                 download_timeout: float = 60,
+                 validate_hash: Optional[str] = None,
+                 shuffle_seed: int = 9176,
+                 num_canonical_nodes: Optional[int] = None,
+                 batch_size: Optional[int] = None):
+        transforms = None
+        super().__init__(local, remote, split, shuffle, transforms, transform, target_transform,
+                         predownload, keep_zip, download_retry, download_timeout, validate_hash,
+                         shuffle_seed, num_canonical_nodes, batch_size)
