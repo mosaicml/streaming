@@ -3,7 +3,7 @@
 ### 1. Setup.
 
 ```
-pip3 install img2dataset
+pip3 install img2dataset==1.41.0
 ```
 
 ### 2. Download metadata from the-eye.eu (parquet format).
