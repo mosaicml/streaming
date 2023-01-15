@@ -225,7 +225,7 @@ class Float64(Encoding):
 
     def encode(self, obj: float) -> bytes:
         self._validate(obj, float)
-        return np.int64(obj).tobytes()
+        return np.float64(obj).tobytes()
 
     def decode(self, data: bytes) -> float:
         return float(np.frombuffer(data, np.float64)[0])
