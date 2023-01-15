@@ -4,6 +4,8 @@
 
 ```
 pip3 install img2dataset==1.41.0
+
+apt install bwm-ng htop iotop
 ```
 
 ### 2. Download metadata from the-eye.eu (parquet format).
@@ -25,3 +27,11 @@ At the same time, do our conversion and uploading which uses MDS (you will want 
 ```
 ./streaming/text/convert/laion/laion400m/convert_and_upload.sh
 ```
+
+Monitor network i/o: `bwm-ng`
+
+Monitor CPU usage: `htop`
+
+Monitor disk i/o: `iotop`
+
+Monitor disk usage: `df -h`
