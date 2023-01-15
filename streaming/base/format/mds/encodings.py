@@ -88,147 +88,95 @@ class Int(Encoding):
         return int(np.frombuffer(data, np.int64)[0])
 
 
-class UInt8(Encoding):
+class Scalar(Encoding):
+    """Store scalar."""
+
+    def __init__(self, dtype: type) -> None:
+        self.dtype = dtype
+        self.size = self.dtype().nbytes
+
+    def encode(self, obj: Any) -> bytes:
+        return self.dtype(obj).tobytes()
+
+    def decode(self, data: bytes) -> Any:
+        return np.frombuffer(data, self.dtype)[0]
+
+
+class UInt8(Scalar):
     """Store uint8."""
 
-    size = 1
-
-    def encode(self, obj: int) -> bytes:
-        self._validate(obj, int)
-        return np.uint8(obj).tobytes()
-
-    def decode(self, data: bytes) -> int:
-        return int(np.frombuffer(data, np.uint8)[0])
+    def __init__(self):
+        super().__init__(np.uint8)
 
 
-class UInt16(Encoding):
+class UInt16(Scalar):
     """Store uint16."""
 
-    size = 2
-
-    def encode(self, obj: int) -> bytes:
-        self._validate(obj, int)
-        return np.uint16(obj).tobytes()
-
-    def decode(self, data: bytes) -> int:
-        return int(np.frombuffer(data, np.uint16)[0])
+    def __init__(self):
+        super().__init__(np.uint16)
 
 
-class UInt32(Encoding):
+class UInt32(Scalar):
     """Store uint32."""
 
-    size = 4
-
-    def encode(self, obj: int) -> bytes:
-        self._validate(obj, int)
-        return np.uint32(obj).tobytes()
-
-    def decode(self, data: bytes) -> int:
-        return int(np.frombuffer(data, np.uint32)[0])
+    def __init__(self):
+        super().__init__(np.uint32)
 
 
-class UInt64(Encoding):
+class UInt64(Scalar):
     """Store uint64."""
 
-    size = 8
-
-    def encode(self, obj: int) -> bytes:
-        self._validate(obj, int)
-        return np.uint64(obj).tobytes()
-
-    def decode(self, data: bytes) -> int:
-        return int(np.frombuffer(data, np.uint64)[0])
+    def __init__(self):
+        super().__init__(np.uint64)
 
 
-class Int8(Encoding):
+class Int8(Scalar):
     """Store int8."""
 
-    size = 1
-
-    def encode(self, obj: int) -> bytes:
-        self._validate(obj, int)
-        return np.int8(obj).tobytes()
-
-    def decode(self, data: bytes) -> int:
-        return int(np.frombuffer(data, np.int8)[0])
+    def __init__(self):
+        super().__init__(np.int8)
 
 
-class Int16(Encoding):
+class Int16(Scalar):
     """Store int16."""
 
-    size = 2
-
-    def encode(self, obj: int) -> bytes:
-        self._validate(obj, int)
-        return np.int16(obj).tobytes()
-
-    def decode(self, data: bytes) -> int:
-        return int(np.frombuffer(data, np.int16)[0])
+    def __init__(self):
+        super().__init__(np.int16)
 
 
-class Int32(Encoding):
+class Int32(Scalar):
     """Store int32."""
 
-    size = 4
-
-    def encode(self, obj: int) -> bytes:
-        self._validate(obj, int)
-        return np.int32(obj).tobytes()
-
-    def decode(self, data: bytes) -> int:
-        return int(np.frombuffer(data, np.int32)[0])
+    def __init__(self):
+        super().__init__(np.int32)
 
 
-class Int64(Encoding):
+class Int64(Scalar):
     """Store int64."""
 
-    size = 8
-
-    def encode(self, obj: int) -> bytes:
-        self._validate(obj, int)
-        return np.int64(obj).tobytes()
-
-    def decode(self, data: bytes) -> int:
-        return int(np.frombuffer(data, np.int64)[0])
+    def __init__(self):
+        super().__init__(np.int64)
 
 
-class Float16(Encoding):
+class Float16(Scalar):
     """Store float16."""
 
-    size = 2
-
-    def encode(self, obj: float) -> bytes:
-        self._validate(obj, float)
-        return np.float16(obj).tobytes()
-
-    def decode(self, data: bytes) -> float:
-        return float(np.frombuffer(data, np.float16)[0])
+    def __init__(self):
+        super().__init__(np.float16)
 
 
-class Float32(Encoding):
+class Float32(Scalar):
     """Store float32."""
 
-    size = 4
-
-    def encode(self, obj: float) -> bytes:
-        self._validate(obj, float)
-        return np.float32(obj).tobytes()
-
-    def decode(self, data: bytes) -> float:
-        return float(np.frombuffer(data, np.float32)[0])
+    def __init__(self):
+        super().__init__(np.float32)
 
 
-class Float64(Encoding):
+class Float64(Scalar):
     """Store float64."""
 
-    size = 8
-
-    def encode(self, obj: float) -> bytes:
-        self._validate(obj, float)
-        return np.float64(obj).tobytes()
-
-    def decode(self, data: bytes) -> float:
-        return float(np.frombuffer(data, np.float64)[0])
+    def __init__(self):
+        super().__init__(np.float64)
 
 
 class PIL(Encoding):

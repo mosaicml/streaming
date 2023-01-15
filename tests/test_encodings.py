@@ -196,7 +196,11 @@ class TestMDSEncodings:
             json_enc._is_valid(wrong_json_with_single_quotes, wrong_json_with_single_quotes)
 
     def test_get_mds_encodings(self):
-        expected_encodings = {'int', 'bytes', 'json', 'png', 'jpeg', 'str', 'pil', 'pkl'}
+        uints = {'uint8', 'uint16', 'uint32', 'uint64'}
+        ints = {'int8', 'int16', 'int32', 'int64'}
+        floats = {'float16', 'float32', 'float64'}
+        scalars = uints | ints | floats
+        expected_encodings = {'int', 'bytes', 'json', 'png', 'jpeg', 'str', 'pil', 'pkl'} | scalars
         enc = mdsEnc.get_mds_encodings()
         assert len(enc) == len(expected_encodings)
         assert enc == expected_encodings
