@@ -139,7 +139,6 @@ def convert(parquet_filename: str, mds_dirname: str, hashes: List[str]) -> None:
         'original_width': 'int32',
         'original_height': 'int32',
         'exif': 'str',
-        'md5': 'str',
         'jpg': 'bytes',
     }
     compression = None  # Don't compress because the vast majority of the data is JPEG.
@@ -165,7 +164,6 @@ def convert(parquet_filename: str, mds_dirname: str, hashes: List[str]) -> None:
                 'original_width': get_int(x['original_width']),
                 'original_height': get_int(x['original_height']),
                 'exif': get_str(x['exif']),
-                'md5': get_str(x['md5']),
                 'jpg': get_bytes(x['jpg']),
             }
             out.write(sample)
