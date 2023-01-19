@@ -1,4 +1,4 @@
-# Copyright 2022 MosaicML Streaming authors
+# Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 """Streaming package setup."""
@@ -44,7 +44,6 @@ classifiers = [
 install_requires = [
     'boto3>=1.21.45,<2',
     'Brotli>=1.0.9',
-    'datasets>=2.4.0,<3',
     'matplotlib>=3.5.2,<4',
     'paramiko>=2.11.0,<3',
     'python-snappy>=0.6.1,<1',
@@ -61,6 +60,7 @@ install_requires = [
 extra_deps = {}
 
 extra_deps['dev'] = [
+    'datasets>=2.4.0,<3',
     'docformatter>=1.4',
     'jupyter==1.0.0',
     'pre-commit>=2.18.1,<3',
@@ -88,7 +88,7 @@ extra_deps['docs'] = [
     'sphinx==4.4.0',
     'sphinx_panels==0.6.0',
     'sphinxcontrib-images==0.9.4',
-    'sphinxcontrib.katex==0.9.3',
+    'sphinxcontrib.katex==0.9.4',
     'sphinxemoji==0.2.0',
     'sphinxext.opengraph==0.7.5',
 ]
