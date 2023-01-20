@@ -68,7 +68,7 @@ class Array:
 
         if 0 < step:
             start = max(start, 0)
-            stop = min(stop, self.size - 1)
+            stop = min(stop, self.size)
         else:
             stop = max(stop, -1)
             start = min(start, self.size - 1)
