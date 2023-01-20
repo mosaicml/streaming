@@ -1,10 +1,10 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-import pytest
 from typing import List, Union
 
 import numpy as np
+import pytest
 from numpy.typing import NDArray
 
 from streaming.base.array import Array
@@ -26,7 +26,7 @@ class Range(Array):
 
 
 def check(np_arr: NDArray[np.int64], my_arr: Range, i: Union[int, slice, List[int],
-          NDArray[np.int64]]):
+                                                             NDArray[np.int64]]):
     try:
         t = np_arr[i]
     except:
@@ -52,17 +52,17 @@ def my_arange():
     return Range(100)
 
 
-def test_int_from_front(np_arange, my_arange):
+def test_int_from_front(np_arange: NDArray[np.int64], my_arange: Range):
     for i in range(100):
         check(np_arange, my_arange, i)
 
 
-def test_int_from_back(np_arange, my_arange):
+def test_int_from_back(np_arange: NDArray[np.int64], my_arange: Range):
     for i in range(-100, 0):
         check(np_arange, my_arange, i)
 
 
-def test_int_out_of_range(np_arange, my_arange):
+def test_int_out_of_range(np_arange: NDArray[np.int64], my_arange: Range):
     for i in range(-100 * 4, 100 * 4, 10):
         check(np_arange, my_arange, i)
 
@@ -70,7 +70,7 @@ def test_int_out_of_range(np_arange, my_arange):
 @pytest.mark.parametrize('start', [-142, -100, -99, -42, -1, 0, 42, 99, 100, 142])
 @pytest.mark.parametrize('stop', [-142, -100, -99, -42, -1, 0, 42, 99, 100, 142])
 @pytest.mark.parametrize('step', [-3, -1, 1, 3])
-def test_slice(start, stop, step, np_arange, my_arange):
+def test_slice(start: int, stop: int, step: int, np_arange: NDArray[np.int64], my_arange: Range):
     i = slice(start, stop, step)
     check(np_arange, my_arange, i)
 
@@ -101,19 +101,19 @@ def slices():
     ]
 
 
-def test_specific_slice(np_arange, my_arange, slices):
+def test_specific_slice(np_arange: NDArray[np.int64], my_arange: Range, slices: List[slice]):
     for i in slices:
         check(np_arange, my_arange, i)
 
 
-def test_list(np_arange, my_arange, slices):
+def test_list(np_arange: NDArray[np.int64], my_arange: Range, slices: List[slice]):
     for i in slices:
         i = my_arange._each_slice_index(i)
         i = list(i)
         check(np_arange, my_arange, i)
 
 
-def test_array(np_arange, my_arange, slices):
+def test_array(np_arange: NDArray[np.int64], my_arange: Range, slices: List[slice]):
     for i in slices:
         i = my_arange._each_slice_index(i)
         i = list(i)
@@ -121,28 +121,28 @@ def test_array(np_arange, my_arange, slices):
         check(np_arange, my_arange, i)
 
 
-def test_array_2d(np_arange, my_arange):
+def test_array_2d(np_arange: NDArray[np.int64], my_arange: Range):
     i = np.arange(4)
     i = i * 3 + 7
     i = i.reshape(2, 2)
     check(np_arange, my_arange, i)
 
 
-def test_array_3d(np_arange, my_arange):
+def test_array_3d(np_arange: NDArray[np.int64], my_arange: Range):
     i = np.arange(8)
     i = i * 3 + 7
     i = i.reshape(2, 2, 2)
     check(np_arange, my_arange, i)
 
 
-def test_list_2d(np_arange, my_arange):
+def test_list_2d(np_arange: NDArray[np.int64], my_arange: Range):
     i = np.arange(4)
     i = i * 3 + 7
     i = i.reshape(2, 2)
     assert my_arange[i.tolist()] == np_arange[i].tolist()
 
 
-def test_list_3d(np_arange, my_arange):
+def test_list_3d(np_arange: NDArray[np.int64], my_arange: Range):
     i = np.arange(8)
     i = i * 3 + 7
     i = i.reshape(2, 2, 2)
