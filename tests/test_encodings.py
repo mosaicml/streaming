@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import json
-from typing import Any
+from typing import Any, Union
 
 import numpy as np
 import pytest
@@ -195,6 +195,149 @@ class TestMDSEncodings:
             json_enc = mdsEnc.JSON()
             json_enc._is_valid(wrong_json_with_single_quotes, wrong_json_with_single_quotes)
 
+    @pytest.mark.parametrize(('decoded', 'encoded'), [(42, b'*')])
+    def test_mds_uint8(self, decoded: int, encoded: bytes):
+        coder = mdsEnc.UInt8()
+        assert coder.size == 1
+
+        enc = coder.encode(decoded)
+        assert isinstance(enc, bytes)
+        assert enc == encoded
+
+        dec = coder.decode(encoded)
+        assert isinstance(dec, np.integer)
+        assert dec == decoded
+
+    @pytest.mark.parametrize(('decoded', 'encoded'), [(42, b'*\0')])
+    def test_mds_uint16(self, decoded: int, encoded: bytes):
+        coder = mdsEnc.UInt16()
+        assert coder.size == 2
+
+        enc = coder.encode(decoded)
+        assert isinstance(enc, bytes)
+        assert enc == encoded
+
+        dec = coder.decode(encoded)
+        assert isinstance(dec, np.integer)
+        assert dec == decoded
+
+    @pytest.mark.parametrize(('decoded', 'encoded'), [(42, b'*\0\0\0')])
+    def test_mds_uint32(self, decoded: int, encoded: bytes):
+        coder = mdsEnc.UInt32()
+        assert coder.size == 4
+
+        enc = coder.encode(decoded)
+        assert isinstance(enc, bytes)
+        assert enc == encoded
+
+        dec = coder.decode(encoded)
+        assert isinstance(dec, np.integer)
+        assert dec == decoded
+
+    @pytest.mark.parametrize(('decoded', 'encoded'), [(42, b'*\0\0\0\0\0\0\0')])
+    def test_mds_uint64(self, decoded: int, encoded: bytes):
+        coder = mdsEnc.UInt64()
+        assert coder.size == 8
+
+        enc = coder.encode(decoded)
+        assert isinstance(enc, bytes)
+        assert enc == encoded
+
+        dec = coder.decode(encoded)
+        assert isinstance(dec, np.integer)
+        assert dec == decoded
+
+    @pytest.mark.parametrize(('decoded', 'encoded'), [(42, b'*')])
+    def test_mds_int8(self, decoded: int, encoded: bytes):
+        coder = mdsEnc.Int8()
+        assert coder.size == 1
+
+        enc = coder.encode(decoded)
+        assert isinstance(enc, bytes)
+        assert enc == encoded
+
+        dec = coder.decode(encoded)
+        assert isinstance(dec, np.integer)
+        assert dec == decoded
+
+    @pytest.mark.parametrize(('decoded', 'encoded'), [(42, b'*\0')])
+    def test_mds_int16(self, decoded: int, encoded: bytes):
+        coder = mdsEnc.Int16()
+        assert coder.size == 2
+
+        enc = coder.encode(decoded)
+        assert isinstance(enc, bytes)
+        assert enc == encoded
+
+        dec = coder.decode(encoded)
+        assert isinstance(dec, np.integer)
+        assert dec == decoded
+
+    @pytest.mark.parametrize(('decoded', 'encoded'), [(42, b'*\0\0\0')])
+    def test_mds_int32(self, decoded: int, encoded: bytes):
+        coder = mdsEnc.Int32()
+        assert coder.size == 4
+
+        enc = coder.encode(decoded)
+        assert isinstance(enc, bytes)
+        assert enc == encoded
+
+        dec = coder.decode(encoded)
+        assert isinstance(dec, np.integer)
+        assert dec == decoded
+
+    @pytest.mark.parametrize(('decoded', 'encoded'), [(42, b'*\0\0\0\0\0\0\0')])
+    def test_mds_int64(self, decoded: int, encoded: bytes):
+        coder = mdsEnc.Int64()
+        assert coder.size == 8
+
+        enc = coder.encode(decoded)
+        assert isinstance(enc, bytes)
+        assert enc == encoded
+
+        dec = coder.decode(encoded)
+        assert isinstance(dec, np.integer)
+        assert dec == decoded
+
+    @pytest.mark.parametrize(('decoded', 'encoded'), [(42.0, b'@Q')])
+    def test_mds_float16(self, decoded: float, encoded: bytes):
+        coder = mdsEnc.Float16()
+        assert coder.size == 2
+
+        enc = coder.encode(decoded)
+        assert isinstance(enc, bytes)
+        assert enc == encoded
+
+        dec = coder.decode(encoded)
+        assert isinstance(dec, np.floating)
+        assert dec == decoded
+
+    @pytest.mark.parametrize(('decoded', 'encoded'), [(42.0, b'\0\0(B')])
+    def test_mds_float32(self, decoded: float, encoded: bytes):
+        coder = mdsEnc.Float32()
+        assert coder.size == 4
+
+        enc = coder.encode(decoded)
+        assert isinstance(enc, bytes)
+        assert enc == encoded
+
+        dec = coder.decode(encoded)
+        assert isinstance(dec, np.floating)
+        assert dec == decoded
+
+    @pytest.mark.parametrize(('decoded', 'encoded'), [(42.0, b'\0\0\0\0\0\0E@')])
+    def test_mds_float64(self, decoded: float, encoded: bytes):
+        coder = mdsEnc.Float64()
+        assert coder.size == 8
+
+        enc = coder.encode(decoded)
+        assert isinstance(enc, bytes)
+        assert enc == encoded
+
+        dec = coder.decode(encoded)
+        assert isinstance(dec, np.floating)
+        assert dec == decoded
+
     def test_get_mds_encodings(self):
         uints = {'uint8', 'uint16', 'uint32', 'uint64'}
         ints = {'int8', 'int16', 'int32', 'int64'}
@@ -210,6 +353,21 @@ class TestMDSEncodings:
     def test_is_mds_encoding(self, enc_name: str, expected_output: bool):
         is_supported = mdsEnc.is_mds_encoding(enc_name)
         assert is_supported is expected_output
+
+    @pytest.mark.parametrize(('encoding', 'decoded', 'encoded'),
+                             [('uint8', 42, b'*'), ('uint16', 42, b'*\0'),
+                              ('uint32', 42, b'*\0\0\0'), ('uint64', 42, b'*\0\0\0\0\0\0\0'),
+                              ('int8', 42, b'*'), ('int16', 42, b'*\0'), ('int32', 42, b'*\0\0\0'),
+                              ('int64', 42, b'*\0\0\0\0\0\0\0'), ('float16', 42.0, b'@Q'),
+                              ('float32', 42.0, b'\0\0(B'), ('float64', 42.0, b'\0\0\0\0\0\0E@')])
+    def test_mds_scalar(self, encoding: str, decoded: Union[int, float], encoded: bytes):
+        enc = mdsEnc.mds_encode(encoding, decoded)
+        assert isinstance(enc, bytes)
+        assert enc == encoded
+        dec = mdsEnc.mds_decode(encoding, enc)
+        assert dec == decoded
+        dec = mdsEnc.mds_decode(encoding, encoded)
+        assert dec == decoded
 
     @pytest.mark.parametrize(('enc_name', 'data'), [('bytes', b'9'), ('int', 27),
                                                     ('str', 'mosaicml')])
