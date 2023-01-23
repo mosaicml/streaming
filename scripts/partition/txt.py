@@ -4,9 +4,10 @@
 """Command-line tool to visualize StreamingDataset sample space partitioning."""
 
 import math
+from argparse import ArgumentParser, Namespace
+
 import numpy as np
 from numpy.typing import NDArray
-from argparse import ArgumentParser, Namespace
 
 from streaming.base.partitioning import get_partitions_fast, get_partitions_slow
 
@@ -30,13 +31,18 @@ def parse_args() -> Namespace:
 
 
 def show(ids: NDArray[np.int64]) -> None:
+    """Display a sample ID tensor on stdout.
+
+    Args:
+        ids (NDArray[np.int64]): Sample ID tensor of shape (node, rank, worker, batch, sample).
+    """
     max_id = ids.max()
     max_digits = math.ceil(math.log10(max_id + 1))
     for i, node in enumerate(ids):
         print(f'Node {i}')
         for j, device in enumerate(node):
             print(f'    Dev {j}')
-            for k, worker in enumerate(device):
+            for worker in device:
                 table = []
                 for batch in worker:
                     row = []
