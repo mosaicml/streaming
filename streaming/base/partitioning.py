@@ -135,7 +135,7 @@ def get_partitions_fast(dataset_size: int,
 
     if num_canonical_nodes < num_physical_nodes:
         node_ratio = num_physical_nodes // num_canonical_nodes
-        node_starts = node_starts.repeat(node_ratio)
+        node_starts = np.tile(node_starts, node_ratio)
         node_starts += np.arange(node_ratio).repeat(num_canonical_nodes)
         device_starts *= node_ratio
         step *= node_ratio
