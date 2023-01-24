@@ -153,6 +153,7 @@ def get_partitions_fast(dataset_size: int,
         ids = ids.transpose(0, 2, 1)
         ids = ids[:, :, :padded_device_samples]
 
+    # ids shape -> (physical nodes x ranks per node x padded device samples)
     second_to_last = ids[:, :, device_samples - 2]
     last = ids[:, :, device_samples - 1]
     ids[:, :, device_samples - 1] = np.where(last < dataset_size, last, second_to_last)
