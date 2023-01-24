@@ -168,6 +168,8 @@ number of samples
     ids[:, :, device_samples:] = -1
 
     if drop_first:
+        # drop the first drop_first samples by flattening into the order that samples would be seen and
+        # clipping the samples from the left
         ids = ids.transpose(2, 0, 1)
         ids = ids.flatten()
         ids[:-drop_first] = ids[drop_first:]
