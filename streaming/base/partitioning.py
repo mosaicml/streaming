@@ -145,6 +145,7 @@ def get_partitions_fast(dataset_size: int,
     starts = node_starts.reshape(-1, 1, 1) + per_node_device_starts.reshape(1, -1, 1)
     # indices shape -> (1 x 1 x padded device samples)
     indices = np.arange(padded_device_samples).reshape(1, 1, -1)
+    # ids shape -> (num_canonical_nodes x ranks per node x padded device samples)
     ids = starts + indices * step
 
     if num_physical_nodes < num_canonical_nodes:
