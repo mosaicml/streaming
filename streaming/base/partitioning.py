@@ -120,8 +120,9 @@ def get_partitions_fast(dataset_size: int,
     Returns:
         NDArray[np.int64]: Partitions of shape (physical nodes x ranks x workers x samples).
     """
-    assert not num_canonical_nodes % num_physical_nodes or \
-        not num_physical_nodes % num_canonical_nodes
+    if num_canonical_nodes % num_physical_nodes and num_physical_nodes % num_canonical_nodes:
+        raise ValueError('One of {canonical nodes, physical nodes} must be evenly divisible by ' +
+                         'the other.')
     device_batch_size = device_batch_size or 1
 
     devices = num_physical_nodes * ranks_per_node
