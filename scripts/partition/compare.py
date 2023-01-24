@@ -25,6 +25,7 @@ def parse_args() -> Namespace:
     args.add_argument('--min_power', type=int, default=20)
     args.add_argument('--max_power', type=int, default=34)
     args.add_argument('--power_interval', type=int, default=4)
+    args.add_argument('--timeout', type=float, default=60)
     return args.parse_args()
 
 
@@ -34,7 +35,7 @@ def main(args: Namespace) -> None:
     Args:
         args (Namespace): Command-line arguments.
     """
-    timeout = 60
+    # Starts true, becomes false when partitioning starts to take too long.
     do_slow = True
     do_fast = True
 
@@ -51,7 +52,7 @@ def main(args: Namespace) -> None:
                                 args.ranks_per_node, args.workers_per_rank, args.batch_size,
                                 args.sample_in_epoch)
             elapsed = time() - start
-            if timeout < elapsed:
+            if args.timeout < elapsed:
                 do_slow = False
         else:
             elapsed = 0
@@ -62,7 +63,7 @@ def main(args: Namespace) -> None:
                                 args.ranks_per_node, args.workers_per_rank, args.batch_size,
                                 args.sample_in_epoch)
             elapsed2 = time() - start2
-            if timeout < elapsed2:
+            if args.timeout < elapsed2:
                 do_fast = False
         else:
             elapsed2 = 0
