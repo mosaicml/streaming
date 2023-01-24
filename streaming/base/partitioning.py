@@ -118,7 +118,7 @@ def get_partitions_fast(dataset_size: int,
         drop_first (int): Number of samples seen already, which are dropped. Defaults to ``0``.
 
     Returns:
-        NDArray[np.int64]: Partitions of shape (physical nodes x ranks x workers x samples).
+        NDArray[np.int64]: Partitions of shape (physical nodes x ranks per node x workers per rank x batches per worker x device batch size).
     """
     if num_canonical_nodes % num_physical_nodes and num_physical_nodes % num_canonical_nodes:
         raise ValueError('One of {canonical nodes, physical nodes} must be evenly divisible by ' +
