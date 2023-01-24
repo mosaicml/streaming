@@ -159,6 +159,7 @@ def get_partitions_fast(dataset_size: int,
     # duplicates valid samples at the end, so that each device has the same 
 number of samples
     ids[:, :, device_samples - 1] = np.where(last < dataset_size, last, second_to_last)
+    # drops all samples past the end of the dataset
     ids[:, :, device_samples:] = -1
 
     if drop_first:
