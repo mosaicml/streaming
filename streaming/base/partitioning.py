@@ -143,6 +143,7 @@ def get_partitions_fast(dataset_size: int,
 
     # starts shape -> (num nodes x ranks per node x 1)
     starts = node_starts.reshape(-1, 1, 1) + per_node_device_starts.reshape(1, -1, 1)
+    # indices shape -> (1 x 1 x padded device samples)
     indices = np.arange(padded_device_samples).reshape(1, 1, -1)
     ids = starts + indices * step
 
