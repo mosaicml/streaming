@@ -146,6 +146,8 @@ def get_partitions_fast(dataset_size: int,
     ids = starts + indices * step
 
     if num_physical_nodes < num_canonical_nodes:
+        # reshape the ids so that the order of the samples is preserved based on the provided number
+        # of canonical nodes
         node_ratio = num_canonical_nodes // num_physical_nodes
         ids = ids.reshape(node_ratio, num_physical_nodes, ranks_per_node, -1)
         ids = ids.transpose(1, 3, 2, 0)
