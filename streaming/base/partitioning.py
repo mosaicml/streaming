@@ -141,6 +141,7 @@ def get_partitions_fast(dataset_size: int,
         per_node_device_starts *= node_ratio
         step *= node_ratio
 
+    # starts shape -> (num nodes x ranks per node x 1)
     starts = node_starts.reshape(-1, 1, 1) + per_node_device_starts.reshape(1, -1, 1)
     indices = np.arange(padded_device_samples).reshape(1, 1, -1)
     ids = starts + indices * step
