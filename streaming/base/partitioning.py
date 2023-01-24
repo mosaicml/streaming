@@ -131,17 +131,17 @@ def get_partitions_fast(dataset_size: int,
     padded_device_samples = workers_per_rank * worker_batches * device_batch_size
 
     node_starts = dataset_size * np.arange(num_canonical_nodes) // num_canonical_nodes
-    device_starts = np.arange(ranks_per_node)
+    per_node_device_starts = np.arange(ranks_per_node)
     step = ranks_per_node
 
     if num_canonical_nodes < num_physical_nodes:
         node_ratio = num_physical_nodes // num_canonical_nodes
         node_starts = np.tile(node_starts, node_ratio)
         node_starts += np.arange(node_ratio).repeat(num_canonical_nodes)
-        device_starts *= node_ratio
+        per_node_device_starts *= node_ratio
         step *= node_ratio
 
-    starts = node_starts.reshape(-1, 1, 1) + device_starts.reshape(1, -1, 1)
+    starts = node_starts.reshape(-1, 1, 1) + per_node_device_starts.reshape(1, -1, 1)
     indices = np.arange(padded_device_samples).reshape(1, 1, -1)
     ids = starts + indices * step
 
