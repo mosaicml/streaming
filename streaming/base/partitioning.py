@@ -164,6 +164,7 @@ def get_partitions_fast(dataset_size: int,
         ids[:-drop_first] = ids[drop_first:]
         ids[-drop_first:] = -1
         ids = ids.reshape(padded_device_samples, num_physical_nodes, ranks_per_node)
+        # return to original ids shape of (physical nodes x ranks per node x padded device samples)
         ids = ids.transpose(1, 2, 0)
 
     ids = ids.reshape(num_physical_nodes, ranks_per_node, worker_batches, workers_per_rank,
