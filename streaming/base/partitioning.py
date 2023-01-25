@@ -34,7 +34,8 @@ def get_partitions_slow(dataset_size: int,
         drop_first (int): Number of samples seen already, which are dropped. Defaults to ``0``.
 
     Returns:
-        NDArray[np.int64]: Partitions of shape (physical nodes x ranks x workers x samples).
+        NDArray[np.int64]: Partitions of shape (physical nodes x ranks per node x workers per
+            rank x batches per worker x device batch size).
     """
     # Divide the full dataset sample range into sample range per canonical node.
     arrs = []
@@ -99,8 +100,9 @@ def get_partitions_slow(dataset_size: int,
         [x[:, :, np.arange(i, x.shape[2], workers_per_rank), :] for i in range(workers_per_rank)],
         axis=2)
 
-    # -> Shape: (physical nodes x ranks per node x workers per rank x samples)
-    return x.reshape(num_physical_nodes, ranks_per_node, workers_per_rank, -1)
+    # -> Shape: (physical nodes x ranks per node x workers per rank x batches per worker x
+    #            device batch size).
+    return x.reshape(num_physical_nodes, ranks_per_node, workers_per_rank, -1, device_batch_size)
 
 
 def get_partitions_fast(dataset_size: int,
