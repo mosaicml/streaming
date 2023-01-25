@@ -19,8 +19,10 @@ def get_partitions_slow(dataset_size: int,
 
     Args:
         dataset_size (int): Dataset size.
-        num_canonical_nodes (int): Number of canonical nodes.
-        num_physical_nodes (int): Number of physical nodes.
+        num_canonical_nodes (int): Number of canonical nodes. Either canonical or physical nodes
+            must be a multiple of the other.
+        num_physical_nodes (int): Number of physical nodes. Either canonical or physical nodes must
+            be a multiple of the other.
         ranks_per_node (int): Number of ranks per node.
         workers_per_rank (int): Number of worker partitions per rank.
         device_batch_size (int): Batch size of its DataLoader, which affects how the dataset is
@@ -108,8 +110,10 @@ def get_partitions_fast(dataset_size: int,
 
     Args:
         dataset_size (int): Dataset size.
-        num_canonical_nodes (int): Number of canonical nodes.
-        num_physical_nodes (int): Number of physical nodes.
+        num_canonical_nodes (int): Number of canonical nodes. Either canonical or physical nodes
+            must be a multiple of the other.
+        num_physical_nodes (int): Number of physical nodes. Either canonical or physical nodes must
+            be a multiple of the other.
         node_devices (int): Number of devices per node.
         device_workers (int): Number of worker partitions per device.
         device_batch_size (int): Batch size of its DataLoader, which affects how the dataset is
