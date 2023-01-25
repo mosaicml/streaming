@@ -161,8 +161,7 @@ def get_partitions_fast(dataset_size: int,
     # ids shape -> (physical nodes x ranks per node x padded device samples)
     second_to_last = ids[:, :, device_samples - 2]
     last = ids[:, :, device_samples - 1]
-    # duplicates valid samples at the end, so that each device has the same 
-number of samples
+    # duplicates valid samples at the end, so that each device has the same number of samples
     ids[:, :, device_samples - 1] = np.where(last < dataset_size, last, second_to_last)
     # drops all samples past the end of the dataset
     ids[:, :, device_samples:] = -1
