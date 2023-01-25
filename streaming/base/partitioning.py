@@ -17,12 +17,16 @@ def get_partitions_slow(dataset_size: int,
                         drop_first: int = 0):
     """Partition the given number of samples to nodes, devices, and workers.
 
+    Either canonical or physical nodes must be a multiple of the other.
+
+    It is suggested to set num_canonical_nodes higher than your expected number of physical nodes,
+    beecause scaling your number of nodes bellow that level may result in shards being used across
+    node boundaries in order to preserve the same global sample order.
+
     Args:
         dataset_size (int): Dataset size.
-        num_canonical_nodes (int): Number of canonical nodes. Either canonical or physical nodes
-            must be a multiple of the other.
-        num_physical_nodes (int): Number of physical nodes. Either canonical or physical nodes must
-            be a multiple of the other.
+        num_canonical_nodes (int): Number of canonical nodes.
+        num_physical_nodes (int): Number of physical nodes.
         ranks_per_node (int): Number of ranks per node.
         workers_per_rank (int): Number of worker partitions per rank.
         device_batch_size (int): Batch size of its DataLoader, which affects how the dataset is
@@ -108,12 +112,16 @@ def get_partitions_fast(dataset_size: int,
                         drop_first: int = 0):
     """Partition the given number of samples to nodes, devices, and workers.
 
+    Either canonical or physical nodes must be a multiple of the other.
+
+    It is suggested to set num_canonical_nodes higher than your expected number of physical nodes,
+    beecause scaling your number of nodes bellow that level may result in shards being used across
+    node boundaries in order to preserve the same global sample order.
+
     Args:
         dataset_size (int): Dataset size.
-        num_canonical_nodes (int): Number of canonical nodes. Either canonical or physical nodes
-            must be a multiple of the other.
-        num_physical_nodes (int): Number of physical nodes. Either canonical or physical nodes must
-            be a multiple of the other.
+        num_canonical_nodes (int): Number of canonical nodes.
+        num_physical_nodes (int): Number of physical nodes.
         node_devices (int): Number of devices per node.
         device_workers (int): Number of worker partitions per device.
         device_batch_size (int): Batch size of its DataLoader, which affects how the dataset is
