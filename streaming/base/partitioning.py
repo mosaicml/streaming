@@ -179,7 +179,7 @@ def get_partitions_fast(dataset_size: int,
 
     ids = ids.reshape(num_physical_nodes, ranks_per_node, worker_batches, workers_per_rank,
                       device_batch_size)
-        # ids shape -> (physical nodes x ranks per node x workers per rank x worker batches x device batch size)
+    # ids shape -> (physical nodes x ranks per node x workers per rank x worker batches x device batch size)
     return ids.transpose(0, 1, 3, 2, 4)
 
 
