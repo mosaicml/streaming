@@ -1,6 +1,8 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+"""A streaming WebVid dataset."""
+
 from typing import Any
 
 from streaming.base import StreamingDataset
