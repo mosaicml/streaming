@@ -32,21 +32,21 @@ def get_partitions_slow(dataset_size: int,
     """
     # Divide the full dataset sample range into sample range per canonical node.
     device_batch_size = device_batch_size or 1
-    xx = []
+    arrs = []
     for i in range(num_canonical_nodes):
-        a = i * dataset_size // num_canonical_nodes
-        z = (i + 1) * dataset_size // num_canonical_nodes
-        x = np.arange(a, z)
-        xx.append(x)
+        start = i * dataset_size // num_canonical_nodes
+        stop = (i + 1) * dataset_size // num_canonical_nodes
+        arr = np.arange(start, stop)
+        arrs.append(arr)
 
     # Make the spans equal length by repeating the last sample if too short.
     # -> Shape: (canonical nodes x samples).
-    max_len = max(map(len, xx))
-    for i, x in enumerate(xx):
+    max_len = max(map(len, arrs))
+    for i, x in enumerate(arrs):
         if len(x) < max_len:
             last = np.array([x[-1]])
-            xx[i] = np.concatenate([x, last])
-    x = np.stack(xx)
+            arrs[i] = np.concatenate([x, last])
+    x = np.stack(arrs)
 
     # If there are more physical than canonical nodes, interleave canonical onto physical nodes.
     # -> Shape: (canonical nodes x samples).
