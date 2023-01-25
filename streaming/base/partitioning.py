@@ -100,8 +100,8 @@ def get_partitions_slow(dataset_size: int,
 def get_partitions_fast(dataset_size: int,
                         num_canonical_nodes: int,
                         num_physical_nodes: int,
-                        ranks_per_node: int,
-                        workers_per_rank: int,
+                        node_devices: int,
+                        device_workers: int,
                         device_batch_size: int = 1,
                         drop_first: int = 0):
     """Partition the given number of samples to nodes, devices, and workers.
@@ -110,8 +110,8 @@ def get_partitions_fast(dataset_size: int,
         dataset_size (int): Dataset size.
         num_canonical_nodes (int): Number of canonical nodes.
         num_physical_nodes (int): Number of physical nodes.
-        ranks_per_node (int): Number of ranks per node.
-        workers_per_rank (int): Number of worker partitions per rank.
+        node_devices (int): Number of ranks per node.
+        device_workers (int): Number of worker partitions per rank.
         device_batch_size (int): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``1``.
         drop_first (int): Number of samples seen already, which are dropped. Defaults to ``0``.
@@ -123,14 +123,14 @@ def get_partitions_fast(dataset_size: int,
         raise ValueError('One of {canonical nodes, physical nodes} must be evenly divisible by ' +
                          'the other.')
 
-    devices = num_physical_nodes * ranks_per_node
+    devices = num_physical_nodes * node_devices
     device_samples = math.ceil(dataset_size / devices)
-    worker_batches = math.ceil(device_samples / (workers_per_rank * device_batch_size))
-    padded_device_samples = workers_per_rank * worker_batches * device_batch_size
+    worker_batches = math.ceil(device_samples / (device_workers * device_batch_size))
+    padded_device_samples = device_workers * worker_batches * device_batch_size
 
     node_starts = dataset_size * np.arange(num_canonical_nodes) // num_canonical_nodes
-    per_node_device_starts = np.arange(ranks_per_node)
-    step = ranks_per_node
+    per_node_device_starts = np.arange(node_devices)
+    step = node_devices
 
     if num_canonical_nodes < num_physical_nodes:
         node_ratio = num_physical_nodes // num_canonical_nodes
@@ -150,9 +150,9 @@ def get_partitions_fast(dataset_size: int,
         # reshape the ids so that the order of the samples is preserved based on the provided number
         # of canonical nodes
         node_ratio = num_canonical_nodes // num_physical_nodes
-        ids = ids.reshape(node_ratio, num_physical_nodes, ranks_per_node, -1)
+        ids = ids.reshape(node_ratio, num_physical_nodes, node_devices, -1)
         ids = ids.transpose(1, 3, 2, 0)
-        ids = ids.reshape(num_physical_nodes, -1, ranks_per_node)
+        ids = ids.reshape(num_physical_nodes, -1, node_devices)
         ids = ids.transpose(0, 2, 1)
         ids = ids[:, :, :padded_device_samples]
 
@@ -171,11 +171,11 @@ def get_partitions_fast(dataset_size: int,
         ids = ids.flatten()
         ids[:-drop_first] = ids[drop_first:]
         ids[-drop_first:] = -1
-        ids = ids.reshape(padded_device_samples, num_physical_nodes, ranks_per_node)
+        ids = ids.reshape(padded_device_samples, num_physical_nodes, node_devices)
         # return to original ids shape of (physical nodes x ranks per node x padded device samples)
         ids = ids.transpose(1, 2, 0)
 
-    ids = ids.reshape(num_physical_nodes, ranks_per_node, worker_batches, workers_per_rank,
+    ids = ids.reshape(num_physical_nodes, node_devices, worker_batches, device_workers,
                       device_batch_size)
     # ids shape -> (physical nodes x ranks per node x workers per rank x worker batches x device batch size)
     return ids.transpose(0, 1, 3, 2, 4)
