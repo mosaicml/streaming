@@ -3,9 +3,14 @@
 ### 1. Setup.
 
 ```
+# Used for crawling.
 pip3 install img2dataset==1.41.0
 
+# Optional performance monitoring.
 apt install bwm-ng htop iotop
+
+# Get the streaming code.
+git clone https://github.com/mosaicml/streaming/ && cd streaming/
 ```
 
 ### 2. Download metadata from the-eye.eu (parquet format).
