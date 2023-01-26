@@ -8,7 +8,7 @@ Instructions:
 1. Navigate to the download section of https://m-bain.github.io/webvid-dataset/, where you will
    find 2.5M and 10M dataset splits:
 
-   2M:
+   2.5M:
    - train: http://www.robots.ox.ac.uk/~maxbain/webvid/results_2M_train.csv (640MB)
    - val: http://www.robots.ox.ac.uk/~maxbain/webvid/results_2M_val.csv (1.3MB)
 
