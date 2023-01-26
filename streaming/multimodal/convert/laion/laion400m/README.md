@@ -16,7 +16,7 @@ git clone https://github.com/mosaicml/streaming/ && cd streaming/
 ### 2. Download metadata from the-eye.eu (parquet format).
 
 ```
-./streaming/text/convert/laion/laion400m/download_meta.sh
+./streaming/multimodal/convert/laion/laion400m/download_meta.sh
 ```
 
 ### 3. Download data from the web (into parquet format, converting to mds format).
@@ -24,13 +24,13 @@ git clone https://github.com/mosaicml/streaming/ && cd streaming/
 The img2dataset download script saves samples in parquet files.
 
 ```
-./streaming/text/convert/laion/laion400m/download_data.sh
+./streaming/multimodal/convert/laion/laion400m/download_data.sh
 ```
 
 At the same time, do our conversion and uploading which uses MDS (you will want to run them at the same time, or disk usage can get excessive):
 
 ```
-./streaming/text/convert/laion/laion400m/convert_and_upload.sh
+./streaming/multimodal/convert/laion/laion400m/convert_and_upload.sh
 ```
 
 Monitor network i/o: `bwm-ng`
