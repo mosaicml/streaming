@@ -62,7 +62,8 @@ def each_downloaded_shard(local: str) -> Iterator[int]:
     count = len(list(filter(lambda s: s.endswith('_stats.json'), basenames)))
     for idx in range(count):
         stats_filename = os.path.join(local, f'{idx:05}_stats.json')
-        assert os.path.exists(stats_filename)
+        if not os.path.exists(stats_filename):
+            raise RuntimeError('Stats file is missing.')
         yield idx
 
 
@@ -176,10 +177,11 @@ def upload(local: str, remote: str) -> None:
         local (str): Path on local filesystem.
         remote (str): Path on remote filesystem.
     """
-    assert ' ' not in local
-    assert ' ' not in remote
+    local = local.replace(' ', '\\ ')
+    remote = remote.replace(' ', '\\ ')
     cmd = f'aws s3 cp {local} {remote}'
-    assert not os.system(cmd)
+    if os.system(cmd):
+        raise RuntimeError(f'Download failed: {cmd}.')
 
 
 def convert_and_upload_shards(args: Namespace) -> bool:
@@ -206,8 +208,10 @@ def convert_and_upload_shards(args: Namespace) -> bool:
         mds_index_filename = os.path.join(mds_dirname, 'index.json')
         remote_shard_filename = os.path.join(args.remote, f'shard.{idx:05}.mds')
         if os.path.exists(mds_dirname):
-            assert os.path.exists(mds_shard_filename)
-            assert os.path.exists(mds_index_filename)
+            if not os.path.exists(mds_shard_filename):
+                raise RuntimeError(f'MDS shard file is missing: {mds_shard_filename}.')
+            if not os.path.exists(mds_index_filename):
+                raise RuntimeError(f'MDS index file is missing: {mds_index_filename}.')
         else:
             print(f'Shard {idx:05}: converting...')
             convert(parquet_filename, mds_dirname, hashes)
