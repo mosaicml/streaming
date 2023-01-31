@@ -208,7 +208,7 @@ def get_shuffle_med(shard_sizes: NDArray[np.int64], num_canonical_nodes: int, se
     Returns:
         NDArray[np.int64]: 1:1 mapping of sample ID to shuffled sample ID.
     """
-    # Create each shards's sample ID span (begin, end excl).
+    # Create each shard's sample ID span (begin, end excl).
     spans = []
     num_samples = 0
     for shard_size in shard_sizes:
