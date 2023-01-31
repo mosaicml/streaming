@@ -7,7 +7,7 @@ assignees: ''
 
 ---
 
-** Environment **
+## Environment
 <!-- Provide the below as necessary -->
 
 - OS: [Ubuntu 20.04]
@@ -15,7 +15,7 @@ assignees: ''
 
 <!-- if your bug is CUDA related, please also provide your CUDA version -->
 
-** To reproduce
+## To reproduce
 
 Steps to reproduce the behavior:
 
