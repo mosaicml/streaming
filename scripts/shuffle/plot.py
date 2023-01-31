@@ -21,7 +21,7 @@ mark_times = [
 ]
 
 algo_colors = {
-    'fast': 'red',
+    'med': 'red',
     'slow': 'purple',
 }
 
