@@ -86,10 +86,13 @@ def get(in_root: str, split: str, shuffle: bool) -> List[Tuple[str, str, str]]:
         List of samples of (uid, image_filename, annotation_filename).
     """
     # Get uids
-    split_images_in_dir = os.path.join(in_root, 'images', split)
+    if split not in ('train', 'val'):
+        raise ValueError(f"Split must be one of 'train', 'val', not {split}")
+    subdir = 'training' if split == 'train' else 'validation'
+    split_images_in_dir = os.path.join(in_root, 'images', subdir)
     if not os.path.exists(split_images_in_dir):
         raise FileNotFoundError(f'Images path does not exist: {split_images_in_dir}')
-    split_annotations_in_dir = os.path.join(in_root, 'annotations', split)
+    split_annotations_in_dir = os.path.join(in_root, 'annotations', subdir)
     if not os.path.exists(split_annotations_in_dir):
         raise FileNotFoundError(f'Annotations path does not exist: {split_annotations_in_dir}')
     image_glob_pattern = os.path.join(split_images_in_dir, f'ADE_{split}_*.jpg')
