@@ -140,7 +140,7 @@ def get_shuffle_slow(shard_sizes: NDArray[np.int64], num_canonical_nodes: int, s
     return np.concatenate(arrs)
 
 
-def divide_spans(spans: List[Tuple[int, int]], num_samples: int, num_parts: int) -> \
+def _divide_spans(spans: List[Tuple[int, int]], num_samples: int, num_parts: int) -> \
         Tuple[List[Tuple[int, int]], List[Tuple[int, int]]]:
     """Divide the spans into discrete, equal sized partitions.
 
@@ -221,7 +221,7 @@ def get_shuffle_med(shard_sizes: NDArray[np.int64], num_canonical_nodes: int, se
     run_rng.shuffle(spans)
 
     # Break the shard spans at canonical node boundaries.
-    spans, super_spans = divide_spans(spans, num_samples, num_canonical_nodes)
+    spans, super_spans = _divide_spans(spans, num_samples, num_canonical_nodes)
 
     # Shuffle the span ordering within each canonical node uniquely to this epoch.
     epoch_rng = np.random.default_rng(seed + epoch)
