@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import json
+import tempfile
 from typing import Any, Union
 
 import numpy as np
@@ -121,6 +122,31 @@ class TestMDSEncodings:
         dec_data = jpeg_enc.decode(enc_data)
         dec_data = dec_data.convert('I')
         assert isinstance(dec_data, Image.Image)
+
+    @pytest.mark.parametrize('mode', ['L', 'RGB'])
+    def test_jpegfile_encode_decode(self, mode: str):
+        jpeg_enc = mdsEnc.JPEG()
+        assert jpeg_enc.size is None
+
+        # Creating the (32 x 32) NumPy Array with random values
+        size = {'RGB': (224, 224, 3), 'L': (28, 28)}[mode]
+        np_data = np.random.randint(255, size=size, dtype=np.uint8)
+        # Default image mode of PIL Image is 'I'
+        img = Image.fromarray(np_data).convert(mode)
+
+        with tempfile.NamedTemporaryFile('wb') as f:
+            img.save(f, format='jpeg')
+            img = Image.open(f.name)
+
+            # Test encode
+            enc_data = jpeg_enc.encode(img)
+            assert isinstance(enc_data, bytes)
+
+            # Test decode
+            dec_data = jpeg_enc.decode(enc_data)
+            assert isinstance(dec_data, Image.Image)
+
+            assert np.array_equal(np.array(img), np.array(dec_data))
 
     @pytest.mark.parametrize('data', [b'99', 12.5])
     def test_jpeg_encode_invalid_data(self, data: Any):
