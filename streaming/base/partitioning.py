@@ -174,16 +174,6 @@ def get_partitions_fast(dataset_size: int,
         ids = ids[:, :, :padded_device_samples]
     # Sample IDs: (physical nodes x node devices x padded device samples).
 
-    # If we are mid-epoch, drop the first drop_first samples by flattening into the order that
-    # samples would be seen and clipping the samples from the left.
-    if drop_first:
-        ids = ids.transpose(2, 1, 0)
-        ids = ids.flatten()
-        ids[:-drop_first] = ids[drop_first:]
-        ids[-drop_first:] = -1
-        ids = ids.reshape(padded_device_samples, num_physical_nodes, node_devices)
-        ids = ids.transpose(2, 1, 0)  # Return to original shape.
-
     # Reassign sample IDs that need to be present to keep samples balanced across devices, but
     # would extend past the end of the dataset.
     second_to_last = ids[:, :, device_samples - 2]
@@ -191,6 +181,17 @@ def get_partitions_fast(dataset_size: int,
     ids[:, :, device_samples - 1] = np.where(last < dataset_size, last, second_to_last)
     # Drop all unwanted sample IDs hallucinated past the end of each device's partition.
     ids[:, :, device_samples:] = -1
+
+    # If we are mid-epoch, drop the first drop_first samples by flattening into the order that
+    # samples would be seen and clipping the samples from the left.
+    if drop_first:
+        ids = ids.transpose(2, 1, 0)
+        ids = ids.flatten()
+        ids[:-drop_first] = ids[drop_first:]
+        ids[-drop_first:] = -1
+        # Return to the original shape.
+        ids = ids.reshape(padded_device_samples, node_devices, num_physical_nodes)
+        ids = ids.transpose(2, 1, 0)
 
     # Partition samples per device across each device's workers and workers' batches.
     ids = ids.reshape(num_physical_nodes, node_devices, worker_batches, device_workers,
