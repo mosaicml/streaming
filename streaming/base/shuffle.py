@@ -101,7 +101,7 @@ def _partition(shards: List[_Shard], num_parts: int) -> List[List[_Shard]]:
     return lists
 
 
-def get_shuffle_slow(shard_sizes: NDArray[np.int64], num_canonical_nodes: int, seed: int,
+def get_shuffle_py2x(shard_sizes: NDArray[np.int64], num_canonical_nodes: int, seed: int,
                      epoch: int) -> NDArray[np.int64]:
     """Get the shuffled global ordering of samples for an epoch.
 
@@ -190,8 +190,8 @@ def _divide_spans(spans: List[Tuple[int, int]], num_samples: int, num_parts: int
     return out_spans, super_spans
 
 
-def get_shuffle_med(shard_sizes: NDArray[np.int64], num_canonical_nodes: int, seed: int,
-                    epoch: int) -> NDArray[np.int64]:
+def get_shuffle_py1x(shard_sizes: NDArray[np.int64], num_canonical_nodes: int, seed: int,
+                     epoch: int) -> NDArray[np.int64]:
     """Get the shuffled global ordering of samples for an epoch.
 
     The assignment of shards to nodes is fixed across epochs, but each grouping of shards is
@@ -241,4 +241,4 @@ def get_shuffle_med(shard_sizes: NDArray[np.int64], num_canonical_nodes: int, se
     return ids
 
 
-get_shuffle = get_shuffle_med
+get_shuffle = get_shuffle_py2x

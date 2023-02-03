@@ -11,7 +11,7 @@ from typing import Callable
 import numpy as np
 from numpy.typing import NDArray
 
-from streaming.base.shuffle import get_shuffle_med, get_shuffle_slow
+from streaming.base.shuffle import get_shuffle_py1x, get_shuffle_py2x
 
 
 def parse_args() -> Namespace:
@@ -94,8 +94,8 @@ def main(args: Namespace) -> None:
     Args:
         args (Namespace): Command-line arguments.
     """
-    names = 'slow', 'med'
-    get_shuffles = get_shuffle_slow, get_shuffle_med
+    names = 'py1x', 'py2x'
+    get_shuffles = get_shuffle_py1x, get_shuffle_py2x
 
     def wrap(func: Callable):
         return Caller(func, args.num_canonical_nodes, args.seed, args.epoch, args.timeout)
