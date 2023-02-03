@@ -144,8 +144,7 @@ def _divide_spans(spans: List[Tuple[int, int]], num_samples: int, num_parts: int
         Tuple[List[Tuple[int, int]], List[Tuple[int, int]]]:
     """Divide the spans into discrete, equal sized partitions.
 
-    Warning: don't use ``spans`` after this, as its memory is recycled into the returned partitions
-    for performance reasons.
+    Don't use ``spans`` after this, as it is modified in-place for performance reasons.
 
     Args:
         spans (List[Tuple[int, int]]): List of spans to partition.
@@ -188,7 +187,7 @@ def _divide_spans(spans: List[Tuple[int, int]], num_samples: int, num_parts: int
         super_spans.append(super_span)
         begin_part = len(out_spans)
 
-    return spans, super_spans
+    return out_spans, super_spans
 
 
 def get_shuffle_med(shard_sizes: NDArray[np.int64], num_canonical_nodes: int, seed: int,
