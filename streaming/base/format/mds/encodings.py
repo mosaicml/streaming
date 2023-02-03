@@ -11,6 +11,7 @@ from typing import Any, Optional, Set
 
 import numpy as np
 from PIL import Image
+from PIL.JpegImagePlugin import JpegImageFile
 
 __all__ = [
     'get_mds_encoded_size', 'get_mds_encodings', 'is_mds_encoding', 'mds_decode', 'mds_encode'
@@ -208,9 +209,14 @@ class JPEG(Encoding):
 
     def encode(self, obj: Image.Image) -> bytes:
         self._validate(obj, Image.Image)
-        out = BytesIO()
-        obj.save(out, format='JPEG')
-        return out.getvalue()
+        if isinstance(obj, JpegImageFile) and hasattr(obj, 'filename'):
+            # read the source file to prevent lossy re-encoding
+            with open(obj.filename, 'rb') as f:
+                return f.read()
+        else:
+            out = BytesIO()
+            obj.save(out, format='JPEG')
+            return out.getvalue()
 
     def decode(self, data: bytes) -> Image.Image:
         inp = BytesIO(data)
