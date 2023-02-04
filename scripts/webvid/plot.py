@@ -31,12 +31,22 @@ def main(args: Namespace) -> None:
     """
     y = np.fromfile(args.inside, np.float32)
     plt.plot(y, c='black', label='Baseline: videos inside shards')
+    x = 1 + np.arange(len(y))
+    r = (y / x).mean()
+    print(f'Videos inside shards: {r:.6f} seconds/sample (calc from {len(y)} samples)')
 
     y = np.fromfile(args.outside_gi, np.float32)
     plt.plot(y, c='green', label='Videos separate (__getitem__)')
+    x = 1 + np.arange(len(y))
+    r = (y / x).mean()
+    print(f'Videos separate (__getitem__): {r:.6f} seconds/sample (calc from {len(y)} samples)')
 
     y = np.fromfile(args.outside_dt, np.float32)
     plt.plot(y, c='blue', label='Videos separate (_download_thread)')
+    x = 1 + np.arange(len(y))
+    r = (y / x).mean()
+    print(
+        f'Videos separate (_download_thread): {r:.6f} seconds/sample (calc from {len(y)} samples)')
 
     plt.title('Sample download rate across the epoch')
     plt.xlabel('Samples')
