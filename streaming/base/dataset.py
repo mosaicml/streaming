@@ -12,6 +12,7 @@ from time import sleep, time
 from typing import Any, Dict, Iterator, Optional, Tuple
 
 import numpy as np
+import torch
 import torch.distributed as dist
 from filelock import FileLock
 from numpy.typing import NDArray
@@ -225,8 +226,11 @@ class StreamingDataset(IterableDataset):
                 )
 
         # Initialize the distributed package and synchronize all the ranks
+        is_dist_pg_initialized = False
         if dist.is_available() and not dist.is_initialized():
-            dist.init_process_group(backend='nccl' if dist.is_nccl_available() else 'gloo',
+            is_dist_pg_initialized = True
+            dist.init_process_group(backend='nccl' if torch.cuda.is_available() and
+                                    dist.is_nccl_available() else 'gloo',
                                     rank=world.rank,
                                     world_size=world.num_ranks)
         dist.barrier()
@@ -259,7 +263,8 @@ class StreamingDataset(IterableDataset):
                                                   size=len(self.shard_sizes) * np.uint8(0).nbytes)
 
         # Destroy process group, and de-initialize the distributed package
-        dist.destroy_process_group()
+        if is_dist_pg_initialized:
+            dist.destroy_process_group()
 
     @property
     def next_epoch(self) -> int:
