@@ -8,10 +8,11 @@ import os
 from enum import IntEnum
 from multiprocessing.shared_memory import SharedMemory
 from threading import Thread
-from time import sleep
+from time import sleep, time
 from typing import Any, Dict, Iterator, Optional, Tuple
 
 import numpy as np
+import torch.distributed as dist
 from filelock import FileLock
 from numpy.typing import NDArray
 from torch.utils.data import IterableDataset
@@ -30,6 +31,7 @@ from streaming.base.world import World
 
 # Time to wait, in seconds.
 TICK = 0.07
+TIMEOUT = 60
 
 
 class _ShardState(IntEnum):
@@ -202,12 +204,32 @@ class StreamingDataset(IterableDataset):
         # Determine and distribute shuffle seed and shm prefix.
         seed_rng = np.random.default_rng(shuffle_seed)
         self.shuffle_seed = int(seed_rng.integers(1 << 60))
-        prefix_int = np.random.randint(1 << 24)
+        prefix_int = int(seed_rng.integers(1 << 24))
         self._prefix = f'{prefix_int:06x}'
 
         # Should be a unique shared directory per each StreamingDataset instantiation to avoid a conflict
         # between a different StreamingDataset instance on a same machine.
-        self._shared_dir = os.path.join(os.path.sep, 'tmp', 'streaming', self._prefix)
+        start_time = time()
+        while True:
+            sleep(TICK)
+            self._shared_dir = os.path.join(os.path.sep, 'tmp', 'streaming', self._prefix)
+            if os.path.exists(self._shared_dir):
+                prefix_int = int(seed_rng.integers(1 << 24))
+                self._prefix = f'{prefix_int:06x}'
+            else:
+                break
+            dt = time() - start_time
+            if dt > TIMEOUT:
+                raise RuntimeError(
+                    f'Could not find the unique shared directory, bailing out. Please provide a different `shuffle_seed` value.'
+                )
+
+        # Initialize the distributed package and synchronize all the ranks
+        if dist.is_available() and not dist.is_initialized():
+            dist.init_process_group(backend='nccl' if dist.is_nccl_available() else 'gloo',
+                                    rank=world.rank,
+                                    world_size=world.num_ranks)
+        dist.barrier()
 
         # Create the shared memory-backed worker barrier, without its lock, which is unpickleable.
         worker_barrier_filelock_path = os.path.join(self._shared_dir, 'barrier_filelock')
@@ -235,6 +257,9 @@ class StreamingDataset(IterableDataset):
         # downloaded).
         self._shard_states = create_shared_memory(name=f'{self._prefix}_shard_states',
                                                   size=len(self.shard_sizes) * np.uint8(0).nbytes)
+
+        # Destroy process group, and de-initialize the distributed package
+        dist.destroy_process_group()
 
     @property
     def next_epoch(self) -> int:

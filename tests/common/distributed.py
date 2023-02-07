@@ -5,7 +5,6 @@ import contextlib
 import inspect
 import logging
 import os
-import socket
 import time
 from typing import Any, Dict, List
 
@@ -15,6 +14,8 @@ import torch.multiprocessing as mp
 from _pytest.fixtures import FixtureRequest
 from _pytest.outcomes import Skipped
 from torch.multiprocessing import Process
+
+from .utils import get_free_tcp_port
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,7 @@ class DistributedTest:
         self._set_custom_markers(request)
 
         # Get a free TCP Port to listen on
-        self.port = self.get_free_tcp_port()
+        self.port = get_free_tcp_port()
 
         self.current_test = self._get_current_test_func(request)
         self.test_kwargs = self._get_test_kwargs(request)
@@ -100,14 +101,6 @@ class DistributedTest:
         for mark in getattr(request.function, 'pytestmark', []):
             if mark.name == 'world_size':
                 self.world_size = mark.args[0]
-
-    def get_free_tcp_port(self) -> int:
-        """Get a free socket port to listen on."""
-        tcp = socket.socket()
-        tcp.bind(('', 0))
-        _, port = tcp.getsockname()
-        tcp.close()
-        return port
 
     @contextlib.contextmanager
     def _patch_env(self, **environs: str):
