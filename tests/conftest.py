@@ -6,8 +6,17 @@ from typing import Any
 
 import pytest
 
-from tests.common.utils import compressed_remote_local, remote_local  # pyright: ignore
+from tests.common.utils import compressed_remote_local  # pyright: ignore
+from tests.common.utils import get_free_tcp_port  # pyright: ignore
+from tests.common.utils import remote_local  # pyright: ignore
 from tests.test_reader import mds_dataset_dir  # pyright: ignore
+
+
+@pytest.fixture(scope='session', autouse=True)
+def tests_setup_and_teardown():
+    # Will be executed before the first test
+    os.environ['MASTER_ADDR'] = 'localhost'
+    os.environ['MASTER_PORT'] = str(get_free_tcp_port())
 
 
 # Override of pytest "runtest" for DistributedTest class
