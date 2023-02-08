@@ -199,7 +199,7 @@ def main(args: Namespace) -> None:
     Args:
         args (Namespace): command-line arguments.
     """
-    fields = {
+    columns = {
         'img': 'jpeg',
         'img_id': 'int',
         'htot': 'int',
@@ -235,7 +235,11 @@ def main(args: Namespace) -> None:
         else:
             dataset = each(dataset, shuffle)
 
-        with MDSWriter(split_out_dir, fields, args.compression, hashes, args.size_limit) as out:
+        with MDSWriter(local=split_out_dir,
+                       columns=columns,
+                       compression=args.compression,
+                       hashes=hashes,
+                       size_limit=args.size_limit) as out:
             for sample in dataset:
                 out.write(sample)
 

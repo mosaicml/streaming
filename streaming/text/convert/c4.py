@@ -137,12 +137,16 @@ def main(args: Namespace) -> None:
         ('train', 'train', 364868892, 64),
         ('validation', 'val', 364608, 8),
     ]
-    fields = {'text': 'str', 'timestamp': 'str', 'url': 'str'}
+    columns = {'text': 'str', 'timestamp': 'str', 'url': 'str'}
     hashes = get_list_arg(args.hashes)
     for old_split, new_split, num_samples, num_workers in splits:
         dataset = get(old_split)
         split_dir = os.path.join(args.out_root, new_split)
-        with MDSWriter(split_dir, fields, args.compression, hashes, args.size_limit) as out:
+        with MDSWriter(local=split_dir,
+                       columns=columns,
+                       compression=args.compression,
+                       hashes=hashes,
+                       size_limit=args.size_limit) as out:
             samples = each(dataset, num_workers, args.batch_size)  # pyright: ignore
             if args.progbar:
                 samples = tqdm(samples, total=num_samples, leave=args.leave)

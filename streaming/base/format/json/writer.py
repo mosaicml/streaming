@@ -18,28 +18,42 @@ class JSONWriter(SplitWriter):
     r"""Writes a streaming JSON dataset.
 
     Args:
-        dirname (str): Local dataset directory.
         columns (Dict[str, str]): Sample columns.
+        newline (str): Newline character inserted between samples. Defaults to ``\\n``.
+        local: (str, optional): Optional local output dataset directory. If not provided, a random
+           temp  directory will be used. If ``remote`` is provided, this is where shards are cached
+            before uploading. One or both of ``local`` and ``remote`` must be provided. Defaults to
+            ``None``.
+        remote: (str, optional): Optional remote output dataset directory. If not provided, no
+            uploading will be done. Defaults to ``None``.
+        keep (bool): If the dataset is uploaded, whether to keep the local dataset directory  or
+            remove it after uploading. Defaults to ``False``.
         compression (str, optional): Optional compression or compression:level. Defaults to
             ``None``.
         hashes (List[str], optional): Optional list of hash algorithms to apply to shard files.
             Defaults to ``None``.
         size_limit (int, optional): Optional shard size limit, after which point to start a new
             shard. If None, puts everything in one shard. Defaults to ``None``.
-        newline (str): Newline character inserted between samples. Defaults to ``\\n``.
     """
 
     format = 'json'
 
     def __init__(self,
-                 dirname: str,
+                 *,
                  columns: Dict[str, str],
+                 newline: str = '\n',
+                 local: Optional[str] = None,
+                 remote: Optional[str] = None,
+                 keep: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,
-                 size_limit: Optional[int] = 1 << 26,
-                 newline: str = '\n') -> None:
-        super().__init__(dirname, compression, hashes, size_limit)
-
+                 size_limit: Optional[int] = 1 << 26) -> None:
+        super().__init__(local=local,
+                         remote=remote,
+                         keep=keep,
+                         compression=compression,
+                         hashes=hashes,
+                         size_limit=size_limit)
         for encoding in columns.values():
             assert is_json_encoding(encoding)
 

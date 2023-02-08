@@ -148,7 +148,7 @@ def main(args: Namespace) -> None:
     todos = each_todo(getattr(args, 'in'))
     if args.limit:
         todos = head(todos, args.limit)
-    with MDSWriter(args.out, columns) as out:
+    with MDSWriter(local=args.out, columns=columns) as out:
         for sample in pool.imap_unordered(download, todos):
             if sample:
                 out.write(sample)
