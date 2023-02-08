@@ -32,7 +32,6 @@ from streaming.base.world import World
 
 # Time to wait, in seconds.
 TICK = 0.07
-TIMEOUT = 60
 
 
 class _ShardState(IntEnum):
@@ -212,18 +211,21 @@ class StreamingDataset(IterableDataset):
         # between a different StreamingDataset instance on a same machine.
         start_time = time()
         while True:
-            sleep(TICK)
             self._shared_dir = os.path.join(os.path.sep, 'tmp', 'streaming', self._prefix)
             if os.path.exists(self._shared_dir):
                 prefix_int = int(seed_rng.integers(1 << 24))
                 self._prefix = f'{prefix_int:06x}'
             else:
                 break
-            dt = time() - start_time
-            if dt > TIMEOUT:
-                raise RuntimeError(
-                    f'Could not find the unique shared directory, bailing out. Please provide a different `shuffle_seed` value.'
-                )
+            elapsed = time() - start_time
+            # Raise an exception if not finding a unique shared directory in 60 secs
+            if elapsed > 60:
+                raise RuntimeError(''.join([
+                    f'Could not find the unique shared directory, bailing out.',
+                    'Please provide a different `shuffle_seed` value.'
+                ]))
+
+            sleep(TICK)
 
         # Initialize the distributed package and synchronize all the ranks
         is_dist_pg_initialized = False
