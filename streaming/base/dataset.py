@@ -151,11 +151,25 @@ class StreamingDataset(IterableDataset):
         self.download_timeout = download_timeout
         self.validate_hash = validate_hash or None
 
+        # Initialize the World context.
+        #
+        # Beware: This information is for the per-rank process. DataLoader worker processes may see
+        # different values for these fields. We are saving the rank World here because we cannot
+        # instantiate a World inside the StreamingDataset destructor.
+        self._rank_world = world = World()
+
         if self.download_retry < 0:
             raise ValueError('Parameter ``download_retry`` must be non-negative')
         if self.download_timeout < 0:
             raise ValueError(
                 'Parameter ``download_timeout`` (in seconds) must be greater than zero')
+        local_split_path = os.path.join(self.local, self.split)
+        # Check if the directory exist and also not empty
+        if os.path.exists(local_split_path) and os.listdir(local_split_path):
+            raise ValueError(''.join([
+                f'Directory {local_split_path} already exist and not empty.',
+                'Either delete or empty the directory or provide a different `split` parameter.'
+            ]))
 
         # Placeholder for _resume_shm, a shared memory object where load_state_dict() saves its
         # data to be picked up by __iter__().
@@ -163,13 +177,6 @@ class StreamingDataset(IterableDataset):
 
         # Partition state.
         self._partition_state = None
-
-        # Initialize the World context.
-        #
-        # Beware: This information is for the per-rank process. DataLoader worker processes may see
-        # different values for these fields. We are saving the rank World here because we cannot
-        # instantiate a World inside the StreamingDataset destructor.
-        self._rank_world = world = World()
 
         # Seed is set below.
         self.num_canonical_nodes = num_canonical_nodes
@@ -181,7 +188,7 @@ class StreamingDataset(IterableDataset):
         if world.is_local_leader:
             filename = self._download_file(basename)
         else:
-            filename = os.path.join(local, self.split, basename)  # pyright: ignore
+            filename = os.path.join(self.local, self.split, basename)  # pyright: ignore
 
         # Everyone waits for the file to become populated.
         wait_for_file_to_exist(filename, TICK, self.download_timeout,
@@ -194,7 +201,7 @@ class StreamingDataset(IterableDataset):
         # Initialize shard readers according to the loaded info.
         self.shards = []
         for info in obj['shards']:
-            shard = reader_from_json(local, self.split, info)
+            shard = reader_from_json(self.local, self.split, info)
             self.shards.append(shard)
 
         # Build the Index (for partitioning and mapping samples to shards).

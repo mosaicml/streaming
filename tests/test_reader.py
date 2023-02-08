@@ -191,3 +191,15 @@ def test_reader_getitem(mds_dataset_dir: Any, share_remote_local: bool, index: i
     sample = dataset[index]
     assert sample['id'] == f'{index:06}'
     assert sample['sample'] == 3 * index
+
+
+@pytest.mark.usefixtures('mds_dataset_dir')
+def test_same_local_dir_exception(mds_dataset_dir: Any):
+    remote_dir, local_dir = mds_dataset_dir
+    batch_size = 8
+
+    with pytest.raises(ValueError) as exc_info:
+        # Build StreamingDataset
+        _ = StreamingDataset(local=local_dir, remote=remote_dir, batch_size=batch_size)
+        _ = StreamingDataset(local=local_dir, remote=remote_dir, batch_size=batch_size)
+    assert exc_info.match(r'.*Either delete or empty the directory*')
