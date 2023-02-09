@@ -98,6 +98,7 @@ def test_dataloader_determinism(mds_dataset_dir: Any, batch_size: int, seed: int
         sample_order.extend(batch['id'][:])
     del dataloader
     del dataset
+    shutil.rmtree(local_dir)
 
     # Build StreamingDataset again to test deterministic sample ID
     dataset = StreamingDataset(local=local_dir,
@@ -190,6 +191,7 @@ def test_streamingdataloader_mid_epoch_resumption(mds_dataset_dir: Any, batch_si
 
     del dataloader
     del dataset
+    shutil.rmtree(local_dir)
 
     dataset = StreamingDataset(local=local_dir,
                                remote=remote_dir,

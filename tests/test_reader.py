@@ -5,7 +5,6 @@ import logging
 import os
 import shutil
 import tempfile
-import time
 from typing import Any
 
 import pytest
@@ -37,7 +36,7 @@ def mds_dataset_dir():
 
 
 @pytest.mark.parametrize('batch_size', [None, 1, 2])
-@pytest.mark.parametrize('remote_arg', ['none', 'same', 'different'])
+@pytest.mark.parametrize('remote_arg', ['none', 'different'])
 @pytest.mark.parametrize('shuffle', [False, True])
 @pytest.mark.usefixtures('mds_dataset_dir')
 def test_dataset_sample_order(mds_dataset_dir: Any, batch_size: int, remote_arg: str,
@@ -47,8 +46,6 @@ def test_dataset_sample_order(mds_dataset_dir: Any, batch_size: int, remote_arg:
     if remote_arg == 'none':
         local_dir = remote_dir
         remote_dir = None
-    elif remote_arg == 'same':
-        local_dir = remote_dir
     elif remote_arg == 'different':
         pass
     else:
@@ -106,6 +103,7 @@ def test_dataset_determinism(mds_dataset_dir: Any, batch_size: int, seed: int, s
         sample_order.append(sample['id'])
 
     del dataset
+    shutil.rmtree(local_dir)
 
     # Build StreamingDataset again to test deterministic sample ID
     dataset = StreamingDataset(local=local_dir,
@@ -145,44 +143,10 @@ def test_reader_download_fail(mds_dataset_dir: Any, missing_file: str):
     assert exc_info.match(r'.*No such file or directory*')
 
 
-@pytest.mark.parametrize('created_ago', [0.5, 1.0])
-@pytest.mark.parametrize('download_timeout', [1])
-@pytest.mark.usefixtures('mds_dataset_dir')
-def test_reader_after_crash(mds_dataset_dir: Any, created_ago: float, download_timeout: float):
-    remote_dir, local_dir = mds_dataset_dir
-
-    if not os.path.exists(local_dir):
-        os.mkdir(local_dir)
-
-    shutil.copy(os.path.join(remote_dir, f'index.json'),
-                os.path.join(local_dir, f'index.json.tmp'))
-    shutil.copy(os.path.join(remote_dir, f'shard.00003.mds'),
-                os.path.join(local_dir, f'shard.00003.mds.tmp'))
-    time.sleep(created_ago)
-
-    dataset = StreamingDataset(local=local_dir,
-                               remote=remote_dir,
-                               shuffle=False,
-                               download_timeout=download_timeout)
-
-    # Iterate over dataset and make sure there are no TimeoutErrors
-    for _ in dataset:
-        pass
-
-
-@pytest.mark.parametrize(
-    'share_remote_local',
-    [
-        True,
-        # False,
-    ],
-)
 @pytest.mark.usefixtures('mds_dataset_dir')
 @pytest.mark.parametrize('index', [17])
-def test_reader_getitem(mds_dataset_dir: Any, share_remote_local: bool, index: int):
+def test_reader_getitem(mds_dataset_dir: Any, index: int):
     remote_dir, local_dir = mds_dataset_dir
-    if share_remote_local:
-        local_dir = remote_dir
 
     # Build a StreamingDataset
     dataset = StreamingDataset(local=local_dir, remote=remote_dir, shuffle=False)

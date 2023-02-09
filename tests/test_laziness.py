@@ -47,6 +47,8 @@ def test_laziness(remote_local: Tuple[str, str]):
     for i, sample in zip(range(num_samples), dataset):
         assert sample['value'] == i
 
+    shutil.rmtree(local)
+
     # Re-verify __getitem__ downloads/accesses.
     dataset = StreamingDataset(local, remote)
     for i in range(num_samples):

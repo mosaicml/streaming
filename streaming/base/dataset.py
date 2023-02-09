@@ -164,10 +164,11 @@ class StreamingDataset(IterableDataset):
             raise ValueError(
                 'Parameter ``download_timeout`` (in seconds) must be greater than zero')
         local_split_path = os.path.join(self.local, self.split)
-        # Check if the directory exist and also not empty
-        if os.path.exists(local_split_path) and os.listdir(local_split_path):
+        # Check if the directory exist and is also not empty
+        if self.remote is not None and os.path.exists(local_split_path) and os.listdir(
+                local_split_path):
             raise ValueError(''.join([
-                f'Directory {local_split_path} already exist and not empty.',
+                f'Directory {local_split_path} already exist and is also not empty.',
                 'Either delete or empty the directory or provide a different `split` parameter.'
             ]))
 
