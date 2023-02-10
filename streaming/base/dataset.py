@@ -229,13 +229,14 @@ class StreamingDataset(IterableDataset):
 
         # Initialize the distributed package and synchronize all the ranks
         is_dist_pg_initialized = False
-        if dist.is_available() and not dist.is_initialized():
-            is_dist_pg_initialized = True
-            dist.init_process_group(backend='nccl' if torch.cuda.is_available() and
-                                    dist.is_nccl_available() else 'gloo',
-                                    rank=world.rank,
-                                    world_size=world.num_ranks)
-        dist.barrier()
+        if self._rank_world.num_ranks > 1:
+            if dist.is_available() and not dist.is_initialized():
+                is_dist_pg_initialized = True
+                dist.init_process_group(backend='nccl' if torch.cuda.is_available() and
+                                        dist.is_nccl_available() else 'gloo',
+                                        rank=world.rank,
+                                        world_size=world.num_ranks)
+            dist.barrier()
 
         # Create the shared memory-backed worker barrier, without its lock, which is unpickleable.
         worker_barrier_filelock_path = os.path.join(self._shared_dir, 'barrier_filelock')
@@ -265,7 +266,7 @@ class StreamingDataset(IterableDataset):
                                                   size=len(self.shard_sizes) * np.uint8(0).nbytes)
 
         # Destroy process group, and de-initialize the distributed package
-        if is_dist_pg_initialized:
+        if is_dist_pg_initialized and self._rank_world.num_ranks > 1:
             dist.destroy_process_group()
 
     @property
