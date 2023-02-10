@@ -48,11 +48,11 @@
 
 # 👋 Welcome
 
-We built StreamingDataset to make training on large datasets from cloud storage as fast, cheap, and scalable as possible. 
+We built StreamingDataset to make training on large datasets from cloud storage as fast, cheap, and scalable as possible.
 
-It’s specially designed for multi-node, distributed training for large models—maximizing correctness guarantees, performance, and ease of use. Now, you can efficiently train anywhere, independent of your training data location. Just stream in the data you need, when you need it. To learn more about why we built StreamingDataset, read our [announcement blog.](https://www.notion.so/f8b1634eb0de470db25fda47f83a0884) 
+It’s specially designed for multi-node, distributed training for large models—maximizing correctness guarantees, performance, and ease of use. Now, you can efficiently train anywhere, independent of your training data location. Just stream in the data you need, when you need it. To learn more about why we built StreamingDataset, read our [announcement blog.](https://www.notion.so/f8b1634eb0de470db25fda47f83a0884)
 
-StreamingDataset is compatible with any data type, including **images, text, video, and multimodal data**. 
+StreamingDataset is compatible with any data type, including **images, text, video, and multimodal data**.
 
 With support for major cloud storage providers ([AWS](https://aws.amazon.com/s3/), [OCI](https://www.oracle.com/cloud/storage/object-storage/), and [GCS](https://cloud.google.com/storage) are supported today; [Azure](https://azure.microsoft.com/en-us/products/storage/blobs) is coming soon), and designed as a drop-in replacement for your PyTorch [IterableDataset](https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset) class, StreamingDataset seamlessly integrates into your existing training workflows.
 
@@ -145,7 +145,7 @@ dataloader = DataLoader(dataset)
 
 Getting started guides, examples, API references, and other useful information can be found in our [docs](https://streaming.docs.mosaicml.com/).
 
-We have end-to-end tutorials for training a model on:  
+We have end-to-end tutorials for training a model on:
 
 - [CIFAR-10](https://streaming.docs.mosaicml.com/en/stable/examples/cifar10.html)
 - [FaceSynthetics](https://streaming.docs.mosaicml.com/en/stable/examples/facesynthetics.html)
@@ -167,7 +167,7 @@ We also have starter code for the following popular datasets, which can be found
 
 **To start training on these datasets:**
 
-1. Convert raw data into .mds format using the corresponding script from the `convert` directory. 
+1. Convert raw data into .mds format using the corresponding script from the `convert` directory.
 
 For example:
 
@@ -200,13 +200,13 @@ See the figure below — training a model on 1, 8, 16, 32, or 64 GPUs yields the
 
 ## Instant Mid-Epoch Resumption
 
-It can be expensive — and annoying — to wait for your job to resume while your dataloader spins after a hardware failure or loss spike. Thanks to our deterministic sample ordering, StreamingDataset lets you resume training in seconds, not hours, in the middle of a long training run.  
+It can be expensive — and annoying — to wait for your job to resume while your dataloader spins after a hardware failure or loss spike. Thanks to our deterministic sample ordering, StreamingDataset lets you resume training in seconds, not hours, in the middle of a long training run.
 
 Minimizing resumption latency can save thousands of dollars in egress fees and idle GPU compute time compared to existing solutions.
 
 ## High throughput
 
-Our MDS format cuts extraneous work to the bone, resulting in ultra-low sample latency and higher throughput compared to alternatives for workloads bottlenecked by the dataloader. 
+Our MDS format cuts extraneous work to the bone, resulting in ultra-low sample latency and higher throughput compared to alternatives for workloads bottlenecked by the dataloader.
 
 | Tool | Throughput |
 | --- | --- |
@@ -230,7 +230,7 @@ Below are results from ImageNet + ResNet-50 training, collected over 5 repetitio
 | ImageFolder | 76.57% +/- 0.10 |
 | WebDataset | 76.23% +/- 0.17 |
 
-StreamingDataset shuffles across all samples assigned to a node, whereas alternative solutions only shuffle samples in a smaller pool (within a single process). Shuffling across a wider pool spreads out adjacent samples more. In addition, our shuffling algorithm minimizes dropped samples. We have found both of these shuffling features advantageous for model convergence. 
+StreamingDataset shuffles across all samples assigned to a node, whereas alternative solutions only shuffle samples in a smaller pool (within a single process). Shuffling across a wider pool spreads out adjacent samples more. In addition, our shuffling algorithm minimizes dropped samples. We have found both of these shuffling features advantageous for model convergence.
 
 ## Random access
 
@@ -256,7 +256,7 @@ dl = DataLoader(dataset, num_workers=...)
 
 # 🏆 Project Showcase
 
-Here are some projects and experiments that used StreamingDataset. Got something to add?  Email [community@mosaicml.com](https://www.notion.so/Marketing-Community-f18e033b62c844e2a5d271453feb558c) or join our [Community Slack](https://join.slack.com/t/mosaicml-community/shared_invite/zt-1btms90mc-GipE2ufuPkKY0QBrmF3LSA). 
+Here are some projects and experiments that used StreamingDataset. Got something to add?  Email [community@mosaicml.com](https://www.notion.so/Marketing-Community-f18e033b62c844e2a5d271453feb558c) or join our [Community Slack](https://join.slack.com/t/mosaicml-community/shared_invite/zt-1btms90mc-GipE2ufuPkKY0QBrmF3LSA).
 
 - [BioMedLM](https://www.mosaicml.com/blog/introducing-pubmed-gpt): a Domain Specific Large Language Model for BioMedicine by MosaicML and Stanford CRFM
 - [Mosaic Diffusion Models](https://www.mosaicml.com/blog/training-stable-diffusion-from-scratch-costs-160k): Training Stable Diffusion from Scratch Costs <$160k
