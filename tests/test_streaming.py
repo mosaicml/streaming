@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import math
+import shutil
 from typing import Any, Tuple
 
 import pytest
@@ -210,3 +211,50 @@ def test_streamingdataloader_mid_epoch_resumption(mds_dataset_dir: Any, batch_si
     assert len(sample_order) == len(expected_sample_order), 'Missing samples'
     assert len(set(sample_order)) == len(set(expected_sample_order)), 'Duplicate samples'
     assert sample_order == expected_sample_order, 'Incorrect sample order'
+
+
+@pytest.mark.parametrize('shuffle_seed', [(9876, 9876), (12345, 1567)])
+@pytest.mark.usefixtures('mds_dataset_dir')
+def test_multiple_dataset_instantiation(mds_dataset_dir: Any, shuffle_seed: tuple):
+    remote_dir, local_dir = mds_dataset_dir
+    batch_size = 8
+    num_workers = 2
+
+    shuffle_seed_train, shuffle_seed_val = shuffle_seed
+
+    # Build train StreamingDataset
+    train_dataset = StreamingDataset(local=local_dir,
+                                     remote=remote_dir,
+                                     batch_size=batch_size,
+                                     shuffle_seed=shuffle_seed_train)
+
+    # Build train DataLoader
+    train_dataloader = DataLoader(dataset=train_dataset,
+                                  batch_size=batch_size,
+                                  num_workers=num_workers)
+
+    # Append train sample ID
+    train_sample_order = []
+    for batch in train_dataloader:
+        train_sample_order.extend(batch['id'][:])
+
+    shutil.rmtree(local_dir)
+
+    # Build val StreamingDataset
+    val_dataset = StreamingDataset(local=local_dir,
+                                   remote=remote_dir,
+                                   batch_size=batch_size,
+                                   shuffle_seed=shuffle_seed_val)
+
+    # Build val DataLoader
+    val_dataloader = DataLoader(dataset=val_dataset,
+                                batch_size=batch_size,
+                                num_workers=num_workers)
+
+    # Append val sample ID
+    val_sample_order = []
+    for batch in val_dataloader:
+        val_sample_order.extend(batch['id'][:])
+
+    assert len(train_sample_order) == len(val_sample_order), 'Missing samples'
+    assert len(set(train_sample_order)) == len(set(val_sample_order)), 'Duplicate samples'
