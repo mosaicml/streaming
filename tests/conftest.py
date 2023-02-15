@@ -12,13 +12,6 @@ from tests.common.utils import remote_local  # pyright: ignore
 from tests.test_reader import mds_dataset_dir  # pyright: ignore
 
 
-@pytest.fixture(scope='session', autouse=True)
-def tests_setup_and_teardown():
-    # Will be executed before the first test
-    os.environ['MASTER_ADDR'] = 'localhost'
-    os.environ['MASTER_PORT'] = str(get_free_tcp_port())
-
-
 # Override of pytest "runtest" for DistributedTest class
 # This hook is run before the default pytest_runtest_call
 @pytest.hookimpl(tryfirst=True)  # pyright: ignore
