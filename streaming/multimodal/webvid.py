@@ -15,6 +15,8 @@ from streaming.base.storage import download
 class StreamingInsideWebVid(StreamingDataset):
     """Streaming WebVid dataset.
 
+    Videos are stored "inside" the shards, as is typically done.
+
     Args:
         local (str): Local dataset directory where shards are cached by split.
         remote (str, optional): Download shards from this remote path or directory. If None, this
@@ -57,6 +59,9 @@ class StreamingInsideWebVid(StreamingDataset):
 class StreamingOutsideGIWebVid(StreamingDataset):
     """Streaming WebVid dataset.
 
+    Videos are stored "outside" the shards, as a file per video. The extra download happens in
+    __getitem__ ("GI"), when samples are requested by the dataloader.
+
     Args:
         local (str): Local dataset directory where shards are cached by split.
         remote (str, optional): Download shards from this remote path or directory. If None, this
@@ -102,6 +107,8 @@ class StreamingOutsideGIWebVid(StreamingDataset):
         super().__init__(local, remote, split, shuffle, predownload, keep_zip, download_retry,
                          download_timeout, validate_hash, shuffle_seed, num_canonical_nodes,
                          batch_size)
+
+        # Videos are stored outside of their shards here.
         self.extra_local = extra_local
         self.extra_remote = extra_remote
 
@@ -134,6 +141,9 @@ class StreamingOutsideGIWebVid(StreamingDataset):
 class StreamingOutsideDTWebVid(StreamingDataset):
     """Streaming WebVid dataset.
 
+    Videos are stored "outside" the shards, as a file per video. The extra download happens in
+    _download_thread ("DT"), when the download thread prefetches the sample.
+
     Args:
         local (str): Local dataset directory where shards are cached by split.
         remote (str, optional): Download shards from this remote path or directory. If None, this
@@ -179,6 +189,8 @@ class StreamingOutsideDTWebVid(StreamingDataset):
         super().__init__(local, remote, split, shuffle, predownload, keep_zip, download_retry,
                          download_timeout, validate_hash, shuffle_seed, num_canonical_nodes,
                          batch_size)
+
+        # Videos are stored outside of their shards here.
         self.extra_local = extra_local
         self.extra_remote = extra_remote
 
