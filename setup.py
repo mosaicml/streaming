@@ -70,7 +70,7 @@ extra_deps['dev'] = [
     'toml==0.10.2',
     'yamllint==1.29.0',
     'moto>=4.0,<5',
-    'fastapi==0.89.1',
+    'fastapi==0.91.0',
     'pydantic==1.10.4',
     'uvicorn==0.20.0',
 ]
@@ -90,7 +90,7 @@ extra_deps['docs'] = [
     'sphinxcontrib-images==0.9.4',
     'sphinxcontrib.katex==0.9.4',
     'sphinxemoji==0.2.0',
-    'sphinxext.opengraph==0.7.5',
+    'sphinxext.opengraph==0.8.1',
 ]
 
 extra_deps['all'] = set(dep for deps in extra_deps.values() for dep in deps)
