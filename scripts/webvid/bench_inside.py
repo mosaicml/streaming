@@ -31,12 +31,13 @@ def main(args: Namespace):
         args (Namespace): Command-line arguments.
     """
     dataset = StreamingInsideWebVid(args.local, args.remote)
-    with open(args.log, 'wb') as out:
-        t0 = time()
-        for _ in dataset:
-            t = time() - t0
-            t = np.float32(t)
-            out.write(t.tobytes())
+    tt = []
+    t0 = time()
+    for _ in dataset:
+        t = time() - t0
+        tt.append(t)
+    tt = np.array(tt, np.float32)
+    tt.tofile(args.log)
 
 
 if __name__ == '__main__':
