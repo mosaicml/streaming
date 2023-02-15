@@ -28,7 +28,7 @@ def parse_args() -> Namespace:
     args.add_argument('--outside_dt',
                       type=str,
                       required=True,
-                      help='Path to "outside (_download_thread) benchmark data')
+                      help='Path to "outside (_download_thread)" benchmark data')
     return args.parse_args()
 
 
@@ -38,24 +38,26 @@ def main(args: Namespace) -> None:
     Args:
         args (Namespace): Command-line arguments.
     """
-    y = np.fromfile(args.inside, np.float32)
-    plt.plot(y, c='black', label='Baseline: videos inside shards')
-    x = 1 + np.arange(len(y))
-    r = (y / x).mean()
-    print(f'Videos inside shards: {r:.6f} seconds/sample (calc from {len(y)} samples)')
+    times = np.fromfile(args.inside, np.float32)
+    plt.plot(times, c='black', label='Baseline: videos inside shards')
+    samples = 1 + np.arange(len(times))
+    throughput = (times / samples).mean()
+    print(f'Videos inside shards: {throughput:.6f} seconds/sample (calc from {len(times)} ' +
+          f'samples)')
 
-    y = np.fromfile(args.outside_gi, np.float32)
-    plt.plot(y, c='green', label='Videos separate (__getitem__)')
-    x = 1 + np.arange(len(y))
-    r = (y / x).mean()
-    print(f'Videos separate (__getitem__): {r:.6f} seconds/sample (calc from {len(y)} samples)')
+    times = np.fromfile(args.outside_gi, np.float32)
+    plt.plot(times, c='green', label='Videos separate (__getitem__)')
+    samples = 1 + np.arange(len(times))
+    throughput = (times / samples).mean()
+    print(f'Videos separate (__getitem__): {throughput:.6f} seconds/sample (calc from ' +
+          f'{len(times)} samples)')
 
-    y = np.fromfile(args.outside_dt, np.float32)
-    plt.plot(y, c='blue', label='Videos separate (_download_thread)')
-    x = 1 + np.arange(len(y))
-    r = (y / x).mean()
-    print(
-        f'Videos separate (_download_thread): {r:.6f} seconds/sample (calc from {len(y)} samples)')
+    times = np.fromfile(args.outside_dt, np.float32)
+    plt.plot(times, c='blue', label='Videos separate (_download_thread)')
+    samples = 1 + np.arange(len(times))
+    throughput = (times / samples).mean()
+    print(f'Videos separate (_download_thread): {throughput:.6f} seconds/sample (calc from ' +
+          f'{len(times)} samples)')
 
     plt.title('Sample download rate across the epoch')
     plt.xlabel('Samples')
