@@ -275,7 +275,7 @@ P.S.: [We're hiring](https://mosaicml.com/jobs)!
 
 If you like this project, give us a star **⭐** and check out our other projects:
 
-- **[Composer](https://github.com/mosaicml/composer) -** a ****modern PyTorch library that makes scalable, efficient neural network training easy
+- **[Composer](https://github.com/mosaicml/composer) -** a modern PyTorch library that makes scalable, efficient neural network training easy
 - **[MosaicML Examples](https://github.com/mosaicml/examples)** - reference examples for training ML models quickly and to high accuracy - featuring starter code for GPT / Large Language Models, Stable Diffusion, BERT, ResNet-50, and DeepLabV3
 - **[MosaicML Cloud](https://www.mosaicml.com/cloud)** - our training platform built to minimize training costs for LLMs, Diffusion Models, and other large models - featuring multi-cloud orchestration, effortless multi-node scaling, and under-the-hood optimizations for speeding up training time
 
