@@ -18,9 +18,9 @@ def parse_args() -> Namespace:
         Namespace: Command-line arguments.
     """
     args = ArgumentParser()
-    args.add_argument('--local', type=str, required=True, help='Local')
-    args.add_argument('--remote', type=str, required=True, help='Remote')
-    args.add_argument('--log', type=str, required=True, help='Log')
+    args.add_argument('--local', type=str, required=True, help='Streaming dataset local')
+    args.add_argument('--remote', type=str, required=True, help='Streaming dataset remote')
+    args.add_argument('--log', type=str, required=True, help='Output log file')
     return args.parse_args()
 
 
