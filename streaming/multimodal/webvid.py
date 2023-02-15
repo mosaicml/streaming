@@ -41,6 +41,14 @@ class StreamingInsideWebVid(StreamingDataset):
     """
 
     def __getitem__(self, idx: int) -> Any:
+        """Get the sample at the index.
+
+        Args:
+            idx (int): Sample index.
+
+        Returns:
+            Any: The sample.
+        """
         obj = super().__getitem__(idx)
         # Processing goes here.
         return obj
@@ -98,6 +106,14 @@ class StreamingOutsideGIWebVid(StreamingDataset):
         self.extra_remote = extra_remote
 
     def __getitem__(self, idx: int) -> Any:
+        """Get the sample at the index.
+
+        Args:
+            idx (int): Sample index.
+
+        Returns:
+            Any: The sample.
+        """
         obj = super().__getitem__(idx)
 
         if self.extra_local and self.extra_remote:
@@ -167,6 +183,14 @@ class StreamingOutsideDTWebVid(StreamingDataset):
         self.extra_remote = extra_remote
 
     def __getitem__(self, idx: int) -> Any:
+        """Get the sample at the index.
+
+        Args:
+            idx (int): Sample index.
+
+        Returns:
+            Any: The sample.
+        """
         obj = super().__getitem__(idx)
 
         if self.extra_local and self.extra_remote:
