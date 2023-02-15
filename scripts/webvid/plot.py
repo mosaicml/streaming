@@ -16,10 +16,19 @@ def parse_args() -> Namespace:
         Namespace: Command-line arguments.
     """
     args = ArgumentParser()
-    args.add_argument('--out', type=str, required=True)
-    args.add_argument('--inside', type=str, required=True)
-    args.add_argument('--outside_gi', type=str, required=True)
-    args.add_argument('--outside_dt', type=str, required=True)
+    args.add_argument('--out', type=str, required=True, help='Where to save the generated plot')
+    args.add_argument('--inside',
+                      type=str,
+                      required=True,
+                      help='Path to baseline "inside" benchmark data')
+    args.add_argument('--outside_gi',
+                      type=str,
+                      required=True,
+                      help='Path to "outside (__getitem__)" benchmark data')
+    args.add_argument('--outside_dt',
+                      type=str,
+                      required=True,
+                      help='Path to "outside (_download_thread) benchmark data')
     return args.parse_args()
 
 
