@@ -26,8 +26,8 @@ class MDSWriter(JointWriter):
             ``None``.
         remote: (str, optional): Optional remote output dataset directory. If not provided, no
             uploading will be done. Defaults to ``None``.
-        keep (bool): If the dataset is uploaded, whether to keep the local dataset directory  or
-            remove it after uploading. Defaults to ``False``.
+        keep_local (bool): If the dataset is uploaded, whether to keep the local dataset directory
+            or remove it after uploading. Defaults to ``False``.
         compression (str, optional): Optional compression or compression:level. Defaults to
             ``None``.
         hashes (List[str], optional): Optional list of hash algorithms to apply to shard files.
@@ -44,13 +44,13 @@ class MDSWriter(JointWriter):
                  columns: Dict[str, str],
                  local: Optional[str] = None,
                  remote: Optional[str] = None,
-                 keep: bool = False,
+                 keep_local: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,
                  size_limit: Optional[int] = 1 << 26) -> None:
         super().__init__(local=local,
                          remote=remote,
-                         keep=keep,
+                         keep_local=keep_local,
                          compression=compression,
                          hashes=hashes,
                          size_limit=size_limit,

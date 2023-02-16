@@ -43,8 +43,8 @@ class Writer(ABC):
             ``None``.
         remote: (str, optional): Optional remote output dataset directory. If not provided, no
             uploading will be done. Defaults to ``None``.
-        keep (bool): If the dataset is uploaded, whether to keep the local dataset directory  or
-            remove it after uploading. Defaults to ``False``.
+        keep_local (bool): If the dataset is uploaded, whether to keep the local dataset directory
+            or remove it after uploading. Defaults to ``False``.
         compression (str, optional): Optional compression or compression:level. Defaults to
             ``None``.
         hashes (List[str], optional): Optional list of hash algorithms to apply to shard files.
@@ -63,7 +63,7 @@ class Writer(ABC):
                  *,
                  local: Optional[str] = None,
                  remote: Optional[str] = None,
-                 keep: bool = False,
+                 keep_local: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,
                  size_limit: Optional[int] = 1 << 26,
@@ -96,7 +96,7 @@ class Writer(ABC):
 
         self.local = local
         self.remote = remote
-        self.keep = keep
+        self.keep_local = keep_local
         self.compression = compression
         self.hashes = hashes
         self.size_limit = size_limit
@@ -223,7 +223,7 @@ class Writer(ABC):
         local_filename = os.path.join(self.local, basename)
         remote_filename = os.path.join(self.remote, basename)
         upload(local_filename, remote_filename)
-        if not self.keep:
+        if not self.keep_local:
             os.remove(local_filename)
 
     @abstractmethod
@@ -267,7 +267,7 @@ class Writer(ABC):
             self.flush_shard()
             self._reset_cache()
         self._write_index()
-        if self.remote and not self.keep:
+        if self.remote and not self.keep_local:
             os.rmdir(self.local)
 
     def __enter__(self) -> Self:
@@ -300,8 +300,8 @@ class JointWriter(Writer):
             ``None``.
         remote: (str, optional): Optional remote output dataset directory. If not provided, no
             uploading will be done. Defaults to ``None``.
-        keep (bool): If the dataset is uploaded, whether to keep the local dataset directory  or
-            remove it after uploading. Defaults to ``False``.
+        keep_local (bool): If the dataset is uploaded, whether to keep the local dataset directory
+            or remove it after uploading. Defaults to ``False``.
         compression (str, optional): Optional compression or compression:level. Defaults to
             ``None``.
         hashes (List[str], optional): Optional list of hash algorithms to apply to shard files.
@@ -318,7 +318,7 @@ class JointWriter(Writer):
                  *,
                  local: Optional[str] = None,
                  remote: Optional[str] = None,
-                 keep: bool = False,
+                 keep_local: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,
                  size_limit: Optional[int] = 1 << 26,
@@ -326,7 +326,7 @@ class JointWriter(Writer):
                  extra_bytes_per_sample: int = 0) -> None:
         super().__init__(local=local,
                          remote=remote,
-                         keep=keep,
+                         keep_local=keep_local,
                          compression=compression,
                          hashes=hashes,
                          size_limit=size_limit,
@@ -370,8 +370,8 @@ class SplitWriter(Writer):
             ``None``.
         remote: (str, optional): Optional remote output dataset directory. If not provided, no
             uploading will be done. Defaults to ``None``.
-        keep (bool): If the dataset is uploaded, whether to keep the local dataset directory  or
-            remove it after uploading. Defaults to ``False``.
+        keep_local (bool): If the dataset is uploaded, whether to keep the local dataset directory
+            or remove it after uploading. Defaults to ``False``.
         compression (str, optional): Optional compression or compression:level. Defaults to
             ``None``.
         hashes (List[str], optional): Optional list of hash algorithms to apply to shard files.
@@ -387,13 +387,13 @@ class SplitWriter(Writer):
                  *,
                  local: Optional[str] = None,
                  remote: Optional[str] = None,
-                 keep: bool = False,
+                 keep_local: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,
                  size_limit: Optional[int] = 1 << 26) -> None:
         super().__init__(local=local,
                          remote=remote,
-                         keep=keep,
+                         keep_local=keep_local,
                          compression=compression,
                          hashes=hashes,
                          size_limit=size_limit,
