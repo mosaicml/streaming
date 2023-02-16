@@ -31,8 +31,8 @@
     <a href="https://github.com/mosaicml/streaming/actions?query=workflow%3ATest">
         <img alt="Unit test" src="https://github.com/mosaicml/streaming/actions/workflows/pytest.yaml/badge.svg">
     </a>
-    <a href="https://pypi.org/project/mosaicml-streaming/">
-        <img alt="PyPi Downloads" src="https://img.shields.io/pypi/dm/mosaicml-streaming">
+    <a href="https://pepy.tech/project/mosaicml-streaming/">
+        <img alt="PyPi Downloads" src="https://static.pepy.tech/personalized-badge/mosaicml-streaming?period=month&units=international_system&left_color=grey&right_color=blue&left_text=Downloads/month">
     </a>
     <a href="https://streaming.docs.mosaicml.com">
         <img alt="Documentation" src="https://readthedocs.org/projects/streaming/badge/?version=stable">
