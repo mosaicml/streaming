@@ -250,7 +250,7 @@ class Writer(ABC):
     def _write_index(self) -> None:
         """Write the index, having written all the shards."""
         if self.new_samples:
-            raise RuntimeError('Internal error.')
+            raise RuntimeError('Internal error: not all samples have been written.')
         basename = get_index_basename()
         filename = os.path.join(self.local, basename)
         obj = {
