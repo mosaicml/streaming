@@ -9,10 +9,13 @@ Serialization methods compared:
 * Parquet https://parquet.apache.org/
 
 We generate datasets containing identical samples in each format, and compare the time it takes to
-iterate over them in (a) sequential order and (b) shuffled order.
+iterate over them in three ways:
+* sequential: __iter__ on dataset (or sequential __getitem__ if not available)
+* shuffled: __iter__ on dataset shuffled idiomatically
+* random: iterate in random order via __getitem__
 
-We find that MDS has the best random access performance, identical to its sequential access. This
-is critical because machine learning training jobs (its intended use case) iterate over the
+We find that MDS has excellent shuffled iteration performance, identical to iterating sequentially.
+This is critical because machine learning training jobs (its intended use case) iterate over the
 training split in shuffled order.
 """
 
@@ -42,9 +45,12 @@ def parse_args() -> Namespace:
         Namespace: Command-line arguments.
     """
     args = ArgumentParser()
-    args.add_argument('--data', type=str, default='/tmp/streaming/perf_test/')
-    args.add_argument('--num_samples', type=int, default=200_000)
-    args.add_argument('--out', type=str, default='plot.png')
+    args.add_argument('--data',
+                      type=str,
+                      default='/tmp/streaming/perf_test/',
+                      help='Benchmarking datasets root directory')
+    args.add_argument('--num_samples', type=int, default=200_000, help='Dataset size')
+    args.add_argument('--out', type=str, default='plot.png', help='Path to output plot')
     return args.parse_args()
 
 
@@ -77,10 +83,7 @@ def fetch_dataset(data_root: str, num_samples: int) -> List[Dict[str, Any]]:
     if not os.path.exists(filename):
         dataset = load_dataset('the_pile', 'pubmed_central', split='train', streaming=True)
         with open(filename, 'w') as out:
-            for i, sample in tqdm(
-                    enumerate(dataset),
-                    total=len(dataset),  # pyright: ignore
-                    leave=False):
+            for i, sample in tqdm(enumerate(dataset), total=num_samples, leave=False):
                 if i == num_samples:
                     break
                 samples.append(sample)
@@ -102,7 +105,7 @@ def arrow_write(samples: List[Dict[str, Any]], data_dir: str) -> None:
     ds.save_to_disk(data_dir)
 
 
-def arrow_read_sequential(dirname: str) -> Iterator[Dict[str, Any]]:
+def arrow_read_seq(dirname: str) -> Iterator[Dict[str, Any]]:
     """Iterate an arrow dataset sequentially.
 
     Args:
@@ -113,10 +116,10 @@ def arrow_read_sequential(dirname: str) -> Iterator[Dict[str, Any]]:
     """
     dataset = load_from_disk(dirname)
     dataset.remove_columns([col for col in dataset.column_names if col != 'text'])
-    yield from dataset.iter(1)  # pyright: ignore
+    yield from dataset.iter(batch_size=1)  # pyright: ignore
 
 
-def arrow_read_shuffled(dirname: str) -> Iterator[Dict[str, Any]]:
+def arrow_read_shuf(dirname: str) -> Iterator[Dict[str, Any]]:
     """Iterate an arrow dataset in shuffled order.
 
     Args:
@@ -127,7 +130,23 @@ def arrow_read_shuffled(dirname: str) -> Iterator[Dict[str, Any]]:
     """
     dataset = load_from_disk(dirname)
     dataset.remove_columns([col for col in dataset.column_names if col != 'text'])
-    yield from dataset.shuffle().iter(1)  # pyright: ignore
+    yield from dataset.shuffle().iter(batch_size=1)  # pyright: ignore
+
+
+def arrow_read_rand(dirname: str) -> Iterator[Dict[str, Any]]:
+    """Iterate an arrow dataset in random order.
+
+    Args:
+        dirname (str): Dataset directory.
+
+    Returns:
+        Iterator[Dict[str, Any]]: Iterator over samples.
+    """
+    dataset = load_from_disk(dirname)
+    dataset.remove_columns([col for col in dataset.column_names if col != 'text'])
+    indices = np.random.permutation(len(dataset))
+    for idx in map(int, indices):
+        yield dataset[idx]  # pyright: ignore
 
 
 def mds_write(samples: List[Dict[str, Any]], data_dir: str) -> None:
@@ -146,7 +165,7 @@ def mds_write(samples: List[Dict[str, Any]], data_dir: str) -> None:
             out.write(sample)
 
 
-def mds_read_sequential(dirname: str) -> Iterator[Dict[str, Any]]:
+def mds_read_seq(dirname: str) -> Iterator[Dict[str, Any]]:
     """Iterate an mds dataset sequentially.
 
     Args:
@@ -158,7 +177,7 @@ def mds_read_sequential(dirname: str) -> Iterator[Dict[str, Any]]:
     yield from StreamingDataset(dirname)
 
 
-def mds_read_shuffled(dirname: str) -> Iterator[Dict[str, Any]]:
+def mds_read_shuf(dirname: str) -> Iterator[Dict[str, Any]]:
     """Iterate an mds dataset in shuffled order.
 
     Args:
@@ -170,8 +189,23 @@ def mds_read_shuffled(dirname: str) -> Iterator[Dict[str, Any]]:
     yield from StreamingDataset(dirname, shuffle=True)
 
 
+def mds_read_rand(dirname: str) -> Iterator[Dict[str, Any]]:
+    """Iterate an mds dataset in random order.
+
+    Args:
+        dirname (str): Dataset directory.
+
+    Returns:
+        Iterator[Dict[str, Any]]: Iterator over samples.
+    """
+    dataset = StreamingDataset(dirname)
+    indices = np.random.permutation(dataset.index.total_samples)
+    for idx in indices:
+        yield dataset[idx]
+
+
 def parquet_write(samples: List[Dict[str, Any]], data_dir: str) -> None:
-    """Serialize dataset in mds format.
+    """Serialize dataset in parquet format.
 
     Args:
         samples (List[Dict[str, Any]]): List of sample dicts.
@@ -184,7 +218,7 @@ def parquet_write(samples: List[Dict[str, Any]], data_dir: str) -> None:
         x.to_parquet(f'{data_dir}/chunk_{i:06}.parquet')
 
 
-def parquet_read_sequential(dirname: str) -> Iterator[Dict[str, Any]]:
+def parquet_read_seq(dirname: str) -> Iterator[Dict[str, Any]]:
     """Iterate a parquet dataset sequentially.
 
     Args:
@@ -200,8 +234,11 @@ def parquet_read_sequential(dirname: str) -> Iterator[Dict[str, Any]]:
             yield dict(df.iloc[i])
 
 
-def parquet_read_shuffled(dirname: str) -> Iterator[Dict[str, Any]]:
-    """Iterate a parquet dataset in shuffled order.
+parquet_read_shuf = None
+
+
+def parquet_read_rand(dirname: str) -> Iterator[Dict[str, Any]]:
+    """Iterate a parquet dataset in random order.
 
     Args:
         dirname (str): Dataset directory.
@@ -253,21 +290,29 @@ def main(args: Namespace) -> None:
     samples = fetch_dataset(args.data, args.num_samples)
 
     tuples = [
-        ('arrow', arrow_write, arrow_read_sequential, arrow_read_shuffled, 'green'),
-        ('mds', mds_write, mds_read_sequential, mds_read_shuffled, 'red'),
-        ('parquet', parquet_write, parquet_read_sequential, parquet_read_shuffled, 'blue'),
+        ('arrow', arrow_write, arrow_read_seq, arrow_read_shuf, arrow_read_rand, 'green'),
+        ('mds', mds_write, mds_read_seq, mds_read_shuf, mds_read_rand, 'red'),
+        ('parquet', parquet_write, parquet_read_seq, parquet_read_shuf, parquet_read_rand, 'blue'),
     ]
 
-    for name, write, read_seq, read_shuf, color in tuples:
+    for name, write, read_seq, read_shuf, read_rand, color in tuples:
         print(f'Benchmarking {name}...')
         dirname = os.path.join(args.data, name)
         if os.path.exists(dirname):
             rmtree(dirname)
         write(samples, dirname)
-        seq_times = bench(read_seq, dirname)
-        plt.plot(seq_times, ls='-', c=color, label=f'{name} sequential')
-        shuf_times = bench(read_shuf, dirname)
-        plt.plot(shuf_times, ls=':', c=color, label=f'{name} random')
+
+        if read_seq:
+            seq_times = bench(read_seq, dirname)
+            plt.plot(seq_times, ls='-', c=color, label=f'{name} sequential')
+
+        if read_shuf:
+            shuf_times = bench(read_shuf, dirname)
+            plt.plot(shuf_times, ls='--', c=color, label=f'{name} shuffled')
+
+        if read_rand:
+            rand_times = bench(read_rand, dirname)
+            plt.plot(rand_times, ls=':', c=color, label=f'{name} random')
 
     print('Plotting...')
     plt.title('Throughput')
