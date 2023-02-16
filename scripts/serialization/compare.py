@@ -1,7 +1,20 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Compare dataset serialization methods."""
+"""Compare dataset serialization methods.
+
+Serialization methods compared:
+* Arrow https://arrow.apache.org/
+* MDS https://github.com/mosaicml/streaming
+* Parquet https://parquet.apache.org/
+
+We generate datasets containing identical samples in each format, and compare the time it takes to
+iterate over them in (a) sequential order and (b) shuffled order.
+
+We find that MDS has the best random access performance, identical to its sequential access. This
+is critical because machine learning training jobs (its intended use case) iterate over the
+training split in shuffled order.
+"""
 
 import json
 import os
