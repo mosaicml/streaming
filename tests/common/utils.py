@@ -3,6 +3,7 @@
 
 import json
 import os
+import socket
 import tempfile
 from typing import Any, List, Optional
 
@@ -53,3 +54,12 @@ def get_config_in_bytes(format: str,
         'column_sizes': column_sizes
     }
     return json.dumps(config, sort_keys=True).encode('utf-8')
+
+
+def get_free_tcp_port() -> int:
+    """Get a free socket port to listen on."""
+    tcp = socket.socket()
+    tcp.bind(('', 0))
+    _, port = tcp.getsockname()
+    tcp.close()
+    return port
