@@ -236,7 +236,7 @@ def main(args: Namespace) -> None:
     Args:
         args (Namespace): Command-line arguments.
     """
-    print('Fetch dataset...')
+    print('Fetching dataset...')
     samples = fetch_dataset(args.data, args.num_samples)
 
     tuples = [
