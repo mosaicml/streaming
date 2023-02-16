@@ -42,9 +42,12 @@ def parse_args() -> Namespace:
         Namespace: Command-line arguments.
     """
     args = ArgumentParser()
-    args.add_argument('--data', type=str, default='/tmp/streaming/perf_test/')
-    args.add_argument('--num_samples', type=int, default=200_000)
-    args.add_argument('--out', type=str, default='plot.png')
+    args.add_argument('--data',
+                      type=str,
+                      default='/tmp/streaming/perf_test/',
+                      help='Benchmarking datasets root directory')
+    args.add_argument('--num_samples', type=int, default=100_000, help='Dataset size')
+    args.add_argument('--out', type=str, default='plot.png', help='Path to output plot')
     return args.parse_args()
 
 
@@ -77,10 +80,7 @@ def fetch_dataset(data_root: str, num_samples: int) -> List[Dict[str, Any]]:
     if not os.path.exists(filename):
         dataset = load_dataset('the_pile', 'pubmed_central', split='train', streaming=True)
         with open(filename, 'w') as out:
-            for i, sample in tqdm(
-                    enumerate(dataset),
-                    total=len(dataset),  # pyright: ignore
-                    leave=False):
+            for i, sample in tqdm(enumerate(dataset), total=num_samples, leave=False):
                 if i == num_samples:
                     break
                 samples.append(sample)
@@ -113,7 +113,7 @@ def arrow_read_sequential(dirname: str) -> Iterator[Dict[str, Any]]:
     """
     dataset = load_from_disk(dirname)
     dataset.remove_columns([col for col in dataset.column_names if col != 'text'])
-    yield from dataset.iter(1)  # pyright: ignore
+    yield from dataset.iter(batch_size=1)  # pyright: ignore
 
 
 def arrow_read_shuffled(dirname: str) -> Iterator[Dict[str, Any]]:
@@ -127,7 +127,7 @@ def arrow_read_shuffled(dirname: str) -> Iterator[Dict[str, Any]]:
     """
     dataset = load_from_disk(dirname)
     dataset.remove_columns([col for col in dataset.column_names if col != 'text'])
-    yield from dataset.shuffle().iter(1)  # pyright: ignore
+    yield from dataset.shuffle().iter(batch_size=1)  # pyright: ignore
 
 
 def mds_write(samples: List[Dict[str, Any]], data_dir: str) -> None:
@@ -171,7 +171,7 @@ def mds_read_shuffled(dirname: str) -> Iterator[Dict[str, Any]]:
 
 
 def parquet_write(samples: List[Dict[str, Any]], data_dir: str) -> None:
-    """Serialize dataset in mds format.
+    """Serialize dataset in parquet format.
 
     Args:
         samples (List[Dict[str, Any]]): List of sample dicts.
