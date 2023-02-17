@@ -69,7 +69,7 @@ class TestMDSWriter:
 
         expected_samples_per_shard = (size_limit - extra_bytes_per_shard) // first_sample_bytes
         expected_num_shards = math.ceil(num_samples / expected_samples_per_shard)
-        expected_num_files = expected_num_shards + 1  # the index file and compression metadata file
+        expected_num_files = expected_num_shards + 1  # index file and compression metadata file
 
         with MDSWriter(local=local,
                        columns=columns,
@@ -81,9 +81,8 @@ class TestMDSWriter:
         files = os.listdir(local)
         logger.info(f'Number of files: {len(files)}')
 
-        assert len(
-            files
-        ) == expected_num_files, f'Files written ({len(files)}) != expected ({expected_num_files}).'
+        assert len(files) == expected_num_files, \
+            f'Files written ({len(files)}) != expected ({expected_num_files}).'
 
     @pytest.mark.parametrize('num_samples', [50000])
     @pytest.mark.parametrize('size_limit', [65_536])

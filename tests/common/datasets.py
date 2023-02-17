@@ -62,7 +62,8 @@ class NumberAndSayDataset:
 
     Args:
         size (int): number of samples. Defaults to 100
-        column_names List[str]: A list of features' and target name. Defaults to ['number', 'words'].
+        column_names List[str]: A list of features' and target name. Defaults to ['number',
+            'words'].
         seed (int): seed value for deterministic randomness
     """
 

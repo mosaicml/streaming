@@ -36,8 +36,9 @@ class StreamingInsideWebVid(StreamingDataset):
         validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
-        num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with resumption.
-            Defaults to ``None``, which is interpreted as the number of nodes of the initial run.
+        num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
+            resumption. Defaults to ``None``, which is interpreted as the number of nodes of the
+            initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
     """
@@ -81,8 +82,9 @@ class StreamingOutsideGIWebVid(StreamingDataset):
         validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
-        num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with resumption.
-            Defaults to ``None``, which is interpreted as the number of nodes of the initial run.
+        num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
+            resumption. Defaults to ``None``, which is interpreted as the number of nodes of the
+            initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
         extra_local (str, optional): Base destination of extra local sample downloads.
@@ -163,8 +165,9 @@ class StreamingOutsideDTWebVid(StreamingDataset):
         validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
-        num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with resumption.
-            Defaults to ``None``, which is interpreted as the number of nodes of the initial run.
+        num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
+            resumption. Defaults to ``None``, which is interpreted as the number of nodes of the
+            initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
         extra_local (str, optional): Base destination of extra local sample downloads.

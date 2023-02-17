@@ -1,7 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-""":class:`JSONWriter` converts a list of samples into binary `.mds` files that can be read as a :class:`JSONReader`."""
+""":class:`JSONWriter` writes samples to `.json` files that can be read by :class:`JSONReader`."""
 
 import json
 from typing import Any, Dict, List, Optional, Tuple

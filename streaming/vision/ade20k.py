@@ -3,8 +3,8 @@
 
 """ADE20K Semantic segmentation and scene parsing dataset.
 
-Please refer to the `ADE20K dataset <https://groups.csail.mit.edu/vision/datasets/ADE20K/>`_ for more details about this
-dataset.
+Please refer to the `ADE20K dataset <https://groups.csail.mit.edu/vision/datasets/ADE20K/>`_ for
+more details about this dataset.
 """
 
 from typing import Any, Callable, Optional, Tuple
@@ -42,8 +42,9 @@ class StreamingADE20K(StreamingDataset):
         validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
-        num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with resumption.
-            Defaults to ``None``, which is interpreted as the number of nodes of the initial run.
+        num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
+            resumption. Defaults to ``None``, which is interpreted as the number of nodes of the
+            initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
     """
