@@ -88,7 +88,7 @@ class TestInit(DistributedTest):
         dataset = SequenceDataset(num_samples)
         columns = dict(zip(dataset.column_names, dataset.column_encodings))
         if global_rank == 0:
-            write_mds_dataset(dirname=remote,
+            write_mds_dataset(local=remote,
                               columns=columns,
                               samples=dataset,
                               size_limit=size_limit)

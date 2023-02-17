@@ -18,7 +18,11 @@ def test_laziness(remote_local: Tuple[str, str]):
     hashes = None
     size_limit = 10_000
 
-    with MDSWriter(remote, columns, compression, hashes, size_limit) as out:
+    with MDSWriter(local=remote,
+                   columns=columns,
+                   compression=compression,
+                   hashes=hashes,
+                   size_limit=size_limit) as out:
         for i in range(num_samples):
             sample = {'value': i}
             out.write(sample)

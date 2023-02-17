@@ -134,14 +134,14 @@ class NumberAndSayDataset:
 
 
 def write_mds_dataset(
-    dirname: str,
+    local: str,
     columns: Dict[str, str],
     samples: Any,
     size_limit: int,
     compression: Optional[str] = None,
     hashes: Optional[List[str]] = None,
 ) -> None:
-    with MDSWriter(dirname=dirname,
+    with MDSWriter(local=local,
                    columns=columns,
                    compression=compression,
                    hashes=hashes,

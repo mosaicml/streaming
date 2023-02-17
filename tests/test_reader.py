@@ -27,7 +27,7 @@ def mds_dataset_dir():
         dataset = SequenceDataset(num_samples)
         columns = dict(zip(dataset.column_names, dataset.column_encodings))
 
-        write_mds_dataset(dirname=remote_dir,
+        write_mds_dataset(local=remote_dir,
                           columns=columns,
                           samples=dataset,
                           size_limit=size_limit)

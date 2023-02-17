@@ -83,8 +83,12 @@ def process_split(in_root: str, out_root: str, compression: str, hashes: List[st
         split (str): Split name.
     """
     split_dir = os.path.join(out_root, split)
-    fields = {'text': 'str'}
-    with MDSWriter(split_dir, fields, compression, hashes, size_limit) as out:
+    columns = {'text': 'str'}
+    with MDSWriter(local=split_dir,
+                   columns=columns,
+                   compression=compression,
+                   hashes=hashes,
+                   size_limit=size_limit) as out:
         if progbar:
             basenames = tqdm(basenames, leave=leave)
         for basename in basenames:

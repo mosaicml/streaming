@@ -19,27 +19,42 @@ class MDSWriter(JointWriter):
     """Writes a streaming MDS dataset.
 
     Args:
-        dirname (str): Local dataset directory.
         columns (Dict[str, str]): Sample columns.
+        local: (str, optional): Optional local output dataset directory. If not provided, a random
+           temp directory will be used. If ``remote`` is provided, this is where shards are cached
+            before uploading. One or both of ``local`` and ``remote`` must be provided. Defaults to
+            ``None``.
+        remote: (str, optional): Optional remote output dataset directory. If not provided, no
+            uploading will be done. Defaults to ``None``.
+        keep_local (bool): If the dataset is uploaded, whether to keep the local dataset directory
+            or remove it after uploading. Defaults to ``False``.
         compression (str, optional): Optional compression or compression:level. Defaults to
             ``None``.
         hashes (List[str], optional): Optional list of hash algorithms to apply to shard files.
             Defaults to ``None``.
         size_limit (int, optional): Optional shard size limit, after which point to start a new
-            shard. If None, puts everything in one shard. Defaults to ``1 << 26``.
+            shard. If ``None``, puts everything in one shard. Defaults to ``1 << 26``.
     """
 
     format = 'mds'
     extra_bytes_per_sample = 4
 
     def __init__(self,
-                 dirname: str,
+                 *,
                  columns: Dict[str, str],
+                 local: Optional[str] = None,
+                 remote: Optional[str] = None,
+                 keep_local: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,
                  size_limit: Optional[int] = 1 << 26) -> None:
-        super().__init__(dirname, compression, hashes, size_limit, 0, self.extra_bytes_per_sample)
-
+        super().__init__(local=local,
+                         remote=remote,
+                         keep_local=keep_local,
+                         compression=compression,
+                         hashes=hashes,
+                         size_limit=size_limit,
+                         extra_bytes_per_sample=self.extra_bytes_per_sample)
         self.columns = columns
         self.column_names = []
         self.column_encodings = []

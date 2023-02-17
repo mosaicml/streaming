@@ -22,7 +22,7 @@ class TestMDSWriter:
     @pytest.mark.parametrize('size_limit', [32])
     def test_config(self, remote_local: Tuple[str, str], num_samples: int,
                     size_limit: int) -> None:
-        dirname, _ = remote_local
+        local, _ = remote_local
         dataset = SequenceDataset(num_samples)
         columns = dict(zip(dataset.column_names, dataset.column_encodings))
         expected_config = {
@@ -35,7 +35,7 @@ class TestMDSWriter:
             'column_encodings': dataset.column_encodings,
             'column_sizes': dataset.column_sizes
         }
-        writer = MDSWriter(dirname=dirname,
+        writer = MDSWriter(local=local,
                            columns=columns,
                            compression=None,
                            hashes=None,
@@ -46,7 +46,7 @@ class TestMDSWriter:
     @pytest.mark.parametrize('size_limit', [4096, 16_777_216])
     def test_number_of_files(self, remote_local: Tuple[str, str], num_samples: int,
                              size_limit: int) -> None:
-        dirname, _ = remote_local
+        local, _ = remote_local
         dataset = SequenceDataset(num_samples)
 
         columns = dict(zip(dataset.column_names, dataset.column_encodings))
@@ -71,14 +71,14 @@ class TestMDSWriter:
         expected_num_shards = math.ceil(num_samples / expected_samples_per_shard)
         expected_num_files = expected_num_shards + 1  # the index file and compression metadata file
 
-        with MDSWriter(dirname=dirname,
+        with MDSWriter(local=local,
                        columns=columns,
                        compression=None,
                        hashes=None,
                        size_limit=size_limit) as out:
             for sample in dataset:
                 out.write(sample)
-        files = os.listdir(dirname)
+        files = os.listdir(local)
         logger.info(f'Number of files: {len(files)}')
 
         assert len(
@@ -93,10 +93,10 @@ class TestMDSWriter:
         compression = 'zstd:7'
         hashes = ['sha1', 'xxh3_64']
 
-        dirname, _ = remote_local
+        local, _ = remote_local
         dataset = NumberAndSayDataset(num_samples, seed=seed)
         columns = dict(zip(dataset.column_names, dataset.column_encodings))
-        with MDSWriter(dirname=dirname,
+        with MDSWriter(local=local,
                        columns=columns,
                        compression=compression,
                        hashes=hashes,
@@ -107,7 +107,7 @@ class TestMDSWriter:
         # Apply the seed again for numpy determinism
         dataset.seed = seed
 
-        mds_dataset = StreamingDataset(dirname, shuffle=False)
+        mds_dataset = StreamingDataset(local, shuffle=False)
         # Ensure length of dataset is equal
         assert len(dataset) == len(mds_dataset) == num_samples
 
@@ -122,7 +122,7 @@ class TestJSONWriter:
     @pytest.mark.parametrize('size_limit', [32])
     def test_config(self, remote_local: Tuple[str, str], num_samples: int,
                     size_limit: int) -> None:
-        dirname, _ = remote_local
+        local, _ = remote_local
         dataset = SequenceDataset(num_samples)
         columns = dict(zip(dataset.column_names, dataset.column_encodings))
         expected_config = {
@@ -134,7 +134,7 @@ class TestJSONWriter:
             'columns': columns,
             'newline': '\n'
         }
-        writer = JSONWriter(dirname=dirname,
+        writer = JSONWriter(local=local,
                             columns=columns,
                             compression=None,
                             hashes=None,
@@ -149,10 +149,10 @@ class TestJSONWriter:
         compression = 'zstd:7'
         hashes = ['sha1', 'xxh3_64']
 
-        dirname, _ = remote_local
+        local, _ = remote_local
         dataset = NumberAndSayDataset(num_samples, seed=seed)
         columns = dict(zip(dataset.column_names, dataset.column_encodings))
-        with JSONWriter(dirname=dirname,
+        with JSONWriter(local=local,
                         columns=columns,
                         compression=compression,
                         hashes=hashes,
@@ -163,7 +163,7 @@ class TestJSONWriter:
         # Apply the seed again for numpy determinism
         dataset.seed = seed
 
-        mds_dataset = StreamingDataset(dirname, shuffle=False)
+        mds_dataset = StreamingDataset(local, shuffle=False)
         # Ensure length of dataset is equal
         assert len(dataset) == len(mds_dataset) == num_samples
 
@@ -180,7 +180,7 @@ class TestXSVWriter:
                                                   (CSVWriter, 'csv')])
     def test_config(self, remote_local: Tuple[str, str], num_samples: int, size_limit: int,
                     writer: Any, name: str) -> None:
-        dirname, _ = remote_local
+        local, _ = remote_local
         dataset = SequenceDataset(num_samples)
         columns = dict(zip(dataset.column_names, dataset.column_encodings))
         expected_config = {
@@ -196,14 +196,14 @@ class TestXSVWriter:
         if writer.__name__ == XSVWriter.__name__:
             separator = ','
             expected_config['separator'] = separator
-            writer = writer(dirname=dirname,
+            writer = writer(local=local,
                             columns=columns,
                             separator=separator,
                             compression=None,
                             hashes=None,
                             size_limit=size_limit)
         else:
-            writer = writer(dirname=dirname,
+            writer = writer(local=local,
                             columns=columns,
                             compression=None,
                             hashes=None,
@@ -219,11 +219,11 @@ class TestXSVWriter:
         compression = 'zstd:7'
         hashes = ['sha1', 'xxh3_64']
 
-        dirname, _ = remote_local
+        local, _ = remote_local
         dataset = NumberAndSayDataset(num_samples, seed=seed)
         columns = dict(zip(dataset.column_names, dataset.column_encodings))
         if writer.__name__ == XSVWriter.__name__:
-            with writer(dirname=dirname,
+            with writer(local=local,
                         columns=columns,
                         separator=',',
                         compression=compression,
@@ -232,7 +232,7 @@ class TestXSVWriter:
                 for sample in dataset:
                     out.write(sample)
         else:
-            with writer(dirname=dirname,
+            with writer(local=local,
                         columns=columns,
                         compression=compression,
                         hashes=hashes,
@@ -243,7 +243,7 @@ class TestXSVWriter:
         # Apply the seed again for numpy determinism
         dataset.seed = seed
 
-        mds_dataset = StreamingDataset(dirname, shuffle=False)
+        mds_dataset = StreamingDataset(local, shuffle=False)
         # Ensure length of dataset is equal
         assert len(dataset) == len(mds_dataset) == num_samples
 

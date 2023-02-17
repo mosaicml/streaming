@@ -145,7 +145,11 @@ def file_to_dir(args: Tuple[str, str, str, List[str], int]) -> Dict[str, int]:
     }
 
     counts = Counter()
-    with MDSWriter(out_dir, columns, compression, hashes, size_limit) as out:
+    with MDSWriter(local=out_dir,
+                   columns=columns,
+                   compression=compression,
+                   hashes=hashes,
+                   size_limit=size_limit) as out:
         for line in open(in_file):
             obj = json.loads(line)
             if sorted(obj.keys()) != ['meta', 'text']:

@@ -45,7 +45,11 @@ def main(args: Namespace) -> None:
     """
     hashes = args.hashes.split(',') if args.hashes else []
     dataset = StreamingDataset(getattr(args, 'in'))
-    with MDSWriter(args.out_mds, out_columns, args.compression, hashes, args.size_limit) as out:
+    with MDSWriter(local=args.out_mds,
+                   columns=out_columns,
+                   compression=args.compression,
+                   hashes=hashes,
+                   size_limit=args.size_limit) as out:
         for i, sample in tqdm(enumerate(dataset), total=dataset.index.total_samples):
             content_path = f'{i // 1000:03}/{i % 1000:03}.mp4'
             filename = os.path.join(args.out_mp4, content_path)
