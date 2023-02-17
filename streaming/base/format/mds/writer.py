@@ -1,7 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-""":class:`MDSWriter` converts a list of samples into binary `.mds` files that can be read as a :class:`MDSReader`."""
+""":class:`MDSWriter` writes samples to ``.mds`` files that can be read by :class:`MDSReader`."""
 
 import json
 from typing import Any, Dict, List, Optional
@@ -62,9 +62,8 @@ class MDSWriter(JointWriter):
         for name in sorted(columns):
             encoding = columns[name]
             if not is_mds_encoding(encoding):
-                raise TypeError(
-                    f'MDSWriter passed column "{name}" with encoding "{encoding}" is unsupported. Supported encodings are {get_mds_encodings()}'
-                )
+                raise TypeError(f'MDSWriter passed column "{name}" with encoding "{encoding}" ' +
+                                f'is unsupported. Supported encodings are {get_mds_encodings()}')
             size = get_mds_encoded_size(encoding)
             self.column_names.append(name)
             self.column_encodings.append(encoding)
@@ -96,9 +95,8 @@ class MDSWriter(JointWriter):
                 sizes.append(size)
             else:
                 if size != len(datum):
-                    raise KeyError(
-                        f'Unexpected data size; was this data typed with the correct encoding ({encoding})?'
-                    )
+                    raise KeyError(f'Unexpected data size; was this data typed with the correct ' +
+                                   f'encoding ({encoding})?')
             data.append(datum)
         head = np.array(sizes, np.uint32).tobytes()
         body = b''.join(data)

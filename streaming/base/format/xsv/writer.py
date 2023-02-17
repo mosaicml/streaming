@@ -1,7 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Converts a list of samples into a tabular data format files such as XSV, CSV, and TSV."""
+""":class:`XSVWriter` writes samples to `.xsv` files that can be read by :class:`XSVReader`."""
 
 import json
 from typing import Any, Dict, List, Optional, Tuple

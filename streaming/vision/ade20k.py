@@ -3,8 +3,8 @@
 
 """ADE20K Semantic segmentation and scene parsing dataset.
 
-Please refer to the `ADE20K dataset <https://groups.csail.mit.edu/vision/datasets/ADE20K/>`_ for more details about this
-dataset.
+Please refer to the `ADE20K dataset <https://groups.csail.mit.edu/vision/datasets/ADE20K/>`_ for
+more details about this dataset.
 """
 
 from typing import Any, Callable, Optional, Tuple
