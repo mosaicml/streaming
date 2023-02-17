@@ -129,9 +129,8 @@ def test_streaming_remote_dataset(tmp_path: pathlib.Path, name: str, split: str)
     samples_per_sec = rcvd_samples / iter_dur
 
     # Print debug info
-    print(
-        f'build_dur={build_dur:.2f}s, iter_dur={iter_dur:.2f}, samples_per_sec={samples_per_sec:.2f}'
-    )
+    print(f'build_dur={build_dur:.2f}s, iter_dur={iter_dur:.2f}, ' +
+          f'samples_per_sec={samples_per_sec:.2f}')
 
     # Test all samples arrived
     assert rcvd_samples == expected_samples

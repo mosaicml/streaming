@@ -73,14 +73,16 @@ def test_dataset_sample_order(mds_dataset_dir: Any, batch_size: int, remote_arg:
             shuffle_matches += (expected_id == id)
         else:
             assert id == expected_id, f'sample ix={ix} has id={id}, expected {expected_id}'
-            assert data == expected_data, f'sample ix={ix} has data={data}, expected {expected_data}'
+            assert data == expected_data, \
+                f'sample ix={ix} has data={data}, expected {expected_data}'
 
     # If shuffling, there should be few matches
     if shuffle:
         assert shuffle_matches < num_samples // 2
 
     # Test length
-    assert rcvd_samples == num_samples, f'Only received {rcvd_samples} samples, expected {num_samples}'
+    assert rcvd_samples == num_samples, \
+        f'Only received {rcvd_samples} samples, expected {num_samples}'
     assert len(
         dataset
     ) == num_samples, f'Got dataset length={len(dataset)} samples, expected {num_samples}'
