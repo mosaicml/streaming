@@ -93,7 +93,7 @@ extra_deps['docs'] = [
     'sphinxext.opengraph==0.8.1',
 ]
 
-extra_deps['all'] = set(dep for deps in extra_deps.values() for dep in deps)
+extra_deps['all'] = sorted(set(dep for deps in extra_deps.values() for dep in deps))
 
 package_name = os.environ.get('MOSAIC_PACKAGE_NAME', 'mosaicml-streaming')
 
