@@ -21,7 +21,7 @@ class MDSWriter(JointWriter):
     Args:
         columns (Dict[str, str]): Sample columns.
         local: (str, optional): Optional local output dataset directory. If not provided, a random
-           temp directory will be used. If ``remote`` is provided, this is where shards are cached
+            temp directory will be used. If ``remote`` is provided, this is where shards are cached
             before uploading. One or both of ``local`` and ``remote`` must be provided. Defaults to
             ``None``.
         remote: (str, optional): Optional remote output dataset directory. If not provided, no
