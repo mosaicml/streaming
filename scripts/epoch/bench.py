@@ -21,6 +21,7 @@ def parse_args() -> Namespace:
     """
     args = ArgumentParser()
     args.add_argument('--index', type=str, required=True)
+    args.add_argument('--shuffle_algo', type=str, default='py2s')
     args.add_argument('--batch_size', type=int, default=256)
     args.add_argument('--sample_in_epoch', type=int, default=0)
     args.add_argument('--num_canonical_nodes', type=int, default=1)
@@ -50,7 +51,7 @@ def main(args: Namespace) -> None:
     print(f'Partition: {t_part:.3f} sec')
 
     t0 = time()
-    mapping = get_shuffle(shard_sizes, args.num_canonical_nodes, 9176, 0)
+    mapping = get_shuffle(args.shuffle_algo, shard_sizes, args.num_canonical_nodes, 9176, 0)
     t_shuf = time() - t0
     print(f'Shuffle: {t_shuf:.3f} sec')
 

@@ -5,7 +5,7 @@ from typing import Callable
 
 import numpy as np
 
-from streaming.base.shuffle import get_shuffle_py1x, get_shuffle_py2x
+from streaming.base.shuffle import get_shuffle_py1s, get_shuffle_py2s
 
 
 def check(get_shuffle: Callable) -> None:
@@ -30,9 +30,9 @@ def check(get_shuffle: Callable) -> None:
                     assert parts[0] == parts[i]
 
 
-def test_shuffle_py1x():
-    check(get_shuffle_py1x)
+def test_shuffle_py1s():
+    check(get_shuffle_py1s)
 
 
-def test_shuffle_py2x():
-    check(get_shuffle_py2x)
+def test_shuffle_py2s():
+    check(get_shuffle_py2s)
