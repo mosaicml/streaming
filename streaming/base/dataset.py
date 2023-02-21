@@ -23,7 +23,7 @@ from streaming.base.format import reader_from_json
 from streaming.base.format.base.reader import FileInfo
 from streaming.base.hashing import get_hash
 from streaming.base.index import Index, get_index_basename
-from streaming.base.partitioning import get_partitions
+from streaming.base.partition import get_partitions
 from streaming.base.shared import SharedBarrier, create_shared_memory
 from streaming.base.shuffle import get_shuffle
 from streaming.base.storage import download
@@ -150,6 +150,7 @@ class StreamingDataset(IterableDataset):
         self.download_retry = download_retry
         self.download_timeout = download_timeout
         self.validate_hash = validate_hash or None
+        self.partition_algo = 'pynum'
 
         if self.download_retry < 0:
             raise ValueError('Parameter ``download_retry`` must be non-negative')
@@ -398,8 +399,8 @@ class StreamingDataset(IterableDataset):
         # Tensor shape: (num nodes, ranks per node, workers per rank, samples per worker).
         # This operation is expensive.
         if world.is_local_leader:
-            sample_ids = get_partitions(self.index.total_samples, self.num_canonical_nodes,
-                                        world.num_nodes,
+            sample_ids = get_partitions(self.partition_algo, self.index.total_samples,
+                                        self.num_canonical_nodes, world.num_nodes,
                                         world.ranks_per_node, world.workers_per_rank,
                                         int(self.batch_size or 1), sample_in_epoch)
             if self.shuffle:

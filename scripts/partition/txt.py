@@ -9,7 +9,7 @@ from argparse import ArgumentParser, Namespace
 import numpy as np
 from numpy.typing import NDArray
 
-from streaming.base.partitioning import get_partitions_fast, get_partitions_slow
+from streaming.base.partition import get_partitions
 
 
 def parse_args() -> Namespace:
@@ -19,7 +19,7 @@ def parse_args() -> Namespace:
         Namespace: Command-line arguments.
     """
     args = ArgumentParser()
-    args.add_argument('-v', '--version', type=str, default='fast')
+    args.add_argument('-v', '--algo', type=str, default='pynum')
     args.add_argument('-n', '--dataset_size', type=int, default=678)
     args.add_argument('-b', '--device_batch_size', type=int, default=7)
     args.add_argument('-o', '--offset_in_epoch', type=int, default=0)
@@ -65,13 +65,7 @@ def main(args: Namespace) -> None:
     Args:
         args (Namespace): Command-line arguments.
     """
-    version2get_partitions = {
-        'fast': get_partitions_fast,
-        'slow': get_partitions_slow,
-    }
-
-    get_partitions = version2get_partitions[args.version]
-    ids = get_partitions(args.dataset_size, args.canonical_nodes, args.physical_nodes,
+    ids = get_partitions(args.algo, args.dataset_size, args.canonical_nodes, args.physical_nodes,
                          args.node_devices, args.device_workers, args.device_batch_size,
                          args.offset_in_epoch)
     ids = ids.reshape(args.physical_nodes, args.node_devices, args.device_workers, -1,

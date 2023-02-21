@@ -6,7 +6,7 @@
 from argparse import ArgumentParser, Namespace
 from time import time
 
-from streaming.base.partitioning import get_partitions_fast, get_partitions_slow
+from streaming.base.partition import get_partitions
 
 
 def parse_args() -> Namespace:
@@ -48,9 +48,9 @@ def main(args: Namespace) -> None:
 
         if do_slow:
             start = time()
-            get_partitions_slow(num_samples, args.num_canonical_nodes, args.num_nodes,
-                                args.ranks_per_node, args.workers_per_rank, args.batch_size,
-                                args.sample_in_epoch)
+            get_partitions('orig', num_samples, args.num_canonical_nodes, args.num_nodes,
+                           args.ranks_per_node, args.workers_per_rank, args.batch_size,
+                           args.sample_in_epoch)
             elapsed = time() - start
             if args.timeout < elapsed:
                 do_slow = False
@@ -59,9 +59,9 @@ def main(args: Namespace) -> None:
 
         if do_fast:
             start2 = time()
-            get_partitions_fast(num_samples, args.num_canonical_nodes, args.num_nodes,
-                                args.ranks_per_node, args.workers_per_rank, args.batch_size,
-                                args.sample_in_epoch)
+            get_partitions('pynum', num_samples, args.num_canonical_nodes, args.num_nodes,
+                           args.ranks_per_node, args.workers_per_rank, args.batch_size,
+                           args.sample_in_epoch)
             elapsed2 = time() - start2
             if args.timeout < elapsed2:
                 do_fast = False

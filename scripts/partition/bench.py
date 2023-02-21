@@ -9,7 +9,7 @@ from time import time
 
 import numpy as np
 
-from streaming.base.partitioning import get_partitions
+from streaming.base.partition import get_partitions
 from streaming.base.shuffle import get_shuffle
 
 
@@ -21,6 +21,7 @@ def parse_args() -> Namespace:
     """
     args = ArgumentParser()
     args.add_argument('--index', type=str, required=True)
+    args.add_argument('--algo', type=str, default='pynum')
     args.add_argument('--batch_size', type=int, default=256)
     args.add_argument('--sample_in_epoch', type=int, default=0)
     args.add_argument('--num_canonical_nodes', type=int, default=1)
@@ -43,7 +44,7 @@ def main(args: Namespace) -> None:
     num_samples = sum(shard_sizes)
 
     t0 = time()
-    ids = get_partitions(num_samples, args.num_canonical_nodes, args.num_nodes,
+    ids = get_partitions(args.algo, num_samples, args.num_canonical_nodes, args.num_nodes,
                          args.ranks_per_node, args.workers_per_rank, args.batch_size,
                          args.sample_in_epoch)
     t_part = time() - t0
