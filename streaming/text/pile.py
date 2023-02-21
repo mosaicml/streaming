@@ -42,13 +42,17 @@ class StreamingPile(StreamingDataset):
         validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
-        num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with resumption.
-            Defaults to ``None``, which is interpreted as the number of nodes of the initial run.
+        num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
+            resumption. Defaults to ``None``, which is interpreted as the number of nodes of the
+            initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
+        partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py2s``.
     """
 
     def __init__(self,
+                 *,
                  tokenizer_name: str,
                  max_seq_len: int,
                  group_method: str,
@@ -63,13 +67,26 @@ class StreamingPile(StreamingDataset):
                  validate_hash: Optional[str] = None,
                  shuffle_seed: int = 9176,
                  num_canonical_nodes: Optional[int] = None,
-                 batch_size: Optional[int] = None) -> None:
+                 batch_size: Optional[int] = None,
+                 partition_algo: str = 'orig',
+                 shuffle_algo: str = 'py2s') -> None:
         if group_method not in ['truncate']:
             raise ValueError(f'Only group_method="truncate" is supported at this time.')
 
-        super().__init__(local, remote, split, shuffle, predownload, keep_zip, download_retry,
-                         download_timeout, validate_hash, shuffle_seed, num_canonical_nodes,
-                         batch_size)
+        super().__init__(local=local,
+                         remote=remote,
+                         split=split,
+                         shuffle=shuffle,
+                         predownload=predownload,
+                         keep_zip=keep_zip,
+                         download_retry=download_retry,
+                         download_timeout=download_timeout,
+                         validate_hash=validate_hash,
+                         shuffle_seed=shuffle_seed,
+                         num_canonical_nodes=num_canonical_nodes,
+                         batch_size=batch_size,
+                         partition_algo=partition_algo,
+                         shuffle_algo=shuffle_algo)
         self.tokenizer_name = tokenizer_name
         self.max_seq_len = max_seq_len
         self.group_method = group_method

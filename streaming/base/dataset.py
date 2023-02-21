@@ -8,10 +8,12 @@ import os
 from enum import IntEnum
 from multiprocessing.shared_memory import SharedMemory
 from threading import Thread
-from time import sleep
+from time import sleep, time
 from typing import Any, Dict, Iterator, Optional, Tuple
 
 import numpy as np
+import torch
+import torch.distributed as dist
 from filelock import FileLock
 from numpy.typing import NDArray
 from torch.utils.data import IterableDataset
@@ -120,13 +122,17 @@ class StreamingDataset(IterableDataset):
         validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
-        num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with resumption.
-            Defaults to ``None``, which is interpreted as the number of nodes of the initial run.
+        num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
+            resumption. Defaults to ``None``, which is interpreted as the number of nodes of the
+            initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
+        partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py2s``.
     """
 
     def __init__(self,
+                 *,
                  local: str,
                  remote: Optional[str] = None,
                  split: Optional[str] = None,
@@ -138,7 +144,9 @@ class StreamingDataset(IterableDataset):
                  validate_hash: Optional[str] = None,
                  shuffle_seed: int = 9176,
                  num_canonical_nodes: Optional[int] = None,
-                 batch_size: Optional[int] = None):
+                 batch_size: Optional[int] = None,
+                 partition_algo: str = 'orig',
+                 shuffle_algo: str = 'py2s') -> None:
         self.local = local
         self.remote = remote
         self.split = split or ''  # Empty string for os.path.join().
@@ -148,6 +156,8 @@ class StreamingDataset(IterableDataset):
         self.download_retry = download_retry
         self.download_timeout = download_timeout
         self.validate_hash = validate_hash or None
+        self.partition_algo = partition_algo
+        self.shuffle_algo = shuffle_algo
 
         if self.download_retry < 0:
             raise ValueError('Parameter ``download_retry`` must be non-negative')
@@ -202,12 +212,39 @@ class StreamingDataset(IterableDataset):
         # Determine and distribute shuffle seed and shm prefix.
         seed_rng = np.random.default_rng(shuffle_seed)
         self.shuffle_seed = int(seed_rng.integers(1 << 60))
-        prefix_int = np.random.randint(1 << 24)
+        prefix_int = int(seed_rng.integers(1 << 24))
         self._prefix = f'{prefix_int:06x}'
 
-        # Should be a unique shared directory per each StreamingDataset instantiation to avoid a conflict
-        # between a different StreamingDataset instance on a same machine.
-        self._shared_dir = os.path.join(os.path.sep, 'tmp', 'streaming', self._prefix)
+        # Should be a unique shared directory per each StreamingDataset instantiation to avoid a
+        # conflict between a different StreamingDataset instance on a same machine.
+        start_time = time()
+        while True:
+            self._shared_dir = os.path.join(os.path.sep, 'tmp', 'streaming', self._prefix)
+            if os.path.exists(self._shared_dir):
+                prefix_int = int(seed_rng.integers(1 << 24))
+                self._prefix = f'{prefix_int:06x}'
+            else:
+                break
+            elapsed = time() - start_time
+            # Raise an exception if not finding a unique shared directory in 60 secs
+            if elapsed > 60:
+                raise RuntimeError(''.join([
+                    f'Could not find the unique shared directory, bailing out.',
+                    'Please provide a different `shuffle_seed` value.'
+                ]))
+
+            sleep(TICK)
+
+        # Initialize the distributed package and synchronize all the ranks
+        is_dist_pg_initialized = False
+        if self._rank_world.num_ranks > 1:
+            if dist.is_available() and not dist.is_initialized():
+                is_dist_pg_initialized = True
+                dist.init_process_group(backend='nccl' if torch.cuda.is_available() and
+                                        dist.is_nccl_available() else 'gloo',
+                                        rank=world.rank,
+                                        world_size=world.num_ranks)
+            dist.barrier()
 
         # Create the shared memory-backed worker barrier, without its lock, which is unpickleable.
         worker_barrier_filelock_path = os.path.join(self._shared_dir, 'barrier_filelock')
@@ -235,6 +272,10 @@ class StreamingDataset(IterableDataset):
         # downloaded).
         self._shard_states = create_shared_memory(name=f'{self._prefix}_shard_states',
                                                   size=len(self.shard_sizes) * np.uint8(0).nbytes)
+
+        # Destroy process group, and de-initialize the distributed package
+        if is_dist_pg_initialized:
+            dist.destroy_process_group()
 
     @property
     def next_epoch(self) -> int:

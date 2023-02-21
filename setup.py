@@ -70,13 +70,13 @@ extra_deps['dev'] = [
     'toml==0.10.2',
     'yamllint==1.29.0',
     'moto>=4.0,<5',
-    'fastapi==0.89.1',
-    'pydantic==1.10.4',
+    'fastapi==0.92.0',
+    'pydantic==1.10.5',
     'uvicorn==0.20.0',
 ]
 
 extra_deps['docs'] = [
-    'GitPython==3.1.30',
+    'GitPython==3.1.31',
     'docutils==0.17.1',
     'furo==2022.9.29',
     'myst-parser==0.18.1',
@@ -90,10 +90,10 @@ extra_deps['docs'] = [
     'sphinxcontrib-images==0.9.4',
     'sphinxcontrib.katex==0.9.4',
     'sphinxemoji==0.2.0',
-    'sphinxext.opengraph==0.7.5',
+    'sphinxext.opengraph==0.8.1',
 ]
 
-extra_deps['all'] = set(dep for deps in extra_deps.values() for dep in deps)
+extra_deps['all'] = sorted(set(dep for deps in extra_deps.values() for dep in deps))
 
 package_name = os.environ.get('MOSAIC_PACKAGE_NAME', 'mosaicml-streaming')
 
