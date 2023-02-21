@@ -47,6 +47,8 @@ class StreamingPile(StreamingDataset):
             initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
+        partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py2s``.
     """
 
     def __init__(self,
@@ -65,7 +67,9 @@ class StreamingPile(StreamingDataset):
                  validate_hash: Optional[str] = None,
                  shuffle_seed: int = 9176,
                  num_canonical_nodes: Optional[int] = None,
-                 batch_size: Optional[int] = None) -> None:
+                 batch_size: Optional[int] = None,
+                 partition_algo: str = 'orig',
+                 shuffle_algo: str = 'py2s') -> None:
         if group_method not in ['truncate']:
             raise ValueError(f'Only group_method="truncate" is supported at this time.')
 
@@ -80,7 +84,9 @@ class StreamingPile(StreamingDataset):
                          validate_hash=validate_hash,
                          shuffle_seed=shuffle_seed,
                          num_canonical_nodes=num_canonical_nodes,
-                         batch_size=batch_size)
+                         batch_size=batch_size,
+                         partition_algo=partition_algo,
+                         shuffle_algo=shuffle_algo)
         self.tokenizer_name = tokenizer_name
         self.max_seq_len = max_seq_len
         self.group_method = group_method

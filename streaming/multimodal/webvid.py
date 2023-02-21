@@ -41,6 +41,8 @@ class StreamingInsideWebVid(StreamingDataset):
             initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
+        partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py2s``.
     """
 
     def __getitem__(self, idx: int) -> Any:
@@ -87,6 +89,8 @@ class StreamingOutsideGIWebVid(StreamingDataset):
             initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
+        partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py2s``.
         extra_local (str, optional): Base destination of extra local sample downloads.
         extra_remote (str, optional): Base source of extra remote sample downloads.
     """
@@ -105,6 +109,8 @@ class StreamingOutsideGIWebVid(StreamingDataset):
                  shuffle_seed: int = 9176,
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
+                 partition_algo: str = 'orig',
+                 shuffle_algo: str = 'py2s',
                  extra_local: Optional[str] = None,
                  extra_remote: Optional[str] = None):
         super().__init__(local=local,
@@ -118,7 +124,9 @@ class StreamingOutsideGIWebVid(StreamingDataset):
                          validate_hash=validate_hash,
                          shuffle_seed=shuffle_seed,
                          num_canonical_nodes=num_canonical_nodes,
-                         batch_size=batch_size)
+                         batch_size=batch_size,
+                         partition_algo=partition_algo,
+                         shuffle_algo=shuffle_algo)
 
         # Videos are stored outside of their shards here.
         self.extra_local = extra_local
@@ -180,6 +188,8 @@ class StreamingOutsideDTWebVid(StreamingDataset):
             initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
+        partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py2s``.
         extra_local (str, optional): Base destination of extra local sample downloads.
         extra_remote (str, optional): Base source of extra remote sample downloads.
     """
@@ -198,6 +208,8 @@ class StreamingOutsideDTWebVid(StreamingDataset):
                  shuffle_seed: int = 9176,
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
+                 partition_algo: str = 'orig',
+                 shuffle_algo: str = 'py2s',
                  extra_local: Optional[str] = None,
                  extra_remote: Optional[str] = None):
         super().__init__(local=local,
@@ -211,7 +223,9 @@ class StreamingOutsideDTWebVid(StreamingDataset):
                          validate_hash=validate_hash,
                          shuffle_seed=shuffle_seed,
                          num_canonical_nodes=num_canonical_nodes,
-                         batch_size=batch_size)
+                         batch_size=batch_size,
+                         partition_algo=partition_algo,
+                         shuffle_algo=shuffle_algo)
 
         # Videos are stored outside of their shards here.
         self.extra_local = extra_local

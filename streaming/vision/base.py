@@ -79,6 +79,8 @@ class StreamingVisionDataset(StreamingDataset, VisionDataset):
             initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
+        partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py2s``.
     """
 
     def __init__(self,
@@ -97,7 +99,9 @@ class StreamingVisionDataset(StreamingDataset, VisionDataset):
                  validate_hash: Optional[str] = None,
                  shuffle_seed: int = 9176,
                  num_canonical_nodes: Optional[int] = None,
-                 batch_size: Optional[int] = None):
+                 batch_size: Optional[int] = None,
+                 partition_algo: str = 'orig',
+                 shuffle_algo: str = 'py2s'):
         super().__init__(local=local,
                          remote=remote,
                          split=split,
@@ -109,7 +113,9 @@ class StreamingVisionDataset(StreamingDataset, VisionDataset):
                          validate_hash=validate_hash,
                          shuffle_seed=shuffle_seed,
                          num_canonical_nodes=num_canonical_nodes,
-                         batch_size=batch_size)
+                         batch_size=batch_size,
+                         partition_algo=partition_algo,
+                         shuffle_algo=shuffle_algo)
 
         has_transforms = transforms is not None
         has_separate_transform = transform is not None or target_transform is not None
@@ -169,6 +175,8 @@ class StreamingImageClassDataset(StreamingVisionDataset):
             initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
+        partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py2s``.
     """
 
     def __init__(self,
@@ -186,7 +194,9 @@ class StreamingImageClassDataset(StreamingVisionDataset):
                  validate_hash: Optional[str] = None,
                  shuffle_seed: int = 9176,
                  num_canonical_nodes: Optional[int] = None,
-                 batch_size: Optional[int] = None):
+                 batch_size: Optional[int] = None,
+                 partition_algo: str = 'orig',
+                 shuffle_algo: str = 'py2s'):
         super().__init__(local=local,
                          remote=remote,
                          split=split,
@@ -201,4 +211,6 @@ class StreamingImageClassDataset(StreamingVisionDataset):
                          validate_hash=validate_hash,
                          shuffle_seed=shuffle_seed,
                          num_canonical_nodes=num_canonical_nodes,
-                         batch_size=batch_size)
+                         batch_size=batch_size,
+                         partition_algo=partition_algo,
+                         shuffle_algo=shuffle_algo)

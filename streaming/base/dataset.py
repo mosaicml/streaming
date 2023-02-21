@@ -127,6 +127,8 @@ class StreamingDataset(IterableDataset):
             initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
+        partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py2s``.
     """
 
     def __init__(self,
@@ -142,7 +144,9 @@ class StreamingDataset(IterableDataset):
                  validate_hash: Optional[str] = None,
                  shuffle_seed: int = 9176,
                  num_canonical_nodes: Optional[int] = None,
-                 batch_size: Optional[int] = None):
+                 batch_size: Optional[int] = None,
+                 partition_algo: str = 'orig',
+                 shuffle_algo: str = 'py2s'):
         self.local = local
         self.remote = remote
         self.split = split or ''  # Empty string for os.path.join().
@@ -152,6 +156,8 @@ class StreamingDataset(IterableDataset):
         self.download_retry = download_retry
         self.download_timeout = download_timeout
         self.validate_hash = validate_hash or None
+        self.partition_algo = partition_algo
+        self.shuffle_algo = shuffle_algo
 
         if self.download_retry < 0:
             raise ValueError('Parameter ``download_retry`` must be non-negative')
