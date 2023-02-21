@@ -101,7 +101,7 @@ class StreamingVisionDataset(StreamingDataset, VisionDataset):
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
                  partition_algo: str = 'orig',
-                 shuffle_algo: str = 'py2s'):
+                 shuffle_algo: str = 'py2s') -> None:
         super().__init__(local=local,
                          remote=remote,
                          split=split,
@@ -196,7 +196,7 @@ class StreamingImageClassDataset(StreamingVisionDataset):
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
                  partition_algo: str = 'orig',
-                 shuffle_algo: str = 'py2s'):
+                 shuffle_algo: str = 'py2s') -> None:
         super().__init__(local=local,
                          remote=remote,
                          split=split,

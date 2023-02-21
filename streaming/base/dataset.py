@@ -146,7 +146,7 @@ class StreamingDataset(IterableDataset):
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
                  partition_algo: str = 'orig',
-                 shuffle_algo: str = 'py2s'):
+                 shuffle_algo: str = 'py2s') -> None:
         self.local = local
         self.remote = remote
         self.split = split or ''  # Empty string for os.path.join().
