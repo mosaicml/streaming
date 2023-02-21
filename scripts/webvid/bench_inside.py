@@ -30,7 +30,7 @@ def main(args: Namespace):
     Args:
         args (Namespace): Command-line arguments.
     """
-    dataset = StreamingInsideWebVid(args.local, args.remote)
+    dataset = StreamingInsideWebVid(local=args.local, remote=args.remote)
     tt = []
     t0 = time()
     for _ in dataset:

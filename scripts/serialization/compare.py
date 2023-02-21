@@ -174,7 +174,7 @@ def mds_read_seq(dirname: str) -> Iterator[Dict[str, Any]]:
     Returns:
         Iterator[Dict[str, Any]]: Iterator over samples.
     """
-    yield from StreamingDataset(dirname)
+    yield from StreamingDataset(local=dirname)
 
 
 def mds_read_shuf(dirname: str) -> Iterator[Dict[str, Any]]:
@@ -186,7 +186,7 @@ def mds_read_shuf(dirname: str) -> Iterator[Dict[str, Any]]:
     Returns:
         Iterator[Dict[str, Any]]: Iterator over samples.
     """
-    yield from StreamingDataset(dirname, shuffle=True)
+    yield from StreamingDataset(local=dirname, shuffle=True)
 
 
 def mds_read_rand(dirname: str) -> Iterator[Dict[str, Any]]:
@@ -198,7 +198,7 @@ def mds_read_rand(dirname: str) -> Iterator[Dict[str, Any]]:
     Returns:
         Iterator[Dict[str, Any]]: Iterator over samples.
     """
-    dataset = StreamingDataset(dirname)
+    dataset = StreamingDataset(local=dirname)
     indices = np.random.permutation(dataset.index.total_samples)
     for idx in indices:
         yield dataset[idx]

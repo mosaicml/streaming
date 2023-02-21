@@ -50,6 +50,7 @@ class StreamingPile(StreamingDataset):
     """
 
     def __init__(self,
+                 *,
                  tokenizer_name: str,
                  max_seq_len: int,
                  group_method: str,
@@ -68,9 +69,18 @@ class StreamingPile(StreamingDataset):
         if group_method not in ['truncate']:
             raise ValueError(f'Only group_method="truncate" is supported at this time.')
 
-        super().__init__(local, remote, split, shuffle, predownload, keep_zip, download_retry,
-                         download_timeout, validate_hash, shuffle_seed, num_canonical_nodes,
-                         batch_size)
+        super().__init__(local=local,
+                         remote=remote,
+                         split=split,
+                         shuffle=shuffle,
+                         predownload=predownload,
+                         keep_zip=keep_zip,
+                         download_retry=download_retry,
+                         download_timeout=download_timeout,
+                         validate_hash=validate_hash,
+                         shuffle_seed=shuffle_seed,
+                         num_canonical_nodes=num_canonical_nodes,
+                         batch_size=batch_size)
         self.tokenizer_name = tokenizer_name
         self.max_seq_len = max_seq_len
         self.group_method = group_method

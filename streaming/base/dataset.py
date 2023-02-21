@@ -130,6 +130,7 @@ class StreamingDataset(IterableDataset):
     """
 
     def __init__(self,
+                 *,
                  local: str,
                  remote: Optional[str] = None,
                  split: Optional[str] = None,

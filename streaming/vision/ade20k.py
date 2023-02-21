@@ -50,6 +50,7 @@ class StreamingADE20K(StreamingDataset):
     """
 
     def __init__(self,
+                 *,
                  local: str,
                  remote: Optional[str] = None,
                  split: Optional[str] = None,
@@ -65,9 +66,18 @@ class StreamingADE20K(StreamingDataset):
                  shuffle_seed: int = 9176,
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None):
-        super().__init__(local, remote, split, shuffle, predownload, keep_zip, download_retry,
-                         download_timeout, validate_hash, shuffle_seed, num_canonical_nodes,
-                         batch_size)
+        super().__init__(local=local,
+                         remote=remote,
+                         split=split,
+                         shuffle=shuffle,
+                         predownload=predownload,
+                         keep_zip=keep_zip,
+                         download_retry=download_retry,
+                         download_timeout=download_timeout,
+                         validate_hash=validate_hash,
+                         shuffle_seed=shuffle_seed,
+                         num_canonical_nodes=num_canonical_nodes,
+                         batch_size=batch_size)
         self.joint_transform = joint_transform
         self.transform = transform
         self.target_transform = target_transform

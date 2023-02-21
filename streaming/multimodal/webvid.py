@@ -92,6 +92,7 @@ class StreamingOutsideGIWebVid(StreamingDataset):
     """
 
     def __init__(self,
+                 *,
                  local: str,
                  remote: Optional[str] = None,
                  split: Optional[str] = None,
@@ -106,9 +107,18 @@ class StreamingOutsideGIWebVid(StreamingDataset):
                  batch_size: Optional[int] = None,
                  extra_local: Optional[str] = None,
                  extra_remote: Optional[str] = None):
-        super().__init__(local, remote, split, shuffle, predownload, keep_zip, download_retry,
-                         download_timeout, validate_hash, shuffle_seed, num_canonical_nodes,
-                         batch_size)
+        super().__init__(local=local,
+                         remote=remote,
+                         split=split,
+                         shuffle=shuffle,
+                         predownload=predownload,
+                         keep_zip=keep_zip,
+                         download_retry=download_retry,
+                         download_timeout=download_timeout,
+                         validate_hash=validate_hash,
+                         shuffle_seed=shuffle_seed,
+                         num_canonical_nodes=num_canonical_nodes,
+                         batch_size=batch_size)
 
         # Videos are stored outside of their shards here.
         self.extra_local = extra_local
@@ -175,6 +185,7 @@ class StreamingOutsideDTWebVid(StreamingDataset):
     """
 
     def __init__(self,
+                 *,
                  local: str,
                  remote: Optional[str] = None,
                  split: Optional[str] = None,
@@ -189,9 +200,18 @@ class StreamingOutsideDTWebVid(StreamingDataset):
                  batch_size: Optional[int] = None,
                  extra_local: Optional[str] = None,
                  extra_remote: Optional[str] = None):
-        super().__init__(local, remote, split, shuffle, predownload, keep_zip, download_retry,
-                         download_timeout, validate_hash, shuffle_seed, num_canonical_nodes,
-                         batch_size)
+        super().__init__(local=local,
+                         remote=remote,
+                         split=split,
+                         shuffle=shuffle,
+                         predownload=predownload,
+                         keep_zip=keep_zip,
+                         download_retry=download_retry,
+                         download_timeout=download_timeout,
+                         validate_hash=validate_hash,
+                         shuffle_seed=shuffle_seed,
+                         num_canonical_nodes=num_canonical_nodes,
+                         batch_size=batch_size)
 
         # Videos are stored outside of their shards here.
         self.extra_local = extra_local
