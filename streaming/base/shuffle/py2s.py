@@ -3,7 +3,7 @@
 
 """Shuffling algorithm that shuffles intra-shard in two places.
 
-This algorithm is slightly less biased and also slower than algorithm ``py1s``.
+This algorithm is roughly half as fast as algorithm ``py1s``, but ever so slightly more random.
 """
 
 from typing import List

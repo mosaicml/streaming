@@ -3,7 +3,11 @@
 
 """Shuffling algorithm that shuffles intra-shard in one place.
 
-This algorithm is slightly more biased and also faster than algorithm ``py2s``.
+This algorithm is roughly twice as fast as algorithm ``py2s``, and ever so slightly biased.
+
+Bias in this case merely refers to how we assign samples when we split shards at canonical node
+boundaries, which is non-random in this algorithm. In practice, we found this does matter to
+convergence, while making us faster.
 """
 
 from typing import List, Tuple
