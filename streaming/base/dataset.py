@@ -127,7 +127,7 @@ class StreamingDataset(IterableDataset):
             initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
-        partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
+        partition_algo (str): Which partitioning algorithm to use. Defaults to ``pynum``.
         shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py2s``.
     """
 
@@ -145,7 +145,7 @@ class StreamingDataset(IterableDataset):
                  shuffle_seed: int = 9176,
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
-                 partition_algo: str = 'orig',
+                 partition_algo: str = 'pynum',
                  shuffle_algo: str = 'py2s') -> None:
         self.local = local
         self.remote = remote
