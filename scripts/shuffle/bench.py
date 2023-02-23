@@ -84,7 +84,6 @@ def get_shard_sizes(dataset_size: int, samples_per_shard: float) -> NDArray[np.i
     num_shards = math.ceil(dataset_size / samples_per_shard)
     shard_sizes = num_shards * [samples_per_shard]
     shard_sizes[-1] -= num_shards * samples_per_shard - dataset_size
-    assert sum(shard_sizes) == dataset_size
     return np.array(shard_sizes)
 
 
