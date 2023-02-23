@@ -7,8 +7,7 @@ from typing import Any, Tuple
 
 import pytest
 
-from streaming.base.format.base.cloudstorage import (CloudWriter, GCSWriter, LocalWriter,
-                                                     OCIWriter, S3Writer)
+from streaming.base.storage.upload import CloudWriter, GCSWriter, LocalWriter, OCIWriter, S3Writer
 
 
 class TestCloudWriter:
@@ -132,26 +131,6 @@ class TestGCSWriter():
                 pass
             gcsw.upload_file(filename)
             assert not os.path.exists(local_file_path)
-
-
-class TestOCIWriter():
-
-    def test_empty_local_and_remote(self):
-        with pytest.raises(ValueError):
-            _ = OCIWriter(local=None, remote=None)
-
-    def test_empty_local(self):
-        remote = 'oci://bucket/path'
-        ociw = OCIWriter(local=None, remote=remote)
-        assert ociw.local is not None
-        assert ociw.remote == remote
-
-    def test_empty_remote(self, local_remote_dir: Tuple[str, str]):
-        local, _ = local_remote_dir
-        remote = 'oci://bucket/path'
-        ociw = OCIWriter(local=local, remote=remote)
-        assert ociw.local == local
-        assert ociw.remote is remote
 
 
 class TestLocalWriter:

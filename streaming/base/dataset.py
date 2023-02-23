@@ -26,7 +26,7 @@ from streaming.base.index import Index, get_index_basename
 from streaming.base.partitioning import get_partitions
 from streaming.base.shared import SharedBarrier, create_shared_memory
 from streaming.base.shuffle import get_shuffle
-from streaming.base.storage import download
+from streaming.base.storage.download import download
 from streaming.base.util import wait_for_file_to_exist, wait_for_local_leader
 from streaming.base.world import World
 

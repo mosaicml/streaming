@@ -59,7 +59,6 @@ class CloudWriter:
         obj = urllib.parse.urlparse(remote)
         if obj.scheme in mapping:
             instance = super().__new__(mapping[obj.scheme])
-            print(f"I'm a {type(instance).__name__}!")
             return instance
         else:
             raise KeyError('Invalid Cloud provider prefix in `remote` argument.')

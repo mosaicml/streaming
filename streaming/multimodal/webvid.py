@@ -9,7 +9,7 @@ from typing import Any, Optional
 
 from streaming.base import StreamingDataset
 from streaming.base.dataset import TICK, _PartitionState
-from streaming.base.storage import download
+from streaming.base.storage.download import download
 
 
 class StreamingInsideWebVid(StreamingDataset):

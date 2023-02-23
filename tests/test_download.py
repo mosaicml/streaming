@@ -9,8 +9,8 @@ from unittest.mock import Mock, patch
 import boto3
 import pytest
 
-from streaming.base.storage import (download, download_from_gcs, download_from_local,
-                                    download_from_s3, download_or_wait)
+from streaming.base.storage.download import (download, download_from_gcs, download_from_local,
+                                             download_from_s3, download_or_wait)
 from tests.conftest import GCS_URL, MY_BUCKET
 
 MY_PREFIX = 'train'
@@ -102,7 +102,7 @@ def test_download_from_local():
 
 class TestDownload:
 
-    @patch('streaming.base.storage.download_from_s3')
+    @patch('streaming.base.storage.download.download_from_s3')
     @pytest.mark.usefixtures('remote_local_file')
     def test_download_from_s3_gets_called(self, mocked_requests: Mock, remote_local_file: Any):
         mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='s3://')
@@ -110,7 +110,7 @@ class TestDownload:
         mocked_requests.assert_called_once()
         mocked_requests.assert_called_once_with(mock_remote_filepath, mock_local_filepath, 60)
 
-    @patch('streaming.base.storage.download_from_gcs')
+    @patch('streaming.base.storage.download.download_from_gcs')
     @pytest.mark.usefixtures('remote_local_file')
     def test_download_from_gcs_gets_called(self, mocked_requests: Mock, remote_local_file: Any):
         mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='gs://')
@@ -118,7 +118,7 @@ class TestDownload:
         mocked_requests.assert_called_once()
         mocked_requests.assert_called_once_with(mock_remote_filepath, mock_local_filepath)
 
-    @patch('streaming.base.storage.download_from_sftp')
+    @patch('streaming.base.storage.download.download_from_sftp')
     @pytest.mark.usefixtures('remote_local_file')
     def test_download_from_sftp_gets_called(self, mocked_requests: Mock, remote_local_file: Any):
         mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='sftp://')
@@ -126,7 +126,7 @@ class TestDownload:
         mocked_requests.assert_called_once()
         mocked_requests.assert_called_once_with(mock_remote_filepath, mock_local_filepath)
 
-    @patch('streaming.base.storage.download_from_local')
+    @patch('streaming.base.storage.download.download_from_local')
     @pytest.mark.usefixtures('remote_local_file')
     def test_download_from_local_gets_called(self, mocked_requests: Mock, remote_local_file: Any):
         mock_remote_filepath, mock_local_filepath = remote_local_file()
@@ -143,7 +143,7 @@ class TestDownload:
 
 class TestDownloadOrWait:
 
-    @patch('streaming.base.storage.wait_for_download')
+    @patch('streaming.base.storage.download.wait_for_download')
     @pytest.mark.usefixtures('remote_local_file')
     def test_wait_for_download(self, mocked_requests: Mock, remote_local_file: Any):
         mock_remote_filepath, mock_local_filepath = remote_local_file()
@@ -151,7 +151,7 @@ class TestDownloadOrWait:
         mocked_requests.assert_called_once()
         mocked_requests.assert_called_once_with(mock_local_filepath, 60)
 
-    @patch('streaming.base.storage.download')
+    @patch('streaming.base.storage.download.download')
     @pytest.mark.usefixtures('remote_local_file')
     def test_download(self, mocked_requests: Mock, remote_local_file: Any):
         mock_remote_filepath, mock_local_filepath = remote_local_file()
@@ -159,7 +159,7 @@ class TestDownloadOrWait:
         mocked_requests.assert_called_once()
         mocked_requests.assert_called_once_with(mock_remote_filepath, mock_local_filepath, 60)
 
-    @patch('streaming.base.storage.wait_for_download')
+    @patch('streaming.base.storage.download.wait_for_download')
     @pytest.mark.usefixtures('remote_local_file')
     def test_failed_download_exception(self, mocked_requests: Mock, remote_local_file: Any):
         with pytest.raises(RuntimeError):
@@ -167,7 +167,7 @@ class TestDownloadOrWait:
             mock_remote_filepath, mock_local_filepath = remote_local_file()
             download_or_wait(mock_remote_filepath, mock_local_filepath, True, 2, 60)
 
-    @patch('streaming.base.storage.wait_for_download')
+    @patch('streaming.base.storage.download.wait_for_download')
     @pytest.mark.usefixtures('remote_local_file')
     def test_failed_download_filenotfound_exception(self, mocked_requests: Mock,
                                                     remote_local_file: Any):
