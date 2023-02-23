@@ -1,14 +1,14 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Partitions the sample space to nodes, ranks, and workers."""
+"""Partition samples to nodes, ranks, and workers via a python and numpy approach."""
 
 import math
 
 import numpy as np
 
 
-def get_partitions_orig(dataset_size: int,
+def get_partitions_pypy(dataset_size: int,
                         num_canonical_nodes: int,
                         num_physical_nodes: int,
                         ranks_per_node: int,

@@ -48,7 +48,7 @@ def main(args: Namespace) -> None:
 
         if do_slow:
             start = time()
-            get_partitions('orig', num_samples, args.num_canonical_nodes, args.num_nodes,
+            get_partitions('pypy', num_samples, args.num_canonical_nodes, args.num_nodes,
                            args.ranks_per_node, args.workers_per_rank, args.batch_size,
                            args.sample_in_epoch)
             elapsed = time() - start
