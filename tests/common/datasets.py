@@ -62,7 +62,8 @@ class NumberAndSayDataset:
 
     Args:
         size (int): number of samples. Defaults to 100
-        column_names List[str]: A list of features' and target name. Defaults to ['number', 'words'].
+        column_names List[str]: A list of features' and target name. Defaults to ['number',
+            'words'].
         seed (int): seed value for deterministic randomness
     """
 
@@ -134,14 +135,14 @@ class NumberAndSayDataset:
 
 
 def write_mds_dataset(
-    dirname: str,
+    local: str,
     columns: Dict[str, str],
     samples: Any,
     size_limit: int,
     compression: Optional[str] = None,
     hashes: Optional[List[str]] = None,
 ) -> None:
-    with MDSWriter(dirname=dirname,
+    with MDSWriter(local=local,
                    columns=columns,
                    compression=compression,
                    hashes=hashes,

@@ -141,7 +141,7 @@ def main(args: Namespace) -> None:
     Args:
         args (Namespace): command-line arguments.
     """
-    fields = {'uid': 'bytes', 'x': 'jpeg', 'y': 'png'}
+    columns = {'uid': 'bytes', 'x': 'jpeg', 'y': 'png'}
 
     for (split, expected_num_samples, shuffle) in [
         ('train', 20206, True),
@@ -153,14 +153,17 @@ def main(args: Namespace) -> None:
             raise ValueError(f'Number of samples in a dataset doesn\'t match. Expected ' +
                              f'{expected_num_samples}, but got {len(samples)}')
 
-        split_images_out_dir = os.path.join(args.out_root, split)
+        out_dir = os.path.join(args.out_root, split)
         hashes = get_list_arg(args.hashes)
 
         if args.progbar:
             samples = tqdm(samples, leave=args.leave)
 
-        with MDSWriter(split_images_out_dir, fields, args.compression, hashes,
-                       args.size_limit) as out:
+        with MDSWriter(local=out_dir,
+                       columns=columns,
+                       compression=args.compression,
+                       hashes=hashes,
+                       size_limit=args.size_limit) as out:
             for sample in each(samples):
                 out.write(sample)
 

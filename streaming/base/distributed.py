@@ -99,8 +99,8 @@ def all_gather_object(obj: TObj) -> List[TObj]:
     if dist.is_available() and dist.is_initialized():
         obj_gather_list = [0 for _ in range(get_world_size())]
         dist.all_gather_object(obj_gather_list, obj)
-        # torch.distributed will replace the None's in obj_gather_list with the gathered objects on rank 0
-        # or will just be None on non-rank-0
+        # torch.distributed will replace the None's in obj_gather_list with the gathered objects on
+        # rank zero or will just be None on non-rank-zero.
         return cast(List[TObj], obj_gather_list)
     world_size = get_world_size()
     if world_size == 1:

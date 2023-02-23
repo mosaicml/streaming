@@ -1,7 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Converts a list of samples into a tabular data format files such as XSV, CSV, and TSV."""
+""":class:`XSVWriter` writes samples to `.xsv` files that can be read by :class:`XSVReader`."""
 
 import json
 from typing import Any, Dict, List, Optional, Tuple
@@ -18,30 +18,44 @@ class XSVWriter(SplitWriter):
     r"""Writes a streaming XSV dataset.
 
     Args:
-        dirname (str): Local dataset directory.
         columns (Dict[str, str]): Sample columns.
         separator (str): String used to separate columns.
+        newline (str): Newline character inserted between samples. Defaults to ``\\n``.
+        local: (str, optional): Optional local output dataset directory. If not provided, a random
+           temp directory will be used. If ``remote`` is provided, this is where shards are cached
+            before uploading. One or both of ``local`` and ``remote`` must be provided. Defaults to
+            ``None``.
+        remote: (str, optional): Optional remote output dataset directory. If not provided, no
+            uploading will be done. Defaults to ``None``.
+        keep_local (bool): If the dataset is uploaded, whether to keep the local dataset directory
+            or remove it after uploading. Defaults to ``False``.
         compression (str, optional): Optional compression or compression:level. Defaults to
             ``None``.
         hashes (List[str], optional): Optional list of hash algorithms to apply to shard files.
             Defaults to ``None``.
         size_limit (int, optional): Optional shard size limit, after which point to start a new
             shard. If None, puts everything in one shard. Defaults to ``None``.
-        newline (str): Newline character inserted between samples. Defaults to ``\\n``.
     """
 
     format = 'xsv'
 
     def __init__(self,
-                 dirname: str,
+                 *,
                  columns: Dict[str, str],
                  separator: str,
+                 newline: str = '\n',
+                 local: Optional[str] = None,
+                 remote: Optional[str] = None,
+                 keep_local: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,
-                 size_limit: Optional[int] = 1 << 26,
-                 newline: str = '\n') -> None:
-        super().__init__(dirname, compression, hashes, size_limit)
-
+                 size_limit: Optional[int] = 1 << 26) -> None:
+        super().__init__(local=local,
+                         remote=remote,
+                         keep_local=keep_local,
+                         compression=compression,
+                         hashes=hashes,
+                         size_limit=size_limit)
         self.columns = columns
         self.column_names = []
         self.column_encodings = []
@@ -114,29 +128,46 @@ class CSVWriter(XSVWriter):
     r"""Writes a streaming CSV dataset.
 
     Args:
-        dirname (str): Local dataset directory.
         columns (Dict[str, str]): Sample columns.
+        newline (str): Newline character inserted between samples. Defaults to ``\\n``.
+        local: (str, optional): Optional local output dataset directory. If not provided, a random
+           temp directory will be used. If ``remote`` is provided, this is where shards are cached
+            before uploading. One or both of ``local`` and ``remote`` must be provided. Defaults to
+            ``None``.
+        remote: (str, optional): Optional remote output dataset directory. If not provided, no
+            uploading will be done. Defaults to ``None``.
+        keep_local (bool): If the dataset is uploaded, whether to keep the local dataset directory
+            or remove it after uploading. Defaults to ``False``.
         compression (str, optional): Optional compression or compression:level. Defaults to
             ``None``.
         hashes (List[str], optional): Optional list of hash algorithms to apply to shard files.
             Defaults to ``None``.
         size_limit (int, optional): Optional shard size limit, after which point to start a new
             shard. If None, puts everything in one shard. Defaults to ``None``.
-        newline (str): Newline character inserted between samples. Defaults to ``\\n``.
     """
 
     format = 'csv'
     separator = ','
 
     def __init__(self,
-                 dirname: str,
+                 *,
                  columns: Dict[str, str],
+                 newline: str = '\n',
+                 local: Optional[str] = None,
+                 remote: Optional[str] = None,
+                 keep_local: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,
-                 size_limit: Optional[int] = 1 << 26,
-                 newline: str = '\n') -> None:
-        super().__init__(dirname, columns, self.separator, compression, hashes, size_limit,
-                         newline)
+                 size_limit: Optional[int] = 1 << 26) -> None:
+        super().__init__(columns=columns,
+                         separator=self.separator,
+                         newline=newline,
+                         local=local,
+                         remote=remote,
+                         keep_local=keep_local,
+                         compression=compression,
+                         hashes=hashes,
+                         size_limit=size_limit)
 
     def get_config(self) -> Dict[str, Any]:
         """Get object describing shard-writing configuration.
@@ -154,29 +185,46 @@ class TSVWriter(XSVWriter):
     r"""Writes a streaming TSV dataset.
 
     Args:
-        dirname (str): Local dataset directory.
         columns (Dict[str, str]): Sample columns.
+        newline (str): Newline character inserted between samples. Defaults to ``\\n``.
+        local: (str, optional): Optional local output dataset directory. If not provided, a random
+           temp directory will be used. If ``remote`` is provided, this is where shards are cached
+            before uploading. One or both of ``local`` and ``remote`` must be provided. Defaults to
+            ``None``.
+        remote: (str, optional): Optional remote output dataset directory. If not provided, no
+            uploading will be done. Defaults to ``None``.
+        keep_local (bool): If the dataset is uploaded, whether to keep the local dataset directory
+            or remove it after uploading. Defaults to ``False``.
         compression (str, optional): Optional compression or compression:level. Defaults to
             ``None``.
         hashes (List[str], optional): Optional list of hash algorithms to apply to shard files.
             Defaults to ``None``.
         size_limit (int, optional): Optional shard size limit, after which point to start a new
             shard. If None, puts everything in one shard. Defaults to ``None``.
-        newline (str): Newline character inserted between samples. Defaults to ``\\n``.
     """
 
     format = 'tsv'
     separator = '\t'
 
     def __init__(self,
-                 dirname: str,
+                 *,
                  columns: Dict[str, str],
+                 newline: str = '\n',
+                 local: Optional[str] = None,
+                 remote: Optional[str] = None,
+                 keep_local: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,
-                 size_limit: Optional[int] = 1 << 26,
-                 newline: str = '\n') -> None:
-        super().__init__(dirname, columns, self.separator, compression, hashes, size_limit,
-                         newline)
+                 size_limit: Optional[int] = 1 << 26) -> None:
+        super().__init__(columns=columns,
+                         separator=self.separator,
+                         newline=newline,
+                         local=local,
+                         remote=remote,
+                         keep_local=keep_local,
+                         compression=compression,
+                         hashes=hashes,
+                         size_limit=size_limit)
 
     def get_config(self) -> Dict[str, Any]:
         """Get object describing shard-writing configuration.

@@ -122,13 +122,17 @@ class StreamingDataset(IterableDataset):
         validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
-        num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with resumption.
-            Defaults to ``None``, which is interpreted as the number of nodes of the initial run.
+        num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
+            resumption. Defaults to ``None``, which is interpreted as the number of nodes of the
+            initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
+        partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py2s``.
     """
 
     def __init__(self,
+                 *,
                  local: str,
                  remote: Optional[str] = None,
                  split: Optional[str] = None,
@@ -140,7 +144,9 @@ class StreamingDataset(IterableDataset):
                  validate_hash: Optional[str] = None,
                  shuffle_seed: int = 9176,
                  num_canonical_nodes: Optional[int] = None,
-                 batch_size: Optional[int] = None):
+                 batch_size: Optional[int] = None,
+                 partition_algo: str = 'orig',
+                 shuffle_algo: str = 'py2s') -> None:
         self.local = local
         self.remote = remote
         self.split = split or ''  # Empty string for os.path.join().
@@ -150,7 +156,8 @@ class StreamingDataset(IterableDataset):
         self.download_retry = download_retry
         self.download_timeout = download_timeout
         self.validate_hash = validate_hash or None
-        self.partition_algo = 'pynum'
+        self.partition_algo = partition_algo
+        self.shuffle_algo = shuffle_algo
 
         if self.download_retry < 0:
             raise ValueError('Parameter ``download_retry`` must be non-negative')
@@ -208,8 +215,8 @@ class StreamingDataset(IterableDataset):
         prefix_int = int(seed_rng.integers(1 << 24))
         self._prefix = f'{prefix_int:06x}'
 
-        # Should be a unique shared directory per each StreamingDataset instantiation to avoid a conflict
-        # between a different StreamingDataset instance on a same machine.
+        # Should be a unique shared directory per each StreamingDataset instantiation to avoid a
+        # conflict between a different StreamingDataset instance on a same machine.
         start_time = time()
         while True:
             self._shared_dir = os.path.join(os.path.sep, 'tmp', 'streaming', self._prefix)

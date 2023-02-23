@@ -11,7 +11,7 @@ Start training your model with the Streaming dataset in a few steps!
     from streaming import MDSWriter
 
     # Directory path to store the output compressed files
-    dirname = 'dirname'
+    local = 'dirname'
 
     # A dictionary of input fields to an Encoder/Decoder type
     columns = {
@@ -37,7 +37,7 @@ Start training your model with the Streaming dataset in a few steps!
     ]
 
     # Call `MDSWriter` to iterate through the input data and write into a shard `mds` file
-    with MDSWriter(dirname, columns, compression, hashes) as out:
+    with MDSWriter(local=local, columns=columns, compression=compression, hashes=hashes) as out:
         for sample in samples:
             out.write(sample)
     ```
