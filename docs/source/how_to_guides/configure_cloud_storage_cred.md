@@ -1,10 +1,19 @@
-# Cloud provider
+# Configure Cloud Storage Credentials
 
-Streaming dataset supports the following cloud storage providers: [AWS S3](https://aws.amazon.com/s3/), [GCP Storage](https://cloud.google.com/storage), and [OCI Cloud Storage](https://www.oracle.com/cloud/storage/) to stream your data directly to your instance. For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in this [AWS S3](https://mcli.docs.mosaicml.com/en/latest/secrets/s3.html), [GCP Storage](https://mcli.docs.mosaicml.com/en/latest/secrets/gcp.html), and [OCI Cloud Storage](https://mcli.docs.mosaicml.com/en/latest/secrets/oci.html) doc on how to configure the cloud provider credentials.
+Streaming dataset supports the following cloud storage providers to stream your data directly to your instance.
+- [Amazon S3](https://aws.amazon.com/s3/)
+- [Google Cloud Storage](https://cloud.google.com/storage)
+- [Oracle Cloud Storage](https://www.oracle.com/cloud/storage/)
 
-## AWS S3
+## Amazon S3
 
-For S3 bucket with a public access, skip rest of the below steps since no credentials setup is required.
+For S3 bucket with a public access, no additional setup is required, simply specify the S3 URI of the resource.
+
+### MosaicML platform
+
+For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [Amazon S3](https://mcli.docs.mosaicml.com/en/latest/secrets/s3.html) doc on how to configure the cloud provider credentials.
+
+### Others
 
 First, make sure the `awscli` is installed, and then run `aws configure` to create the config and credential files:
 
@@ -37,26 +46,38 @@ aws_secret_access_key=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
 
 More details on these files can be found [here](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html). The streaming dataset reads the `~/.aws/config` and `~/.aws/credentials` to authenticate your credentials and stream data into your instance.
 
-## GCP
+## Google Cloud Storage
 
-Streaming dataset support [GCP user credentials](https://cloud.google.com/storage/docs/authentication#user_accounts), where you need to set your GCP user access key and GCP user access secret as environment variables for your runs. You can set these environment variables in your main python script as such.
+### MosaicML platform
 
-```python
+For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [Google Cloud Storage](https://mcli.docs.mosaicml.com/en/latest/secrets/gcp.html) doc on how to configure the cloud provider credentials.
+
+### Others
+
+Streaming dataset supports [GCP user credentials](https://cloud.google.com/storage/docs/authentication#user_accounts).  Users must set their GCP `user access key` and GCP `user access secret` in the run environment.
+
+````{tabs}
+```{code-tab} py
 import os
 os.environ['GCS_KEY'] = 'AKIAIOSFODNN7EXAMPLE'
 os.environ['GCS_SECRET'] = 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
 ```
 
-Or you can also export the environment from the shell command
-
-```bash
+```{code-tab} sh
 export GCS_KEY='AKIAIOSFODNN7EXAMPLE'
 export GCS_SECRET='wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
 ```
+````
 
 The above step will add two environment variables `GCS_KEY` and `GCS_SECRET` to your runs and the streaming dataset fetches those environment variables for authentication and stream data into your instance.
 
-## OCI
+## Oracle Cloud Storage
+
+### MosaicML platform
+
+For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [Oracle Cloud Storage](https://mcli.docs.mosaicml.com/en/latest/secrets/oci.html) doc on how to configure the cloud provider credentials.
+
+### Others
 
 To set up OCI SSH keys and SDK, please read the Oracle Cloud Infrastructure documentation [here](https://docs.oracle.com/en-us/iaas/Content/API/Concepts/devguidesetupprereq.htm).
 

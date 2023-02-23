@@ -91,6 +91,7 @@ extra_deps['docs'] = [
     'sphinxcontrib.katex==0.9.4',
     'sphinxemoji==0.2.0',
     'sphinxext.opengraph==0.8.1',
+    'sphinx-tabs>=3,<4',
 ]
 
 extra_deps['all'] = sorted(set(dep for deps in extra_deps.values() for dep in deps))
