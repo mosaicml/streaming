@@ -38,8 +38,11 @@ class StreamingImageNet(StreamingImageClassDataset):
         validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
-        num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with resumption.
-            Defaults to ``None``, which is interpreted as the number of nodes of the initial run.
+        num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
+            resumption. Defaults to ``None``, which is interpreted as the number of nodes of the
+            initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
+        partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py2s``.
     """

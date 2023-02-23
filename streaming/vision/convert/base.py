@@ -39,7 +39,7 @@ def convert_image_class_dataset(dataset: Dataset,
         encoding (str): MDS encoding to use for the image data. Defaults to ``pil``.
     """
     split = split or ''
-    fields = {
+    columns = {
         'i': 'int',
         'x': encoding,
         'y': 'int',
@@ -49,7 +49,11 @@ def convert_image_class_dataset(dataset: Dataset,
     if progbar:
         indices = tqdm(indices, leave=leave)
     split_dir = os.path.join(root, split)
-    with MDSWriter(split_dir, fields, compression, hashes, size_limit) as out:
+    with MDSWriter(local=split_dir,
+                   columns=columns,
+                   compression=compression,
+                   hashes=hashes,
+                   size_limit=size_limit) as out:
         for i in indices:
             x, y = dataset[i]
             out.write({

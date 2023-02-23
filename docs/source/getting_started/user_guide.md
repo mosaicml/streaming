@@ -60,7 +60,7 @@ There are a few parameters that need to be initialized before {class}`streaming.
 2. Provide the column field as `Dict[str, str]`, which maps a feature name or label name with a streaming supported encoding type.
     <!--pytest-codeblocks:cont-->
     ```python
-    fields = {'x': 'pkl', 'y': 'pkl'}
+    columns = {'x': 'pkl', 'y': 'pkl'}
     ```
 
 The below parameters are optional to {class}`streaming.MDSWriter`. Let's look at each one of them
@@ -109,7 +109,7 @@ It's time to call the {class}`streaming.MDSWriter` with the above initialized pa
 from streaming.base import MDSWriter
 
 dataset = RandomClassificationDataset()
-with MDSWriter(output_dir, fields, compression, hashes, limit) as out:
+with MDSWriter(local=output_dir, columns=columns, compression=compression, hashes=hashes, size_limit=limit) as out:
     for sample in each(dataset):
         out.write(sample)
 ```

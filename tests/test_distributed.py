@@ -88,7 +88,7 @@ class TestInit(DistributedTest):
         dataset = SequenceDataset(num_samples)
         columns = dict(zip(dataset.column_names, dataset.column_encodings))
         if global_rank == 0:
-            write_mds_dataset(dirname=remote,
+            write_mds_dataset(local=remote,
                               columns=columns,
                               samples=dataset,
                               size_limit=size_limit)
@@ -112,7 +112,8 @@ class TestInit(DistributedTest):
         expected_num_batches = (device_compatible_num_samples //
                                 batch_size) if drop_last else math.ceil(
                                     device_compatible_num_samples / batch_size)
-        expected_num_samples = expected_num_batches * batch_size if drop_last else device_compatible_num_samples
+        expected_num_samples = expected_num_batches * batch_size if drop_last else \
+            device_compatible_num_samples
 
         # Iterate over DataLoader
         rcvd_batches = 0

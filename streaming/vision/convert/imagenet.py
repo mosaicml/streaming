@@ -147,7 +147,11 @@ def main(args: Namespace) -> None:
         if args.progbar:
             indices = tqdm(indices, leave=args.leave)
         split_dir = os.path.join(args.out_root, split)
-        with MDSWriter(split_dir, columns, args.compression, hashes, args.size_limit) as out:
+        with MDSWriter(local=split_dir,
+                       columns=columns,
+                       compression=args.compression,
+                       hashes=hashes,
+                       size_limit=args.size_limit) as out:
             for i in indices:
                 if args.validate:
                     x = Image.open(filenames[i])

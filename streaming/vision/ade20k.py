@@ -3,8 +3,8 @@
 
 """ADE20K Semantic segmentation and scene parsing dataset.
 
-Please refer to the `ADE20K dataset <https://groups.csail.mit.edu/vision/datasets/ADE20K/>`_ for more details about this
-dataset.
+Please refer to the `ADE20K dataset <https://groups.csail.mit.edu/vision/datasets/ADE20K/>`_ for
+more details about this dataset.
 """
 
 from typing import Any, Callable, Optional, Tuple
@@ -42,13 +42,17 @@ class StreamingADE20K(StreamingDataset):
         validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
-        num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with resumption.
-            Defaults to ``None``, which is interpreted as the number of nodes of the initial run.
+        num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
+            resumption. Defaults to ``None``, which is interpreted as the number of nodes of the
+            initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
+        partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py2s``.
     """
 
     def __init__(self,
+                 *,
                  local: str,
                  remote: Optional[str] = None,
                  split: Optional[str] = None,
@@ -63,10 +67,23 @@ class StreamingADE20K(StreamingDataset):
                  validate_hash: Optional[str] = None,
                  shuffle_seed: int = 9176,
                  num_canonical_nodes: Optional[int] = None,
-                 batch_size: Optional[int] = None):
-        super().__init__(local, remote, split, shuffle, predownload, keep_zip, download_retry,
-                         download_timeout, validate_hash, shuffle_seed, num_canonical_nodes,
-                         batch_size)
+                 batch_size: Optional[int] = None,
+                 partition_algo: str = 'orig',
+                 shuffle_algo: str = 'py2s') -> None:
+        super().__init__(local=local,
+                         remote=remote,
+                         split=split,
+                         shuffle=shuffle,
+                         predownload=predownload,
+                         keep_zip=keep_zip,
+                         download_retry=download_retry,
+                         download_timeout=download_timeout,
+                         validate_hash=validate_hash,
+                         shuffle_seed=shuffle_seed,
+                         num_canonical_nodes=num_canonical_nodes,
+                         batch_size=batch_size,
+                         partition_algo=partition_algo,
+                         shuffle_algo=shuffle_algo)
         self.joint_transform = joint_transform
         self.transform = transform
         self.target_transform = target_transform

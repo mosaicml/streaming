@@ -262,13 +262,13 @@ def test_dataset_compression(compressed_remote_local: Tuple[str, str, str],
     columns = dict(zip(samples.column_names, samples.column_encodings))
     compression_ext = compression.split(':')[0] if compression else None
 
-    write_mds_dataset(dirname=compressed,
+    write_mds_dataset(local=compressed,
                       columns=columns,
                       samples=samples,
                       size_limit=size_limit,
                       compression=compression)
     samples = SequenceDataset(num_samples)
-    write_mds_dataset(dirname=remote,
+    write_mds_dataset(local=remote,
                       columns=columns,
                       samples=samples,
                       size_limit=size_limit,

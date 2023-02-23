@@ -1,7 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-""":class:`JSONReader` reads samples from binary ``.json`` files that were written out by :class:`MDSWriter`."""
+""":class:`JSONReader` reads samples from `.json` files that were written by :class:`MDSWriter`."""
 
 import json
 import os
