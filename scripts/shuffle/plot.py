@@ -33,8 +33,8 @@ def parse_args() -> Namespace:
         Namespace: Command-line arguments.
     """
     args = ArgumentParser()
-    args.add_argument('--in', type=str, required=True)
-    args.add_argument('--out', type=str, required=True)
+    args.add_argument('--in', type=str, required=True, help='Shuffle benchmarking results')
+    args.add_argument('--out', type=str, required=True, help='Shuffle benchmarking plot')
     return args.parse_args()
 
 
