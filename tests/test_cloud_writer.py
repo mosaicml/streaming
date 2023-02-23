@@ -7,7 +7,7 @@ from typing import Any, Tuple
 
 import pytest
 
-from streaming.base.storage.upload import CloudWriter, GCSWriter, LocalWriter, OCIWriter, S3Writer
+from streaming.base.storage.upload import CloudWriter, GCSWriter, LocalWriter, S3Writer
 
 
 class TestCloudWriter:
@@ -16,7 +16,6 @@ class TestCloudWriter:
         mapping = {
             's3://bucket/dir/file': S3Writer,
             'gs://bucket/dir/file': GCSWriter,
-            'oci://bucket/dir/file': OCIWriter,
             '/tmp/dir/filepath': LocalWriter,
             './relative/dir/filepath': LocalWriter,
             None: LocalWriter

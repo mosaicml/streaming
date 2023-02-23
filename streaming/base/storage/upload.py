@@ -164,7 +164,7 @@ class S3Writer(CloudWriter):
         with tqdm.tqdm(total=file_size,
                        unit='B',
                        unit_scale=True,
-                       desc=f'Uploading {filename}',
+                       desc=f'Uploading to {remote_filename}',
                        disable=(not self.progress_bar)) as pbar:
             self.s3.upload_file(
                 local_filename,
@@ -220,7 +220,7 @@ class GCSWriter(CloudWriter):
         with tqdm.tqdm(total=file_size,
                        unit='B',
                        unit_scale=True,
-                       desc=f'Uploading {filename}',
+                       desc=f'Uploading to {remote_filename}',
                        disable=(not self.progress_bar)) as pbar:
             self.gcs_client.upload_file(
                 local_filename,
@@ -278,7 +278,7 @@ class OCIWriter(CloudWriter):
         with tqdm.tqdm(total=file_size,
                        unit='B',
                        unit_scale=True,
-                       desc=f'Uploading {filename}',
+                       desc=f'Uploading to {remote_filename}',
                        disable=(not self.progress_bar)) as pbar:
             self.upload_manager.upload_file(
                 namespace_name=self.namespace,
