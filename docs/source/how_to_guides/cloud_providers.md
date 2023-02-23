@@ -1,6 +1,6 @@
 # Cloud provider
 
-Streaming dataset supports the following cloud storage providers: [AWS S3](https://aws.amazon.com/s3/), [GCP Storage](https://cloud.google.com/storage), and [OCI Cloud Storage](https://www.oracle.com/cloud/storage/) to stream your data directly to your instance. For [MCLOUD](https://www.mosaicml.com/cloud) users, follow the steps mentioned in this [AWS S3](https://mcli.docs.mosaicml.com/en/latest/secrets/s3.html), [GCP Storage](https://mcli.docs.mosaicml.com/en/latest/secrets/gcp.html), and [OCI Cloud Storage](https://mcli.docs.mosaicml.com/en/latest/secrets/oci.html) doc on how to configure the cloud provider credentials.
+Streaming dataset supports the following cloud storage providers: [AWS S3](https://aws.amazon.com/s3/), [GCP Storage](https://cloud.google.com/storage), and [OCI Cloud Storage](https://www.oracle.com/cloud/storage/) to stream your data directly to your instance. For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in this [AWS S3](https://mcli.docs.mosaicml.com/en/latest/secrets/s3.html), [GCP Storage](https://mcli.docs.mosaicml.com/en/latest/secrets/gcp.html), and [OCI Cloud Storage](https://mcli.docs.mosaicml.com/en/latest/secrets/oci.html) doc on how to configure the cloud provider credentials.
 
 ## AWS S3
 
@@ -43,8 +43,8 @@ Streaming dataset support [GCP user credentials](https://cloud.google.com/storag
 
 ```python
 import os
-os.envionment['GCS_KEY'] = 'AKIAIOSFODNN7EXAMPLE'
-os.envionment['GCS_SECRET'] = 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
+os.environ['GCS_KEY'] = 'AKIAIOSFODNN7EXAMPLE'
+os.environ['GCS_SECRET'] = 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
 ```
 
 Or you can also export the environment from the shell command
