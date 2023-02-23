@@ -24,10 +24,15 @@ def parse_args() -> Namespace:
     """
     args = ArgumentParser()
     args.add_argument(
-        '--out_root',
+        '--local',
         type=str,
         required=True,
-        help='Directory path to store the output dataset',
+        help='Local directory path to store the output MDS shard files',
+    )
+    args.add_argument(
+        '--remote',
+        type=str,
+        help='Remote directory path to upload the output MDS shard files',
     )
     args.add_argument(
         '--compression',
@@ -54,7 +59,7 @@ def parse_args() -> Namespace:
         help='DataLoader batch size. Default: 512',
     )
     args.add_argument(
-        '--progbar',
+        '--progress_bar',
         type=int,
         default=1,
         help='tqdm progress bar. Default: 1 (True)',
@@ -141,14 +146,19 @@ def main(args: Namespace) -> None:
     hashes = get_list_arg(args.hashes)
     for old_split, new_split, num_samples, num_workers in splits:
         dataset = get(old_split)
-        split_dir = os.path.join(args.out_root, new_split)
-        with MDSWriter(local=split_dir,
+        local_split_dir = os.path.join(args.local, new_split)
+        remote_split_dir = None
+        if args.remote:
+            remote_split_dir = os.path.join(args.remote, new_split)
+        with MDSWriter(local=local_split_dir,
+                       remote=remote_split_dir,
                        columns=columns,
                        compression=args.compression,
                        hashes=hashes,
-                       size_limit=args.size_limit) as out:
+                       size_limit=args.size_limit,
+                       progress_bar=args.progress_bar) as out:
             samples = each(dataset, num_workers, args.batch_size)  # pyright: ignore
-            if args.progbar:
+            if args.progress_bar:
                 samples = tqdm(samples, total=num_samples, leave=args.leave)
             for sample in samples:
                 out.write(sample)

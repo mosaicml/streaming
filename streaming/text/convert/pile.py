@@ -45,8 +45,11 @@ That will result in this directory structure:
         29.jsonl.zst
     val.jsonl.zst
 
-You then run this script specifying --in_root (the above dir), --out_root (the dir to create),
-and any other flags as appropriate.
+Install the `zstd` package and decompress the files using command `unzstd filename.jsonl.zst` or
+`zstd -d filename.jsonl.zst`
+
+You then run this script specifying --in_root (the above dir),
+--local (the dir to create an MDS shard files), and any other flags as appropriate.
 """
 
 import json
@@ -55,7 +58,7 @@ from argparse import ArgumentParser, Namespace
 from collections import Counter
 from glob import glob
 from multiprocessing import Pool
-from typing import Dict, Iterator, List, Tuple
+from typing import Dict, Iterator, List, Optional, Tuple
 
 from streaming.base import MDSWriter
 from streaming.base.util import get_list_arg
@@ -72,20 +75,25 @@ def parse_args() -> Namespace:
         '--in_root',
         type=str,
         required=True,
-        help='Directory path to store the input dataset',
+        help='Local directory path of the input raw dataset',
     )
     args.add_argument(
-        '--out_root',
+        '--local',
         type=str,
         required=True,
-        help='Directory path to store the output dataset',
+        help='Local directory path to store the output MDS shard files',
+    )
+    args.add_argument(
+        '--remote',
+        type=str,
+        help='Remote directory path to upload the output MDS shard files',
     )
     args.add_argument(
         '--compression',
         type=str,
         default='zstd:16',
         help='Compression algorithm to use. Empirically, Zstandard has the best performance in ' +
-        'our benchmarks. Tune the compresion level (from 1 to 22) to trade off time for ' +
+        'our benchmarks. Tune the compression level (from 1 to 22) to trade off time for ' +
         'quality. Default: zstd:16',
     )
     args.add_argument(
@@ -103,13 +111,16 @@ def parse_args() -> Namespace:
     return args.parse_args()
 
 
-def each_task(in_root: str, out_root: str, compression: str, hashes: List[str], size_limit: int,
-              in_files: List[str]) -> Iterator[Tuple[str, str, str, List[str], int]]:
+def each_task(
+        in_root: str, local: str, remote: Optional[str], compression: str, hashes: List[str],
+        size_limit: int,
+        in_files: List[str]) -> Iterator[Tuple[str, str, Optional[str], str, List[str], int]]:
     """Get the arg tuple corresponding to each JSONL input file to convert to streaming.
 
     Args:
         in_root (str): Root directory of input JSONL files.
-        out_root (str): Root directory of output MDS files.
+        local (str): Root directory of output MDS files.
+        remote (str, optional): Remote directory path to upload the output MDS shard files
         compression (str): Which compression algorithm to use, or empty if none.
         hashes (List[str]): Hashing algorithms to apply to shard files.
         size_limit (int): Shard size limit, after which point to start a new shard.
@@ -121,11 +132,11 @@ def each_task(in_root: str, out_root: str, compression: str, hashes: List[str], 
     for in_file in in_files:
         assert in_file.startswith(in_root)
         assert in_file.endswith('.jsonl')
-        out_dir = os.path.join(out_root, in_file[len(in_root):-len('.jsonl')])
-        yield in_file, out_dir, compression, hashes, size_limit
+        local_dir = os.path.join(local, in_file[len(in_root):-len('.jsonl')].lstrip('/'))
+        yield in_file, local_dir, remote, compression, hashes, size_limit
 
 
-def file_to_dir(args: Tuple[str, str, str, List[str], int]) -> Dict[str, int]:
+def file_to_dir(args: Tuple[str, str, Optional[str], str, List[str], int]) -> Dict[str, int]:
     """Convert a JSONL input file into a directory of MDS shards.
 
     This is the unit of work executed by the process pool.
@@ -137,7 +148,7 @@ def file_to_dir(args: Tuple[str, str, str, List[str], int]) -> Dict[str, int]:
     Returns:
         Dict[str, int]: Count of how many samples belonged to each Pile dataset subset.
     """
-    in_file, out_dir, compression, hashes, size_limit = args
+    in_file, local, remote, compression, hashes, size_limit = args
 
     columns = {
         'text': 'str',
@@ -145,11 +156,13 @@ def file_to_dir(args: Tuple[str, str, str, List[str], int]) -> Dict[str, int]:
     }
 
     counts = Counter()
-    with MDSWriter(local=out_dir,
+    with MDSWriter(local=local,
+                   remote=remote,
                    columns=columns,
                    compression=compression,
                    hashes=hashes,
-                   size_limit=size_limit) as out:
+                   size_limit=size_limit,
+                   progress_bar=True) as out:
         for line in open(in_file):
             obj = json.loads(line)
             if sorted(obj.keys()) != ['meta', 'text']:
@@ -157,7 +170,7 @@ def file_to_dir(args: Tuple[str, str, str, List[str], int]) -> Dict[str, int]:
             text = obj['text']
             meta = obj['meta']
             if sorted(meta.keys()) != ['pile_set_name']:
-                raise ValueError('Invalild sample meta fields.')
+                raise ValueError('Invalid sample meta fields.')
             pile_set_name = meta['pile_set_name']
             sample = {
                 'text': text,
@@ -241,8 +254,8 @@ def main(args: Namespace) -> None:
     in_files = trains + [val, test]
 
     # Get the arguments for each JSONL file conversion.
-    arg_tuples = each_task(args.in_root, args.out_root, args.compression, hashes, args.size_limit,
-                           in_files)
+    arg_tuples = each_task(args.in_root, args.local, args.remote, args.compression, hashes,
+                           args.size_limit, in_files)
 
     # Process each JSONL file in parallel into directories of shards.
     with Pool() as pool:
@@ -255,7 +268,7 @@ def main(args: Namespace) -> None:
             print(json.dumps(obj, sort_keys=True))
 
     # Merge shard groups.
-    train_root = os.path.join(args.out_root, 'train')
+    train_root = os.path.join(args.local, 'train')
     merge_shard_groups(train_root)
 
 

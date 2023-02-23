@@ -68,7 +68,7 @@ class TestInit(DistributedTest):
     @pytest.mark.parametrize('num_workers', [0, 1, 8])
     @pytest.mark.parametrize('num_samples', [9867])
     @pytest.mark.parametrize('size_limit', [8_192])
-    def test_dataloader_multi_device(self, remote_local: Tuple[str, str], batch_size: int,
+    def test_dataloader_multi_device(self, local_remote_dir: Tuple[str, str], batch_size: int,
                                      drop_last: bool, num_workers: int, num_samples: int,
                                      size_limit: int):
 
@@ -80,9 +80,9 @@ class TestInit(DistributedTest):
         per_rank_batch_size = batch_size // global_num_ranks
 
         # Create globally shared remote, and node-local folders
-        remote_local_list = list(remote_local)
-        dist.broadcast_object_list(remote_local_list)
-        remote, local = remote_local_list
+        local_remote_list = list(local_remote_dir)
+        dist.broadcast_object_list(local_remote_list)
+        local, remote = local_remote_list
         node_local = os.path.join(local, str(node_rank))
 
         dataset = SequenceDataset(num_samples)

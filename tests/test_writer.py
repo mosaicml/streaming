@@ -20,9 +20,9 @@ class TestMDSWriter:
 
     @pytest.mark.parametrize('num_samples', [100])
     @pytest.mark.parametrize('size_limit', [32])
-    def test_config(self, remote_local: Tuple[str, str], num_samples: int,
+    def test_config(self, local_remote_dir: Tuple[str, str], num_samples: int,
                     size_limit: int) -> None:
-        local, _ = remote_local
+        local, _ = local_remote_dir
         dataset = SequenceDataset(num_samples)
         columns = dict(zip(dataset.column_names, dataset.column_encodings))
         expected_config = {
@@ -44,9 +44,9 @@ class TestMDSWriter:
 
     @pytest.mark.parametrize('num_samples', [1000, 10000])
     @pytest.mark.parametrize('size_limit', [4096, 16_777_216])
-    def test_number_of_files(self, remote_local: Tuple[str, str], num_samples: int,
+    def test_number_of_files(self, local_remote_dir: Tuple[str, str], num_samples: int,
                              size_limit: int) -> None:
-        local, _ = remote_local
+        local, _ = local_remote_dir
         dataset = SequenceDataset(num_samples)
 
         columns = dict(zip(dataset.column_names, dataset.column_encodings))
@@ -87,12 +87,12 @@ class TestMDSWriter:
     @pytest.mark.parametrize('num_samples', [50000])
     @pytest.mark.parametrize('size_limit', [65_536])
     @pytest.mark.parametrize('seed', [1234])
-    def test_dataset_iter_determinism(self, remote_local: Tuple[str, str], num_samples: int,
+    def test_dataset_iter_determinism(self, local_remote_dir: Tuple[str, str], num_samples: int,
                                       size_limit: int, seed: int) -> None:
         compression = 'zstd:7'
         hashes = ['sha1', 'xxh3_64']
 
-        local, _ = remote_local
+        local, _ = local_remote_dir
         dataset = NumberAndSayDataset(num_samples, seed=seed)
         columns = dict(zip(dataset.column_names, dataset.column_encodings))
         with MDSWriter(local=local,
@@ -119,9 +119,9 @@ class TestJSONWriter:
 
     @pytest.mark.parametrize('num_samples', [100])
     @pytest.mark.parametrize('size_limit', [32])
-    def test_config(self, remote_local: Tuple[str, str], num_samples: int,
+    def test_config(self, local_remote_dir: Tuple[str, str], num_samples: int,
                     size_limit: int) -> None:
-        local, _ = remote_local
+        local, _ = local_remote_dir
         dataset = SequenceDataset(num_samples)
         columns = dict(zip(dataset.column_names, dataset.column_encodings))
         expected_config = {
@@ -143,12 +143,12 @@ class TestJSONWriter:
     @pytest.mark.parametrize('num_samples', [50000])
     @pytest.mark.parametrize('size_limit', [65_536])
     @pytest.mark.parametrize('seed', [1234])
-    def test_dataset_iter_determinism(self, remote_local: Tuple[str, str], num_samples: int,
+    def test_dataset_iter_determinism(self, local_remote_dir: Tuple[str, str], num_samples: int,
                                       size_limit: int, seed: int) -> None:
         compression = 'zstd:7'
         hashes = ['sha1', 'xxh3_64']
 
-        local, _ = remote_local
+        local, _ = local_remote_dir
         dataset = NumberAndSayDataset(num_samples, seed=seed)
         columns = dict(zip(dataset.column_names, dataset.column_encodings))
         with JSONWriter(local=local,
@@ -177,9 +177,9 @@ class TestXSVWriter:
     @pytest.mark.parametrize('size_limit', [32])
     @pytest.mark.parametrize(('writer', 'name'), [(XSVWriter, 'xsv'), (TSVWriter, 'tsv'),
                                                   (CSVWriter, 'csv')])
-    def test_config(self, remote_local: Tuple[str, str], num_samples: int, size_limit: int,
+    def test_config(self, local_remote_dir: Tuple[str, str], num_samples: int, size_limit: int,
                     writer: Any, name: str) -> None:
-        local, _ = remote_local
+        local, _ = local_remote_dir
         dataset = SequenceDataset(num_samples)
         columns = dict(zip(dataset.column_names, dataset.column_encodings))
         expected_config = {
@@ -213,12 +213,12 @@ class TestXSVWriter:
     @pytest.mark.parametrize('size_limit', [65_536])
     @pytest.mark.parametrize('seed', [1234])
     @pytest.mark.parametrize('writer', [XSVWriter, TSVWriter, CSVWriter])
-    def test_dataset_iter_determinism(self, remote_local: Tuple[str, str], num_samples: int,
+    def test_dataset_iter_determinism(self, local_remote_dir: Tuple[str, str], num_samples: int,
                                       size_limit: int, seed: int, writer: Any) -> None:
         compression = 'zstd:7'
         hashes = ['sha1', 'xxh3_64']
 
-        local, _ = remote_local
+        local, _ = local_remote_dir
         dataset = NumberAndSayDataset(num_samples, seed=seed)
         columns = dict(zip(dataset.column_names, dataset.column_encodings))
         if writer.__name__ == XSVWriter.__name__:

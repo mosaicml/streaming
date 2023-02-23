@@ -13,5 +13,5 @@ To make yourself a copy of C4, use `c4.py` as shown below with the minimalist ar
 # Once the script completes, you should see a dataset folder `./my-copy-c4/val` that is ~0.5GB and
 # `./my-copy-c4/train` this is ~800GB.
 
-python c4.py --out_root ./my-copy-c4
+python c4.py --local ./my-copy-c4
 ```

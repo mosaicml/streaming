@@ -26,13 +26,18 @@ def parse_args() -> Namespace:
         '--in_root',
         type=str,
         required=True,
-        help='Directory path of the input dataset',
+        help='Local directory path of the input raw dataset',
     )
     args.add_argument(
-        '--out_root',
+        '--local',
         type=str,
         required=True,
-        help='Directory path to store the output dataset',
+        help='Local directory path to store the output MDS shard files',
+    )
+    args.add_argument(
+        '--remote',
+        type=str,
+        help='Remote directory path to upload the output MDS shard files',
     )
     args.add_argument(
         '--splits',
@@ -59,7 +64,7 @@ def parse_args() -> Namespace:
         help='Shard size limit, after which point to start a new shard. Default: 1 << 22',
     )
     args.add_argument(
-        '--progbar',
+        '--progress_bar',
         type=int,
         default=1,
         help='tqdm progress bar. Default: 1 (True)',
@@ -153,17 +158,23 @@ def main(args: Namespace) -> None:
             raise ValueError(f'Number of samples in a dataset doesn\'t match. Expected ' +
                              f'{expected_num_samples}, but got {len(samples)}')
 
-        out_dir = os.path.join(args.out_root, split)
-        hashes = get_list_arg(args.hashes)
+        local_split_dir = os.path.join(args.local, split)
+        remote_split_dir = None
+        if args.remote:
+            remote_split_dir = os.path.join(args.remote, split)
 
-        if args.progbar:
+        hashes = get_list_arg(args.hashes)
+        if args.progress_bar:
             samples = tqdm(samples, leave=args.leave)
 
-        with MDSWriter(local=out_dir,
+        with MDSWriter(local=local_split_dir,
+                       remote=remote_split_dir,
                        columns=columns,
                        compression=args.compression,
                        hashes=hashes,
-                       size_limit=args.size_limit) as out:
+                       keep_local=False,
+                       size_limit=args.size_limit,
+                       progress_bar=args.progress_bar) as out:
             for sample in each(samples):
                 out.write(sample)
 

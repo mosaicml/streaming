@@ -752,6 +752,7 @@ class StreamingDataset(IterableDataset):
         """
         # Lazily create the worker barrier's FileLock, which contains a threading Lock, which is
         # unpickleable.
+
         if not hasattr(self._worker_barrier, 'lock'):
             self._worker_barrier.lock = FileLock(self._worker_barrier.filelock_path)
 

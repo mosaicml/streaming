@@ -21,9 +21,9 @@ class JSONWriter(SplitWriter):
         columns (Dict[str, str]): Sample columns.
         newline (str): Newline character inserted between samples. Defaults to ``\\n``.
         local: (str, optional): Optional local output dataset directory. If not provided, a random
-           temp directory will be used. If ``remote`` is provided, this is where shards are cached
-            before uploading. One or both of ``local`` and ``remote`` must be provided. Defaults to
-            ``None``.
+            temp directory will be used. If ``remote`` is provided, this is where shards are
+            cached before uploading. One or both of ``local`` and ``remote`` must be provided.
+            Defaults to ``None``.
         remote: (str, optional): Optional remote output dataset directory. If not provided, no
             uploading will be done. Defaults to ``None``.
         keep_local (bool): If the dataset is uploaded, whether to keep the local dataset directory
@@ -34,6 +34,7 @@ class JSONWriter(SplitWriter):
             Defaults to ``None``.
         size_limit (int, optional): Optional shard size limit, after which point to start a new
             shard. If None, puts everything in one shard. Defaults to ``None``.
+        **kwargs (Any): Additional settings for the Writer
     """
 
     format = 'json'
@@ -47,13 +48,15 @@ class JSONWriter(SplitWriter):
                  keep_local: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,
-                 size_limit: Optional[int] = 1 << 26) -> None:
+                 size_limit: Optional[int] = 1 << 26,
+                 **kwargs: Any) -> None:
         super().__init__(local=local,
                          remote=remote,
                          keep_local=keep_local,
                          compression=compression,
                          hashes=hashes,
-                         size_limit=size_limit)
+                         size_limit=size_limit,
+                         **kwargs)
         for encoding in columns.values():
             assert is_json_encoding(encoding)
 

@@ -146,6 +146,7 @@ def convert(parquet_filename: str, mds_dirname: str, hashes: List[str]) -> None:
     size_limit = None  # Put everything in one shard (1:1 mapping of parquet to MDS shards).
 
     with MDSWriter(local=mds_dirname,
+                   remote=None,
                    columns=columns,
                    compression=compression,
                    hashes=hashes,

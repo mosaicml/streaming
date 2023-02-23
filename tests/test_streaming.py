@@ -18,13 +18,13 @@ from tests.common.datasets import SequenceDataset, write_mds_dataset
 @pytest.mark.parametrize('num_workers', [0, 1, 8])
 @pytest.mark.parametrize('num_samples', [9867, 30_000])
 @pytest.mark.parametrize('size_limit', [8_192])
-@pytest.mark.usefixtures('remote_local')
-def test_dataloader_single_device(remote_local: Tuple[str, str], batch_size: int, drop_last: bool,
-                                  shuffle: bool, num_workers: int, num_samples: int,
-                                  size_limit: int):
+@pytest.mark.usefixtures('local_remote_dir')
+def test_dataloader_single_device(local_remote_dir: Tuple[str, str], batch_size: int,
+                                  drop_last: bool, shuffle: bool, num_workers: int,
+                                  num_samples: int, size_limit: int):
     dataset = SequenceDataset(num_samples)
     columns = dict(zip(dataset.column_names, dataset.column_encodings))
-    remote, local = remote_local
+    local, remote = local_remote_dir
     write_mds_dataset(local=remote, columns=columns, samples=dataset, size_limit=size_limit)
 
     # Build a StreamingDataset

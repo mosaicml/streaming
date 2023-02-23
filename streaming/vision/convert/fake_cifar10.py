@@ -33,7 +33,7 @@ def make_split(root: str, split: str, count: int) -> None:
     x = np.random.randint(0, 255, (count, 32, 32, 3), np.uint8)
     y = np.random.randint(0, 9, count)
     dataset = list(zip(map(Image.fromarray, x), y))
-    convert_image_class_dataset(dataset, root, split)  # pyright: ignore
+    convert_image_class_dataset(dataset=dataset, local=root, split=split)  # pyright: ignore
 
 
 def main(args: Namespace) -> None:
