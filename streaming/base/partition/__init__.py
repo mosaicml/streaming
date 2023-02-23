@@ -6,7 +6,7 @@
 from streaming.base.partition.orig import get_partitions_orig
 from streaming.base.partition.pynum import get_partitions_pynum
 
-_algos = {
+algos = {
     'orig': get_partitions_orig,
     'pynum': get_partitions_pynum,
 }
@@ -43,6 +43,6 @@ def get_partitions(algo: str,
         NDArray[np.int64]: Partitions of shape (physical nodes x ranks per node x workers per rank
             x batches per worker x batch size per rank).
     """
-    get = _algos[algo]
+    get = algos[algo]
     return get(dataset_size, num_canonical_nodes, num_physical_nodes, ranks_per_node,
                workers_per_rank, batch_size_per_rank, drop_first)
