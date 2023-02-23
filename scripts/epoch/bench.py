@@ -20,13 +20,30 @@ def parse_args() -> Namespace:
         Namespace: Command-line arguments.
     """
     args = ArgumentParser()
-    args.add_argument('--index', type=str, required=True)
-    args.add_argument('--batch_size', type=int, default=256)
-    args.add_argument('--sample_in_epoch', type=int, default=0)
-    args.add_argument('--num_canonical_nodes', type=int, default=1)
-    args.add_argument('--num_nodes', type=int, default=1)
-    args.add_argument('--ranks_per_node', type=int, default=8)
-    args.add_argument('--workers_per_rank', type=int, default=8)
+    args.add_argument('-i',
+                      '--index',
+                      type=str,
+                      required=True,
+                      help='Path to a streaming dataset index file')
+    args.add_argument('-s',
+                      '--shuffle_algo',
+                      type=str,
+                      default='py2s',
+                      help='Which shuffling algorithm to use (py1s, py2s)')
+    args.add_argument('-b', '--batch_size', type=int, default=256, help='Batch size per rank')
+    args.add_argument('-o', '--offset', type=int, default=0, help='Sample offset in the epoch')
+    args.add_argument('-c',
+                      '--num_canonical_nodes',
+                      type=int,
+                      default=1,
+                      help='Number of canonical nodes')
+    args.add_argument('-p',
+                      '--num_physical_nodes',
+                      type=int,
+                      default=1,
+                      help='Number of physical nodes')
+    args.add_argument('--ranks_per_node', type=int, default=8, help='Ranks per node')
+    args.add_argument('--workers_per_rank', type=int, default=8, help='Workers per rank')
     return args.parse_args()
 
 
@@ -43,14 +60,13 @@ def main(args: Namespace) -> None:
     num_samples = sum(shard_sizes)
 
     t0 = time()
-    ids = get_partitions(num_samples, args.num_canonical_nodes, args.num_nodes,
-                         args.ranks_per_node, args.workers_per_rank, args.batch_size,
-                         args.sample_in_epoch)
+    ids = get_partitions(num_samples, args.num_canonical_nodes, args.num_physical_nodes,
+                         args.ranks_per_node, args.workers_per_rank, args.batch_size, args.offset)
     t_part = time() - t0
     print(f'Partition: {t_part:.3f} sec')
 
     t0 = time()
-    mapping = get_shuffle(shard_sizes, args.num_canonical_nodes, 9176, 0)
+    mapping = get_shuffle(args.shuffle_algo, shard_sizes, args.num_canonical_nodes, 9176, 0)
     t_shuf = time() - t0
     print(f'Shuffle: {t_shuf:.3f} sec')
 
