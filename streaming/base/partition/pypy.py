@@ -6,6 +6,7 @@
 import math
 
 import numpy as np
+from numpy.typing import NDArray
 
 
 def get_partitions_pypy(dataset_size: int,
@@ -14,7 +15,7 @@ def get_partitions_pypy(dataset_size: int,
                         ranks_per_node: int,
                         workers_per_rank: int,
                         batch_size_per_rank: int = 1,
-                        drop_first: int = 0):
+                        drop_first: int = 0) -> NDArray[np.int64]:
     """Partition the given number of samples to nodes, ranks, and workers.
 
     Either canonical or physical nodes must be a multiple of the other.

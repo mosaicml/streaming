@@ -6,15 +6,17 @@
 import math
 
 import numpy as np
+from numpy.typing import NDArray
 
 
-def get_partitions_pynum(dataset_size: int,
-                         num_canonical_nodes: int,
-                         num_physical_nodes: int,
-                         ranks_per_node: int,
-                         workers_per_rank: int,
-                         batch_size_per_rank: int = 1,
-                         drop_first: int = 0):
+def _get_partitions_pynum_padded(dataset_size: int,
+                                 dataset_padding: int,
+                                 num_canonical_nodes: int,
+                                 num_physical_nodes: int,
+                                 ranks_per_node: int,
+                                 workers_per_rank: int,
+                                 batch_size_per_rank: int = 1,
+                                 drop_first: int = 0) -> NDArray[np.int64]:
     """Partition the given number of samples to nodes, ranks, and workers.
 
     Either canonical or physical nodes must be a multiple of the other.
@@ -25,6 +27,7 @@ def get_partitions_pynum(dataset_size: int,
 
     Args:
         dataset_size (int): Dataset size.
+        dataset_padding (int): How much to pad the dataset size when calculating samples per rank.
         num_canonical_nodes (int): Number of canonical nodes.
         num_physical_nodes (int): Number of physical nodes.
         ranks_per_node (int): Number of ranks per node.
@@ -43,7 +46,7 @@ def get_partitions_pynum(dataset_size: int,
 
     # Calculate samples per rank and padding.
     num_ranks = num_physical_nodes * ranks_per_node
-    samples_per_rank = math.ceil(dataset_size / num_ranks)
+    samples_per_rank = math.ceil((dataset_size + dataset_padding) / num_ranks)
     batches_per_worker = math.ceil(samples_per_rank / (workers_per_rank * batch_size_per_rank))
     padded_samples_per_rank = workers_per_rank * batches_per_worker * batch_size_per_rank
 
@@ -79,11 +82,13 @@ def get_partitions_pynum(dataset_size: int,
 
     # Reassign sample IDs that need to be present to keep samples balanced across ranks, but would
     # extend past the end of the dataset.
-    second_to_last = ids[:, :, samples_per_rank - 2]
-    last = ids[:, :, samples_per_rank - 1]
-    ids[:, :, samples_per_rank - 1] = np.where(last < dataset_size, last, second_to_last)
-    # Drop all unwanted sample IDs hallucinated past the end of each rank's partition.
     ids[:, :, samples_per_rank:] = -1
+    for node in range(num_physical_nodes):
+        for rank in range(ranks_per_node):
+            sample = samples_per_rank - 1
+            while dataset_size <= ids[node, rank, sample]:
+                sample -= 1
+            ids[node, rank, sample + 1:] = ids[node, rank, sample]
 
     # If we are mid-epoch, drop the first drop_first samples by flattening into the order that
     # samples would be seen and clipping the samples from the left.
@@ -102,3 +107,87 @@ def get_partitions_pynum(dataset_size: int,
     return ids.transpose(0, 1, 3, 2, 4)
     # Sample IDs: (physical nodes x ranks per node x workers per rank x batches per worker x batch size
     # per rank).
+
+
+def _are_partitions_valid(dataset_size: int, ids: NDArray[np.int64]) -> bool:
+    """Check whether the generated partitioning of sample IDs is valid (contains every ID).
+
+    Args:
+        dataset_size (int): Dataset size.
+        ids (NDArray[np.int64]): Sample ID partitioning result.
+
+    Returns:
+        bool: Whether the partitioning is valid.
+    """
+    counts = np.zeros(dataset_size, np.uint8)
+    counts[ids] = 1
+    return bool(counts.min())
+
+
+def get_dataset_padding_brute(dataset_size: int,
+                              num_canonical_nodes: int,
+                              num_physical_nodes: int,
+                              ranks_per_node: int,
+                              workers_per_rank: int,
+                              batch_size_per_rank: int = 1,
+                              drop_first: int = 0) -> int:
+    """Determine the dataset padding by brute-force iterating.
+
+    Args:
+        dataset_size (int): Dataset size.
+        num_canonical_nodes (int): Number of canonical nodes.
+        num_physical_nodes (int): Number of physical nodes.
+        ranks_per_node (int): Number of ranks per node.
+        workers_per_rank (int): Number of data loader worker per rank.
+        batch_size_per_rank (int): Batch size of its DataLoader, which affects how the dataset is
+            partitioned over the workers. Defaults to ``1``.
+        drop_first (int): Number of samples seen already, which are dropped. Defaults to ``0``.
+
+    Returns:
+        int: Dataset padding.
+    """
+    dataset_padding = 0
+    while True:
+        ids = _get_partitions_pynum_padded(dataset_size, dataset_padding, num_canonical_nodes,
+                                           num_physical_nodes, ranks_per_node, workers_per_rank,
+                                           batch_size_per_rank, drop_first)
+        if _are_partitions_valid(dataset_size, ids):
+            return dataset_padding
+        dataset_padding += 1
+
+
+def get_partitions_pynum(dataset_size: int,
+                         num_canonical_nodes: int,
+                         num_physical_nodes: int,
+                         ranks_per_node: int,
+                         workers_per_rank: int,
+                         batch_size_per_rank: int = 1,
+                         drop_first: int = 0) -> NDArray[np.int64]:
+    """Partition the given number of samples to nodes, ranks, and workers.
+
+    Either canonical or physical nodes must be a multiple of the other.
+
+    It is suggested to set num_canonical_nodes higher than your expected number of physical nodes,
+    beecause scaling your number of nodes bellow that level may result in shards being used across
+    node boundaries in order to preserve the same global sample order.
+
+    Args:
+        dataset_size (int): Dataset size.
+        num_canonical_nodes (int): Number of canonical nodes.
+        num_physical_nodes (int): Number of physical nodes.
+        ranks_per_node (int): Number of ranks per node.
+        workers_per_rank (int): Number of data loader worker per rank.
+        batch_size_per_rank (int): Batch size of its DataLoader, which affects how the dataset is
+            partitioned over the workers. Defaults to ``1``.
+        drop_first (int): Number of samples seen already, which are dropped. Defaults to ``0``.
+
+    Returns:
+        NDArray[np.int64]: Partitions of shape (physical nodes x ranks per node x workers per rank
+            x batches per worker x batch size per rank).
+    """
+    dataset_padding = get_dataset_padding_brute(dataset_size, num_canonical_nodes,
+                                                num_physical_nodes, ranks_per_node,
+                                                workers_per_rank, batch_size_per_rank, drop_first)
+    return _get_partitions_pynum_padded(dataset_size, dataset_padding, num_canonical_nodes,
+                                        num_physical_nodes, ranks_per_node, workers_per_rank,
+                                        batch_size_per_rank, drop_first)
