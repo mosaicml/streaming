@@ -55,6 +55,13 @@ If you have any questions, please feel free to reach out to us on [Twitter](htt
 .. toctree::
    :hidden:
    :maxdepth: 1
+   :caption: How-to Guides
+
+   how_to_guides/configure_cloud_storage_cred.md
+
+.. toctree::
+   :hidden:
+   :maxdepth: 1
    :caption: Examples
 
    examples/cifar10.ipynb

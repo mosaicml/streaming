@@ -90,6 +90,7 @@ extensions = [
     'sphinx_panels',
     'sphinxcontrib.images',
     'nbsphinx',
+    'sphinx_tabs.tabs',
 ]
 
 
