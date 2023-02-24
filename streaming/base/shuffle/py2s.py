@@ -1,7 +1,10 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Slice, shuffle, and dice epochs of samples across worker partitions."""
+"""Shuffling algorithm that shuffles intra-shard in two places.
+
+This algorithm is roughly half as fast as algorithm ``py1s``, but ever so slightly more random.
+"""
 
 from typing import List
 
@@ -101,8 +104,8 @@ def _partition(shards: List[_Shard], num_parts: int) -> List[List[_Shard]]:
     return lists
 
 
-def get_shuffle(shard_sizes: NDArray[np.int64], num_canonical_nodes: int, seed: int,
-                epoch: int) -> NDArray[np.int64]:
+def get_shuffle_py2s(shard_sizes: NDArray[np.int64], num_canonical_nodes: int, seed: int,
+                     epoch: int) -> NDArray[np.int64]:
     """Get the shuffled global ordering of samples for an epoch.
 
     The assignment of shards to nodes is fixed across epochs, but each grouping of shards is

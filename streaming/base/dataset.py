@@ -411,8 +411,8 @@ class StreamingDataset(IterableDataset):
                                         world.ranks_per_node, world.workers_per_rank,
                                         int(self.batch_size or 1), sample_in_epoch)
             if self.shuffle:
-                mapping = get_shuffle(self.shard_sizes, self.num_canonical_nodes,
-                                      self.shuffle_seed, epoch)
+                mapping = get_shuffle(self.shuffle_algo, self.shard_sizes,
+                                      self.num_canonical_nodes, self.shuffle_seed, epoch)
                 sample_ids = np.where(sample_ids == -1, -1, mapping[sample_ids])
             sample_ids.tofile(tmp_filename)
             os.rename(tmp_filename, filename)
