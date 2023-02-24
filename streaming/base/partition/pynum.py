@@ -132,7 +132,9 @@ def get_dataset_padding_brute(dataset_size: int,
                               ranks_per_node: int,
                               workers_per_rank: int,
                               batch_size_per_rank: int = 1) -> int:
-    """Determine the dataset padding by brute-force iterating.
+    """Determine the dataset padding empiricially.
+
+    This method is not recommended for datasets of any size.
 
     Args:
         dataset_size (int): Dataset size.
