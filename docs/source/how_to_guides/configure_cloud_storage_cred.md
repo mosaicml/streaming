@@ -22,7 +22,9 @@ python -m pip install awscli
 aws configure
 ```
 
-Note: the requested credentials can be retrieved through your [AWS console](https://aws.amazon.com/console/), typically under “Command line or programmatic access”.
+```{note}
+The requested credentials can be retrieved through your [AWS console](https://aws.amazon.com/console/), typically under “Command line or programmatic access”.
+```
 
 Your config and credentials files should follow the standard structure output by `aws configure`:
 
