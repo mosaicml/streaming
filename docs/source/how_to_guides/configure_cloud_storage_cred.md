@@ -1,17 +1,17 @@
 # Configure Cloud Storage Credentials
 
 Streaming dataset supports the following cloud storage providers to stream your data directly to your instance.
-- [Amazon S3](https://aws.amazon.com/s3/)
-- [Google Cloud Storage](https://cloud.google.com/storage)
-- [Oracle Cloud Storage](https://www.oracle.com/cloud/storage/)
+- Amazon S3
+- Google Cloud Storage
+- Oracle Cloud Storage
 
 ## Amazon S3
 
-For S3 bucket with a public access, no additional setup is required, simply specify the S3 URI of the resource.
+For an S3 bucket with public access, no additional setup is required, simply specify the S3 URI of the resource.
 
 ### MosaicML platform
 
-For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [Amazon S3](https://mcli.docs.mosaicml.com/en/latest/secrets/s3.html) doc on how to configure the cloud provider credentials.
+For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [AWS S3](https://mcli.docs.mosaicml.com/en/latest/secrets/s3.html) MCLI doc on how to configure the cloud provider credentials.
 
 ### Others
 
@@ -50,7 +50,7 @@ More details on these files can be found [here](https://docs.aws.amazon.com/cli/
 
 ### MosaicML platform
 
-For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [Google Cloud Storage](https://mcli.docs.mosaicml.com/en/latest/secrets/gcp.html) doc on how to configure the cloud provider credentials.
+For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [Google Cloud Storage](https://mcli.docs.mosaicml.com/en/latest/secrets/gcp.html) MCLI doc on how to configure the cloud provider credentials.
 
 ### Others
 
@@ -75,7 +75,7 @@ The above step will add two environment variables `GCS_KEY` and `GCS_SECRET` to 
 
 ### MosaicML platform
 
-For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [Oracle Cloud Storage](https://mcli.docs.mosaicml.com/en/latest/secrets/oci.html) doc on how to configure the cloud provider credentials.
+For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [Oracle Cloud Storage](https://mcli.docs.mosaicml.com/en/latest/secrets/oci.html) MCLI doc on how to configure the cloud provider credentials.
 
 ### Others
 
