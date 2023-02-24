@@ -82,13 +82,11 @@ def _get_partitions_pynum_padded(dataset_size: int,
 
     # Reassign sample IDs that need to be present to keep samples balanced across ranks, but would
     # extend past the end of the dataset.
+    second_to_last = ids[:, :, samples_per_rank - 2]
+    last = ids[:, :, samples_per_rank - 1]
+    ids[:, :, samples_per_rank - 1] = np.where(last < dataset_size, last, second_to_last)
+    # Drop all unwanted sample IDs hallucinated past the end of each rank's partition.
     ids[:, :, samples_per_rank:] = -1
-    for node in range(num_physical_nodes):
-        for rank in range(ranks_per_node):
-            sample = samples_per_rank - 1
-            while dataset_size <= ids[node, rank, sample]:
-                sample -= 1
-            ids[node, rank, sample + 1:] = ids[node, rank, sample]
 
     # If we are mid-epoch, drop the first drop_first samples by flattening into the order that
     # samples would be seen and clipping the samples from the left.
@@ -185,9 +183,10 @@ def get_partitions_pynum(dataset_size: int,
         NDArray[np.int64]: Partitions of shape (physical nodes x ranks per node x workers per rank
             x batches per worker x batch size per rank).
     """
-    dataset_padding = get_dataset_padding_brute(dataset_size, num_canonical_nodes,
-                                                num_physical_nodes, ranks_per_node,
-                                                workers_per_rank, batch_size_per_rank, drop_first)
+    # dataset_padding = get_dataset_padding_brute(dataset_size, num_canonical_nodes,
+    #                                             num_physical_nodes, ranks_per_node,
+    #                                             workers_per_rank, batch_size_per_rank, drop_first)
+    dataset_padding = 0
     return _get_partitions_pynum_padded(dataset_size, dataset_padding, num_canonical_nodes,
                                         num_physical_nodes, ranks_per_node, workers_per_rank,
                                         batch_size_per_rank, drop_first)
