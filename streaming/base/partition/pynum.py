@@ -46,6 +46,7 @@ def _get_partitions_pynum_padded(dataset_size: int,
 
     # Calculate samples per rank and padding.
     num_ranks = num_physical_nodes * ranks_per_node
+    unpadded_samples_per_rank = math.floor(dataset_size / num_ranks)
     samples_per_rank = math.ceil((dataset_size + dataset_padding) / num_ranks)
     batches_per_worker = math.ceil(samples_per_rank / (workers_per_rank * batch_size_per_rank))
     padded_samples_per_rank = workers_per_rank * batches_per_worker * batch_size_per_rank
@@ -86,7 +87,10 @@ def _get_partitions_pynum_padded(dataset_size: int,
     # Of those sample IDs that remain (which need to be present to keep samples balanced across
     # ranks), reassign the ones that extend past the end of the dataset to the last sample (as we
     # were probably on the last shard, in order to avoid an extra shard download).
-    ids = np.where(ids < dataset_size, ids, dataset_size - 1)
+    start = unpadded_samples_per_rank
+    stop = samples_per_rank
+    ids[:, :, start:stop] = np.where(ids[:, :, start:stop] < dataset_size, ids[:, :, start:stop],
+                                     dataset_size - 1)
 
     # If we are mid-epoch, drop the first drop_first samples by flattening into the order that
     # samples would be seen and clipping the samples from the left.
@@ -146,7 +150,7 @@ def get_dataset_padding_brute(dataset_size: int,
     while True:
         ids = _get_partitions_pynum_padded(dataset_size, dataset_padding, num_canonical_nodes,
                                            num_physical_nodes, ranks_per_node, workers_per_rank,
-                                           batch_size_per_rank, drop_first)
+                                           batch_size_per_rank)
         if _are_partitions_valid(dataset_size, ids):
             return dataset_padding
         dataset_padding += 1
