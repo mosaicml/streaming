@@ -117,9 +117,9 @@ def _are_partitions_valid(dataset_size: int, ids: NDArray[np.int64]) -> bool:
     Returns:
         bool: Whether the partitioning is valid.
     """
-    counts = np.zeros(dataset_size, np.uint8)
-    counts[ids] = 1
-    return bool(counts.min())
+    seen = np.zeros(dataset_size, np.uint8)
+    seen[ids] = 1
+    return bool(min(seen))
 
 
 def get_dataset_padding_brute(dataset_size: int,
@@ -127,8 +127,7 @@ def get_dataset_padding_brute(dataset_size: int,
                               num_physical_nodes: int,
                               ranks_per_node: int,
                               workers_per_rank: int,
-                              batch_size_per_rank: int = 1,
-                              drop_first: int = 0) -> int:
+                              batch_size_per_rank: int = 1) -> int:
     """Determine the dataset padding by brute-force iterating.
 
     Args:
@@ -139,7 +138,6 @@ def get_dataset_padding_brute(dataset_size: int,
         workers_per_rank (int): Number of data loader worker per rank.
         batch_size_per_rank (int): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``1``.
-        drop_first (int): Number of samples seen already, which are dropped. Defaults to ``0``.
 
     Returns:
         int: Dataset padding.
@@ -183,10 +181,9 @@ def get_partitions_pynum(dataset_size: int,
         NDArray[np.int64]: Partitions of shape (physical nodes x ranks per node x workers per rank
             x batches per worker x batch size per rank).
     """
-    # dataset_padding = get_dataset_padding_brute(dataset_size, num_canonical_nodes,
-    #                                             num_physical_nodes, ranks_per_node,
-    #                                             workers_per_rank, batch_size_per_rank, drop_first)
-    dataset_padding = 0
+    dataset_padding = get_dataset_padding_brute(dataset_size, num_canonical_nodes,
+                                                num_physical_nodes, ranks_per_node,
+                                                workers_per_rank, batch_size_per_rank)
     return _get_partitions_pynum_padded(dataset_size, dataset_padding, num_canonical_nodes,
                                         num_physical_nodes, ranks_per_node, workers_per_rank,
                                         batch_size_per_rank, drop_first)
