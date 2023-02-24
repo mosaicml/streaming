@@ -50,7 +50,7 @@
 
 We built StreamingDataset to make training on large datasets from cloud storage as fast, cheap, and scalable as possible.
 
-It’s specially designed for multi-node, distributed training for large models—maximizing correctness guarantees, performance, and ease of use. Now, you can efficiently train anywhere, independent of your training data location. Just stream in the data you need, when you need it. To learn more about why we built StreamingDataset, read our [announcement blog.](https://www.notion.so/f8b1634eb0de470db25fda47f83a0884)
+It’s specially designed for multi-node, distributed training for large models—maximizing correctness guarantees, performance, and ease of use. Now, you can efficiently train anywhere, independent of your training data location. Just stream in the data you need, when you need it. To learn more about why we built StreamingDataset, read our [announcement blog.](https://www.mosaicml.com/blog/mosaicml-streamingdataset)
 
 StreamingDataset is compatible with any data type, including **images, text, video, and multimodal data**.
 
