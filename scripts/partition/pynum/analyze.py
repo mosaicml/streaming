@@ -21,43 +21,61 @@ def parse_args() -> Namespace:
     return args.parse_args()
 
 
-def is_pattern(s: str, t: str) -> bool:
+def is_pattern(text: str, pattern: str) -> bool:
     """Tell whether the given text can be explained by the pattern."""
-    n = len(s) // len(t) + 1
-    s2 = ''.join([t] * n)[:len(s)]
-    return s == s2
+    num_repeats = len(text) // len(pattern) + 1
+    text2 = ''.join([pattern] * num_repeats)[:len(text)]
+    return text == text2
 
 
-def get_pattern(s: str) -> Optional[str]:
-    """Find the shortest pattern in the given text."""
-    for i in range(1, len(s) // 2):
-        t = s[:i]
-        if is_pattern(s, t):
-            return t
+def get_pattern(text: str) -> Optional[str]:
+    """Find the shortest pattern in the given text.
+
+    Args:
+        text (str): Full text.
+
+    Returns:
+        Optional[str]: Pattern, if one is found.
+    """
+    for pattern_len in range(1, len(text) // 2):
+        pattern = text[:pattern_len]
+        if is_pattern(text, pattern):
+            return pattern
 
 
-def normalize_pattern(t: str) -> str:
-    """Rotate the pattern to the canonical position."""
-    tt = []
-    for i in range(len(t)):
-        t2 = t[i:] + t[:i]
-        tt.append(t2)
-    tt.sort()
-    return tt[-1]
+def normalize_pattern(pattern: str) -> str:
+    """Rotate the pattern to the canonical position.
+
+    Args:
+        pattern (str): Input pattern.
+
+    Returns:
+        str: Pattern in canonical form.
+    """
+    patterns = []
+    for i in range(len(pattern)):
+        pattern2 = pattern[i:] + pattern[:i]
+        patterns.append(pattern2)
+    patterns.sort()
+    return patterns[-1]
 
 
-def analyze(x: NDArray[np.int64]) -> None:
-    """Search for a pattern to explain the given sequence."""
-    # if not any(x):
-    #     return
+def analyze(seq: NDArray[np.int64]) -> None:
+    """Search for a pattern to explain the given sequence.
 
-    s = ''.join(map(chr, x))
-    t = get_pattern(s)
-    if t:
-        t = normalize_pattern(t)
-        t = ''.join(map(lambda c: chr(ord(c) + ord('a')), t))
-    xs = ''.join(map(lambda n: chr(n + ord('a')), x))
-    print(f'        {xs[:40]} -> {t}')
+    Args:
+        seq (NDArray[np.int64]): Sequence to analyze.
+    """
+    if not any(seq):
+        return
+
+    text = ''.join(map(chr, seq))
+    pattern = get_pattern(text) or ''
+    if pattern:
+        pattern = normalize_pattern(pattern)
+    human_pattern = ''.join(map(lambda c: chr(ord(c) + ord('a')), pattern))
+    human_text = ''.join(map(lambda n: chr(n + ord('a')), seq))
+    print(f'        {human_text[:40]} -> {human_pattern}')
 
 
 def main(args: Namespace) -> None:
@@ -79,10 +97,10 @@ def main(args: Namespace) -> None:
             elif p < c:
                 if c % p:
                     continue
-            print(f'    p {p}')
+            print(f'    c {c}, p {p}')
             for ri in range(num_r):
-                for wi in [0]:  # range(num_w):
-                    for bi in [0]:  # range(num_b):
+                for wi in range(num_w):
+                    for bi in range(num_b):
                         analyze(data[ci, pi, ri, wi, bi])
             print()
 
