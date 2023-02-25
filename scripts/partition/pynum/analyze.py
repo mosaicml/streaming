@@ -84,8 +84,9 @@ def main(args: Namespace) -> None:
     Args:
         args (Namespace): Command-line arguments.
     """
-    data = np.load(getattr(args, 'in'), allow_pickle=True)
-    num_c, num_p, num_r, num_w, num_b, _ = data.shape
+    x = np.load(getattr(args, 'in'), allow_pickle=True)
+    num_c, num_p, num_r, num_w, num_b, _ = x.shape
+
     for ci in range(num_c):
         c = 1 + ci
         print(f'c {c}')
@@ -101,8 +102,23 @@ def main(args: Namespace) -> None:
             for ri in range(num_r):
                 for wi in range(num_w):
                     for bi in range(num_b):
-                        analyze(data[ci, pi, ri, wi, bi])
+                        analyze(x[ci, pi, ri, wi, bi])
             print()
+
+    xc = x.reshape(num_c, -1).max(1)
+    print('Max over canonical nodes:', xc)
+
+    xp = x.transpose(1, 0, 2, 3, 4, 5).reshape(num_p, -1).max(1)
+    print('Max over physical nodes:', xp)
+
+    xr = x.transpose(2, 0, 1, 3, 4, 5).reshape(num_r, -1).max(1)
+    print('Max over ranks per node:', xr)
+
+    xw = x.transpose(3, 0, 1, 2, 4, 5).reshape(num_w, -1).max(1)
+    print('Max over workers per node:', xw)
+
+    xb = x.transpose(4, 0, 1, 2, 3, 5).reshape(num_b, -1).max(1)
+    print('Max over batch size per rank:', xb)
 
 
 if __name__ == '__main__':
