@@ -19,8 +19,8 @@ FLAGS = flags.FLAGS
 flags.DEFINE_string("input_file", None,
                     "Input raw text file (or comma-separated list of files).")
 
-flags.DEFINE_string("local", None, "Local directory path to store the output MDS shard files")
-flags.DEFINE_string("remote", None, "Remote directory path to upload the output MDS shard files")
+flags.DEFINE_string("output_local", None, "Local directory path to store the output MDS shard files")
+flags.DEFINE_string("output_remote", None, "Remote directory path to upload the output MDS shard files")
 
 flags.DEFINE_string("compression", "zstd:7",
                     "Optional compression algorithm and compression level.")
@@ -99,7 +99,7 @@ def pack_f32(obj):
 
 
 def write_instance_to_example_files(instances, tokenizer, max_seq_length,
-                                    max_predictions_per_seq, local, remote,
+                                    max_predictions_per_seq, output_local, output_remote,
                                     compression, hashes, size_limit):
   """Create MDS example files from `TrainingInstance`s."""
   total_written = 0
@@ -114,7 +114,7 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length,
     'next_sentence_labels': 'bytes',
   }
 
-  writer = MDSWriter(local, remote, columns, compression, hashes, size_limit)
+  writer = MDSWriter(output_local, output_remote, columns, compression, hashes, size_limit)
 
   for (inst_index, instance) in enumerate(instances):
     input_ids = tokenizer.convert_tokens_to_ids(instance.tokens)
@@ -438,17 +438,17 @@ def main(_):
       FLAGS.short_seq_prob, FLAGS.masked_lm_prob, FLAGS.max_predictions_per_seq,
       rng)
 
-  tf.logging.info("*** Writing to output directory: %s ***", FLAGS.local)
+  tf.logging.info("*** Writing to output directory: %s ***", FLAGS.output_local)
 
   hashes = FLAGS.hashes.split(',') if FLAGS.hashes else []
   write_instance_to_example_files(instances, tokenizer, FLAGS.max_seq_length,
                                   FLAGS.max_predictions_per_seq,
-                                  FLAGS.local, FLAGS.remote, FLAGS.compression, hashes,
+                                  FLAGS.output_local, FLAGS.output_remote, FLAGS.compression, hashes,
                                   FLAGS.size_limit)
 
 
 if __name__ == "__main__":
   flags.mark_flag_as_required("input_file")
-  flags.mark_flag_as_required("local")
+  flags.mark_flag_as_required("output_local")
   flags.mark_flag_as_required("vocab_file")
   tf.app.run()

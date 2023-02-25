@@ -40,11 +40,11 @@ class CloudWriter:
                 provider. Defaults to ``False``.
 
         Raises:
-            ValueError: Either local and/or remote path(s) must be provided
-            KeyError: Invalid Cloud provider prefix
+            ValueError: Either local and/or remote path(s) must be provided.
+            KeyError: Invalid Cloud provider prefix.
 
         Returns:
-            _type_: _description_
+            CloudWriter: An instance of sub-class.
         """
         if not local and not remote:
             raise ValueError('You must provide local and/or remote path(s).')
@@ -83,8 +83,8 @@ class CloudWriter:
                 provider. Defaults to ``False``.
 
         Raises:
-            ValueError: Either local and/or remote path(s) must be provided
-            FileExistsError: Local directory must be empty
+            ValueError: Either local and/or remote path(s) must be provided.
+            FileExistsError: Local directory must be empty.
         """
         self.keep_local = keep_local
         self.progress_bar = progress_bar
@@ -105,10 +105,10 @@ class CloudWriter:
         """Upload file from local instance to remote instance.
 
         Args:
-            filename (str): File to upload
+            filename (str): File to upload.
 
         Raises:
-            NotImplementedError: Override this method in your sub-class
+            NotImplementedError: Override this method in your sub-class.
         """
         raise NotImplementedError('Override this method in your sub-class')
 
@@ -116,7 +116,7 @@ class CloudWriter:
         """Remove the local file if it is enabled.
 
         Args:
-            local (str): A local file path
+            local (str): A local file path.
         """
         if not self.keep_local and os.path.isfile(local):
             os.remove(local)
@@ -154,7 +154,7 @@ class S3Writer(CloudWriter):
         """Upload file from local instance to AWS S3 bucket.
 
         Args:
-            filename (str): File to upload
+            filename (str): File to upload.
         """
         local_filename = os.path.join(self.local, filename)
         remote_filename = os.path.join(self.remote, filename)  # pyright: ignore
@@ -210,7 +210,7 @@ class GCSWriter(CloudWriter):
         """Upload file from local instance to Google Cloud Storage bucket.
 
         Args:
-            filename (str): File to upload
+            filename (str): File to upload.
         """
         local_filename = os.path.join(self.local, filename)
         remote_filename = os.path.join(self.remote, filename)  # pyright: ignore
@@ -265,7 +265,7 @@ class OCIWriter(CloudWriter):
         """Upload file from local instance to OCI Cloud Storage bucket.
 
         Args:
-            filename (str): File to upload
+            filename (str): File to upload.
         """
         local_filename = os.path.join(self.local, filename)
         remote_filename = os.path.join(self.remote, filename)  # pyright: ignore
@@ -320,7 +320,7 @@ class LocalWriter(CloudWriter):
         """Copy file from one local path to another local path.
 
         Args:
-            filename (str): File to copy
+            filename (str): Relative filepath to copy.
         """
         if self.remote:
             local_filename = os.path.join(self.local, filename)

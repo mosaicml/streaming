@@ -34,7 +34,7 @@ class JSONWriter(SplitWriter):
             Defaults to ``None``.
         size_limit (int, optional): Optional shard size limit, after which point to start a new
             shard. If None, puts everything in one shard. Defaults to ``None``.
-        **kwargs (Any): Additional settings for the Writer
+        **kwargs (Any): Additional settings for the Writer.
     """
 
     format = 'json'

@@ -46,7 +46,7 @@ class Writer(ABC):
             while writing). Defaults to ``0``.
         extra_bytes_per_sample (int): Extra bytes per serialized sample (for computing shard size
             while writing). Defaults to ``0``.
-        **kwargs (Any): Additional settings for the Writer
+        **kwargs (Any): Additional settings for the Writer.
     """
 
     format: str = ''  # Name of the format (like "mds", "csv", "json", etc).
@@ -288,7 +288,7 @@ class JointWriter(Writer):
             while writing). Defaults to ``0``.
         extra_bytes_per_sample (int): Extra bytes per serialized sample (for computing shard size
             while writing). Defaults to ``0``.
-        **kwargs (Any): Additional settings for the Writer
+        **kwargs (Any): Additional settings for the Writer.
     """
 
     def __init__(self,
@@ -357,7 +357,7 @@ class SplitWriter(Writer):
             Defaults to ``None``.
         size_limit (int, optional): Optional shard size limit, after which point to start a new
             shard. If None, puts everything in one shard. Defaults to ``1 << 26``.
-        **kwargs (Any): Additional settings for the Writer
+        **kwargs (Any): Additional settings for the Writer.
     """
 
     extra_bytes_per_shard = 0
