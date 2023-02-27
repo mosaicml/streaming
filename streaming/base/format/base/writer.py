@@ -28,13 +28,13 @@ class Writer(ABC):
     """Writes a streaming dataset.
 
     Args:
-        out (str | List[str]): Output dataset directory to save shard files.
+        out (str | Tuple[str, str]): Output dataset directory to save shard files.
             1. If `out` is a local directory, shard files are saved locally.
             2. If `out` is a remote directory, a random local temporary directory is created to
-               cached the shard files and then the shard files are uploaded to a remote location.
-               At the end, a temp directory is deleted once shards are uploaded.
-            3. If `out` is a list of `(local_dir, remote_dir)`, shard files are saved in the
-               `local_dir` and also uploaded to a remote location.
+                cached the shard files and then the shard files are uploaded to a remote
+                location. At the end, a temp directory is deleted once shards are uploaded.
+            3. If `out` is a tuple of `(local_dir, remote_dir)`, shard files are saved in the
+                `local_dir` and also uploaded to a remote location.
         keep_local (bool): If the dataset is uploaded, whether to keep the local dataset directory
             or remove it after uploading. Defaults to ``False``.
         compression (str, optional): Optional compression or compression:level. Defaults to
@@ -54,7 +54,7 @@ class Writer(ABC):
 
     def __init__(self,
                  *,
-                 out: Union[str, List[str]],
+                 out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,
@@ -269,13 +269,13 @@ class JointWriter(Writer):
     """Writes a streaming dataset with joint shards.
 
     Args:
-        out (str | List[str]): Output dataset directory to save shard files.
+        out (str | Tuple[str, str]): Output dataset directory to save shard files.
             1. If `out` is a local directory, shard files are saved locally.
             2. If `out` is a remote directory, a random local temporary directory is created to
-               cached the shard files and then the shard files are uploaded to a remote location.
-               At the end, a temp directory is deleted once shards are uploaded.
-            3. If `out` is a list of `(local_dir, remote_dir)`, shard files are saved in the
-               `local_dir` and also uploaded to a remote location.
+                cached the shard files and then the shard files are uploaded to a remote
+                location. At the end, a temp directory is deleted once shards are uploaded.
+            3. If `out` is a tuple of `(local_dir, remote_dir)`, shard files are saved in the
+                `local_dir` and also uploaded to a remote location.
         keep_local (bool): If the dataset is uploaded, whether to keep the local dataset directory
             or remove it after uploading. Defaults to ``False``.
         compression (str, optional): Optional compression or compression:level. Defaults to
@@ -293,7 +293,7 @@ class JointWriter(Writer):
 
     def __init__(self,
                  *,
-                 out: Union[str, List[str]],
+                 out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,
@@ -341,13 +341,13 @@ class SplitWriter(Writer):
     Split shards refer to raw data (csv, json, etc.) paired with an index into it.
 
     Args:
-        out (str | List[str]): Output dataset directory to save shard files.
+        out (str | Tuple[str, str]): Output dataset directory to save shard files.
             1. If `out` is a local directory, shard files are saved locally.
             2. If `out` is a remote directory, a random local temporary directory is created to
-               cached the shard files and then the shard files are uploaded to a remote location.
-               At the end, a temp directory is deleted once shards are uploaded.
-            3. If `out` is a list of `(local_dir, remote_dir)`, shard files are saved in the
-               `local_dir` and also uploaded to a remote location.
+                cached the shard files and then the shard files are uploaded to a remote
+                location. At the end, a temp directory is deleted once shards are uploaded.
+            3. If `out` is a tuple of `(local_dir, remote_dir)`, shard files are saved in the
+                `local_dir` and also uploaded to a remote location.
         keep_local (bool): If the dataset is uploaded, whether to keep the local dataset directory
             or remove it after uploading. Defaults to ``False``.
         compression (str, optional): Optional compression or compression:level. Defaults to
@@ -364,7 +364,7 @@ class SplitWriter(Writer):
 
     def __init__(self,
                  *,
-                 out: Union[str, List[str]],
+                 out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,

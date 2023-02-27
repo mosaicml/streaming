@@ -21,13 +21,13 @@ class XSVWriter(SplitWriter):
         columns (Dict[str, str]): Sample columns.
         separator (str): String used to separate columns.
         newline (str): Newline character inserted between samples. Defaults to ``\\n``.
-        out (str | List[str]): Output dataset directory to save shard files.
+        out (str | Tuple[str, str]): Output dataset directory to save shard files.
             1. If `out` is a local directory, shard files are saved locally.
             2. If `out` is a remote directory, a random local temporary directory is created to
-               cached the shard files and then the shard files are uploaded to a remote location.
-               At the end, a temp directory is deleted once shards are uploaded.
-            3. If `out` is a list of `(local_dir, remote_dir)`, shard files are saved in the
-               `local_dir` and also uploaded to a remote location.
+                cached the shard files and then the shard files are uploaded to a remote
+                location. At the end, a temp directory is deleted once shards are uploaded.
+            3. If `out` is a tuple of `(local_dir, remote_dir)`, shard files are saved in the
+                `local_dir` and also uploaded to a remote location.
         keep_local (bool): If the dataset is uploaded, whether to keep the local dataset directory
             or remove it after uploading. Defaults to ``False``.
         compression (str, optional): Optional compression or compression:level. Defaults to
@@ -46,7 +46,7 @@ class XSVWriter(SplitWriter):
                  columns: Dict[str, str],
                  separator: str,
                  newline: str = '\n',
-                 out: Union[str, List[str]],
+                 out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,
@@ -132,13 +132,13 @@ class CSVWriter(XSVWriter):
     Args:
         columns (Dict[str, str]): Sample columns.
         newline (str): Newline character inserted between samples. Defaults to ``\\n``.
-        out (str | List[str]): Output dataset directory to save shard files.
+        out (str | Tuple[str, str]): Output dataset directory to save shard files.
             1. If `out` is a local directory, shard files are saved locally.
             2. If `out` is a remote directory, a random local temporary directory is created to
-               cached the shard files and then the shard files are uploaded to a remote location.
-               At the end, a temp directory is deleted once shards are uploaded.
-            3. If `out` is a list of `(local_dir, remote_dir)`, shard files are saved in the
-               `local_dir` and also uploaded to a remote location.
+                cached the shard files and then the shard files are uploaded to a remote
+                location. At the end, a temp directory is deleted once shards are uploaded.
+            3. If `out` is a tuple of `(local_dir, remote_dir)`, shard files are saved in the
+                `local_dir` and also uploaded to a remote location.
         keep_local (bool): If the dataset is uploaded, whether to keep the local dataset directory
             or remove it after uploading. Defaults to ``False``.
         compression (str, optional): Optional compression or compression:level. Defaults to
@@ -157,7 +157,7 @@ class CSVWriter(XSVWriter):
                  *,
                  columns: Dict[str, str],
                  newline: str = '\n',
-                 out: Union[str, List[str]],
+                 out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,
@@ -191,13 +191,13 @@ class TSVWriter(XSVWriter):
     Args:
         columns (Dict[str, str]): Sample columns.
         newline (str): Newline character inserted between samples. Defaults to ``\\n``.
-        out (str | List[str]): Output dataset directory to save shard files.
+        out (str | Tuple[str, str]): Output dataset directory to save shard files.
             1. If `out` is a local directory, shard files are saved locally.
             2. If `out` is a remote directory, a random local temporary directory is created to
-               cached the shard files and then the shard files are uploaded to a remote location.
-               At the end, a temp directory is deleted once shards are uploaded.
-            3. If `out` is a list of `(local_dir, remote_dir)`, shard files are saved in the
-               `local_dir` and also uploaded to a remote location.
+                cached the shard files and then the shard files are uploaded to a remote
+                location. At the end, a temp directory is deleted once shards are uploaded.
+            3. If `out` is a tuple of `(local_dir, remote_dir)`, shard files are saved in the
+                `local_dir` and also uploaded to a remote location.
         keep_local (bool): If the dataset is uploaded, whether to keep the local dataset directory
             or remove it after uploading. Defaults to ``False``.
         compression (str, optional): Optional compression or compression:level. Defaults to
@@ -216,7 +216,7 @@ class TSVWriter(XSVWriter):
                  *,
                  columns: Dict[str, str],
                  newline: str = '\n',
-                 out: Union[str, List[str]],
+                 out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,

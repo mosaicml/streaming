@@ -23,25 +23,25 @@ def parse_args():
         '--compression',
         type=str,
         default='zstd:16',
-        help='Compression algorithm to use. Default: zstd:16',
+        help='Compression algorithm to use. Defaults to ``zstd:16``',
     )
     args.add_argument(
         '--hashes',
         type=str,
-        default='sha1,xxh64',
-        help='Hashing algorithms to apply to shard files. Default: sha1,xxh64',
+        default='sha1,xxh3_64',
+        help='Hashing algorithms to apply to shard files. Defaults to ``sha1,xxh3_64``',
     )
     args.add_argument(
         '--size_limit',
         type=int,
         default=1 << 26,
-        help='Shard size limit, after which point to start a new shard. Default: 1 << 26',
+        help='Shard size limit, after which point to start a new shard. Defaults to ``1 << 26``',
     )
     args.add_argument(
         '--num_examples_to_pick',
         type=int,
         default=10000,
-        help='Number of examples to select. Default: 10_000',)
+        help='Number of examples to select. Defaults to ``10_000``',)
     return args.parse_args()
 
 
@@ -57,7 +57,11 @@ def main(args):
         'next_sentence_labels': 'bytes',
     }
     hashes = args.hashes.split(',') if args.hashes else []
-    with MDSWriter(out=args.out_root, columns=columns, compression=args.compression, hashes=hashes, size_limit=args.size_limit) as writer:
+    with MDSWriter(out=args.out_root, 
+                   columns=columns, 
+                   compression=args.compression, 
+                   hashes=hashes, 
+                   size_limit=args.size_limit) as writer:
         pick_ratio = dataset.index.total_samples / args.num_examples_to_pick
         for i in range(args.num_examples_to_pick):
             sample = dataset[int(i * pick_ratio)]

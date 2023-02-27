@@ -9,7 +9,7 @@ import shutil
 import sys
 import urllib.parse
 from tempfile import mkdtemp
-from typing import Any, List, Union
+from typing import Any, Tuple, Union
 
 import tqdm
 
@@ -30,18 +30,18 @@ class CloudWriter:
 
     @classmethod
     def get(cls,
-            out: Union[str, List[str]],
+            out: Union[str, Tuple[str, str]],
             keep_local: bool = False,
             progress_bar: bool = False) -> Any:
         """Instantiate a cloud provider or a local writer based on remote location keyword.
 
         Args:
-            out (str | List[str]): Output dataset directory to save shard files.
+            out (str | Tuple[str, str]): Output dataset directory to save shard files.
                 1. If `out` is a local directory, shard files are saved locally.
                 2. If `out` is a remote directory, a random local temporary directory is created to
                    cached the shard files and then the shard files are uploaded to a remote
                    location. At the end, a temp directory is deleted once shards are uploaded.
-                3. If `out` is a list of `(local_dir, remote_dir)`, shard files are saved in the
+                3. If `out` is a tuple of `(local_dir, remote_dir)`, shard files are saved in the
                    `local_dir` and also uploaded to a remote location.
             keep_local (bool): If the dataset is uploaded, whether to keep the local dataset
                 shard file or remove it after uploading. Defaults to ``False``.
@@ -55,7 +55,7 @@ class CloudWriter:
         obj = urllib.parse.urlparse(out) if isinstance(out, str) else urllib.parse.urlparse(out[1])
         return getattr(sys.modules[__name__], WRITERS[obj.scheme])(out, keep_local, progress_bar)
 
-    def _validate(self, out: Union[str, List[str]]) -> None:
+    def _validate(self, out: Union[str, Tuple[str, str]]) -> None:
         """Validate the `out` argument.
 
         Args:
@@ -84,7 +84,7 @@ class CloudWriter:
             raise ValueError('Invalid Cloud provider prefix.')
 
     def __init__(self,
-                 out: Union[str, List[str]],
+                 out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False) -> None:
         """Initialize and validate local and remote path.
@@ -151,12 +151,13 @@ class S3Writer(CloudWriter):
     """Upload file from local machine to AWS S3 bucket.
 
     Args:
-        local (str, optional): Optional local output dataset directory. If not
-            provided, a random temp directory will be used. If ``remote`` is provided,
-            this is where shards are cached before uploading. One or both of ``local``
-            and ``remote`` must be provided. Defaults to ``None``.
-        remote (str, optional): Optional remote output dataset directory. If not
-            provided, no uploading will be done. Defaults to ``None``.
+        out (str | Tuple[str, str]): Output dataset directory to save shard files.
+            1. If `out` is a local directory, shard files are saved locally.
+            2. If `out` is a remote directory, a random local temporary directory is created to
+                cached the shard files and then the shard files are uploaded to a remote
+                location. At the end, a temp directory is deleted once shards are uploaded.
+            3. If `out` is a tuple of `(local_dir, remote_dir)`, shard files are saved in the
+                `local_dir` and also uploaded to a remote location.
         keep_local (bool): If the dataset is uploaded, whether to keep the local dataset
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Whether to display a progress bar while uploading to a cloud
@@ -164,7 +165,7 @@ class S3Writer(CloudWriter):
     """
 
     def __init__(self,
-                 out: Union[str, List[str]],
+                 out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False) -> None:
         super().__init__(out, keep_local, progress_bar)
@@ -203,12 +204,13 @@ class GCSWriter(CloudWriter):
     """Upload file from local machine to Google Cloud Storage bucket.
 
     Args:
-        local (str, optional): Optional local output dataset directory. If not
-            provided, a random temp directory will be used. If ``remote`` is provided,
-            this is where shards are cached before uploading. One or both of ``local``
-            and ``remote`` must be provided. Defaults to ``None``.
-        remote (str, optional): Optional remote output dataset directory. If not
-            provided, no uploading will be done. Defaults to ``None``.
+        out (str | Tuple[str, str]): Output dataset directory to save shard files.
+            1. If `out` is a local directory, shard files are saved locally.
+            2. If `out` is a remote directory, a random local temporary directory is created to
+                cached the shard files and then the shard files are uploaded to a remote
+                location. At the end, a temp directory is deleted once shards are uploaded.
+            3. If `out` is a tuple of `(local_dir, remote_dir)`, shard files are saved in the
+                `local_dir` and also uploaded to a remote location.
         keep_local (bool): If the dataset is uploaded, whether to keep the local dataset
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Whether to display a progress bar while uploading to a cloud
@@ -216,7 +218,7 @@ class GCSWriter(CloudWriter):
     """
 
     def __init__(self,
-                 out: Union[str, List[str]],
+                 out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False) -> None:
         super().__init__(out, keep_local, progress_bar)
@@ -258,12 +260,13 @@ class OCIWriter(CloudWriter):
     """Upload file from local machine to Oracle Cloud Infrastructure (OCI) Cloud Storage.
 
     Args:
-        local (str, optional): Optional local output dataset directory. If not
-            provided, a random temp directory will be used. If ``remote`` is provided,
-            this is where shards are cached before uploading. One or both of ``local``
-            and ``remote`` must be provided. Defaults to ``None``.
-        remote (str, optional): Optional remote output dataset directory. If not
-            provided, no uploading will be done. Defaults to ``None``.
+        out (str | Tuple[str, str]): Output dataset directory to save shard files.
+            1. If `out` is a local directory, shard files are saved locally.
+            2. If `out` is a remote directory, a random local temporary directory is created to
+                cached the shard files and then the shard files are uploaded to a remote
+                location. At the end, a temp directory is deleted once shards are uploaded.
+            3. If `out` is a tuple of `(local_dir, remote_dir)`, shard files are saved in the
+                `local_dir` and also uploaded to a remote location.
         keep_local (bool): If the dataset is uploaded, whether to keep the local dataset
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Whether to display a progress bar while uploading to a cloud
@@ -271,7 +274,7 @@ class OCIWriter(CloudWriter):
     """
 
     def __init__(self,
-                 out: Union[str, List[str]],
+                 out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False) -> None:
         super().__init__(out, keep_local, progress_bar)
@@ -316,12 +319,13 @@ class LocalWriter(CloudWriter):
     """Copy file from one local directory to another local directory.
 
     Args:
-        local (str, optional): Optional local output dataset directory. If not
-            provided, a random temp directory will be used. If ``remote`` is provided,
-            this is where shards are cached before uploading. One or both of ``local``
-            and ``remote`` must be provided. Defaults to ``None``.
-        remote (str, optional): Optional remote output dataset directory. If not
-            provided, no uploading will be done. Defaults to ``None``.
+        out (str | Tuple[str, str]): Output dataset directory to save shard files.
+            1. If `out` is a local directory, shard files are saved locally.
+            2. If `out` is a remote directory, a random local temporary directory is created to
+                cached the shard files and then the shard files are uploaded to a remote
+                location. At the end, a temp directory is deleted once shards are uploaded.
+            3. If `out` is a tuple of `(local_dir, remote_dir)`, shard files are saved in the
+                `local_dir` and also uploaded to a remote location.
         keep_local (bool): If the dataset is uploaded, whether to keep the local dataset
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Whether to display a progress bar while uploading to a cloud
@@ -329,7 +333,7 @@ class LocalWriter(CloudWriter):
     """
 
     def __init__(self,
-                 out: Union[str, List[str]],
+                 out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False) -> None:
         super().__init__(out, keep_local, progress_bar)

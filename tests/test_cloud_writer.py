@@ -23,17 +23,18 @@ class TestCloudWriter:
             cw = CloudWriter.get(out=mapping[0])
         else:
             mapping[0] = local
-            cw = CloudWriter.get(out=mapping[:2])
+            out_root = (mapping[0], mapping[1])
+            cw = CloudWriter.get(out_root)
         assert isinstance(cw, mapping[-1])
 
-    @pytest.mark.parametrize('out', [[], ['s3://bucket/dir'], ['./dir1', './dir2', './dir3']])
-    def test_invalid_out_parameter_length(self, out: List[Any]):
+    @pytest.mark.parametrize('out', [(), ('s3://bucket/dir',), ('./dir1', './dir2', './dir3')])
+    def test_invalid_out_parameter_length(self, out: Any):
         with pytest.raises(ValueError) as exc_info:
             _ = CloudWriter.get(out=out)
         assert exc_info.match(r'Invalid `out` argument.*')
 
-    @pytest.mark.parametrize('out', [['./dir1', 'gcs://bucket/dir/'], ['./dir1', None]])
-    def test_invalid_out_parameter_type(self, out: List[Any]):
+    @pytest.mark.parametrize('out', [('./dir1', 'gcs://bucket/dir/'), ('./dir1', None)])
+    def test_invalid_out_parameter_type(self, out: Any):
         with pytest.raises(ValueError) as exc_info:
             _ = CloudWriter.get(out=out)
         assert exc_info.match(r'Invalid Cloud provider prefix.*')
@@ -67,7 +68,7 @@ class TestCloudWriter:
 
 class TestS3Writer():
 
-    @pytest.mark.parametrize('out', ['s3://bucket/dir', ['./dir1', 's3://bucket/dir/']])
+    @pytest.mark.parametrize('out', ['s3://bucket/dir', ('./dir1', 's3://bucket/dir/')])
     def test_instantiation(self, out: Any):
         _ = S3Writer(out=out)
         if not isinstance(out, str):
@@ -79,7 +80,7 @@ class TestS3Writer():
             _ = S3Writer(out=out)
         assert exc_info.match(r'Invalid Cloud provider prefix.*')
 
-    @pytest.mark.parametrize('out', ['ss4://bucket/dir', ['./dir1', 'gcs://bucket/dir/']])
+    @pytest.mark.parametrize('out', ['ss4://bucket/dir', ('./dir1', 'gcs://bucket/dir/')])
     def test_invalid_remote_list(self, out: Any):
         with pytest.raises(ValueError) as exc_info:
             _ = S3Writer(out=out)
@@ -103,7 +104,7 @@ class TestS3Writer():
             local, _ = local_remote_dir
             remote = 's3://streaming-test-bucket/path'
             local_file_path = os.path.join(local, filename)
-            s3w = S3Writer(out=[local, remote])
+            s3w = S3Writer(out=(local, remote))
             with open(local_file_path, 'w') as _:
                 pass
             s3w.upload_file(filename)
@@ -112,7 +113,7 @@ class TestS3Writer():
 
 class TestGCSWriter():
 
-    @pytest.mark.parametrize('out', ['gs://bucket/dir', ['./dir1', 'gs://bucket/dir/']])
+    @pytest.mark.parametrize('out', ['gs://bucket/dir', ('./dir1', 'gs://bucket/dir/')])
     def test_instantiation(self, out: Any):
         _ = GCSWriter(out=out)
         if not isinstance(out, str):
@@ -124,7 +125,7 @@ class TestGCSWriter():
             _ = GCSWriter(out=out)
         assert exc_info.match(r'Invalid Cloud provider prefix.*')
 
-    @pytest.mark.parametrize('out', ['gcs://bucket/dir', ['./dir1', 'ocix://bucket/dir/']])
+    @pytest.mark.parametrize('out', ['gcs://bucket/dir', ('./dir1', 'ocix://bucket/dir/')])
     def test_invalid_remote_list(self, out: Any):
         with pytest.raises(ValueError) as exc_info:
             _ = GCSWriter(out=out)
@@ -148,7 +149,7 @@ class TestGCSWriter():
             local, _ = local_remote_dir
             remote = 'gs://streaming-test-bucket/path'
             local_file_path = os.path.join(local, filename)
-            gcsw = GCSWriter(out=[local, remote])
+            gcsw = GCSWriter(out=(local, remote))
             with open(local_file_path, 'w') as _:
                 pass
             gcsw.upload_file(filename)
@@ -162,7 +163,7 @@ class TestLocalWriter:
         filename = 'file.txt'
         local_file_path = os.path.join(local, filename)
         remote_file_path = os.path.join(remote, filename)
-        lw = LocalWriter(out=[local, remote])
+        lw = LocalWriter(out=(local, remote))
         # Creating an empty file at specified location
         with open(local_file_path, 'w') as _:
             pass

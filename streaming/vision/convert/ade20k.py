@@ -38,38 +38,38 @@ def parse_args() -> Namespace:
         '--splits',
         type=str,
         default='train,val',
-        help='Split to use. Default: train,val',
+        help='Split to use. Defaults to ``train,val``',
     )
     args.add_argument(
         '--compression',
         type=str,
         default='',
-        help='Compression algorithm to use. Default: None',
+        help='Compression algorithm to use. Defaults to ``None``',
     )
     args.add_argument(
         '--hashes',
         type=str,
         default='sha1,xxh64',
-        help='Hashing algorithms to apply to shard files. Default: sha1,xxh64',
+        help='Hashing algorithms to apply to shard files. Defaults to ``sha1,xxh64``',
     )
     args.add_argument(
         '--size_limit',
         type=int,
         default=1 << 22,
-        help='Shard size limit, after which point to start a new shard. Default: 1 << 22',
+        help='Shard size limit, after which point to start a new shard. Defaults to ``1 << 22``',
     )
     args.add_argument(
         '--progress_bar',
         type=int,
         default=1,
-        help='tqdm progress bar. Default: 1 (True)',
+        help='tqdm progress bar. Defaults to ``1 (True)``',
     )
     args.add_argument(
         '--leave',
         type=int,
         default=0,
-        help='Keeps all traces of the progressbar upon termination of iteration. Default: 0 ' +
-        '(False)',
+        help='Keeps all traces of the progressbar upon termination of iteration. Default to ``0 ' +
+        '(False)``',
     )
     return args.parse_args()
 
@@ -88,7 +88,7 @@ def get(in_root: str, split: str, shuffle: bool) -> List[Tuple[str, str, str]]:
     # Get uids
     if split not in ('train', 'val'):
         raise ValueError(f"Split must be one of 'train', 'val', not {split}")
-    subdir = 'training' if split == 'train' else 'validation'
+    subdir = 'train' if split == 'train' else 'val'
     split_images_in_dir = os.path.join(in_root, 'images', subdir)
     if not os.path.exists(split_images_in_dir):
         raise FileNotFoundError(f'Images path does not exist: {split_images_in_dir}')
