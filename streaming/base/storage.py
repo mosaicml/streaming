@@ -165,9 +165,11 @@ def download_from_oci(remote: str, local: str) -> None:
     # Remove leading and trailing forward slash from string
     object_path = obj.path.strip('/')
     object_details = client.get_object(namespace, bucket_name, object_path)
-    with open(local, 'wb') as f:
+    local_tmp = local + '.tmp'
+    with open(local_tmp, 'wb') as f:
         for chunk in object_details.data.raw.stream(2048**2, decode_content=False):
             f.write(chunk)
+    os.rename(local_tmp, local)
 
 
 def download_from_local(remote: str, local: str) -> None:
