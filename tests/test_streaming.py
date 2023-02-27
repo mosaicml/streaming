@@ -25,7 +25,7 @@ def test_dataloader_single_device(local_remote_dir: Tuple[str, str], batch_size:
     dataset = SequenceDataset(num_samples)
     columns = dict(zip(dataset.column_names, dataset.column_encodings))
     local, remote = local_remote_dir
-    write_mds_dataset(local=remote, columns=columns, samples=dataset, size_limit=size_limit)
+    write_mds_dataset(out_root=remote, columns=columns, samples=dataset, size_limit=size_limit)
 
     # Build a StreamingDataset
     dataset = StreamingDataset(local=local,

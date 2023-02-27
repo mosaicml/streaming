@@ -21,7 +21,7 @@ class MDSWriter(JointWriter):
     Args:
         columns (Dict[str, str]): Sample columns.
         out (str | List[str]): Output dataset directory to save shard files.
-            1. If `out` is a local directory, shard files are saved locally
+            1. If `out` is a local directory, shard files are saved locally.
             2. If `out` is a remote directory, a random local temporary directory is created to
                cached the shard files and then the shard files are uploaded to a remote location.
                At the end, a temp directory is deleted once shards are uploaded.

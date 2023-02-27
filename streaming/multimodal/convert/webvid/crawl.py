@@ -18,7 +18,7 @@ Instructions:
 
 2. Download each CSV you want to process.
 
-3. Run this script with flags --in (CSV) --local (MDS dir)
+3. Run this script with flags --in_root (CSV) --out_root (MDS dir)
 """
 
 import csv

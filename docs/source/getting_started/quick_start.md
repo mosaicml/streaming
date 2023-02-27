@@ -37,7 +37,7 @@ Start training your model with the Streaming dataset in a few steps!
     ]
 
     # Call `MDSWriter` to iterate through the input data and write into a shard `mds` file
-    with MDSWriter(local=local, columns=columns, compression=compression, hashes=hashes) as out:
+    with MDSWriter(out=local, columns=columns, compression=compression, hashes=hashes) as out:
         for sample in samples:
             out.write(sample)
     ```
