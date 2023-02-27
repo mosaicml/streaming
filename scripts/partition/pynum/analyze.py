@@ -153,6 +153,21 @@ def main(args: Namespace) -> None:
     for i, aa in enumerate(x2):
         print(f'{i + 1:2}', '|', ' '.join(map(dump, aa)))
 
+    print()
+
+    x2 = x.reshape(num_c, num_p, num_r, -1).max(3)
+    print('Max over (canonical nodes, physical nodes, ranks per node):')
+    print()
+
+    for ri in range(num_r):
+        r = 1 + ri
+        print(f'r {r}, c x p:')
+        print('   ', '  ', ' ', ' '.join(map(dump, range(1, num_p + 1))))
+        print('   ', '  ', ' ', ' '.join(['--' for _ in range(num_p)]))
+        for i, aa in enumerate(x2[:, :, ri]):
+            print('   ', f'{i + 1:2}', '|', ' '.join(map(dump, aa)))
+        print()
+
 
 if __name__ == '__main__':
     main(parse_args())

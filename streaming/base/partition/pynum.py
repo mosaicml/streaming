@@ -158,6 +158,32 @@ def get_dataset_padding_brute(dataset_size: int,
         dataset_padding += 1
 
 
+def _get_dataset_padding_approx(num_canonical_nodes: int, num_physical_nodes: int,
+                                ranks_per_node: int) -> int:
+    """Approximate the dataset padding analytically.
+
+    The returned value may be too high, by at most ``num_canonical_nodes - num_physical_nodes``. It
+    will never be too low.
+
+    This method was derived empirically to replicate the results of many millions of partitions.
+
+    Args:
+        num_canonical_nodes (int): Number of canonical nodes.
+        num_physical_nodes (int): Number of physical nodes.
+        ranks_per_node (int): Number of ranks per node.
+
+    Returns:
+        int: Dataset padding.
+    """
+    if num_canonical_nodes <= num_physical_nodes:
+        return 0
+
+    if not ranks_per_node % (num_canonical_nodes // num_physical_nodes):
+        return 0
+
+    return num_canonical_nodes - num_physical_nodes
+
+
 def get_partitions_pynum(dataset_size: int,
                          num_canonical_nodes: int,
                          num_physical_nodes: int,
@@ -187,7 +213,8 @@ def get_partitions_pynum(dataset_size: int,
         NDArray[np.int64]: Partitions of shape (physical nodes x ranks per node x workers per rank
             x batches per worker x batch size per rank).
     """
-    dataset_padding = max(num_canonical_nodes - num_physical_nodes, 0)
+    dataset_padding = _get_dataset_padding_approx(num_canonical_nodes, num_physical_nodes,
+                                                  ranks_per_node)
     # exact_dataset_padding = get_dataset_padding_brute(dataset_size, num_canonical_nodes,
     #                                                   num_physical_nodes, ranks_per_node,
     #                                                   workers_per_rank, batch_size_per_rank)
