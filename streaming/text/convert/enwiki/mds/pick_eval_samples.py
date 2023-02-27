@@ -57,7 +57,7 @@ def main(args):
         'next_sentence_labels': 'bytes',
     }
     hashes = args.hashes.split(',') if args.hashes else []
-    with MDSWriter(args.out_root, columns, args.compression, hashes, args.size_limit) as writer:
+    with MDSWriter(out=args.out_root, columns=columns, compression=args.compression, hashes=hashes, size_limit=args.size_limit) as writer:
         pick_ratio = dataset.index.total_samples / args.num_examples_to_pick
         for i in range(args.num_examples_to_pick):
             sample = dataset[int(i * pick_ratio)]

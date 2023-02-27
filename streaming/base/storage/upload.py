@@ -17,7 +17,7 @@ __all__ = ['CloudWriter', 'S3Writer', 'GCSWriter', 'OCIWriter', 'LocalWriter']
 
 logger = logging.getLogger(__name__)
 
-MAPPING = {
+WRITERS = {
     's3': 'S3Writer',
     'gs': 'GCSWriter',
     'oci': 'OCIWriter',
@@ -53,7 +53,7 @@ class CloudWriter:
         """
         cls._validate(cls, out)
         obj = urllib.parse.urlparse(out) if isinstance(out, str) else urllib.parse.urlparse(out[1])
-        return getattr(sys.modules[__name__], MAPPING[obj.scheme])(out, keep_local, progress_bar)
+        return getattr(sys.modules[__name__], WRITERS[obj.scheme])(out, keep_local, progress_bar)
 
     def _validate(self, out: Union[str, List[str]]) -> None:
         """Validate the `out` argument.
@@ -80,7 +80,7 @@ class CloudWriter:
                     'or a list of two strings with [local, remote].'
                 ]))
             obj = urllib.parse.urlparse(out[1])
-        if obj.scheme not in MAPPING:
+        if obj.scheme not in WRITERS:
             raise ValueError('Invalid Cloud provider prefix.')
 
     def __init__(self,

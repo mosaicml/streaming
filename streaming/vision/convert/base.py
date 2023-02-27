@@ -58,7 +58,6 @@ def convert_image_class_dataset(dataset: Dataset,
                    compression=compression,
                    hashes=hashes,
                    size_limit=size_limit,
-                   max_workers=4,
                    progress_bar=progress_bar) as out:
         for i in indices:
             x, y = dataset[i]
