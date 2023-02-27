@@ -29,10 +29,10 @@ from typing import Any, Callable, Dict, Iterator, List
 
 import numpy as np
 import pandas as pd
+from datasets import Dataset, disable_caching, load_dataset, load_from_disk  # pyright: ignore
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
-from datasets import Dataset, disable_caching, load_dataset, load_from_disk  # pyright: ignore
 from streaming import MDSWriter, StreamingDataset
 
 disable_caching()
