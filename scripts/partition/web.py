@@ -16,7 +16,7 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
-from streaming.base.partitioning import get_partitions
+from streaming.base.partition import get_partitions
 
 INDEX = '''
 <!doctype html>
@@ -378,11 +378,9 @@ def post_api_get_partitions(req: GetPartitionsRequest) -> dict:
         dict: JSON object containing the sample IDs, of shape (nodes, ranks per node, workers per
             rank, batches per worker, batch size).
     """
-    ids = get_partitions(req.dataset_size, req.canonical_nodes, req.physical_nodes,
+    ids = get_partitions('pynum', req.dataset_size, req.canonical_nodes, req.physical_nodes,
                          req.node_devices, req.device_workers, req.device_batch_size,
                          req.offset_in_epoch)
-    ids = ids.reshape(req.physical_nodes, req.node_devices, req.device_workers, -1,
-                      req.device_batch_size)
     return {
         'ids': ids.tolist(),
     }

@@ -23,7 +23,7 @@ from streaming.base.format import reader_from_json
 from streaming.base.format.base.reader import FileInfo
 from streaming.base.hashing import get_hash
 from streaming.base.index import Index, get_index_basename
-from streaming.base.partitioning import get_partitions
+from streaming.base.partition import get_partitions
 from streaming.base.shared import SharedBarrier, create_shared_memory
 from streaming.base.shuffle import get_shuffle
 from streaming.base.storage import download
@@ -127,7 +127,7 @@ class StreamingDataset(IterableDataset):
             initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
-        partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
+        partition_algo (str): Which partitioning algorithm to use. Defaults to ``pynum``.
         shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py2s``.
     """
 
@@ -145,7 +145,7 @@ class StreamingDataset(IterableDataset):
                  shuffle_seed: int = 9176,
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
-                 partition_algo: str = 'orig',
+                 partition_algo: str = 'pynum',
                  shuffle_algo: str = 'py2s') -> None:
         self.local = local
         self.remote = remote
@@ -406,9 +406,10 @@ class StreamingDataset(IterableDataset):
         # Tensor shape: (num nodes, ranks per node, workers per rank, samples per worker).
         # This operation is expensive.
         if world.is_local_leader:
-            sample_ids = get_partitions(self.index.total_samples, self.num_canonical_nodes,
-                                        world.num_nodes, world.ranks_per_node,
-                                        world.workers_per_rank, self.batch_size, sample_in_epoch)
+            sample_ids = get_partitions(self.partition_algo, self.index.total_samples,
+                                        self.num_canonical_nodes, world.num_nodes,
+                                        world.ranks_per_node, world.workers_per_rank,
+                                        int(self.batch_size or 1), sample_in_epoch)
             if self.shuffle:
                 mapping = get_shuffle(self.shuffle_algo, self.shard_sizes,
                                       self.num_canonical_nodes, self.shuffle_seed, epoch)

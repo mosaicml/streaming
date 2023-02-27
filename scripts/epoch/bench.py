@@ -9,7 +9,7 @@ from time import time
 
 import numpy as np
 
-from streaming.base.partitioning import get_partitions
+from streaming.base.partition import get_partitions
 from streaming.base.shuffle import get_shuffle
 
 
@@ -60,8 +60,9 @@ def main(args: Namespace) -> None:
     num_samples = sum(shard_sizes)
 
     t0 = time()
-    ids = get_partitions(num_samples, args.num_canonical_nodes, args.num_physical_nodes,
-                         args.ranks_per_node, args.workers_per_rank, args.batch_size, args.offset)
+    ids = get_partitions(args.algo, num_samples, args.num_canonical_nodes, args.num_nodes,
+                         args.ranks_per_node, args.workers_per_rank, args.batch_size,
+                         args.sample_in_epoch)
     t_part = time() - t0
     print(f'Partition: {t_part:.3f} sec')
 

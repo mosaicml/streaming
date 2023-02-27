@@ -102,7 +102,7 @@ def main(args: Namespace) -> None:
     Args:
         args (Namespace): Command-line arguments.
     """
-    names = 'py1x', 'py2x'
+    names = 'py1s', 'py2s'
     get_shuffles = get_shuffle_py1s, get_shuffle_py2s
 
     def wrap(func: Callable):

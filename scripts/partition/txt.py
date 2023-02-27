@@ -6,7 +6,10 @@
 import math
 from argparse import ArgumentParser, Namespace
 
-from streaming.base.partitioning import get_partitions
+import numpy as np
+from numpy.typing import NDArray
+
+from streaming.base.partition import get_partitions
 
 
 def parse_args() -> Namespace:
@@ -16,6 +19,7 @@ def parse_args() -> Namespace:
         Namespace: Command-line arguments.
     """
     args = ArgumentParser()
+    args.add_argument('-a', '--algo', type=str, default='pynum')
     args.add_argument('-n', '--dataset_size', type=int, default=678)
     args.add_argument('-b', '--device_batch_size', type=int, default=7)
     args.add_argument('-o', '--offset_in_epoch', type=int, default=0)
@@ -26,44 +30,20 @@ def parse_args() -> Namespace:
     return args.parse_args()
 
 
-def main(args: Namespace) -> None:
-    """Generate and display a partitioning given command-line arguments.
+def show(ids: NDArray[np.int64]) -> None:
+    """Display a sample ID tensor on stdout.
 
     Args:
-        args (Namespace): Command-line arguments.
+        ids (NDArray[np.int64]): Sample ID tensor of shape (node, rank, worker, batch, sample).
     """
-    ids = get_partitions(args.dataset_size, args.canonical_nodes, args.physical_nodes,
-                         args.node_devices, args.device_workers, args.device_batch_size,
-                         args.offset_in_epoch)
-    ids = ids.reshape(args.physical_nodes, args.node_devices, args.device_workers, -1,
-                      args.device_batch_size)
     max_id = ids.max()
     max_digits = math.ceil(math.log10(max_id + 1))
-    pre_cols = len(f'Node {args.physical_nodes - 1} Device {args.node_devices - 1}')
     for i, node in enumerate(ids):
-        if i:
-            pre = '-' * pre_cols + '-+-'
-            _, _, _, batches, samples = ids.shape
-            table = []
-            for batch in range(batches):
-                row = []
-                for sample in range(samples):
-                    cell = '-' * max_digits
-                    row.append(cell)
-                row = '-'.join(row)
-                table.append(row)
-            line = pre + '--'.join(table)
-            print(line)
+        print(f'Node {i}')
         for j, device in enumerate(node):
-            if j:
-                print(' ' * pre_cols + ' |')
-            for k, worker in enumerate(device):
+            print(f'    Dev {j}')
+            for worker in device:
                 table = []
-                if not k:
-                    s = f'Node {i} Device {j}'
-                else:
-                    s = ' ' * pre_cols
-                pre = s + ' | '
                 for batch in worker:
                     row = []
                     for sample in batch:
@@ -76,7 +56,19 @@ def main(args: Namespace) -> None:
                     row = ' '.join(row)
                     table.append(row)
                 line = '  '.join(table)
-                print(pre + line)
+                print(' ' * 12 + line)
+
+
+def main(args: Namespace) -> None:
+    """Generate and display a partitioning given command-line arguments.
+
+    Args:
+        args (Namespace): Command-line arguments.
+    """
+    ids = get_partitions(args.algo, args.dataset_size, args.canonical_nodes, args.physical_nodes,
+                         args.node_devices, args.device_workers, args.device_batch_size,
+                         args.offset_in_epoch)
+    show(ids)
 
 
 if __name__ == '__main__':
