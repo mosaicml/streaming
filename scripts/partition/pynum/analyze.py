@@ -18,6 +18,8 @@ def parse_args() -> Namespace:
     """
     args = ArgumentParser()
     args.add_argument('--in', type=str, required=True)
+    args.add_argument('--over_w', type=int, default=False)
+    args.add_argument('--over_b', type=int, default=False)
     return args.parse_args()
 
 
@@ -115,8 +117,8 @@ def main(args: Namespace) -> None:
                     continue
             print(f'    c {c}, p {p}')
             for ri in range(num_r):
-                for wi in range(num_w):
-                    for bi in range(num_b):
+                for wi in range(num_w) if args.over_w else [0]:
+                    for bi in range(num_b) if args.over_b else [0]:
                         analyze(x[ci, pi, ri, wi, bi])
             print()
 
@@ -167,6 +169,31 @@ def main(args: Namespace) -> None:
         for i, aa in enumerate(x2[:, :, ri]):
             print('   ', f'{i + 1:2}', '|', ' '.join(map(dump, aa)))
         print()
+
+    print()
+
+    a = np.bincount(1 + x.flatten())
+    a = 100 * a / a.sum()
+    print('Distribution (-1 means this combination of c x p is invalid):')
+    print('   ', ' '.join(map(lambda b: f'{b:3}     ', range(-1, len(a) - 1))))
+    print('   ', ' '.join(map(lambda b: f'{b:7.3f}%', a)))
+    print()
+
+    x2 = x.reshape(num_c, num_p, -1).mean(2)
+    print('Mean (canonical nodes, physical nodes):')
+
+    def dump(a: float) -> str:
+        if a == -1:
+            return '  .   '
+        else:
+            return f'{a:6.3f}'
+
+    print('  ', ' ', ' '.join(map(dump, range(1, num_p + 1))))
+    print('  ', ' ', ' '.join(['------' for _ in range(num_p)]))
+    for i, aa in enumerate(x2):
+        print(f'{i + 1:2}', '|', ' '.join(map(dump, aa)))
+
+    print()
 
 
 if __name__ == '__main__':
