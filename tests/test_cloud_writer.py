@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import shutil
 import tempfile
-from typing import Any, Tuple
+from typing import Any, List, Tuple
 
 import pytest
 
@@ -12,53 +13,51 @@ from streaming.base.storage.upload import CloudWriter, GCSWriter, LocalWriter, S
 
 class TestCloudWriter:
 
-    def test_instantiation_type(self, local_remote_dir: Tuple[str, str]):
-        mapping = {
-            's3://bucket/dir/file': S3Writer,
-            'gs://bucket/dir/file': GCSWriter,
-            '/tmp/dir/filepath': LocalWriter,
-            './relative/dir/filepath': LocalWriter,
-            None: LocalWriter
-        }
+    @pytest.mark.parametrize(
+        'mapping', [['s3://bucket/dir/file', S3Writer], [None, 's3://bucket/dir/file', S3Writer],
+                    ['gs://bucket/dir/file', GCSWriter], [None, 'gs://bucket/dir/file', GCSWriter],
+                    ['/tmp/dir/filepath', LocalWriter], ['./relative/dir/filepath', LocalWriter]])
+    def test_instantiation_type(self, local_remote_dir: Tuple[str, str], mapping: List[Any]):
         local, _ = local_remote_dir
-        for remote, class_type in mapping.items():
-            cw = CloudWriter(local=local, remote=remote)
-            assert isinstance(cw, class_type)
+        if len(mapping) == 2:
+            cw = CloudWriter.get(out=mapping[0])
+        else:
+            mapping[0] = local
+            cw = CloudWriter.get(out=mapping[:2])
+        assert isinstance(cw, mapping[-1])
 
-    @pytest.mark.parametrize('remote', [None, ''])
-    @pytest.mark.parametrize('local', [None, ''])
-    def test_empty_local_and_remote(self, local: Any, remote: Any):
+    @pytest.mark.parametrize('out', [[], ['s3://bucket/dir'], ['./dir1', './dir2', './dir3']])
+    def test_invalid_out_parameter_length(self, out: List[Any]):
         with pytest.raises(ValueError) as exc_info:
-            _ = CloudWriter(local=local, remote=remote)
-        assert exc_info.match(r'You must provide local and/or remote path.*')
+            _ = CloudWriter.get(out=out)
+        assert exc_info.match(r'Invalid `out` argument.*')
 
-    @pytest.mark.parametrize('remote', ['s33://bucket/path', 'rx://folder/'])
-    def test_invalid_remote_path(self, remote: str):
-        with pytest.raises(KeyError) as exc_info:
-            _ = CloudWriter(local=None, remote=remote)
+    @pytest.mark.parametrize('out', [['./dir1', 'gcs://bucket/dir/'], ['./dir1', None]])
+    def test_invalid_out_parameter_type(self, out: List[Any]):
+        with pytest.raises(ValueError) as exc_info:
+            _ = CloudWriter.get(out=out)
         assert exc_info.match(r'Invalid Cloud provider prefix.*')
 
     def test_local_directory_is_empty(self, local_remote_dir: Tuple[str, str]):
         with pytest.raises(FileExistsError) as exc_info:
             local, _ = local_remote_dir
-            print(f'{local=}')
             os.makedirs(local, exist_ok=True)
             local_file_path = os.path.join(local, 'file.txt')
             # Creating an empty file at specified location
             with open(local_file_path, 'w') as _:
                 pass
-            _ = CloudWriter(local=local, remote=None)
+            _ = CloudWriter.get(out=local)
         assert exc_info.match(r'Directory is not empty.*')
 
     def test_local_directory_is_created(self, local_remote_dir: Tuple[str, str]):
         local, _ = local_remote_dir
-        _ = CloudWriter(local=local, remote=None)
+        _ = CloudWriter(out=local)
         assert os.path.exists(local)
 
     def test_delete_local_file(self, local_remote_dir: Tuple[str, str]):
         local, _ = local_remote_dir
         local_file_path = os.path.join(local, 'file.txt')
-        cw = CloudWriter(local=local, remote=None)
+        cw = CloudWriter.get(out=local)
         # Creating an empty file at specified location
         with open(local_file_path, 'w') as _:
             pass
@@ -68,22 +67,34 @@ class TestCloudWriter:
 
 class TestS3Writer():
 
-    def test_empty_local_and_remote(self):
-        with pytest.raises(ValueError):
-            _ = S3Writer(local=None, remote=None)
+    @pytest.mark.parametrize('out', ['s3://bucket/dir', ['./dir1', 's3://bucket/dir/']])
+    def test_instantiation(self, out: Any):
+        _ = S3Writer(out=out)
+        if not isinstance(out, str):
+            shutil.rmtree(out[0])
 
-    def test_empty_local(self):
-        remote = 's3://bucket/path'
-        s3w = S3Writer(local=None, remote=remote)
-        assert s3w.local is not None
-        assert s3w.remote == remote
+    @pytest.mark.parametrize('out', ['ss4://bucket/dir'])
+    def test_invalid_remote_str(self, out: str):
+        with pytest.raises(ValueError) as exc_info:
+            _ = S3Writer(out=out)
+        assert exc_info.match(r'Invalid Cloud provider prefix.*')
 
-    def test_empty_remote(self, local_remote_dir: Tuple[str, str]):
-        local, _ = local_remote_dir
-        remote = 's3://bucket/path'
-        s3w = S3Writer(local=local, remote=remote)
-        assert s3w.local == local
-        assert s3w.remote is remote
+    @pytest.mark.parametrize('out', ['ss4://bucket/dir', ['./dir1', 'gcs://bucket/dir/']])
+    def test_invalid_remote_list(self, out: Any):
+        with pytest.raises(ValueError) as exc_info:
+            _ = S3Writer(out=out)
+        assert exc_info.match(r'Invalid Cloud provider prefix.*')
+
+    def test_local_directory_is_empty(self, local_remote_dir: Tuple[str, str]):
+        with pytest.raises(FileExistsError) as exc_info:
+            local, _ = local_remote_dir
+            os.makedirs(local, exist_ok=True)
+            local_file_path = os.path.join(local, 'file.txt')
+            # Creating an empty file at specified location
+            with open(local_file_path, 'w') as _:
+                pass
+            _ = S3Writer(out=local)
+        assert exc_info.match(r'Directory is not empty.*')
 
     @pytest.mark.usefixtures('s3_client', 's3_test')
     def test_upload_file(self, local_remote_dir: Tuple[str, str]):
@@ -92,7 +103,7 @@ class TestS3Writer():
             local, _ = local_remote_dir
             remote = 's3://streaming-test-bucket/path'
             local_file_path = os.path.join(local, filename)
-            s3w = S3Writer(local=local, remote=remote)
+            s3w = S3Writer(out=[local, remote])
             with open(local_file_path, 'w') as _:
                 pass
             s3w.upload_file(filename)
@@ -101,22 +112,34 @@ class TestS3Writer():
 
 class TestGCSWriter():
 
-    def test_empty_local_and_remote(self):
-        with pytest.raises(ValueError):
-            _ = GCSWriter(local=None, remote=None)
+    @pytest.mark.parametrize('out', ['gs://bucket/dir', ['./dir1', 'gs://bucket/dir/']])
+    def test_instantiation(self, out: Any):
+        _ = GCSWriter(out=out)
+        if not isinstance(out, str):
+            shutil.rmtree(out[0])
 
-    def test_empty_local(self):
-        remote = 'gs://bucket/path'
-        gcsw = GCSWriter(local=None, remote=remote)
-        assert gcsw.local is not None
-        assert gcsw.remote == remote
+    @pytest.mark.parametrize('out', ['gcs://bucket/dir'])
+    def test_invalid_remote_str(self, out: str):
+        with pytest.raises(ValueError) as exc_info:
+            _ = GCSWriter(out=out)
+        assert exc_info.match(r'Invalid Cloud provider prefix.*')
 
-    def test_empty_remote(self, local_remote_dir: Tuple[str, str]):
-        local, _ = local_remote_dir
-        remote = 'gs://bucket/path'
-        gcsw = GCSWriter(local=local, remote=remote)
-        assert gcsw.local == local
-        assert gcsw.remote is remote
+    @pytest.mark.parametrize('out', ['gcs://bucket/dir', ['./dir1', 'ocix://bucket/dir/']])
+    def test_invalid_remote_list(self, out: Any):
+        with pytest.raises(ValueError) as exc_info:
+            _ = GCSWriter(out=out)
+        assert exc_info.match(r'Invalid Cloud provider prefix.*')
+
+    def test_local_directory_is_empty(self, local_remote_dir: Tuple[str, str]):
+        with pytest.raises(FileExistsError) as exc_info:
+            local, _ = local_remote_dir
+            os.makedirs(local, exist_ok=True)
+            local_file_path = os.path.join(local, 'file.txt')
+            # Creating an empty file at specified location
+            with open(local_file_path, 'w') as _:
+                pass
+            _ = GCSWriter(out=local)
+        assert exc_info.match(r'Directory is not empty.*')
 
     @pytest.mark.usefixtures('gcs_client', 'gcs_test')
     def test_upload_file(self, local_remote_dir: Tuple[str, str]):
@@ -125,7 +148,7 @@ class TestGCSWriter():
             local, _ = local_remote_dir
             remote = 'gs://streaming-test-bucket/path'
             local_file_path = os.path.join(local, filename)
-            gcsw = GCSWriter(local=local, remote=remote)
+            gcsw = GCSWriter(out=[local, remote])
             with open(local_file_path, 'w') as _:
                 pass
             gcsw.upload_file(filename)
@@ -139,7 +162,7 @@ class TestLocalWriter:
         filename = 'file.txt'
         local_file_path = os.path.join(local, filename)
         remote_file_path = os.path.join(remote, filename)
-        lw = LocalWriter(local=local, remote=remote)
+        lw = LocalWriter(out=[local, remote])
         # Creating an empty file at specified location
         with open(local_file_path, 'w') as _:
             pass
@@ -149,7 +172,7 @@ class TestLocalWriter:
 
     def test_instantiation_remote_none(self, local_remote_dir: Tuple[str, str]):
         local, _ = local_remote_dir
-        lc = LocalWriter(local=local, remote=None)
+        lc = LocalWriter(out=local)
         assert lc.local == local
         assert lc.remote is None
 
@@ -158,7 +181,7 @@ class TestLocalWriter:
         filename = 'file.txt'
         local_file_path = os.path.join(local, filename)
         remote_file_path = os.path.join(remote, filename)
-        lc = LocalWriter(local=local, remote=None)
+        lc = LocalWriter(out=local)
         # Creating an empty file at specified location
         with open(local_file_path, 'w') as _:
             pass

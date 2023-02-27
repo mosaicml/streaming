@@ -6,9 +6,10 @@
 import logging
 import os
 import shutil
+import sys
 import urllib.parse
 from tempfile import mkdtemp
-from typing import Any, Optional
+from typing import Any, List, Union
 
 import tqdm
 
@@ -16,86 +17,110 @@ __all__ = ['CloudWriter', 'S3Writer', 'GCSWriter', 'OCIWriter', 'LocalWriter']
 
 logger = logging.getLogger(__name__)
 
+MAPPING = {
+    's3': 'S3Writer',
+    'gs': 'GCSWriter',
+    'oci': 'OCIWriter',
+    '': 'LocalWriter',
+}
+
 
 class CloudWriter:
     """Upload local files to a cloud storage."""
 
-    def __new__(cls,
-                local: Optional[str] = None,
-                remote: Optional[str] = None,
-                keep_local: bool = False,
-                progress_bar: bool = False) -> Any:
+    @classmethod
+    def get(cls,
+            out: Union[str, List[str]],
+            keep_local: bool = False,
+            progress_bar: bool = False) -> Any:
         """Instantiate a cloud provider or a local writer based on remote location keyword.
 
         Args:
-            local (str, optional): Optional local output dataset directory. If not
-                provided, a random temp directory will be used. If ``remote`` is provided,
-                this is where shards are cached before uploading. One or both of ``local``
-                and ``remote`` must be provided. Defaults to ``None``.
-            remote (str, optional): Optional remote output dataset directory. If not
-                provided, no uploading will be done. Defaults to ``None``.
+            out (str | List[str]): Output dataset directory to save shard files.
+                1. If `out` is a local directory, shard files are saved locally
+                2. If `out` is a remote directory, a random local temporary directory is created to
+                   cached the shard files and then the shard files are uploaded to a remote
+                   location. At the end, a temp directory is deleted once shards are uploaded.
+                3. If `out` is a list of `(local_dir, remote_dir)`, shard files are saved in the
+                   `local_dir` and also uploaded to a remote location.
             keep_local (bool): If the dataset is uploaded, whether to keep the local dataset
                 shard file or remove it after uploading. Defaults to ``False``.
             progress_bar (bool): Whether to display a progress bar while uploading to a cloud
                 provider. Defaults to ``False``.
 
-        Raises:
-            ValueError: Either local and/or remote path(s) must be provided.
-            KeyError: Invalid Cloud provider prefix.
-
         Returns:
             CloudWriter: An instance of sub-class.
         """
-        if not local and not remote:
-            raise ValueError('You must provide local and/or remote path(s).')
+        cls._validate(cls, out)
+        obj = urllib.parse.urlparse(out) if isinstance(out, str) else urllib.parse.urlparse(out[1])
+        return getattr(sys.modules[__name__], MAPPING[obj.scheme])(out, keep_local, progress_bar)
 
-        mapping = {
-            's3': S3Writer,
-            'gs': GCSWriter,
-            'oci': OCIWriter,
-            '': LocalWriter,  # For local copy when remote is a local directory
-            b'': LocalWriter  # No file copy to remote since remote is None
-        }
-        obj = urllib.parse.urlparse(remote)
-        if obj.scheme in mapping:
-            instance = super().__new__(mapping[obj.scheme])
-            return instance
+    def _validate(self, out: Union[str, List[str]]) -> None:
+        """Validate the `out` argument.
+
+        Args:
+            out (str | List[str]): Output dataset directory to save shard files.
+                1. If `out` is a local directory, shard files are saved locally
+                2. If `out` is a remote directory, a random local temporary directory is created to
+                   cached the shard files and then the shard files are uploaded to a remote
+                   location. At the end, a temp directory is deleted once shards are uploaded.
+                3. If `out` is a list of `(local_dir, remote_dir)`, shard files are saved in the
+                   `local_dir` and also uploaded to a remote location.
+
+        Raises:
+            ValueError: Invalid number of `out` argument.
+            ValueError: Invalid Cloud provider prefix.
+        """
+        if isinstance(out, str):
+            obj = urllib.parse.urlparse(out)
         else:
-            raise KeyError('Invalid Cloud provider prefix in `remote` argument.')
+            if len(out) != 2:
+                raise ValueError(''.join([
+                    f'Invalid `out` argument. It is either a string of local/remote directory ',
+                    'or a list of two strings with [local, remote].'
+                ]))
+            obj = urllib.parse.urlparse(out[1])
+        if obj.scheme not in MAPPING:
+            raise ValueError('Invalid Cloud provider prefix.')
 
     def __init__(self,
-                 local: Optional[str] = None,
-                 remote: Optional[str] = None,
+                 out: Union[str, List[str]],
                  keep_local: bool = False,
                  progress_bar: bool = False) -> None:
         """Initialize and validate local and remote path.
 
         Args:
-            local (str, optional): Optional local output dataset directory. If not
-                provided, a random temp directory will be used. If ``remote`` is provided,
-                this is where shards are cached before uploading. One or both of ``local``
-                and ``remote`` must be provided. Defaults to ``None``.
-            remote (str, optional): Optional remote output dataset directory. If not
-                provided, no uploading will be done. Defaults to ``None``.
+            out (str | List[str]): Output dataset directory to save shard files.
+                1. If `out` is a local directory, shard files are saved locally
+                2. If `out` is a remote directory, a random local temporary directory is created to
+                   cached the shard files and then the shard files are uploaded to a remote
+                   location. At the end, a temp directory is deleted once shards are uploaded.
+                3. If `out` is a list of `(local_dir, remote_dir)`, shard files are saved in the
+                   `local_dir` and also uploaded to a remote location.
             keep_local (bool): If the dataset is uploaded, whether to keep the local dataset
                 shard file or remove it after uploading. Defaults to ``False``.
             progress_bar (bool): Whether to display a progress bar while uploading to a cloud
                 provider. Defaults to ``False``.
 
         Raises:
-            ValueError: Either local and/or remote path(s) must be provided.
             FileExistsError: Local directory must be empty.
         """
+        self._validate(out)
         self.keep_local = keep_local
         self.progress_bar = progress_bar
-        if local is not None:
-            self.local = local
-            self.remote = remote
-        elif remote is not None:
-            self.local = mkdtemp()
-            self.remote = remote
+
+        if isinstance(out, str):
+            # It is a remote directory
+            if urllib.parse.urlparse(out).scheme:
+                self.local = mkdtemp()
+                self.remote = out
+            # It is a local directory
+            else:
+                self.local = out
+                self.remote = None
         else:
-            raise ValueError('You must provide local and/or remote path(s).')
+            self.local = out[0]
+            self.remote = out[1]
 
         if os.path.exists(self.local) and len(os.listdir(self.local)) != 0:
             raise FileExistsError(f'Directory is not empty: {self.local}')
@@ -139,11 +164,10 @@ class S3Writer(CloudWriter):
     """
 
     def __init__(self,
-                 local: Optional[str] = None,
-                 remote: Optional[str] = None,
+                 out: Union[str, List[str]],
                  keep_local: bool = False,
                  progress_bar: bool = False) -> None:
-        super().__init__(local, remote, keep_local, progress_bar)
+        super().__init__(out, keep_local, progress_bar)
 
         import boto3
         from botocore.config import Config
@@ -192,11 +216,10 @@ class GCSWriter(CloudWriter):
     """
 
     def __init__(self,
-                 local: Optional[str] = None,
-                 remote: Optional[str] = None,
+                 out: Union[str, List[str]],
                  keep_local: bool = False,
                  progress_bar: bool = False) -> None:
-        super().__init__(local, remote, keep_local, progress_bar)
+        super().__init__(out, keep_local, progress_bar)
 
         import boto3
 
@@ -248,11 +271,10 @@ class OCIWriter(CloudWriter):
     """
 
     def __init__(self,
-                 local: Optional[str] = None,
-                 remote: Optional[str] = None,
+                 out: Union[str, List[str]],
                  keep_local: bool = False,
                  progress_bar: bool = False) -> None:
-        super().__init__(local, remote, keep_local, progress_bar)
+        super().__init__(out, keep_local, progress_bar)
 
         import oci
         config = oci.config.from_file()
@@ -307,11 +329,10 @@ class LocalWriter(CloudWriter):
     """
 
     def __init__(self,
-                 local: Optional[str] = None,
-                 remote: Optional[str] = None,
+                 out: Union[str, List[str]],
                  keep_local: bool = False,
                  progress_bar: bool = False) -> None:
-        super().__init__(local, remote, keep_local, progress_bar)
+        super().__init__(out, keep_local, progress_bar)
         # Create remote directory if it doesn't exist
         if self.remote:
             os.makedirs(self.remote, exist_ok=True)

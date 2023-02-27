@@ -5,7 +5,7 @@
 
 import os
 from argparse import ArgumentParser, Namespace
-from typing import List, Optional
+from typing import List
 
 from tqdm import tqdm
 
@@ -27,15 +27,10 @@ def parse_args() -> Namespace:
         help='Local directory path of the input raw dataset',
     )
     args.add_argument(
-        '--local',
+        '--out_root',
         type=str,
         required=True,
-        help='Local directory path to store the output MDS shard files',
-    )
-    args.add_argument(
-        '--remote',
-        type=str,
-        help='Remote directory path to upload the output MDS shard files',
+        help='Directory path to store the output MDS shard files',
     )
     args.add_argument(
         '--compression',
@@ -71,15 +66,14 @@ def parse_args() -> Namespace:
     return args.parse_args()
 
 
-def process_split(in_root: str, local: str, remote: Optional[str], compression: str,
-                  hashes: List[str], size_limit: int, progress_bar: int, leave: int,
-                  basenames: List[str], split: str) -> None:
+def process_split(in_root: str, out_root: str, compression: str, hashes: List[str],
+                  size_limit: int, progress_bar: int, leave: int, basenames: List[str],
+                  split: str) -> None:
     """Process a dataset split.
 
     Args:
         in_root (str): Local directory path of the input raw dataset.
-        local (str): Local directory path to store the output MDS shard files.
-        remote(str, optional): Remote directory path to upload the output MDS shard files.
+        out_root (str): Directory path to store the output MDS shard files.
         compression (str): Which compression to use, or empty string if none.
         hashes (List[str]): List of hashes to store of the shards.
         size_limit (int): Maximum shard size in bytes.
@@ -88,13 +82,9 @@ def process_split(in_root: str, local: str, remote: Optional[str], compression: 
         basenames (List[str]): List of input shard basenames.
         split (str): Split name.
     """
-    local_split_dir = os.path.join(local, split)
-    remote_split_dir = None
-    if remote:
-        remote_split_dir = os.path.join(remote, split)
+    split_dir = os.path.join(out_root, split)
     columns = {'text': 'str'}
-    with MDSWriter(local=local_split_dir,
-                   remote=remote_split_dir,
+    with MDSWriter(out=split_dir,
                    columns=columns,
                    compression=compression,
                    hashes=hashes,
@@ -122,12 +112,12 @@ def main(args: Namespace) -> None:
 
     basenames = [f'part-{i:05}-of-00500' for i in range(500)]
     split = 'train'
-    process_split(args.in_root, args.local, args.remote, args.compression, hashes, args.size_limit,
+    process_split(args.in_root, args.out_root, args.compression, hashes, args.size_limit,
                   args.progress_bar, args.leave, basenames, split)
 
     basenames = ['eval.txt']
     split = 'val'
-    process_split(args.in_root, args.local, args.remote, args.compression, hashes, args.size_limit,
+    process_split(args.in_root, args.out_root, args.compression, hashes, args.size_limit,
                   args.progress_bar, args.leave, basenames, split)
 
 

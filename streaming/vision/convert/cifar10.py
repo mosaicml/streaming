@@ -25,15 +25,10 @@ def parse_args() -> Namespace:
         help='Local directory path of the input raw dataset',
     )
     args.add_argument(
-        '--local',
+        '--out_root',
         type=str,
         required=True,
-        help='Local directory path to store the output MDS shard files',
-    )
-    args.add_argument(
-        '--remote',
-        type=str,
-        help='Remote directory path to upload the output MDS shard files',
+        help='Directory path to store the output MDS shard files',
     )
     args.add_argument(
         '--splits',
@@ -85,8 +80,8 @@ def main(args: Namespace) -> None:
     hashes = get_list_arg(args.hashes)
     for split in splits:
         dataset = CIFAR10(root=args.in_root, train=(split == 'train'), download=True)
-        convert_image_class_dataset(dataset, args.local, args.remote, split, args.compression,
-                                    hashes, args.size_limit, args.progress_bar, args.leave, 'pil')
+        convert_image_class_dataset(dataset, args.out_root, split, args.compression, hashes,
+                                    args.size_limit, args.progress_bar, args.leave, 'pil')
 
 
 if __name__ == '__main__':

@@ -14,15 +14,10 @@ def parse_args():
         help='Local directory path of the input raw dataset',
     )
     args.add_argument(
-        '--local',
+        '--out_root',
         type=str,
         required=True,
-        help='Local directory path to store the output MDS shard files',
-    )
-    args.add_argument(
-        '--remote',
-        type=str,
-        help='Remote directory path to upload the output MDS shard files',
+        help='Directory path to store the output MDS shard files',
     )
     args.add_argument(
         '--compression',
@@ -62,7 +57,7 @@ def main(args):
         'next_sentence_labels': 'bytes',
     }
     hashes = args.hashes.split(',') if args.hashes else []
-    with MDSWriter(args.local, args.remote, columns, args.compression, hashes, args.size_limit) as writer:
+    with MDSWriter(args.out_root, columns, args.compression, hashes, args.size_limit) as writer:
         pick_ratio = dataset.index.total_samples / args.num_examples_to_pick
         for i in range(args.num_examples_to_pick):
             sample = dataset[int(i * pick_ratio)]

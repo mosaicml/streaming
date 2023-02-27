@@ -35,7 +35,7 @@ class TestMDSWriter:
             'column_encodings': dataset.column_encodings,
             'column_sizes': dataset.column_sizes
         }
-        writer = MDSWriter(local=local,
+        writer = MDSWriter(out=local,
                            columns=columns,
                            compression=None,
                            hashes=None,
@@ -71,7 +71,7 @@ class TestMDSWriter:
         expected_num_shards = math.ceil(num_samples / expected_samples_per_shard)
         expected_num_files = expected_num_shards + 1  # index file and compression metadata file
 
-        with MDSWriter(local=local,
+        with MDSWriter(out=local,
                        columns=columns,
                        compression=None,
                        hashes=None,
@@ -95,7 +95,7 @@ class TestMDSWriter:
         local, _ = local_remote_dir
         dataset = NumberAndSayDataset(num_samples, seed=seed)
         columns = dict(zip(dataset.column_names, dataset.column_encodings))
-        with MDSWriter(local=local,
+        with MDSWriter(out=local,
                        columns=columns,
                        compression=compression,
                        hashes=hashes,
@@ -133,7 +133,7 @@ class TestJSONWriter:
             'columns': columns,
             'newline': '\n'
         }
-        writer = JSONWriter(local=local,
+        writer = JSONWriter(out=local,
                             columns=columns,
                             compression=None,
                             hashes=None,
@@ -151,7 +151,7 @@ class TestJSONWriter:
         local, _ = local_remote_dir
         dataset = NumberAndSayDataset(num_samples, seed=seed)
         columns = dict(zip(dataset.column_names, dataset.column_encodings))
-        with JSONWriter(local=local,
+        with JSONWriter(out=local,
                         columns=columns,
                         compression=compression,
                         hashes=hashes,
@@ -195,14 +195,14 @@ class TestXSVWriter:
         if writer.__name__ == XSVWriter.__name__:
             separator = ','
             expected_config['separator'] = separator
-            writer = writer(local=local,
+            writer = writer(out=local,
                             columns=columns,
                             separator=separator,
                             compression=None,
                             hashes=None,
                             size_limit=size_limit)
         else:
-            writer = writer(local=local,
+            writer = writer(out=local,
                             columns=columns,
                             compression=None,
                             hashes=None,
@@ -222,7 +222,7 @@ class TestXSVWriter:
         dataset = NumberAndSayDataset(num_samples, seed=seed)
         columns = dict(zip(dataset.column_names, dataset.column_encodings))
         if writer.__name__ == XSVWriter.__name__:
-            with writer(local=local,
+            with writer(out=local,
                         columns=columns,
                         separator=',',
                         compression=compression,
@@ -231,7 +231,7 @@ class TestXSVWriter:
                 for sample in dataset:
                     out.write(sample)
         else:
-            with writer(local=local,
+            with writer(out=local,
                         columns=columns,
                         compression=compression,
                         hashes=hashes,

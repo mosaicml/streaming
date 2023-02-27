@@ -32,15 +32,10 @@ def parse_args() -> Namespace:
         help='Local directory path of the input raw dataset',
     )
     args.add_argument(
-        '--local',
+        '--out_root',
         type=str,
         required=True,
-        help='Local directory path to store the output MDS shard files',
-    )
-    args.add_argument(
-        '--remote',
-        type=str,
-        help='Remote directory path to upload the output MDS shard files',
+        help='Directory path to store the output MDS shard files',
     )
     args.add_argument(
         '--compression',
@@ -211,6 +206,8 @@ def main(args: Namespace) -> None:
         ('train', 117266, True),
         ('val', 4952, False),
     ]:
+        out_split_dir = os.path.join(args.out_root, split)
+
         split_images_in_dir = os.path.join(args.in_root, f'{split}2017')
         if not os.path.exists(split_images_in_dir):
             raise FileNotFoundError(f'Images path does not exist: {split_images_in_dir}')
@@ -225,11 +222,6 @@ def main(args: Namespace) -> None:
             raise ValueError(f'Number of samples in a dataset doesn\'t match. Expected ' +
                              f'{expected_num_samples}, but got {len(dataset)}')
 
-        local_split_dir = os.path.join(args.local, split)
-        remote_split_dir = None
-        if args.remote:
-            remote_split_dir = os.path.join(args.remote, split)
-
         hashes = get_list_arg(args.hashes)
 
         if args.progress_bar:
@@ -237,8 +229,7 @@ def main(args: Namespace) -> None:
         else:
             dataset = each(dataset, shuffle)
 
-        with MDSWriter(local=local_split_dir,
-                       remote=remote_split_dir,
+        with MDSWriter(out=out_split_dir,
                        columns=columns,
                        compression=args.compression,
                        hashes=hashes,

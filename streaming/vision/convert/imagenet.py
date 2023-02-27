@@ -30,15 +30,10 @@ def parse_args() -> Namespace:
         help='Local directory path of the input raw dataset',
     )
     args.add_argument(
-        '--local',
+        '--out_root',
         type=str,
         required=True,
-        help='Local directory path to store the output MDS shard files',
-    )
-    args.add_argument(
-        '--remote',
-        type=str,
-        help='Remote directory path to upload the output MDS shard files',
+        help='Directory path to store the output MDS shard files',
     )
     args.add_argument(
         '--splits',
@@ -151,12 +146,8 @@ def main(args: Namespace) -> None:
         indices = np.random.permutation(len(filenames))
         if args.progress_bar:
             indices = tqdm(indices, leave=args.leave)
-        local_split_dir = os.path.join(args.local, split)
-        remote_split_dir = None
-        if args.remote:
-            remote_split_dir = os.path.join(args.remote, split)
-        with MDSWriter(local=local_split_dir,
-                       remote=remote_split_dir,
+        out_split_dir = os.path.join(args.out_root, split)
+        with MDSWriter(out=out_split_dir,
                        columns=columns,
                        compression=args.compression,
                        hashes=hashes,

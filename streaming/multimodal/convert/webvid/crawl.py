@@ -50,15 +50,10 @@ def parse_args() -> Namespace:
         help='Dataset CSV file from https://m-bain.github.io/webvid-dataset/',
     )
     args.add_argument(
-        '--out_local',
+        '--out_root',
         type=str,
         required=True,
-        help='Local directory path to store the output MDS shard files',
-    )
-    args.add_argument(
-        '--out_remote',
-        type=str,
-        help='Remote directory path to upload the output MDS shard files',
+        help='Directory path to store the output MDS shard files',
     )
     args.add_argument(
         '--num_procs',
@@ -160,7 +155,7 @@ def main(args: Namespace) -> None:
     todos = each_todo(getattr(args, 'in'))
     if args.limit:
         todos = head(todos, args.limit)
-    with MDSWriter(local=args.out_local, remote=args.out_remote, columns=columns) as out:
+    with MDSWriter(out=args.out_root, columns=columns) as out:
         for sample in pool.imap_unordered(download, todos):
             if sample:
                 out.write(sample)

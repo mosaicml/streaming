@@ -14,8 +14,7 @@ from streaming.base import MDSWriter
 
 
 def convert_image_class_dataset(dataset: Dataset,
-                                local: str,
-                                remote: Optional[str] = None,
+                                out_root: str,
                                 split: Optional[str] = None,
                                 compression: Optional[str] = None,
                                 hashes: Optional[List[str]] = None,
@@ -27,7 +26,7 @@ def convert_image_class_dataset(dataset: Dataset,
 
     Args:
         dataset (Dataset): The dataset object to convert.
-        local (str): Local dataset directory where shards are cached by split.
+        out_root (str): Output directory where shards are cached by split.
         remote (str, optional): Remote dataset directory where shards are uploaded by split.
         split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
         compression (str, optional): Optional compression. Defaults to ``None``.
@@ -52,12 +51,9 @@ def convert_image_class_dataset(dataset: Dataset,
     if progress_bar:
         indices = tqdm(indices, leave=leave)
 
-    local_split_dir = os.path.join(local, split)
-    remote_split_dir = None
-    if remote:
-        remote_split_dir = os.path.join(remote, split)
-    with MDSWriter(local=local_split_dir,
-                   remote=remote_split_dir,
+    out_split_dir = os.path.join(out_root, split)
+
+    with MDSWriter(out=out_split_dir,
                    columns=columns,
                    compression=compression,
                    hashes=hashes,

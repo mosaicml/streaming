@@ -145,8 +145,7 @@ def convert(parquet_filename: str, mds_dirname: str, hashes: List[str]) -> None:
     compression = None  # Don't compress because the vast majority of the data is JPEG.
     size_limit = None  # Put everything in one shard (1:1 mapping of parquet to MDS shards).
 
-    with MDSWriter(local=mds_dirname,
-                   remote=None,
+    with MDSWriter(out=mds_dirname,
                    columns=columns,
                    compression=compression,
                    hashes=hashes,

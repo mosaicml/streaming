@@ -10,7 +10,7 @@ import shutil
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from types import TracebackType
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 from typing_extensions import Self
 
@@ -28,12 +28,13 @@ class Writer(ABC):
     """Writes a streaming dataset.
 
     Args:
-        local: (str, optional): Optional local output dataset directory. If not provided, a random
-            temp directory will be used. If ``remote`` is provided, this is where shards are
-            cached before uploading. One or both of ``local`` and ``remote`` must be provided.
-            Defaults to ``None``.
-        remote: (str, optional): Optional remote output dataset directory. If not provided, no
-            uploading will be done. Defaults to ``None``.
+        out (str | List[str]): Output dataset directory to save shard files.
+            1. If `out` is a local directory, shard files are saved locally
+            2. If `out` is a remote directory, a random local temporary directory is created to
+               cached the shard files and then the shard files are uploaded to a remote location.
+               At the end, a temp directory is deleted once shards are uploaded.
+            3. If `out` is a list of `(local_dir, remote_dir)`, shard files are saved in the
+               `local_dir` and also uploaded to a remote location.
         keep_local (bool): If the dataset is uploaded, whether to keep the local dataset directory
             or remove it after uploading. Defaults to ``False``.
         compression (str, optional): Optional compression or compression:level. Defaults to
@@ -53,8 +54,7 @@ class Writer(ABC):
 
     def __init__(self,
                  *,
-                 local: Optional[str] = None,
-                 remote: Optional[str] = None,
+                 out: Union[str, List[str]],
                  keep_local: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,
@@ -92,8 +92,7 @@ class Writer(ABC):
 
         self.shards = []
 
-        self.cloud_writer = CloudWriter(local, remote, keep_local,
-                                        kwargs.get('progress_bar', False))
+        self.cloud_writer = CloudWriter.get(out, keep_local, kwargs.get('progress_bar', False))
         self.local = self.cloud_writer.local
         self.remote = self.cloud_writer.remote
         # `max_workers`: The maximum number of threads that can be executed in parallel.
@@ -270,12 +269,13 @@ class JointWriter(Writer):
     """Writes a streaming dataset with joint shards.
 
     Args:
-        local: (str, optional): Optional local output dataset directory. If not provided, a random
-            temp directory will be used. If ``remote`` is provided, this is where shards are
-            cached before uploading. One or both of ``local`` and ``remote`` must be provided.
-            Defaults to ``None``.
-        remote: (str, optional): Optional remote output dataset directory. If not provided, no
-            uploading will be done. Defaults to ``None``.
+        out (str | List[str]): Output dataset directory to save shard files.
+            1. If `out` is a local directory, shard files are saved locally
+            2. If `out` is a remote directory, a random local temporary directory is created to
+               cached the shard files and then the shard files are uploaded to a remote location.
+               At the end, a temp directory is deleted once shards are uploaded.
+            3. If `out` is a list of `(local_dir, remote_dir)`, shard files are saved in the
+               `local_dir` and also uploaded to a remote location.
         keep_local (bool): If the dataset is uploaded, whether to keep the local dataset directory
             or remove it after uploading. Defaults to ``False``.
         compression (str, optional): Optional compression or compression:level. Defaults to
@@ -293,8 +293,7 @@ class JointWriter(Writer):
 
     def __init__(self,
                  *,
-                 local: Optional[str] = None,
-                 remote: Optional[str] = None,
+                 out: Union[str, List[str]],
                  keep_local: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,
@@ -302,8 +301,7 @@ class JointWriter(Writer):
                  extra_bytes_per_shard: int = 0,
                  extra_bytes_per_sample: int = 0,
                  **kwargs: Any) -> None:
-        super().__init__(local=local,
-                         remote=remote,
+        super().__init__(out=out,
                          keep_local=keep_local,
                          compression=compression,
                          hashes=hashes,
@@ -343,12 +341,13 @@ class SplitWriter(Writer):
     Split shards refer to raw data (csv, json, etc.) paired with an index into it.
 
     Args:
-        local: (str, optional): Optional local output dataset directory. If not provided, a random
-            temp directory will be used. If ``remote`` is provided, this is where shards are
-            cached before uploading. One or both of ``local`` and ``remote`` must be provided.
-            Defaults to ``None``.
-        remote: (str, optional): Optional remote output dataset directory. If not provided, no
-            uploading will be done. Defaults to ``None``.
+        out (str | List[str]): Output dataset directory to save shard files.
+            1. If `out` is a local directory, shard files are saved locally
+            2. If `out` is a remote directory, a random local temporary directory is created to
+               cached the shard files and then the shard files are uploaded to a remote location.
+               At the end, a temp directory is deleted once shards are uploaded.
+            3. If `out` is a list of `(local_dir, remote_dir)`, shard files are saved in the
+               `local_dir` and also uploaded to a remote location.
         keep_local (bool): If the dataset is uploaded, whether to keep the local dataset directory
             or remove it after uploading. Defaults to ``False``.
         compression (str, optional): Optional compression or compression:level. Defaults to
@@ -365,15 +364,13 @@ class SplitWriter(Writer):
 
     def __init__(self,
                  *,
-                 local: Optional[str] = None,
-                 remote: Optional[str] = None,
+                 out: Union[str, List[str]],
                  keep_local: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,
                  size_limit: Optional[int] = 1 << 26,
                  **kwargs: Any) -> None:
-        super().__init__(local=local,
-                         remote=remote,
+        super().__init__(out=out,
                          keep_local=keep_local,
                          compression=compression,
                          hashes=hashes,

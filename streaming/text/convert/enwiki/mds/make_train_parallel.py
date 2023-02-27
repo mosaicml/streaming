@@ -26,10 +26,10 @@ def parse_args() -> Namespace:
                       type=int,
                       default=500,
                       help='Number of input shards.')
-    args.add_argument('--out_local',
+    args.add_argument('--out_root',
                       type=str,
                       required=True,
-                      help='Output local directory containing shard dirs named like group-###.')
+                      help='Output directory containing shard dirs named like group-###.')
     args.add_argument('--out_pattern',
                       type=str,
                       default='group-%03d',
@@ -98,11 +98,11 @@ def main(args: Namespace) -> None:
         end = (cpu + 1) * args.in_num_shards // num_cpus
         input_files = ','.join([os.path.join(args.in_root, args.in_pattern % i)
                                 for i in range(begin, end)])
-        output_dir = os.path.join(args.out_local, args.out_pattern % cpu)
+        output_dir = os.path.join(args.out_root, args.out_pattern % cpu)
         command = f'''
             python3 create_pretraining_data.py \
                 --input_file {input_files} \
-                --output_local {output_dir} \
+                --output_dir {output_dir} \
                 --compression {args.compression} \
                 --hashes {args.hashes} \
                 --size_limit {args.size_limit} \

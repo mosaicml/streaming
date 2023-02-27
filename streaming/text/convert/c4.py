@@ -7,11 +7,11 @@ import os
 from argparse import ArgumentParser, Namespace
 from typing import Any, Dict, Iterator
 
-import datasets
 from datasets.arrow_dataset import Dataset
 from torch.utils.data import DataLoader, IterableDataset, get_worker_info
 from tqdm import tqdm
 
+import datasets
 from streaming.base import MDSWriter
 from streaming.base.util import get_list_arg
 
@@ -24,15 +24,10 @@ def parse_args() -> Namespace:
     """
     args = ArgumentParser()
     args.add_argument(
-        '--local',
+        '--out_root',
         type=str,
         required=True,
-        help='Local directory path to store the output MDS shard files',
-    )
-    args.add_argument(
-        '--remote',
-        type=str,
-        help='Remote directory path to upload the output MDS shard files',
+        help='Directory path to store the output MDS shard files',
     )
     args.add_argument(
         '--compression',
@@ -146,12 +141,8 @@ def main(args: Namespace) -> None:
     hashes = get_list_arg(args.hashes)
     for old_split, new_split, num_samples, num_workers in splits:
         dataset = get(old_split)
-        local_split_dir = os.path.join(args.local, new_split)
-        remote_split_dir = None
-        if args.remote:
-            remote_split_dir = os.path.join(args.remote, new_split)
-        with MDSWriter(local=local_split_dir,
-                       remote=remote_split_dir,
+        split_dir = os.path.join(args.out_root, new_split)
+        with MDSWriter(out=split_dir,
                        columns=columns,
                        compression=args.compression,
                        hashes=hashes,

@@ -142,7 +142,7 @@ def write_mds_dataset(
     compression: Optional[str] = None,
     hashes: Optional[List[str]] = None,
 ) -> None:
-    with MDSWriter(local=local,
+    with MDSWriter(out=local,
                    columns=columns,
                    compression=compression,
                    hashes=hashes,
