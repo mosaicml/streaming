@@ -187,7 +187,7 @@ def get_partitions_pynum(dataset_size: int,
         NDArray[np.int64]: Partitions of shape (physical nodes x ranks per node x workers per rank
             x batches per worker x batch size per rank).
     """
-    dataset_padding = num_canonical_nodes - num_physical_nodes
+    dataset_padding = max(num_canonical_nodes - num_physical_nodes, 0)
     # exact_dataset_padding = get_dataset_padding_brute(dataset_size, num_canonical_nodes,
     #                                                   num_physical_nodes, ranks_per_node,
     #                                                   workers_per_rank, batch_size_per_rank)
