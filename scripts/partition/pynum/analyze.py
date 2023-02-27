@@ -66,15 +66,30 @@ def analyze(seq: NDArray[np.int64]) -> None:
     Args:
         seq (NDArray[np.int64]): Sequence to analyze.
     """
-    if not any(seq):
-        return
+    # if not any(seq):
+    #     return
 
     text = ''.join(map(chr, seq))
     pattern = get_pattern(text) or ''
     if pattern:
         pattern = normalize_pattern(pattern)
-    human_pattern = ''.join(map(lambda c: chr(ord(c) + ord('a')), pattern)).replace('a', '.')
-    human_text = ''.join(map(lambda n: chr(n + ord('a')), seq)).replace('a', '.')
+
+    def chr_to_human(c: str) -> str:
+        n = ord(c)
+        if not n:
+            return '.'
+        elif n < 10:
+            return chr(ord('0') + n)
+        elif n < 36:
+            return chr(ord('A') + n - 10)
+        else:
+            raise ValueError(f'Integer is too big for alphanumeric code: {n}.')
+
+    def str_to_human(s: str) -> str:
+        return ''.join(map(chr_to_human, s))
+
+    human_text = str_to_human(text)
+    human_pattern = str_to_human(pattern)
     print(f'        {human_text[:40]} -> {human_pattern}')
 
 
