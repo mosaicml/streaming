@@ -88,7 +88,7 @@ def get(in_root: str, split: str, shuffle: bool) -> List[Tuple[str, str, str]]:
     # Get uids
     if split not in ('train', 'val'):
         raise ValueError(f"Split must be one of 'train', 'val', not {split}")
-    subdir = 'train' if split == 'train' else 'val'
+    subdir = 'training' if split == 'train' else 'validation'
     split_images_in_dir = os.path.join(in_root, 'images', subdir)
     if not os.path.exists(split_images_in_dir):
         raise FileNotFoundError(f'Images path does not exist: {split_images_in_dir}')
