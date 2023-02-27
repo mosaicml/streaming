@@ -25,7 +25,7 @@ def parse_args() -> Namespace:
     args.add_argument('-r', '--ranks_per_node', type=str, default='1-8')
     args.add_argument('-w', '--workers_per_rank', type=str, default='1-8')
     args.add_argument('-b', '--batch_size', type=str, default='1-8')
-    args.add_argument('-n', '--dataset_size', type=str, default='1024-1535')
+    args.add_argument('-n', '--dataset_size', type=str, default='1024-2048')
     return args.parse_args()
 
 

@@ -73,8 +73,8 @@ def analyze(seq: NDArray[np.int64]) -> None:
     pattern = get_pattern(text) or ''
     if pattern:
         pattern = normalize_pattern(pattern)
-    human_pattern = ''.join(map(lambda c: chr(ord(c) + ord('a')), pattern))
-    human_text = ''.join(map(lambda n: chr(n + ord('a')), seq))
+    human_pattern = ''.join(map(lambda c: chr(ord(c) + ord('a')), pattern)).replace('a', '.')
+    human_text = ''.join(map(lambda n: chr(n + ord('a')), seq)).replace('a', '.')
     print(f'        {human_text[:40]} -> {human_pattern}')
 
 
@@ -105,6 +105,8 @@ def main(args: Namespace) -> None:
                         analyze(x[ci, pi, ri, wi, bi])
             print()
 
+    print()
+
     xc = x.reshape(num_c, -1).max(1)
     print('Max over canonical nodes:', xc)
 
@@ -119,6 +121,22 @@ def main(args: Namespace) -> None:
 
     xb = x.transpose(4, 0, 1, 2, 3, 5).reshape(num_b, -1).max(1)
     print('Max over batch size per rank:', xb)
+
+    print()
+
+    x2 = x.reshape(num_c, num_p, -1).max(2)
+    print('Max over (canonical nodes, physical nodes):')
+
+    def dump(a: int) -> str:
+        if a == -1:
+            return ' .'
+        else:
+            return f'{a:2}'
+
+    print('  ', ' ', ' '.join(map(dump, range(1, num_p + 1))))
+    print('  ', ' ', ' '.join(['--' for _ in range(num_p)]))
+    for i, aa in enumerate(x2):
+        print(f'{i + 1:2}', '|', ' '.join(map(dump, aa)))
 
 
 if __name__ == '__main__':
