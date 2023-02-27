@@ -87,10 +87,10 @@ def _get_partitions_pynum_padded(dataset_size: int,
     # Of those sample IDs that remain (which need to be present to keep samples balanced across
     # ranks), reassign the ones that extend past the end of the dataset to the last sample (as we
     # were probably on the last shard, in order to avoid an extra shard download).
-    start = unpadded_samples_per_rank
-    stop = samples_per_rank
-    ids[:, :, start:stop] = np.where(ids[:, :, start:stop] < dataset_size, ids[:, :, start:stop],
-                                     dataset_size - 1)
+    i = unpadded_samples_per_rank
+    j = samples_per_rank
+    reassignment = np.arange(dataset_size - (j - i), dataset_size)
+    ids[:, :, i:j] = np.where(ids[:, :, i:j] < dataset_size, ids[:, :, i:j], reassignment)
 
     # If we are mid-epoch, drop the first drop_first samples by flattening into the order that
     # samples would be seen and clipping the samples from the left.
