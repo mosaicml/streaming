@@ -50,7 +50,7 @@
 
 We built StreamingDataset to make training on large datasets from cloud storage as fast, cheap, and scalable as possible.
 
-It’s specially designed for multi-node, distributed training for large models—maximizing correctness guarantees, performance, and ease of use. Now, you can efficiently train anywhere, independent of your training data location. Just stream in the data you need, when you need it. To learn more about why we built StreamingDataset, read our [announcement blog.](https://www.notion.so/f8b1634eb0de470db25fda47f83a0884)
+It’s specially designed for multi-node, distributed training for large models—maximizing correctness guarantees, performance, and ease of use. Now, you can efficiently train anywhere, independent of your training data location. Just stream in the data you need, when you need it. To learn more about why we built StreamingDataset, read our [announcement blog](https://www.mosaicml.com/blog/mosaicml-streamingdataset).
 
 StreamingDataset is compatible with any data type, including **images, text, video, and multimodal data**.
 
@@ -256,7 +256,7 @@ dl = DataLoader(dataset, num_workers=...)
 
 # 🏆 Project Showcase
 
-Here are some projects and experiments that used StreamingDataset. Got something to add?  Email [community@mosaicml.com](https://www.notion.so/Marketing-Community-f18e033b62c844e2a5d271453feb558c) or join our [Community Slack](https://join.slack.com/t/mosaicml-community/shared_invite/zt-1btms90mc-GipE2ufuPkKY0QBrmF3LSA).
+Here are some projects and experiments that used StreamingDataset. Got something to add?  Email [community@mosaicml.com](mailto:community@mosaicml.com) or join our [Community Slack](https://join.slack.com/t/mosaicml-community/shared_invite/zt-1btms90mc-GipE2ufuPkKY0QBrmF3LSA).
 
 - [BioMedLM](https://www.mosaicml.com/blog/introducing-pubmed-gpt): a Domain Specific Large Language Model for BioMedicine by MosaicML and Stanford CRFM
 - [Mosaic Diffusion Models](https://www.mosaicml.com/blog/training-stable-diffusion-from-scratch-costs-160k): Training Stable Diffusion from Scratch Costs <$160k
