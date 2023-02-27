@@ -9,7 +9,7 @@ from typing import Any, Optional
 
 from streaming.base import StreamingDataset
 from streaming.base.dataset import TICK, _PartitionState
-from streaming.base.storage.download import download
+from streaming.base.storage import download_file
 
 
 class StreamingInsideWebVid(StreamingDataset):
@@ -148,7 +148,7 @@ class StreamingOutsideGIWebVid(StreamingDataset):
             local = os.path.join(self.extra_local, rel_path)
             remote = os.path.join(self.extra_remote, rel_path)
             if not os.path.exists(local):
-                download(remote, local, self.download_timeout)
+                download_file(remote, local, self.download_timeout)
             with open(local, 'rb') as fp:
                 content = fp.read()
             obj['content'] = content
@@ -247,7 +247,7 @@ class StreamingOutsideDTWebVid(StreamingDataset):
             local = os.path.join(self.extra_local, rel_path)
             remote = os.path.join(self.extra_remote, rel_path)
             if not os.path.exists(local):
-                download(remote, local, self.download_timeout)
+                download_file(remote, local, self.download_timeout)
             with open(local, 'rb') as fp:
                 content = fp.read()
             obj['content'] = content
@@ -306,6 +306,6 @@ class StreamingOutsideDTWebVid(StreamingDataset):
                 local = os.path.join(self.extra_local, rel_path)
                 remote = os.path.join(self.extra_remote, rel_path)
                 if not os.path.exists(local):
-                    download(remote, local, self.download_timeout)
+                    download_file(remote, local, self.download_timeout)
 
             state.download_index += 1

@@ -186,7 +186,7 @@ def download_from_local(remote: str, local: str) -> None:
     os.rename(local_tmp, local)
 
 
-def download(remote: Optional[str], local: str, timeout: float):
+def download_file(remote: Optional[str], local: str, timeout: float):
     """Use the correct download handler to download the file.
 
     Args:
@@ -257,7 +257,7 @@ def download_or_wait(remote: Optional[str],
             if wait:
                 wait_for_download(local, timeout)
             else:
-                download(remote, local, timeout)
+                download_file(remote, local, timeout)
             break
         except FileNotFoundError:  # Bubble up file not found error.
             raise

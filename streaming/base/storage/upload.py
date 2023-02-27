@@ -38,9 +38,9 @@ class CloudWriter:
         Args:
             out (str | Tuple[str, str]): Output dataset directory to save shard files.
                 1. If `out` is a local directory, shard files are saved locally.
-                2. If `out` is a remote directory, a random local temporary directory is created to
-                   cached the shard files and then the shard files are uploaded to a remote
-                   location. At the end, a temp directory is deleted once shards are uploaded.
+                2. If `out` is a remote directory, a local temporary directory is created to
+                   cache the shard files and then the shard files are uploaded to a remote
+                   location. At the end, the temp directory is deleted once shards are uploaded.
                 3. If `out` is a tuple of `(local_dir, remote_dir)`, shard files are saved in the
                    `local_dir` and also uploaded to a remote location.
             keep_local (bool): If the dataset is uploaded, whether to keep the local dataset
@@ -59,11 +59,11 @@ class CloudWriter:
         """Validate the `out` argument.
 
         Args:
-            out (str | List[str]): Output dataset directory to save shard files.
+            out (str | Tuple[str, str]): Output dataset directory to save shard files.
                 1. If `out` is a local directory, shard files are saved locally.
-                2. If `out` is a remote directory, a random local temporary directory is created to
-                   cached the shard files and then the shard files are uploaded to a remote
-                   location. At the end, a temp directory is deleted once shards are uploaded.
+                2. If `out` is a remote directory, a local temporary directory is created to
+                   cache the shard files and then the shard files are uploaded to a remote
+                   location. At the end, the temp directory is deleted once shards are uploaded.
                 3. If `out` is a tuple of `(local_dir, remote_dir)`, shard files are saved in the
                    `local_dir` and also uploaded to a remote location.
 
@@ -90,11 +90,11 @@ class CloudWriter:
         """Initialize and validate local and remote path.
 
         Args:
-            out (str | List[str]): Output dataset directory to save shard files.
+            out (str | Tuple[str, str]): Output dataset directory to save shard files.
                 1. If `out` is a local directory, shard files are saved locally.
-                2. If `out` is a remote directory, a random local temporary directory is created to
-                   cached the shard files and then the shard files are uploaded to a remote
-                   location. At the end, a temp directory is deleted once shards are uploaded.
+                2. If `out` is a remote directory, a local temporary directory is created to
+                   cache the shard files and then the shard files are uploaded to a remote
+                   location. At the end, the temp directory is deleted once shards are uploaded.
                 3. If `out` is a tuple of `(local_dir, remote_dir)`, shard files are saved in the
                    `local_dir` and also uploaded to a remote location.
             keep_local (bool): If the dataset is uploaded, whether to keep the local dataset
@@ -111,7 +111,7 @@ class CloudWriter:
 
         if isinstance(out, str):
             # It is a remote directory
-            if urllib.parse.urlparse(out).scheme:
+            if urllib.parse.urlparse(out).scheme != '':
                 self.local = mkdtemp()
                 self.remote = out
             # It is a local directory
@@ -153,9 +153,9 @@ class S3Writer(CloudWriter):
     Args:
         out (str | Tuple[str, str]): Output dataset directory to save shard files.
             1. If `out` is a local directory, shard files are saved locally.
-            2. If `out` is a remote directory, a random local temporary directory is created to
-                cached the shard files and then the shard files are uploaded to a remote
-                location. At the end, a temp directory is deleted once shards are uploaded.
+            2. If `out` is a remote directory, a local temporary directory is created to
+                cache the shard files and then the shard files are uploaded to a remote
+                location. At the end, the temp directory is deleted once shards are uploaded.
             3. If `out` is a tuple of `(local_dir, remote_dir)`, shard files are saved in the
                 `local_dir` and also uploaded to a remote location.
         keep_local (bool): If the dataset is uploaded, whether to keep the local dataset
@@ -206,9 +206,9 @@ class GCSWriter(CloudWriter):
     Args:
         out (str | Tuple[str, str]): Output dataset directory to save shard files.
             1. If `out` is a local directory, shard files are saved locally.
-            2. If `out` is a remote directory, a random local temporary directory is created to
-                cached the shard files and then the shard files are uploaded to a remote
-                location. At the end, a temp directory is deleted once shards are uploaded.
+            2. If `out` is a remote directory, a local temporary directory is created to
+                cache the shard files and then the shard files are uploaded to a remote
+                location. At the end, the temp directory is deleted once shards are uploaded.
             3. If `out` is a tuple of `(local_dir, remote_dir)`, shard files are saved in the
                 `local_dir` and also uploaded to a remote location.
         keep_local (bool): If the dataset is uploaded, whether to keep the local dataset
@@ -262,9 +262,9 @@ class OCIWriter(CloudWriter):
     Args:
         out (str | Tuple[str, str]): Output dataset directory to save shard files.
             1. If `out` is a local directory, shard files are saved locally.
-            2. If `out` is a remote directory, a random local temporary directory is created to
-                cached the shard files and then the shard files are uploaded to a remote
-                location. At the end, a temp directory is deleted once shards are uploaded.
+            2. If `out` is a remote directory, a local temporary directory is created to
+                cache the shard files and then the shard files are uploaded to a remote
+                location. At the end, the temp directory is deleted once shards are uploaded.
             3. If `out` is a tuple of `(local_dir, remote_dir)`, shard files are saved in the
                 `local_dir` and also uploaded to a remote location.
         keep_local (bool): If the dataset is uploaded, whether to keep the local dataset
@@ -321,9 +321,9 @@ class LocalWriter(CloudWriter):
     Args:
         out (str | Tuple[str, str]): Output dataset directory to save shard files.
             1. If `out` is a local directory, shard files are saved locally.
-            2. If `out` is a remote directory, a random local temporary directory is created to
-                cached the shard files and then the shard files are uploaded to a remote
-                location. At the end, a temp directory is deleted once shards are uploaded.
+            2. If `out` is a remote directory, a local temporary directory is created to
+                cache the shard files and then the shard files are uploaded to a remote
+                location. At the end, the temp directory is deleted once shards are uploaded.
             3. If `out` is a tuple of `(local_dir, remote_dir)`, shard files are saved in the
                 `local_dir` and also uploaded to a remote location.
         keep_local (bool): If the dataset is uploaded, whether to keep the local dataset
