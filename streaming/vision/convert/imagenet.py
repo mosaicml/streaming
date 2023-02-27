@@ -69,8 +69,8 @@ def parse_args() -> Namespace:
         '--leave',
         type=int,
         default=0,
-        help='Keeps all traces of the progressbar upon termination of iteration. Default to ``0 ' +
-        '(False)``',
+        help='Keeps all traces of the progressbar upon termination of iteration. ' +
+        'Defaults to ``0 (False)``',
     )
     args.add_argument(
         '--validate',
