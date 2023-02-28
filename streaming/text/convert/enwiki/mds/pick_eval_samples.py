@@ -29,7 +29,7 @@ def parse_args():
         '--hashes',
         type=str,
         default='sha1,xxh3_64',
-        help='Hashing algorithms to apply to shard files. Default sha1,xxh3_64',
+        help='Hashing algorithms to apply to shard files. Default: sha1,xxh3_64',
     )
     args.add_argument(
         '--size_limit',

@@ -89,7 +89,7 @@ def parse_args() -> Namespace:
         default='zstd:16',
         help='Compression algorithm to use. Empirically, Zstandard has the best performance in ' +
         'our benchmarks. Tune the compression level (from 1 to 22) to trade off time for ' +
-        'quality. Defaults to ``zstd:16``',
+        'quality. Defaults to zstd:16',
     )
     args.add_argument(
         '--hashes',

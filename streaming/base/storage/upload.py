@@ -13,19 +13,19 @@ from typing import Any, Tuple, Union
 
 import tqdm
 
-__all__ = ['CloudWriter', 'S3Writer', 'GCSWriter', 'OCIWriter', 'LocalWriter']
+__all__ = ['CloudUploader', 'S3Uploader', 'GCSUploader', 'OCIUploader', 'LocalUploader']
 
 logger = logging.getLogger(__name__)
 
-WRITERS = {
-    's3': 'S3Writer',
-    'gs': 'GCSWriter',
-    'oci': 'OCIWriter',
-    '': 'LocalWriter',
+UPLOADERS = {
+    's3': 'S3Uploader',
+    'gs': 'GCSUploader',
+    'oci': 'OCIUploader',
+    '': 'LocalUploader',
 }
 
 
-class CloudWriter:
+class CloudUploader:
     """Upload local files to a cloud storage."""
 
     @classmethod
@@ -33,7 +33,7 @@ class CloudWriter:
             out: Union[str, Tuple[str, str]],
             keep_local: bool = False,
             progress_bar: bool = False) -> Any:
-        """Instantiate a cloud provider or a local writer based on remote location keyword.
+        """Instantiate a cloud provider uploader or a local uploader based on remote path.
 
         Args:
             out (str | Tuple[str, str]): Output dataset directory to save shard files.
@@ -49,11 +49,11 @@ class CloudWriter:
                 provider. Defaults to ``False``.
 
         Returns:
-            CloudWriter: An instance of sub-class.
+            CloudUploader: An instance of sub-class.
         """
         cls._validate(cls, out)
         obj = urllib.parse.urlparse(out) if isinstance(out, str) else urllib.parse.urlparse(out[1])
-        return getattr(sys.modules[__name__], WRITERS[obj.scheme])(out, keep_local, progress_bar)
+        return getattr(sys.modules[__name__], UPLOADERS[obj.scheme])(out, keep_local, progress_bar)
 
     def _validate(self, out: Union[str, Tuple[str, str]]) -> None:
         """Validate the `out` argument.
@@ -80,7 +80,7 @@ class CloudWriter:
                     'or a list of two strings with [local, remote].'
                 ]))
             obj = urllib.parse.urlparse(out[1])
-        if obj.scheme not in WRITERS:
+        if obj.scheme not in UPLOADERS:
             raise ValueError('Invalid Cloud provider prefix.')
 
     def __init__(self,
@@ -147,7 +147,7 @@ class CloudWriter:
             os.remove(local)
 
 
-class S3Writer(CloudWriter):
+class S3Uploader(CloudUploader):
     """Upload file from local machine to AWS S3 bucket.
 
     Args:
@@ -200,7 +200,7 @@ class S3Writer(CloudWriter):
         self.clear_local(local=local_filename)
 
 
-class GCSWriter(CloudWriter):
+class GCSUploader(CloudUploader):
     """Upload file from local machine to Google Cloud Storage bucket.
 
     Args:
@@ -256,7 +256,7 @@ class GCSWriter(CloudWriter):
         self.clear_local(local=local_filename)
 
 
-class OCIWriter(CloudWriter):
+class OCIUploader(CloudUploader):
     """Upload file from local machine to Oracle Cloud Infrastructure (OCI) Cloud Storage.
 
     Args:
@@ -315,7 +315,7 @@ class OCIWriter(CloudWriter):
         self.clear_local(local=local_filename)
 
 
-class LocalWriter(CloudWriter):
+class LocalUploader(CloudUploader):
     """Copy file from one local directory to another local directory.
 
     Args:

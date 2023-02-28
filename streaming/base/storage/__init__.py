@@ -4,9 +4,10 @@
 """Base module for downloading/uploading files from/to cloud storage."""
 
 from streaming.base.storage.download import download_file, download_or_wait
-from streaming.base.storage.upload import CloudWriter, GCSWriter, LocalWriter, OCIWriter, S3Writer
+from streaming.base.storage.upload import (CloudUploader, GCSUploader, LocalUploader, OCIUploader,
+                                           S3Uploader)
 
 __all__ = [
-    'download_file', 'download_or_wait', 'CloudWriter', 'S3Writer', 'GCSWriter', 'OCIWriter',
-    'LocalWriter'
+    'download_file', 'download_or_wait', 'CloudUploader', 'S3Uploader', 'GCSUploader',
+    'OCIUploader', 'LocalUploader'
 ]
