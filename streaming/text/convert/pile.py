@@ -81,7 +81,7 @@ def parse_args() -> Namespace:
         '--out_root',
         type=str,
         required=True,
-        help='Directory path to store the output MDS shard files',
+        help='Directory path to store the output dataset',
     )
     args.add_argument(
         '--compression',
@@ -95,13 +95,13 @@ def parse_args() -> Namespace:
         '--hashes',
         type=str,
         default='sha1,xxh64',
-        help='Hashing algorithms to apply to shard files. Defaults to ``sha1,xxh64``',
+        help='Hashing algorithms to apply to shard files. Default: sha1,xxh64',
     )
     args.add_argument(
         '--size_limit',
         type=int,
         default=1 << 27,
-        help='Shard size limit, after which point to start a new shard. Defaults to ``1 << 27``',
+        help='Shard size limit, after which point to start a new shard. Default: 1 << 27',
     )
     return args.parse_args()
 

@@ -19,7 +19,7 @@ FLAGS = flags.FLAGS
 flags.DEFINE_string("input_file", None,
                     "Input raw text file (or comma-separated list of files).")
 
-flags.DEFINE_string("output_dir", None, "Directory path to store the output MDS shard files")
+flags.DEFINE_string("output_dir", None, "Output example directory.")
 
 flags.DEFINE_string("compression", "zstd:7",
                     "Optional compression algorithm and compression level.")

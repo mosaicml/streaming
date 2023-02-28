@@ -17,31 +17,31 @@ def parse_args():
         '--out_root',
         type=str,
         required=True,
-        help='Directory path to store the output MDS shard files',
+        help='Directory path to store the output dataset',
     )
     args.add_argument(
         '--compression',
         type=str,
         default='zstd:16',
-        help='Compression algorithm to use. Defaults to ``zstd:16``',
+        help='Compression algorithm to use. Default: zstd:16',
     )
     args.add_argument(
         '--hashes',
         type=str,
         default='sha1,xxh3_64',
-        help='Hashing algorithms to apply to shard files. Defaults to ``sha1,xxh3_64``',
+        help='Hashing algorithms to apply to shard files. Default sha1,xxh3_64',
     )
     args.add_argument(
         '--size_limit',
         type=int,
         default=1 << 26,
-        help='Shard size limit, after which point to start a new shard. Defaults to ``1 << 26``',
+        help='Shard size limit, after which point to start a new shard. Default: 1 << 26',
     )
     args.add_argument(
         '--num_examples_to_pick',
         type=int,
         default=10000,
-        help='Number of examples to select. Defaults to ``10_000``',)
+        help='Number of examples to select. Default: 10_000',)
     return args.parse_args()
 
 

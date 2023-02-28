@@ -18,7 +18,7 @@ Instructions:
 
 2. Download each CSV you want to process.
 
-3. Run this script with flags --in_root (CSV) --out_root (MDS dir)
+3. Run this script with flags --in (CSV) --out_root (MDS dir)
 """
 
 import csv
@@ -44,7 +44,7 @@ def parse_args() -> Namespace:
     """
     args = ArgumentParser()
     args.add_argument(
-        '--in_root',
+        '--in',
         type=str,
         required=True,
         help='Dataset CSV file from https://m-bain.github.io/webvid-dataset/',
@@ -53,7 +53,7 @@ def parse_args() -> Namespace:
         '--out_root',
         type=str,
         required=True,
-        help='Directory path to store the output MDS shard files',
+        help='Directory path to store the output dataset',
     )
     args.add_argument(
         '--num_procs',

@@ -30,38 +30,38 @@ def parse_args() -> Namespace:
         '--out_root',
         type=str,
         required=True,
-        help='Directory path to store the output MDS shard files',
+        help='Directory path to store the output dataset',
     )
     args.add_argument(
         '--compression',
         type=str,
         default='zstd:7',
-        help='Compression algorithm to use. Defaults to ``zstd:7``',
+        help='Compression algorithm to use. Default: zstd:7',
     )
     args.add_argument(
         '--hashes',
         type=str,
         default='sha1,xxh64',
-        help='Hashing algorithms to apply to shard files. Defaults to ``sha1,xxh64``',
+        help='Hashing algorithms to apply to shard files. Default: sha1,xxh64',
     )
     args.add_argument(
         '--size_limit',
         type=int,
         default=1 << 25,
-        help='Shard size limit, after which point to start a new shard. Defaults to ``1 << 25``',
+        help='Shard size limit, after which point to start a new shard. Default: 1 << 25',
     )
     args.add_argument(
         '--progress_bar',
         type=int,
         default=1,
-        help='tqdm progress bar. Defaults to ``1 (True)``',
+        help='tqdm progress bar. Default: 1 (True)',
     )
     args.add_argument(
         '--leave',
         type=int,
         default=0,
-        help='Keeps all traces of the progressbar upon termination of iteration. ' +
-        'Defaults to ``0 (False)``',
+        help='Keeps all traces of the progressbar upon termination of iteration. Default: 0 ' +
+        '(False)',
     )
     return args.parse_args()
 
@@ -73,7 +73,7 @@ def process_split(in_root: str, out_root: str, compression: str, hashes: List[st
 
     Args:
         in_root (str): Local directory path of the input raw dataset.
-        out_root (str): Directory path to store the output MDS shard files.
+        out_root (str): Directory path to store the output dataset.
         compression (str): Which compression to use, or empty string if none.
         hashes (List[str]): List of hashes to store of the shards.
         size_limit (int): Maximum shard size in bytes.

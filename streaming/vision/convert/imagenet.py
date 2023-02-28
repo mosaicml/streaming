@@ -33,31 +33,31 @@ def parse_args() -> Namespace:
         '--out_root',
         type=str,
         required=True,
-        help='Directory path to store the output MDS shard files',
+        help='Directory path to store the output dataset',
     )
     args.add_argument(
         '--splits',
         type=str,
         default='train,val',
-        help='Split to use. Defaults to ``train,val``',
+        help='Split to use. Default: train,val',
     )
     args.add_argument(
         '--compression',
         type=str,
         default='',
-        help='Compression algorithm to use. Defaults to ``None``',
+        help='Compression algorithm to use. Default: None',
     )
     args.add_argument(
         '--hashes',
         type=str,
         default='sha1,xxh64',
-        help='Hashing algorithms to apply to shard files. Defaults to ``sha1,xxh64``',
+        help='Hashing algorithms to apply to shard files. Default: sha1,xxh64',
     )
     args.add_argument(
         '--size_limit',
         type=int,
         default=1 << 26,
-        help='Shard size limit, after which point to start a new shard. Defaults to ``1 << 26``',
+        help='Shard size limit, after which point to start a new shard. Default: 1 << 26',
     )
     args.add_argument(
         '--progress_bar',
@@ -69,20 +69,20 @@ def parse_args() -> Namespace:
         '--leave',
         type=int,
         default=0,
-        help='Keeps all traces of the progressbar upon termination of iteration. ' +
-        'Defaults to ``0 (False)``',
+        help='Keeps all traces of the progressbar upon termination of iteration. Default: 0 ' +
+        '(False)',
     )
     args.add_argument(
         '--validate',
         type=int,
         default=1,
-        help='Validate that it is an Image. Defaults to ``1 (True)``',
+        help='Validate that it is an Image. Default: 1 (True)',
     )
     args.add_argument(
         '--extensions',
         type=str,
         default='jpeg',
-        help='Validate filename extensions. Defaults to ``jpeg``',
+        help='Validate filename extensions. Default: jpeg',
     )
     return args.parse_args()
 
