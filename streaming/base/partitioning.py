@@ -47,21 +47,27 @@ def get_partitions(num_samples: int,
 
     # Create the initial sample ID matrix.
     #
-    # Shape: (canonical nodes, padded samples per canonical node).
+    # ids: (canonical nodes, padded samples per canonical node).
     ids = np.arange(num_canonical_nodes * padded_samples_per_canonical_node, dtype=np.int64)
     ids = ids.reshape(num_canonical_nodes, padded_samples_per_canonical_node)
 
     # Adjust row offsets to ignore the padding.
+    #
+    # row_offsets: (canonical nodes, 1).
     row_offsets = np.arange(num_canonical_nodes) * padding
     row_offsets = np.expand_dims(row_offsets, 1)
     ids -= row_offsets
 
     # Reconfigure where each row starts iterating for irregular-sized rows.
+    #
+    # row_starts: (canonical nodes, 1).
     row_starts = np.arange(num_canonical_nodes) * num_samples // num_canonical_nodes
     row_starts = np.expand_dims(row_starts, 1)
     ids += row_starts - ids[:, :1]
 
     # For short rows (length not evenly divisible), repeat the last ID to get even length.
+    #
+    # row_stops: (canonical nodes, 1).
     row_stops = np.arange(1, 1 + num_canonical_nodes) * num_samples // num_canonical_nodes
     row_stops = np.expand_dims(row_stops, 1)
     are_rows_short = row_stops - row_starts < samples_per_canonical_node
@@ -73,7 +79,7 @@ def get_partitions(num_samples: int,
 
     # Flatten, drop samples that have already been seen, reshape back.
     #
-    # Shape: (physical nodes, samples per node).
+    # ids: (physical nodes, samples per node).
     ids = ids.transpose()
     ids = ids.flatten()
     ids = ids[drop_first:]
@@ -83,7 +89,7 @@ def get_partitions(num_samples: int,
     # Interleave the node sample ranges over each node's ranks, padding by repeating the last
     # sample.
     #
-    # Shape: (physical nodes, samples per rank, ranks per node).
+    # ids: (physical nodes, samples per rank, ranks per node).
     overflow = ids.shape[1] % ranks_per_node
     if overflow:
         underflow = ranks_per_node - overflow
@@ -93,7 +99,7 @@ def get_partitions(num_samples: int,
 
     # Pad with -1 adequately for reshaping across workers.
     #
-    # Shape: (physical nodes, samples per rank, ranks per node).
+    # ids: (physical nodes, samples per rank, ranks per node).
     overflow = ids.shape[1] % workers_per_rank
     rounded_num_samples = math.ceil(
         ids.shape[1] / (workers_per_rank * batch_size)) * (workers_per_rank * batch_size)
@@ -104,7 +110,7 @@ def get_partitions(num_samples: int,
 
     # Interleave each rank's padded samples across its workers.
     #
-    # Shape: (physical nodes, ranks per node, workers per rank, batches per worker, batch size).
+    # ids: (physical nodes, ranks per node, workers per rank, batches per worker, batch size).
     ids = ids.transpose(0, 2, 1)
     ids = ids.reshape(num_physical_nodes, ranks_per_node, -1, workers_per_rank, batch_size)
     return ids.transpose(0, 1, 3, 2, 4)
