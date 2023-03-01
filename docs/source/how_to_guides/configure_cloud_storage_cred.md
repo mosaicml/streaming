@@ -56,7 +56,9 @@ For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps 
 
 ### Others
 
-Streaming dataset supports [GCP user credentials](https://cloud.google.com/storage/docs/authentication#user_accounts).  Users must set their GCP `user access key` and GCP `user access secret` in the run environment.
+Streaming dataset supports [GCP user credentials](https://cloud.google.com/storage/docs/authentication#user_accounts) or [HMAC keys for User account](https://cloud.google.com/storage/docs/authentication/hmackeys).  Users must set their GCP `user access key` and GCP `user access secret` in the run environment.
+
+From Google Cloud Console Navigate to `Google Storage` > `Settings (Left vertical pane)` > `Interoperability` > `Service account HMAC` > `User account HMAC` > `Access keys for your user account` > `Create a key`.
 
 ````{tabs}
 ```{code-tab} py
