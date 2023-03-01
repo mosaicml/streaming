@@ -1,7 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Partitions the sample space to nodes, devices, and workers."""
+"""Partitions the sample space to nodes, ranks, and workers."""
 
 import math
 from typing import Optional
@@ -16,7 +16,7 @@ def get_partitions(num_samples: int,
                    workers_per_rank: int,
                    batch_size: Optional[int] = None,
                    drop_first: int = 0):
-    """Partition the given number of samples to nodes, devices, and workers.
+    """Partition the given number of samples to nodes, ranks, and workers.
 
     Args:
         num_samples (int): Dataset size.
@@ -29,71 +29,88 @@ def get_partitions(num_samples: int,
         drop_first (int): Number of samples seen already, which are dropped. Defaults to ``0``.
 
     Returns:
-        NDArray[np.int64]: Partitions of shape (physical nodes x ranks x workers x samples).
+        NDArray[np.int64]: Partitions of shape (physical nodes, ranks, workers, batches, samples).
     """
-    # Divide the full dataset sample range into sample range per canonical node.
     batch_size = batch_size or 1
-    xx = []
-    for i in range(num_canonical_nodes):
-        a = i * num_samples // num_canonical_nodes
-        z = (i + 1) * num_samples // num_canonical_nodes
-        x = np.arange(a, z)
-        xx.append(x)
 
-    # Make the spans equal length by repeating the last sample if too short.
-    # -> Shape: (canonical nodes x samples).
-    max_len = max(map(len, xx))
-    for i, x in enumerate(xx):
-        if len(x) < max_len:
-            last = np.array([x[-1]])
-            xx[i] = np.concatenate([x, last])
-    x = np.stack(xx)
-
-    # If there are more physical than canonical nodes, interleave canonical onto physical nodes.
-    # -> Shape: (canonical nodes x samples).
+    # Divide the full dataset sample range into a sample range per canonical node.
+    samples_per_canonical_node = (num_samples + num_canonical_nodes - 1) // num_canonical_nodes
+    node_ratio = 0
+    padding = 0
     if num_canonical_nodes < num_physical_nodes:
         assert not num_physical_nodes % num_canonical_nodes
-        ratio = num_physical_nodes // num_canonical_nodes
-        too_many = x.shape[1] % ratio
-        if too_many:
-            too_few = ratio - too_many
-            last = x[:, -ratio - too_few + 1:-ratio + 1]
-            x = np.concatenate([x, last], 1)
+        node_ratio = num_physical_nodes // num_canonical_nodes
+        overflow = samples_per_canonical_node % node_ratio
+        if overflow:
+            padding = node_ratio - overflow
+    padded_samples_per_canonical_node = samples_per_canonical_node + padding
 
-    # Drop samples that have already been seen and reshape.
-    # -> Shape: (physical nodes x samples).
-    x = x.transpose()
-    x = x.flatten()
-    x = x[drop_first:]
-    x = x.reshape(-1, num_physical_nodes)
-    x = x.transpose()
+    # Create the initial sample ID matrix.
+    #
+    # ids: (canonical nodes, padded samples per canonical node).
+    ids = np.arange(num_canonical_nodes * padded_samples_per_canonical_node, dtype=np.int64)
+    ids = ids.reshape(num_canonical_nodes, padded_samples_per_canonical_node)
 
-    # Interleave the node sample ranges over each node's devices, padding by repeating last sample.
-    # -> Shape: (physical nodes x samples x devices).
-    too_many = x.shape[1] % ranks_per_node
-    if too_many:
-        too_few = ranks_per_node - too_many
-        last = x[:, -ranks_per_node - too_few + 1:-ranks_per_node + 1]
-        x = np.concatenate([x, last], 1)
-    x = x.reshape(num_physical_nodes, -1, ranks_per_node)
+    # Adjust row offsets to ignore the padding.
+    #
+    # row_offsets: (canonical nodes, 1).
+    row_offsets = np.arange(num_canonical_nodes) * padding
+    row_offsets = np.expand_dims(row_offsets, 1)
+    ids -= row_offsets
 
-    # Interleave each device's samples across its workers, padding with -1.
-    # -> Shape: (physical nodes x samples x workers x devices).
-    too_many = x.shape[1] % workers_per_rank
-    # Make the number of samples multiple of batch size and workers per rank
+    # Reconfigure where each row starts iterating for irregular-sized rows.
+    #
+    # row_starts: (canonical nodes, 1).
+    row_starts = np.arange(num_canonical_nodes) * num_samples // num_canonical_nodes
+    row_starts = np.expand_dims(row_starts, 1)
+    ids += row_starts - ids[:, :1]
+
+    # For short rows (length not evenly divisible), repeat the last ID to get even length.
+    #
+    # row_stops: (canonical nodes, 1).
+    row_stops = np.arange(1, 1 + num_canonical_nodes) * num_samples // num_canonical_nodes
+    row_stops = np.expand_dims(row_stops, 1)
+    are_rows_short = row_stops - row_starts < samples_per_canonical_node
+    ids[:, samples_per_canonical_node - 1:samples_per_canonical_node] -= are_rows_short
+
+    # If padding we needed, repeat samples to populate it.
+    if padding:
+        ids[:, -padding:] = ids[:, -padding - node_ratio + 1 - padding:-padding - node_ratio + 1]
+
+    # Flatten, drop samples that have already been seen, reshape back.
+    #
+    # ids: (physical nodes, samples per node).
+    ids = ids.transpose()
+    ids = ids.flatten()
+    ids = ids[drop_first:]
+    ids = ids.reshape(-1, num_physical_nodes)
+    ids = ids.transpose()
+
+    # Interleave the node sample ranges over each node's ranks, padding by repeating the last
+    # sample.
+    #
+    # ids: (physical nodes, samples per rank, ranks per node).
+    overflow = ids.shape[1] % ranks_per_node
+    if overflow:
+        underflow = ranks_per_node - overflow
+        last = ids[:, -ranks_per_node - underflow + 1:-ranks_per_node + 1]
+        ids = np.concatenate([ids, last], 1)
+    ids = ids.reshape(num_physical_nodes, -1, ranks_per_node)
+
+    # Pad with -1 adequately for reshaping across workers.
+    #
+    # ids: (physical nodes, samples per rank, ranks per node).
+    overflow = ids.shape[1] % workers_per_rank
     rounded_num_samples = math.ceil(
-        x.shape[1] / (workers_per_rank * batch_size)) * (workers_per_rank * batch_size)
-    too_many = rounded_num_samples - x.shape[1]
-    if too_many:
-        last = np.full((num_physical_nodes, too_many, ranks_per_node), -1, np.int64)
-        x = np.concatenate([x, last], 1)
+        ids.shape[1] / (workers_per_rank * batch_size)) * (workers_per_rank * batch_size)
+    overflow = rounded_num_samples - ids.shape[1]
+    if overflow:
+        last = np.full((num_physical_nodes, overflow, ranks_per_node), -1, np.int64)
+        ids = np.concatenate([ids, last], 1)
 
-    # -> Shape: (physical nodes x ranks per node x samples)
-    x = x.transpose(0, 2, 1)
-    x = x.reshape(num_physical_nodes, ranks_per_node, -1, batch_size)
-    x = np.concatenate(
-        [x[:, :, np.arange(i, x.shape[2], workers_per_rank), :] for i in range(workers_per_rank)],
-        axis=2)
-
-    # -> Shape: (physical nodes x ranks per node x workers per rank x samples)
-    return x.reshape(num_physical_nodes, ranks_per_node, workers_per_rank, -1)
+    # Interleave each rank's padded samples across its workers.
+    #
+    # ids: (physical nodes, ranks per node, workers per rank, batches per worker, batch size).
+    ids = ids.transpose(0, 2, 1)
+    ids = ids.reshape(num_physical_nodes, ranks_per_node, -1, workers_per_rank, batch_size)
+    return ids.transpose(0, 1, 3, 2, 4)
