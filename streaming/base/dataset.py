@@ -26,7 +26,7 @@ from streaming.base.index import Index, get_index_basename
 from streaming.base.partitioning import get_partitions
 from streaming.base.shared import SharedBarrier, create_shared_memory
 from streaming.base.shuffle import get_shuffle
-from streaming.base.storage import download
+from streaming.base.storage import download_file
 from streaming.base.util import wait_for_file_to_exist, wait_for_local_leader
 from streaming.base.world import World
 
@@ -466,7 +466,7 @@ class StreamingDataset(IterableDataset):
         errors = []
         for _ in range(1 + self.download_retry):
             try:
-                download(remote, local, self.download_timeout)
+                download_file(remote, local, self.download_timeout)
             except FileNotFoundError:  # Bubble up file not found error.
                 raise
             except Exception as e:  # Retry for all other causes of failure.

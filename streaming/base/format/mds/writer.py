@@ -4,7 +4,7 @@
 """:class:`MDSWriter` writes samples to ``.mds`` files that can be read by :class:`MDSReader`."""
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -20,12 +20,13 @@ class MDSWriter(JointWriter):
 
     Args:
         columns (Dict[str, str]): Sample columns.
-        local: (str, optional): Optional local output dataset directory. If not provided, a random
-           temp directory will be used. If ``remote`` is provided, this is where shards are cached
-            before uploading. One or both of ``local`` and ``remote`` must be provided. Defaults to
-            ``None``.
-        remote: (str, optional): Optional remote output dataset directory. If not provided, no
-            uploading will be done. Defaults to ``None``.
+        out (str | Tuple[str, str]): Output dataset directory to save shard files.
+            1. If `out` is a local directory, shard files are saved locally.
+            2. If `out` is a remote directory, a local temporary directory is created to
+                cache the shard files and then the shard files are uploaded to a remote
+                location. At the end, the temp directory is deleted once shards are uploaded.
+            3. If `out` is a tuple of `(local_dir, remote_dir)`, shard files are saved in the
+                `local_dir` and also uploaded to a remote location.
         keep_local (bool): If the dataset is uploaded, whether to keep the local dataset directory
             or remove it after uploading. Defaults to ``False``.
         compression (str, optional): Optional compression or compression:level. Defaults to
@@ -34,6 +35,7 @@ class MDSWriter(JointWriter):
             Defaults to ``None``.
         size_limit (int, optional): Optional shard size limit, after which point to start a new
             shard. If ``None``, puts everything in one shard. Defaults to ``1 << 26``.
+        **kwargs (Any): Additional settings for the Writer.
     """
 
     format = 'mds'
@@ -42,19 +44,19 @@ class MDSWriter(JointWriter):
     def __init__(self,
                  *,
                  columns: Dict[str, str],
-                 local: Optional[str] = None,
-                 remote: Optional[str] = None,
+                 out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,
-                 size_limit: Optional[int] = 1 << 26) -> None:
-        super().__init__(local=local,
-                         remote=remote,
+                 size_limit: Optional[int] = 1 << 26,
+                 **kwargs: Any) -> None:
+        super().__init__(out=out,
                          keep_local=keep_local,
                          compression=compression,
                          hashes=hashes,
                          size_limit=size_limit,
-                         extra_bytes_per_sample=self.extra_bytes_per_sample)
+                         extra_bytes_per_sample=self.extra_bytes_per_sample,
+                         **kwargs)
         self.columns = columns
         self.column_names = []
         self.column_encodings = []

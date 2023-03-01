@@ -109,7 +109,7 @@ It's time to call the {class}`streaming.MDSWriter` with the above initialized pa
 from streaming.base import MDSWriter
 
 dataset = RandomClassificationDataset()
-with MDSWriter(local=output_dir, columns=columns, compression=compression, hashes=hashes, size_limit=limit) as out:
+with MDSWriter(out=output_dir, columns=columns, compression=compression, hashes=hashes, size_limit=limit) as out:
     for sample in each(dataset):
         out.write(sample)
 ```

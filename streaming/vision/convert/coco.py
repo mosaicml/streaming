@@ -29,19 +29,13 @@ def parse_args() -> Namespace:
         '--in_root',
         type=str,
         required=True,
-        help='Location of the input dataset',
+        help='Local directory path of the input raw dataset',
     )
     args.add_argument(
         '--out_root',
         type=str,
         required=True,
-        help='Location to store the output dataset',
-    )
-    args.add_argument(
-        '--splits',
-        type=str,
-        default='train,val',
-        help='Split to use. Default: train,val',
+        help='Directory path to store the output dataset',
     )
     args.add_argument(
         '--compression',
@@ -62,7 +56,7 @@ def parse_args() -> Namespace:
         help='Shard size limit, after which point to start a new shard. Default: 1 << 25',
     )
     args.add_argument(
-        '--progbar',
+        '--progress_bar',
         type=int,
         default=1,
         help='tqdm progress bar. Default: 1 (Act as True)',
@@ -212,7 +206,7 @@ def main(args: Namespace) -> None:
         ('train', 117266, True),
         ('val', 4952, False),
     ]:
-        split_out_dir = os.path.join(args.out_root, split)
+        out_split_dir = os.path.join(args.out_root, split)
 
         split_images_in_dir = os.path.join(args.in_root, f'{split}2017')
         if not os.path.exists(split_images_in_dir):
@@ -230,16 +224,17 @@ def main(args: Namespace) -> None:
 
         hashes = get_list_arg(args.hashes)
 
-        if args.progbar:
+        if args.progress_bar:
             dataset = tqdm(each(dataset, shuffle), leave=args.leave, total=len(dataset))
         else:
             dataset = each(dataset, shuffle)
 
-        with MDSWriter(local=split_out_dir,
+        with MDSWriter(out=out_split_dir,
                        columns=columns,
                        compression=args.compression,
                        hashes=hashes,
-                       size_limit=args.size_limit) as out:
+                       size_limit=args.size_limit,
+                       progress_bar=args.progress_bar) as out:
             for sample in dataset:
                 out.write(sample)
 

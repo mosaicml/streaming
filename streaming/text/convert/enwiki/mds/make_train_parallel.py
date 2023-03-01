@@ -29,7 +29,7 @@ def parse_args() -> Namespace:
     args.add_argument('--out_root',
                       type=str,
                       required=True,
-                      help='Output root directory containing shard dirs named like group-###.')
+                      help='Output directory containing shard dirs named like group-###.')
     args.add_argument('--out_pattern',
                       type=str,
                       default='group-%03d',

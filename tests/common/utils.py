@@ -11,26 +11,26 @@ import pytest
 
 
 @pytest.fixture(scope='function')
-def remote_local() -> Any:
+def local_remote_dir() -> Any:
     """Creates a temporary directory and then deletes it when the calling function is done."""
     try:
         mock_dir = tempfile.TemporaryDirectory()
-        mock_remote_dir = os.path.join(mock_dir.name, 'remote')
         mock_local_dir = os.path.join(mock_dir.name, 'local')
-        yield mock_remote_dir, mock_local_dir
+        mock_remote_dir = os.path.join(mock_dir.name, 'remote')
+        yield mock_local_dir, mock_remote_dir
     finally:
         mock_dir.cleanup()  # pyright: ignore
 
 
 @pytest.fixture(scope='function')
-def compressed_remote_local() -> Any:
+def compressed_local_remote_dir() -> Any:
     """Creates a temporary directory and then deletes it when the calling function is done."""
     try:
         mock_dir = tempfile.TemporaryDirectory()
         mock_compressed_dir = os.path.join(mock_dir.name, 'compressed')
-        mock_remote_dir = os.path.join(mock_dir.name, 'remote')
         mock_local_dir = os.path.join(mock_dir.name, 'local')
-        yield mock_compressed_dir, mock_remote_dir, mock_local_dir
+        mock_remote_dir = os.path.join(mock_dir.name, 'remote')
+        yield mock_compressed_dir, mock_local_dir, mock_remote_dir
     finally:
         mock_dir.cleanup()  # pyright: ignore
 

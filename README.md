@@ -98,7 +98,7 @@ columns = {
 compression = 'zstd'
 
 # Save the samples as shards using MDSWriter
-with MDSWriter(data_dir, columns, compression) as out:
+with MDSWriter(out=data_dir, columns=columns, compression=compression) as out:
     for i in range(10000):
         sample = {
             'image': Image.fromarray(np.random.randint(0, 256, (32, 32, 3), np.uint8)),

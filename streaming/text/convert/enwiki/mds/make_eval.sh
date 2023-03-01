@@ -13,6 +13,6 @@ python3 create_pretraining_data.py \
   --dupe_factor=10
 
 python3 pick_eval_samples.py \
-  --input_dir=/tmp/enwiki_preproc/mds/eval_intermediate/ \
-  --output_dir=/dataset/mds-enwiki/val/ \
+  --in_root=/tmp/enwiki_preproc/mds/eval_intermediate/ \
+  --out_root=/dataset/mds-enwiki/val/ \
   --num_examples_to_pick=10000

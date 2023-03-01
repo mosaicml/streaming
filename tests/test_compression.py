@@ -254,21 +254,21 @@ def check_for_diff_files(dir: dircmp, compression_ext: Union[None, str]):
 @pytest.mark.parametrize('compression', [None, 'br:11', 'bz2:9', 'gz:5', 'snappy', 'zstd:15'])
 @pytest.mark.parametrize('num_samples', [9867])
 @pytest.mark.parametrize('size_limit', [16_384])
-def test_dataset_compression(compressed_remote_local: Tuple[str, str, str],
+def test_dataset_compression(compressed_local_remote_dir: Tuple[str, str, str],
                              compression: Optional[str], num_samples: int, size_limit: int):
     shuffle = True
-    compressed, remote, local = compressed_remote_local
+    compressed, local, remote = compressed_local_remote_dir
     samples = SequenceDataset(num_samples)
     columns = dict(zip(samples.column_names, samples.column_encodings))
     compression_ext = compression.split(':')[0] if compression else None
 
-    write_mds_dataset(local=compressed,
+    write_mds_dataset(out_root=compressed,
                       columns=columns,
                       samples=samples,
                       size_limit=size_limit,
                       compression=compression)
     samples = SequenceDataset(num_samples)
-    write_mds_dataset(local=remote,
+    write_mds_dataset(out_root=remote,
                       columns=columns,
                       samples=samples,
                       size_limit=size_limit,
