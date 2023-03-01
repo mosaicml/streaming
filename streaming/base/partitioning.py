@@ -29,7 +29,7 @@ def get_partitions(num_samples: int,
         drop_first (int): Number of samples seen already, which are dropped. Defaults to ``0``.
 
     Returns:
-        NDArray[np.int64]: Partitions (physical nodes x ranks x workers x batches x samples).
+        NDArray[np.int64]: Partitions of shape (physical nodes, ranks, workers, batches, samples).
     """
     batch_size = batch_size or 1
 
@@ -48,57 +48,57 @@ def get_partitions(num_samples: int,
     # Create the initial sample ID matrix.
     #
     # Shape: (canonical nodes, padded samples per canonical node).
-    x = np.arange(num_canonical_nodes * padded_samples_per_canonical_node, dtype=np.int64)
-    x = x.reshape(num_canonical_nodes, padded_samples_per_canonical_node)
+    ids = np.arange(num_canonical_nodes * padded_samples_per_canonical_node, dtype=np.int64)
+    ids = ids.reshape(num_canonical_nodes, padded_samples_per_canonical_node)
 
     # Make adustments to replicate the original padding and extending behavior.
     offsets = np.arange(num_canonical_nodes) * padding
     offsets = np.expand_dims(offsets, 1)
-    x -= offsets
+    ids -= offsets
     starts = np.arange(num_canonical_nodes) * num_samples // num_canonical_nodes
     starts = np.expand_dims(starts, 1)
-    x += starts - x[:, :1]
+    ids += starts - ids[:, :1]
     stops = np.arange(1, 1 + num_canonical_nodes) * num_samples // num_canonical_nodes
     stops = np.expand_dims(stops, 1)
     is_shorts = stops - starts < samples_per_canonical_node
-    x[:, samples_per_canonical_node - 1:samples_per_canonical_node] -= is_shorts
+    ids[:, samples_per_canonical_node - 1:samples_per_canonical_node] -= is_shorts
     if padding:
-        x[:, -padding:] = x[:, -padding - node_ratio + 1 - padding:-padding - node_ratio + 1]
+        ids[:, -padding:] = ids[:, -padding - node_ratio + 1 - padding:-padding - node_ratio + 1]
 
     # Flatten, drop samples that have already been seen, reshape back.
     #
     # Shape: (physical nodes, samples per node).
-    x = x.transpose()
-    x = x.flatten()
-    x = x[drop_first:]
-    x = x.reshape(-1, num_physical_nodes)
-    x = x.transpose()
+    ids = ids.transpose()
+    ids = ids.flatten()
+    ids = ids[drop_first:]
+    ids = ids.reshape(-1, num_physical_nodes)
+    ids = ids.transpose()
 
     # Interleave the node sample ranges over each node's ranks, padding by repeating the last
     # sample.
     #
     # Shape: (physical nodes, samples per rank, ranks per node).
-    overflow = x.shape[1] % ranks_per_node
+    overflow = ids.shape[1] % ranks_per_node
     if overflow:
         underflow = ranks_per_node - overflow
-        last = x[:, -ranks_per_node - underflow + 1:-ranks_per_node + 1]
-        x = np.concatenate([x, last], 1)
-    x = x.reshape(num_physical_nodes, -1, ranks_per_node)
+        last = ids[:, -ranks_per_node - underflow + 1:-ranks_per_node + 1]
+        ids = np.concatenate([ids, last], 1)
+    ids = ids.reshape(num_physical_nodes, -1, ranks_per_node)
 
     # Pad with -1 adequately for reshaping across workers.
     #
     # Shape: (physical nodes, samples per rank, ranks per node).
-    overflow = x.shape[1] % workers_per_rank
+    overflow = ids.shape[1] % workers_per_rank
     rounded_num_samples = math.ceil(
-        x.shape[1] / (workers_per_rank * batch_size)) * (workers_per_rank * batch_size)
-    overflow = rounded_num_samples - x.shape[1]
+        ids.shape[1] / (workers_per_rank * batch_size)) * (workers_per_rank * batch_size)
+    overflow = rounded_num_samples - ids.shape[1]
     if overflow:
         last = np.full((num_physical_nodes, overflow, ranks_per_node), -1, np.int64)
-        x = np.concatenate([x, last], 1)
+        ids = np.concatenate([ids, last], 1)
 
     # Interleave each rank's padded samples across its workers.
     #
     # Shape: (physical nodes, ranks per node, workers per rank, batches per worker, batch size).
-    x = x.transpose(0, 2, 1)
-    x = x.reshape(num_physical_nodes, ranks_per_node, -1, workers_per_rank, batch_size)
-    return x.transpose(0, 1, 3, 2, 4)
+    ids = ids.transpose(0, 2, 1)
+    ids = ids.reshape(num_physical_nodes, ranks_per_node, -1, workers_per_rank, batch_size)
+    return ids.transpose(0, 1, 3, 2, 4)
