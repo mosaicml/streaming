@@ -54,7 +54,7 @@ def parse_args() -> Namespace:
         help='DataLoader batch size. Default: 512',
     )
     args.add_argument(
-        '--progbar',
+        '--progress_bar',
         type=int,
         default=1,
         help='tqdm progress bar. Default: 1 (True)',
@@ -142,13 +142,14 @@ def main(args: Namespace) -> None:
     for old_split, new_split, num_samples, num_workers in splits:
         dataset = get(old_split)
         split_dir = os.path.join(args.out_root, new_split)
-        with MDSWriter(local=split_dir,
+        with MDSWriter(out=split_dir,
                        columns=columns,
                        compression=args.compression,
                        hashes=hashes,
-                       size_limit=args.size_limit) as out:
+                       size_limit=args.size_limit,
+                       progress_bar=args.progress_bar) as out:
             samples = each(dataset, num_workers, args.batch_size)  # pyright: ignore
-            if args.progbar:
+            if args.progress_bar:
                 samples = tqdm(samples, total=num_samples, leave=args.leave)
             for sample in samples:
                 out.write(sample)

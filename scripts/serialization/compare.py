@@ -160,7 +160,7 @@ def mds_write(samples: List[Dict[str, Any]], data_dir: str) -> None:
         'text': 'str',
         'meta': 'json',
     }
-    with MDSWriter(local=data_dir, columns=columns, size_limit=1 << 26) as out:
+    with MDSWriter(out=data_dir, columns=columns, size_limit=1 << 26) as out:
         for sample in samples:
             out.write(sample)
 

@@ -4,45 +4,37 @@
 """Serialize samples into streaming dataset shards and index."""
 
 import json
+import logging
 import os
+import shutil
 from abc import ABC, abstractmethod
-from tempfile import mkdtemp
+from concurrent.futures import ThreadPoolExecutor
 from types import TracebackType
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 from typing_extensions import Self
 
 from streaming.base.compression import compress, get_compression_extension, is_compression
 from streaming.base.hashing import get_hash, is_hash
 from streaming.base.index import get_index_basename
+from streaming.base.storage.upload import CloudUploader
 
 __all__ = ['JointWriter', 'SplitWriter']
 
-
-def upload(local: str, remote: str) -> None:
-    """Placeholder upload method.
-
-    Args:
-        local (str): Local filename.
-        remote (str): Remote path.
-    """
-    dirname = os.path.dirname(remote)
-    if not os.path.exists(dirname):
-        os.makedirs(dirname)
-    import shutil
-    shutil.copy(local, remote)
+logger = logging.getLogger(__name__)
 
 
 class Writer(ABC):
     """Writes a streaming dataset.
 
     Args:
-        local: (str, optional): Optional local output dataset directory. If not provided, a random
-           temp directory will be used. If ``remote`` is provided, this is where shards are cached
-            before uploading. One or both of ``local`` and ``remote`` must be provided. Defaults to
-            ``None``.
-        remote: (str, optional): Optional remote output dataset directory. If not provided, no
-            uploading will be done. Defaults to ``None``.
+        out (str | Tuple[str, str]): Output dataset directory to save shard files.
+            1. If `out` is a local directory, shard files are saved locally.
+            2. If `out` is a remote directory, a local temporary directory is created to
+                cache the shard files and then the shard files are uploaded to a remote
+                location. At the end, the temp directory is deleted once shards are uploaded.
+            3. If `out` is a tuple of `(local_dir, remote_dir)`, shard files are saved in the
+                `local_dir` and also uploaded to a remote location.
         keep_local (bool): If the dataset is uploaded, whether to keep the local dataset directory
             or remove it after uploading. Defaults to ``False``.
         compression (str, optional): Optional compression or compression:level. Defaults to
@@ -55,26 +47,21 @@ class Writer(ABC):
             while writing). Defaults to ``0``.
         extra_bytes_per_sample (int): Extra bytes per serialized sample (for computing shard size
             while writing). Defaults to ``0``.
+        **kwargs (Any): Additional settings for the Writer.
     """
 
     format: str = ''  # Name of the format (like "mds", "csv", "json", etc).
 
     def __init__(self,
                  *,
-                 local: Optional[str] = None,
-                 remote: Optional[str] = None,
+                 out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,
                  size_limit: Optional[int] = 1 << 26,
                  extra_bytes_per_shard: int = 0,
-                 extra_bytes_per_sample: int = 0) -> None:
-        if local:
-            pass
-        elif remote:
-            local = mkdtemp()
-        else:
-            raise ValueError('You must provide local and/or remote path(s).')
+                 extra_bytes_per_sample: int = 0,
+                 **kwargs: Any) -> None:
 
         compression = compression or None
         if compression:
@@ -94,8 +81,6 @@ class Writer(ABC):
         else:
             size_limit = None
 
-        self.local = local
-        self.remote = remote
         self.keep_local = keep_local
         self.compression = compression
         self.hashes = hashes
@@ -107,10 +92,12 @@ class Writer(ABC):
 
         self.shards = []
 
-        # Raise an exception if the directory is not empty
-        if os.path.exists(local) and len(os.listdir(local)) != 0:
-            raise FileExistsError(f'Directory is not empty: {local}')
-        os.makedirs(local, exist_ok=True)
+        self.cloud_writer = CloudUploader.get(out, keep_local, kwargs.get('progress_bar', False))
+        self.local = self.cloud_writer.local
+        self.remote = self.cloud_writer.remote
+        # `max_workers`: The maximum number of threads that can be executed in parallel.
+        # One thread is responsible for uploading one shard file to a remote location.
+        self.executor = ThreadPoolExecutor(max_workers=kwargs.get('max_workers', None))
 
         self._reset_cache()
 
@@ -212,20 +199,6 @@ class Writer(ABC):
             'size_limit': self.size_limit
         }
 
-    def upload(self, basename: str) -> None:
-        """Upload a local file to cloud storage, if requested.
-
-        Args:
-            basename (str): Relative path to local file.
-        """
-        if not self.remote:
-            return
-        local_filename = os.path.join(self.local, basename)
-        remote_filename = os.path.join(self.remote, basename)
-        upload(local_filename, remote_filename)
-        if not self.keep_local:
-            os.remove(local_filename)
-
     @abstractmethod
     def flush_shard(self) -> None:
         """Flush cached samples to storage, creating a new shard."""
@@ -259,7 +232,7 @@ class Writer(ABC):
         }
         with open(filename, 'w') as out:
             json.dump(obj, out, sort_keys=True)
-        self.upload(basename)
+        self.executor.submit(self.cloud_writer.upload_file, basename)
 
     def finish(self) -> None:
         """Finish writing samples."""
@@ -267,8 +240,10 @@ class Writer(ABC):
             self.flush_shard()
             self._reset_cache()
         self._write_index()
+        logger.debug(f'Waiting for all shard files to get uploaded to {self.remote}')
+        self.executor.shutdown(wait=True, cancel_futures=False)
         if self.remote and not self.keep_local:
-            os.rmdir(self.local)
+            shutil.rmtree(self.local)
 
     def __enter__(self) -> Self:
         """Enter context manager.
@@ -294,12 +269,13 @@ class JointWriter(Writer):
     """Writes a streaming dataset with joint shards.
 
     Args:
-        local: (str, optional): Optional local output dataset directory. If not provided, a random
-           temp directory will be used. If ``remote`` is provided, this is where shards are cached
-            before uploading. One or both of ``local`` and ``remote`` must be provided. Defaults to
-            ``None``.
-        remote: (str, optional): Optional remote output dataset directory. If not provided, no
-            uploading will be done. Defaults to ``None``.
+        out (str | Tuple[str, str]): Output dataset directory to save shard files.
+            1. If `out` is a local directory, shard files are saved locally.
+            2. If `out` is a remote directory, a local temporary directory is created to
+                cache the shard files and then the shard files are uploaded to a remote
+                location. At the end, the temp directory is deleted once shards are uploaded.
+            3. If `out` is a tuple of `(local_dir, remote_dir)`, shard files are saved in the
+                `local_dir` and also uploaded to a remote location.
         keep_local (bool): If the dataset is uploaded, whether to keep the local dataset directory
             or remove it after uploading. Defaults to ``False``.
         compression (str, optional): Optional compression or compression:level. Defaults to
@@ -312,26 +288,27 @@ class JointWriter(Writer):
             while writing). Defaults to ``0``.
         extra_bytes_per_sample (int): Extra bytes per serialized sample (for computing shard size
             while writing). Defaults to ``0``.
+        **kwargs (Any): Additional settings for the Writer.
     """
 
     def __init__(self,
                  *,
-                 local: Optional[str] = None,
-                 remote: Optional[str] = None,
+                 out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,
                  size_limit: Optional[int] = 1 << 26,
                  extra_bytes_per_shard: int = 0,
-                 extra_bytes_per_sample: int = 0) -> None:
-        super().__init__(local=local,
-                         remote=remote,
+                 extra_bytes_per_sample: int = 0,
+                 **kwargs: Any) -> None:
+        super().__init__(out=out,
                          keep_local=keep_local,
                          compression=compression,
                          hashes=hashes,
                          size_limit=size_limit,
                          extra_bytes_per_shard=extra_bytes_per_shard,
-                         extra_bytes_per_sample=extra_bytes_per_sample)
+                         extra_bytes_per_sample=extra_bytes_per_sample,
+                         **kwargs)
 
     @abstractmethod
     def encode_joint_shard(self) -> bytes:
@@ -355,7 +332,7 @@ class JointWriter(Writer):
         obj.update(self.get_config())
         self.shards.append(obj)
 
-        self.upload(zip_data_basename or raw_data_basename)
+        self.executor.submit(self.cloud_writer.upload_file, zip_data_basename or raw_data_basename)
 
 
 class SplitWriter(Writer):
@@ -364,12 +341,13 @@ class SplitWriter(Writer):
     Split shards refer to raw data (csv, json, etc.) paired with an index into it.
 
     Args:
-        local: (str, optional): Optional local output dataset directory. If not provided, a random
-           temp directory will be used. If ``remote`` is provided, this is where shards are cached
-            before uploading. One or both of ``local`` and ``remote`` must be provided. Defaults to
-            ``None``.
-        remote: (str, optional): Optional remote output dataset directory. If not provided, no
-            uploading will be done. Defaults to ``None``.
+        out (str | Tuple[str, str]): Output dataset directory to save shard files.
+            1. If `out` is a local directory, shard files are saved locally.
+            2. If `out` is a remote directory, a local temporary directory is created to
+                cache the shard files and then the shard files are uploaded to a remote
+                location. At the end, the temp directory is deleted once shards are uploaded.
+            3. If `out` is a tuple of `(local_dir, remote_dir)`, shard files are saved in the
+                `local_dir` and also uploaded to a remote location.
         keep_local (bool): If the dataset is uploaded, whether to keep the local dataset directory
             or remove it after uploading. Defaults to ``False``.
         compression (str, optional): Optional compression or compression:level. Defaults to
@@ -378,6 +356,7 @@ class SplitWriter(Writer):
             Defaults to ``None``.
         size_limit (int, optional): Optional shard size limit, after which point to start a new
             shard. If None, puts everything in one shard. Defaults to ``1 << 26``.
+        **kwargs (Any): Additional settings for the Writer.
     """
 
     extra_bytes_per_shard = 0
@@ -385,20 +364,20 @@ class SplitWriter(Writer):
 
     def __init__(self,
                  *,
-                 local: Optional[str] = None,
-                 remote: Optional[str] = None,
+                 out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,
-                 size_limit: Optional[int] = 1 << 26) -> None:
-        super().__init__(local=local,
-                         remote=remote,
+                 size_limit: Optional[int] = 1 << 26,
+                 **kwargs: Any) -> None:
+        super().__init__(out=out,
                          keep_local=keep_local,
                          compression=compression,
                          hashes=hashes,
                          size_limit=size_limit,
                          extra_bytes_per_shard=self.extra_bytes_per_shard,
-                         extra_bytes_per_sample=self.extra_bytes_per_sample)
+                         extra_bytes_per_sample=self.extra_bytes_per_sample,
+                         **kwargs)
 
     @abstractmethod
     def encode_split_shard(self) -> Tuple[bytes, bytes]:
@@ -427,5 +406,5 @@ class SplitWriter(Writer):
         obj.update(self.get_config())
         self.shards.append(obj)
 
-        self.upload(zip_data_basename or raw_data_basename)
-        self.upload(zip_meta_basename or raw_meta_basename)
+        self.executor.submit(self.cloud_writer.upload_file, zip_data_basename or raw_data_basename)
+        self.executor.submit(self.cloud_writer.upload_file, zip_meta_basename or raw_meta_basename)

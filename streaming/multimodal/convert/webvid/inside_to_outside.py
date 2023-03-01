@@ -45,7 +45,7 @@ def main(args: Namespace) -> None:
     """
     hashes = args.hashes.split(',') if args.hashes else []
     dataset = StreamingDataset(local=getattr(args, 'in'))
-    with MDSWriter(local=args.out_mds,
+    with MDSWriter(out=args.out_mds,
                    columns=out_columns,
                    compression=args.compression,
                    hashes=hashes,

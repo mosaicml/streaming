@@ -9,16 +9,16 @@ import pytest
 from streaming import MDSWriter, StreamingDataset
 
 
-@pytest.mark.usefixtures('remote_local')
-def test_laziness(remote_local: Tuple[str, str]):
+@pytest.mark.usefixtures('local_remote_dir')
+def test_laziness(local_remote_dir: Tuple[str, str]):
     num_samples = 100_000
-    remote, local = remote_local
+    local, remote = local_remote_dir
     columns = {'value': 'int'}
     compression = None
     hashes = None
     size_limit = 10_000
 
-    with MDSWriter(local=remote,
+    with MDSWriter(out=remote,
                    columns=columns,
                    compression=compression,
                    hashes=hashes,

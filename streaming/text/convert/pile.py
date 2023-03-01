@@ -45,8 +45,11 @@ That will result in this directory structure:
         29.jsonl.zst
     val.jsonl.zst
 
-You then run this script specifying --in_root (the above dir), --out_root (the dir to create),
-and any other flags as appropriate.
+Install the `zstd` package and decompress the files using command `unzstd filename.jsonl.zst` or
+`zstd -d filename.jsonl.zst`
+
+You then run this script specifying --in_root (the above dir),
+--out_root (the dir to create an MDS shard files), and any other flags as appropriate.
 """
 
 import json
@@ -72,7 +75,7 @@ def parse_args() -> Namespace:
         '--in_root',
         type=str,
         required=True,
-        help='Directory path to store the input dataset',
+        help='Local directory path of the input raw dataset',
     )
     args.add_argument(
         '--out_root',
@@ -85,8 +88,8 @@ def parse_args() -> Namespace:
         type=str,
         default='zstd:16',
         help='Compression algorithm to use. Empirically, Zstandard has the best performance in ' +
-        'our benchmarks. Tune the compresion level (from 1 to 22) to trade off time for ' +
-        'quality. Default: zstd:16',
+        'our benchmarks. Tune the compression level (from 1 to 22) to trade off time for ' +
+        'quality. Defaults to zstd:16',
     )
     args.add_argument(
         '--hashes',
@@ -121,7 +124,7 @@ def each_task(in_root: str, out_root: str, compression: str, hashes: List[str], 
     for in_file in in_files:
         assert in_file.startswith(in_root)
         assert in_file.endswith('.jsonl')
-        out_dir = os.path.join(out_root, in_file[len(in_root):-len('.jsonl')])
+        out_dir = os.path.join(out_root, in_file[len(in_root):-len('.jsonl')].lstrip('/'))
         yield in_file, out_dir, compression, hashes, size_limit
 
 
@@ -145,11 +148,12 @@ def file_to_dir(args: Tuple[str, str, str, List[str], int]) -> Dict[str, int]:
     }
 
     counts = Counter()
-    with MDSWriter(local=out_dir,
+    with MDSWriter(out=out_dir,
                    columns=columns,
                    compression=compression,
                    hashes=hashes,
-                   size_limit=size_limit) as out:
+                   size_limit=size_limit,
+                   progress_bar=True) as out:
         for line in open(in_file):
             obj = json.loads(line)
             if sorted(obj.keys()) != ['meta', 'text']:
@@ -157,7 +161,7 @@ def file_to_dir(args: Tuple[str, str, str, List[str], int]) -> Dict[str, int]:
             text = obj['text']
             meta = obj['meta']
             if sorted(meta.keys()) != ['pile_set_name']:
-                raise ValueError('Invalild sample meta fields.')
+                raise ValueError('Invalid sample meta fields.')
             pile_set_name = meta['pile_set_name']
             sample = {
                 'text': text,
