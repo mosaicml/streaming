@@ -51,17 +51,23 @@ def get_partitions(num_samples: int,
     ids = np.arange(num_canonical_nodes * padded_samples_per_canonical_node, dtype=np.int64)
     ids = ids.reshape(num_canonical_nodes, padded_samples_per_canonical_node)
 
-    # Make adustments to replicate the original padding and extending behavior.
-    offsets = np.arange(num_canonical_nodes) * padding
-    offsets = np.expand_dims(offsets, 1)
-    ids -= offsets
-    starts = np.arange(num_canonical_nodes) * num_samples // num_canonical_nodes
-    starts = np.expand_dims(starts, 1)
-    ids += starts - ids[:, :1]
-    stops = np.arange(1, 1 + num_canonical_nodes) * num_samples // num_canonical_nodes
-    stops = np.expand_dims(stops, 1)
-    is_shorts = stops - starts < samples_per_canonical_node
-    ids[:, samples_per_canonical_node - 1:samples_per_canonical_node] -= is_shorts
+    # Adjust row offsets to ignore the padding.
+    row_offsets = np.arange(num_canonical_nodes) * padding
+    row_offsets = np.expand_dims(row_offsets, 1)
+    ids -= row_offsets
+
+    # Reconfigure where each row starts iterating for irregular-sized rows.
+    row_starts = np.arange(num_canonical_nodes) * num_samples // num_canonical_nodes
+    row_starts = np.expand_dims(row_starts, 1)
+    ids += row_starts - ids[:, :1]
+
+    # For short rows (length not evenly divisible), repeat the last ID to get even length.
+    row_stops = np.arange(1, 1 + num_canonical_nodes) * num_samples // num_canonical_nodes
+    row_stops = np.expand_dims(row_stops, 1)
+    are_rows_short = row_stops - row_starts < samples_per_canonical_node
+    ids[:, samples_per_canonical_node - 1:samples_per_canonical_node] -= are_rows_short
+
+    # If padding we needed, repeat samples to populate it.
     if padding:
         ids[:, -padding:] = ids[:, -padding - node_ratio + 1 - padding:-padding - node_ratio + 1]
 
