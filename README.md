@@ -85,7 +85,7 @@ import numpy as np
 from PIL import Image
 from streaming import MDSWriter
 
-# Directory in which to store the compressed output files
+# Local or remote directory in which to store the compressed output files
 data_dir = 'path-to-dataset'
 
 # A dictionary mapping input fields to their data types
@@ -130,7 +130,7 @@ remote = 's3://my-bucket/path-to-dataset'
 local = '/tmp/path-to-dataset'
 
 # Create streaming dataset
-dataset = StreamingDataset(local, remote, shuffle=True)
+dataset = StreamingDataset(local=local, remote=remote, shuffle=True)
 
 # Let's see what is in sample #1337...
 sample = dataset[1337]
@@ -180,7 +180,8 @@ $ python -m streaming.multimodal.convert.webvid --in <CSV file> --out <MDS outpu
 
 <!--pytest.mark.skip-->
 ```python
-dataset = StreamingWebVid(local, remote, shuffle=True)
+from streaming.multimodal import StreamingInsideWebVid
+dataset = StreamingInsideWebVid(local=local, remote=remote, shuffle=True)
 ```
 
 # **🔑** Key Features
