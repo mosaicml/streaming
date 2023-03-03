@@ -18,31 +18,39 @@ class StreamingInsideWebVid(StreamingDataset):
     Videos are stored "inside" the shards, as is typically done.
 
     Args:
-        local (str): Local dataset directory where shards are cached by split.
-        remote (str, optional): Download shards from this remote path or directory. If None, this
-            rank and worker's partition of the dataset must all exist locally. Defaults to
-            ``None``.
-        split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
-        shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
-            ``False``.
-        predownload (int, optional): Target number of samples ahead to download the shards of while
-            iterating. Defaults to ``100_000``.
-        keep_zip (bool, optional): Whether to keep or delete the compressed file when
-            decompressing downloaded shards. If set to None, keep iff remote is local. Defaults to
-            ``None``.
+        remote (str, optional): Remote path or directory to download the dataset from. If ``None``,
+            its data must exist locally. StreamingDataset uses either ``streams`` or
+            ``remote``/``local``. Defaults to ``None``.
+        local (str, optional): Local working directory to download shards to. This is where shards
+            are cached while they are being used. Uses a temp directory if not set.
+            StreamingDataset uses either ``streams`` or ``remote``/``local``. Defaults to ``None``.
+        split (str, optional): Which dataset split to use, if any. If provided, we stream from/to
+            the ``split`` subdirs of  ``remote`` and ``local``. Defaults to ``None``.
         download_retry (int): Number of download re-attempts before giving up. Defaults to ``2``.
         download_timeout (float): Number of seconds to wait for a shard to download before raising
             an exception. Defaults to ``60``.
         validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
-        shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
+        keep_zip (bool): Whether to keep or delete the compressed form when decompressing
+            downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
+            `False``.
+        keep_raw (bool): Whether to keep or delete the decompressed form (or only form)
+            of shards after all their samples have been yielded this epoch. If ``False``, keep iff
+            remote is local or no remote and no compression. Defaults to ``True``.
+        samples_per_epoch (int, optional): Provide this field iff you are weighting sub-datasets
+            proportionally. Defaults to ``None``.
+        predownload (int, optional): Target number of samples ahead to download the shards of while
+            iterating. Defaults to ``100_000``.
+        partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
         num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
             resumption. Defaults to ``None``, which is interpreted as the number of nodes of the
             initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
-        partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
-        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py2s``.
+        shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
+            ``False``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1s``.
+        shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
     """
 
     def __getitem__(self, idx: int) -> Any:
@@ -66,69 +74,82 @@ class StreamingOutsideGIWebVid(StreamingDataset):
     __getitem__ ("GI"), when samples are requested by the dataloader.
 
     Args:
-        local (str): Local dataset directory where shards are cached by split.
-        remote (str, optional): Download shards from this remote path or directory. If None, this
-            rank and worker's partition of the dataset must all exist locally. Defaults to
-            ``None``.
-        split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
-        shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
-            ``False``.
-        predownload (int, optional): Target number of samples ahead to download the shards of while
-            iterating. Defaults to ``100_000``.
-        keep_zip (bool, optional): Whether to keep or delete the compressed file when
-            decompressing downloaded shards. If set to None, keep iff remote is local. Defaults to
-            ``None``.
+        remote (str, optional): Remote path or directory to download the dataset from. If ``None``,
+            its data must exist locally. StreamingDataset uses either ``streams`` or
+            ``remote``/``local``. Defaults to ``None``.
+        local (str, optional): Local working directory to download shards to. This is where shards
+            are cached while they are being used. Uses a temp directory if not set.
+            StreamingDataset uses either ``streams`` or ``remote``/``local``. Defaults to ``None``.
+        split (str, optional): Which dataset split to use, if any. If provided, we stream from/to
+            the ``split`` subdirs of  ``remote`` and ``local``. Defaults to ``None``.
         download_retry (int): Number of download re-attempts before giving up. Defaults to ``2``.
         download_timeout (float): Number of seconds to wait for a shard to download before raising
             an exception. Defaults to ``60``.
         validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
-        shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
+        keep_zip (bool): Whether to keep or delete the compressed form when decompressing
+            downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
+            `False``.
+        keep_raw (bool): Whether to keep or delete the decompressed form (or only form)
+            of shards after all their samples have been yielded this epoch. If ``False``, keep iff
+            remote is local or no remote and no compression. Defaults to ``True``.
+        samples_per_epoch (int, optional): Provide this field iff you are weighting sub-datasets
+            proportionally. Defaults to ``None``.
+        predownload (int, optional): Target number of samples ahead to download the shards of while
+            iterating. Defaults to ``100_000``.
+        partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
         num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
             resumption. Defaults to ``None``, which is interpreted as the number of nodes of the
             initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
-        partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
-        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py2s``.
+        shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
+            ``False``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1s``.
+        shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
         extra_local (str, optional): Base destination of extra local sample downloads.
         extra_remote (str, optional): Base source of extra remote sample downloads.
     """
 
     def __init__(self,
                  *,
-                 local: str,
                  remote: Optional[str] = None,
+                 local: Optional[str] = None,
                  split: Optional[str] = None,
-                 shuffle: bool = False,
-                 predownload: Optional[int] = 100_000,
-                 keep_zip: Optional[bool] = None,
                  download_retry: int = 2,
                  download_timeout: float = 60,
                  validate_hash: Optional[str] = None,
-                 shuffle_seed: int = 9176,
+                 keep_zip: bool = False,
+                 keep_raw: bool = True,
+                 samples_per_epoch: Optional[int] = None,
+                 predownload: Optional[int] = 100_000,
+                 partition_algo: str = 'orig',
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
-                 partition_algo: str = 'orig',
-                 shuffle_algo: str = 'py2s',
+                 shuffle: bool = False,
+                 shuffle_algo: str = 'py1s',
+                 shuffle_seed: int = 9176,
                  extra_local: Optional[str] = None,
-                 extra_remote: Optional[str] = None):
-        super().__init__(local=local,
-                         remote=remote,
+                 extra_remote: Optional[str] = None) -> None:
+        super().__init__(remote=remote,
+                         local=local,
                          split=split,
-                         shuffle=shuffle,
-                         predownload=predownload,
-                         keep_zip=keep_zip,
                          download_retry=download_retry,
                          download_timeout=download_timeout,
                          validate_hash=validate_hash,
-                         shuffle_seed=shuffle_seed,
+                         keep_zip=keep_zip,
+                         keep_raw=keep_raw,
+                         samples_per_epoch=samples_per_epoch,
+                         predownload=predownload,
+                         partition_algo=partition_algo,
                          num_canonical_nodes=num_canonical_nodes,
                          batch_size=batch_size,
-                         partition_algo=partition_algo,
-                         shuffle_algo=shuffle_algo)
+                         shuffle=shuffle,
+                         shuffle_algo=shuffle_algo,
+                         shuffle_seed=shuffle_seed)
 
         # Videos are stored outside of their shards here.
+        self.download_timeout = download_timeout
         self.extra_local = extra_local
         self.extra_remote = extra_remote
 
@@ -165,69 +186,82 @@ class StreamingOutsideDTWebVid(StreamingDataset):
     _download_thread ("DT"), when the download thread prefetches the sample.
 
     Args:
-        local (str): Local dataset directory where shards are cached by split.
-        remote (str, optional): Download shards from this remote path or directory. If None, this
-            rank and worker's partition of the dataset must all exist locally. Defaults to
-            ``None``.
-        split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
-        shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
-            ``False``.
-        predownload (int, optional): Target number of samples ahead to download the shards of while
-            iterating. Defaults to ``100_000``.
-        keep_zip (bool, optional): Whether to keep or delete the compressed file when
-            decompressing downloaded shards. If set to None, keep iff remote is local. Defaults to
-            ``None``.
+        remote (str, optional): Remote path or directory to download the dataset from. If ``None``,
+            its data must exist locally. StreamingDataset uses either ``streams`` or
+            ``remote``/``local``. Defaults to ``None``.
+        local (str, optional): Local working directory to download shards to. This is where shards
+            are cached while they are being used. Uses a temp directory if not set.
+            StreamingDataset uses either ``streams`` or ``remote``/``local``. Defaults to ``None``.
+        split (str, optional): Which dataset split to use, if any. If provided, we stream from/to
+            the ``split`` subdirs of  ``remote`` and ``local``. Defaults to ``None``.
         download_retry (int): Number of download re-attempts before giving up. Defaults to ``2``.
         download_timeout (float): Number of seconds to wait for a shard to download before raising
             an exception. Defaults to ``60``.
         validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
-        shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
+        keep_zip (bool): Whether to keep or delete the compressed form when decompressing
+            downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
+            `False``.
+        keep_raw (bool): Whether to keep or delete the decompressed form (or only form)
+            of shards after all their samples have been yielded this epoch. If ``False``, keep iff
+            remote is local or no remote and no compression. Defaults to ``True``.
+        samples_per_epoch (int, optional): Provide this field iff you are weighting sub-datasets
+            proportionally. Defaults to ``None``.
+        predownload (int, optional): Target number of samples ahead to download the shards of while
+            iterating. Defaults to ``100_000``.
+        partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
         num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
             resumption. Defaults to ``None``, which is interpreted as the number of nodes of the
             initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
-        partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
-        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py2s``.
+        shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
+            ``False``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1s``.
+        shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
         extra_local (str, optional): Base destination of extra local sample downloads.
         extra_remote (str, optional): Base source of extra remote sample downloads.
     """
 
     def __init__(self,
                  *,
-                 local: str,
                  remote: Optional[str] = None,
+                 local: Optional[str] = None,
                  split: Optional[str] = None,
-                 shuffle: bool = False,
-                 predownload: Optional[int] = 100_000,
-                 keep_zip: Optional[bool] = None,
                  download_retry: int = 2,
                  download_timeout: float = 60,
                  validate_hash: Optional[str] = None,
-                 shuffle_seed: int = 9176,
+                 keep_zip: bool = False,
+                 keep_raw: bool = True,
+                 samples_per_epoch: Optional[int] = None,
+                 predownload: Optional[int] = 100_000,
+                 partition_algo: str = 'orig',
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
-                 partition_algo: str = 'orig',
-                 shuffle_algo: str = 'py2s',
+                 shuffle: bool = False,
+                 shuffle_algo: str = 'py1s',
+                 shuffle_seed: int = 9176,
                  extra_local: Optional[str] = None,
-                 extra_remote: Optional[str] = None):
-        super().__init__(local=local,
-                         remote=remote,
+                 extra_remote: Optional[str] = None) -> None:
+        super().__init__(remote=remote,
+                         local=local,
                          split=split,
-                         shuffle=shuffle,
-                         predownload=predownload,
-                         keep_zip=keep_zip,
                          download_retry=download_retry,
                          download_timeout=download_timeout,
                          validate_hash=validate_hash,
-                         shuffle_seed=shuffle_seed,
+                         keep_zip=keep_zip,
+                         keep_raw=keep_raw,
+                         samples_per_epoch=samples_per_epoch,
+                         predownload=predownload,
+                         partition_algo=partition_algo,
                          num_canonical_nodes=num_canonical_nodes,
                          batch_size=batch_size,
-                         partition_algo=partition_algo,
-                         shuffle_algo=shuffle_algo)
+                         shuffle=shuffle,
+                         shuffle_algo=shuffle_algo,
+                         shuffle_seed=shuffle_seed)
 
         # Videos are stored outside of their shards here.
+        self.download_timeout = download_timeout
         self.extra_local = extra_local
         self.extra_remote = extra_remote
 
