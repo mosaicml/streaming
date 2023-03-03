@@ -14,7 +14,6 @@ add these directories to sys.path here. If the directory is relative to the
 documentation root, use os.path.abspath to make it absolute, like shown here.
 """
 import ast
-import importlib
 import inspect
 import os
 import shutil
@@ -22,7 +21,7 @@ import sys
 import tempfile
 import types
 import warnings
-from typing import Any, Dict, List, Tuple, Type
+from typing import Any, List, Tuple, Type
 
 import sphinx.application
 import sphinx.ext.autodoc
@@ -374,8 +373,11 @@ def _modules_to_rst() -> List[types.ModuleType]:
     document_modules: List[types.Module] = [
         streaming,
         streaming.base.compression,
-        streaming.base.hashing,
         streaming.base.format,
+        streaming.base.hashing,
+        streaming.base.shuffle,
+        streaming.base.storage,
+        streaming.base.world,
     ]
     exclude_modules: List[types.Module] = [streaming.base, streaming._version]
     for name in streaming.__dict__:

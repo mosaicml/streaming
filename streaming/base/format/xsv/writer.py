@@ -22,12 +22,13 @@ class XSVWriter(SplitWriter):
         separator (str): String used to separate columns.
         newline (str): Newline character inserted between samples. Defaults to ``\\n``.
         out (str | Tuple[str, str]): Output dataset directory to save shard files.
-            1. If `out` is a local directory, shard files are saved locally.
-            2. If `out` is a remote directory, a local temporary directory is created to
-                cache the shard files and then the shard files are uploaded to a remote
-                location. At the end, the temp directory is deleted once shards are uploaded.
-            3. If `out` is a tuple of `(local_dir, remote_dir)`, shard files are saved in the
-                `local_dir` and also uploaded to a remote location.
+
+            1. If ``out`` is a local directory, shard files are saved locally.
+            2. If ``out`` is a remote directory, a local temporary directory is created to
+               cache the shard files and then the shard files are uploaded to a remote
+               location. At the end, the temp directory is deleted once shards are uploaded.
+            3. If ``out`` is a tuple of ``(local_dir, remote_dir)``, shard files are saved in the
+               `local_dir` and also uploaded to a remote location.
         keep_local (bool): If the dataset is uploaded, whether to keep the local dataset directory
             or remove it after uploading. Defaults to ``False``.
         compression (str, optional): Optional compression or compression:level. Defaults to
@@ -37,6 +38,12 @@ class XSVWriter(SplitWriter):
         size_limit (int, optional): Optional shard size limit, after which point to start a new
             shard. If None, puts everything in one shard. Defaults to ``None``.
         **kwargs (Any): Additional settings for the Writer.
+
+            progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
+                a remote location. Default to ``False``.
+            max_workers (int): Maximum number of threads used to upload output dataset files in
+                parallel to a remote location. One thread is responsible for uploading one shard
+                file to a remote location. Default to ``min(32, (os.cpu_count() or 1) + 4)``.
     """
 
     format = 'xsv'
@@ -133,12 +140,13 @@ class CSVWriter(XSVWriter):
         columns (Dict[str, str]): Sample columns.
         newline (str): Newline character inserted between samples. Defaults to ``\\n``.
         out (str | Tuple[str, str]): Output dataset directory to save shard files.
-            1. If `out` is a local directory, shard files are saved locally.
-            2. If `out` is a remote directory, a local temporary directory is created to
-                cache the shard files and then the shard files are uploaded to a remote
-                location. At the end, the temp directory is deleted once shards are uploaded.
-            3. If `out` is a tuple of `(local_dir, remote_dir)`, shard files are saved in the
-                `local_dir` and also uploaded to a remote location.
+
+            1. If ``out`` is a local directory, shard files are saved locally.
+            2. If ``out`` is a remote directory, a local temporary directory is created to
+               cache the shard files and then the shard files are uploaded to a remote
+               location. At the end, the temp directory is deleted once shards are uploaded.
+            3. If ``out`` is a tuple of ``(local_dir, remote_dir)``, shard files are saved in the
+               `local_dir` and also uploaded to a remote location.
         keep_local (bool): If the dataset is uploaded, whether to keep the local dataset directory
             or remove it after uploading. Defaults to ``False``.
         compression (str, optional): Optional compression or compression:level. Defaults to
@@ -148,6 +156,12 @@ class CSVWriter(XSVWriter):
         size_limit (int, optional): Optional shard size limit, after which point to start a new
             shard. If None, puts everything in one shard. Defaults to ``None``.
         **kwargs (Any): Additional settings for the Writer.
+
+            progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
+                a remote location. Default to ``False``.
+            max_workers (int): Maximum number of threads used to upload output dataset files in
+                parallel to a remote location. One thread is responsible for uploading one shard
+                file to a remote location. Default to ``min(32, (os.cpu_count() or 1) + 4)``.
     """
 
     format = 'csv'
@@ -192,12 +206,13 @@ class TSVWriter(XSVWriter):
         columns (Dict[str, str]): Sample columns.
         newline (str): Newline character inserted between samples. Defaults to ``\\n``.
         out (str | Tuple[str, str]): Output dataset directory to save shard files.
-            1. If `out` is a local directory, shard files are saved locally.
-            2. If `out` is a remote directory, a local temporary directory is created to
-                cache the shard files and then the shard files are uploaded to a remote
-                location. At the end, the temp directory is deleted once shards are uploaded.
-            3. If `out` is a tuple of `(local_dir, remote_dir)`, shard files are saved in the
-                `local_dir` and also uploaded to a remote location.
+
+            1. If ``out`` is a local directory, shard files are saved locally.
+            2. If ``out`` is a remote directory, a local temporary directory is created to
+               cache the shard files and then the shard files are uploaded to a remote
+               location. At the end, the temp directory is deleted once shards are uploaded.
+            3. If ``out`` is a tuple of ``(local_dir, remote_dir)``, shard files are saved in the
+               `local_dir` and also uploaded to a remote location.
         keep_local (bool): If the dataset is uploaded, whether to keep the local dataset directory
             or remove it after uploading. Defaults to ``False``.
         compression (str, optional): Optional compression or compression:level. Defaults to
@@ -207,6 +222,12 @@ class TSVWriter(XSVWriter):
         size_limit (int, optional): Optional shard size limit, after which point to start a new
             shard. If None, puts everything in one shard. Defaults to ``None``.
         **kwargs (Any): Additional settings for the Writer.
+
+            progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
+                a remote location. Default to ``False``.
+            max_workers (int): Maximum number of threads used to upload output dataset files in
+                parallel to a remote location. One thread is responsible for uploading one shard
+                file to a remote location. Default to ``min(32, (os.cpu_count() or 1) + 4)``.
     """
 
     format = 'tsv'

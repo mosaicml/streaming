@@ -51,7 +51,7 @@ class RandomClassificationDataset:
 
 There are a few parameters that need to be initialized before {class}`streaming.MDSWriter` gets called. Some of the parameters are optional, and others are required parameters. Let's look at each of them where we start with two required parameters.
 
-1. Provide the local filesystem directory path to store the compressed dataset files.
+1. Provide the local filesystem directory path or a remote cloud provider storage path to store the compressed dataset files. If it is a remote path, the output files are automatically upload to a remote path.
     <!--pytest-codeblocks:cont-->
     ```python
     output_dir = 'test_output_dir'
@@ -121,12 +121,6 @@ dirname
 ├── index.json
 ├── shard.00000.mds.zstd
 └── shard.00001.mds.zstd
-```
-
-Finally, upload the output directory to a cloud blob storage of your choice. Below is one example of uploading a directory to an S3 bucket using [AWS CLI](https://aws.amazon.com/cli/).
-<!--pytest.mark.skip-->
-```bash
-$ aws s3 cp dirname s3://mybucket/myfolder --recursive
 ```
 
 ## Loading a streaming dataset
