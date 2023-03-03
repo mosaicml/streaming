@@ -4,20 +4,17 @@ To use Streaming Dataset we must first convert the dataset from its native forma
 
 Check out steps below for information on converting common NLP datasets to MDS format.  Please see [MDSWriter()](https://streaming.docs.mosaicml.com/en/latest/api_reference/generated/streaming.MDSWriter.html) parameters for details on advanced usage.
 
+## NLP Dataset Conversion Examples
 
-## 1. [C4: Colossal, Cleaned, Common Crawl dataset](https://huggingface.co/datasets/c4)
+### [C4: Colossal, Cleaned, Common Crawl dataset](https://huggingface.co/datasets/c4)
 
-**Instructions:**
-
-1. Run the [c4.py](c4.py) script as shown below with the minimalist arguments. The script downloads the raw format with `train` and `val` splits from HuggingFace hub and converts to StreamingDataset MDS format into their own split directories. For more advanced use cases, please see the supported arguments for [c4.py](c4.py) and modify as necessary.
+1. Run the [c4.py](https://github.com/mosaicml/streaming/blob/main/streaming/text/convert/c4.py) script as shown below. The script downloads the raw format with `train` and `val` splits from HuggingFace hub and converts to StreamingDataset MDS format into their own split directories. For more advanced use cases, please see the supported arguments for [c4.py](https://github.com/mosaicml/streaming/blob/main/streaming/text/convert/c4.py) and modify as necessary.
     <!--pytest.mark.skip-->
     ```
     python c4.py --out_root <local or remote directory path to save output MDS shard files>
     ```
 
-## 2. [Wikipedia](https://huggingface.co/datasets/wikipedia)
-
-**Instructions:**
+### [Wikipedia](https://huggingface.co/datasets/wikipedia)
 
 1. Download English Wikipedia 2020-01-01 from [here](https://drive.google.com/drive/folders/1cywmDnAsrP5-2vsr8GDc6QUc7VWe-M3v).
 2. Unzip the file `results_text.zip` as shown below.
@@ -36,20 +33,19 @@ Check out steps below for information on converting common NLP datasets to MDS f
     ├── .....
     ├── part-00498-of-00500
     └── part-00499-of-00500
-    ```
+        ```
 
-3. Run the [enwiki_text.py](enwiki_text.py) script with the minimalist arguments. The script converts the `train` and `val` dataset splits into their own split directories. For more advanced use cases, please see the supported arguments for [enwiki_text.py](enwiki_text.py) and modify as necessary.
+3. Run the [enwiki_text.py](https://github.com/mosaicml/streaming/blob/main/streaming/text/convert/enwiki_text.py) script. The script converts the `train` and `val` dataset splits into their own split directories. For more advanced use cases, please see the supported arguments for [enwiki_text.py](https://github.com/mosaicml/streaming/blob/main/streaming/text/convert/enwiki_text.py) and modify as necessary.
     <!--pytest.mark.skip-->
     ```
     python enwiki_text.py --in_root <Above directory> --out_root <local or remote directory path to save output MDS shard files>
     ```
 
-## 3. [Pile](https://pile.eleuther.ai/)
+### [Pile](https://pile.eleuther.ai/)
 
-**Instructions:**
 1. Download the Pile dataset from [here](https://the-eye.eu/public/AI/pile/).
 
-   Listing the output should show the following directory structure:
+    Listing the output should show the following directory structure:
     <!--pytest.mark.skip-->
     ```bash
     ├── SHA256SUMS.txt
@@ -65,9 +61,9 @@ Check out steps below for information on converting common NLP datasets to MDS f
     └── val.jsonl.zst
     ```
 
-2. Run the [pile.py](pile.py) script with the minimalist arguments. The script converts the `train`, `test`, and `val` dataset splits into their own split directories. For more advanced use cases, please see the supported arguments for [pile.py](pile.py) and modify as necessary.
+2. Run the [pile.py](https://github.com/mosaicml/stireaming/blob/main/streaming/text/convert/pile.py) script. The script converts the `train`, `test`, and `val` dataset splits into their own split directories. For more advanced use cases, please see the supported arguments for [pile.py](https://github.com/mosaicml/streaming/blob/main/streaming/text/convert/pile.py) and modify as necessary.
 
     <!--pytest.mark.skip-->
-    ```
+    ```bash
     python pile.py --in_root <Above directory> --out_root <local or remote directory path to save output MDS shard files>
     ```
