@@ -1,56 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Convert the Pile dataset to streaming format.
-
-    Instructions:
-
-Download the Pile dataset (cf https://pile.eleuther.ai/) from the download site
-(https://the-eye.eu/public/AI/pile/).
-
-That will result in this directory structure:
-
-    SHA256SUMS.txt
-    test.jsonl.zst
-    train/
-        00.jsonl.zst
-        01.jsonl.zst
-        02.jsonl.zst
-        03.jsonl.zst
-        04.jsonl.zst
-        05.jsonl.zst
-        06.jsonl.zst
-        07.jsonl.zst
-        08.jsonl.zst
-        09.jsonl.zst
-        10.jsonl.zst
-        11.jsonl.zst
-        12.jsonl.zst
-        13.jsonl.zst
-        14.jsonl.zst
-        15.jsonl.zst
-        16.jsonl.zst
-        17.jsonl.zst
-        18.jsonl.zst
-        19.jsonl.zst
-        20.jsonl.zst
-        21.jsonl.zst
-        22.jsonl.zst
-        23.jsonl.zst
-        24.jsonl.zst
-        25.jsonl.zst
-        26.jsonl.zst
-        27.jsonl.zst
-        28.jsonl.zst
-        29.jsonl.zst
-    val.jsonl.zst
-
-Install the `zstd` package and decompress the files using command `unzstd filename.jsonl.zst` or
-`zstd -d filename.jsonl.zst`
-
-You then run this script specifying --in_root (the above dir),
---out_root (the dir to create an MDS shard files), and any other flags as appropriate.
-"""
+"""Pile streaming dataset conversion scripts."""
 
 import json
 import os
@@ -134,8 +85,12 @@ def file_to_dir(args: Tuple[str, str, str, List[str], int]) -> Dict[str, int]:
     This is the unit of work executed by the process pool.
 
     Args:
-        args (Tuple[str, str, str, List[str], int): All arguments, packed into a tuple because
+        args (Tuple[str, str, str, List[str], int]): All arguments, packed into a tuple because
             process pools only pass one argument.
+
+    Raises:
+        ValueError: Invalid sample fields.
+        ValueError: Invalid sample meta fields.
 
     Returns:
         Dict[str, int]: Count of how many samples belonged to each Pile dataset subset.
