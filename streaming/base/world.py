@@ -11,11 +11,13 @@ from streaming.base import distributed as dist
 class World:
     """Information about the nodes, ranks and workers of this run.
 
-    Warning: Be careful as to whether this object was initialized in a worker (if workers are used)
-    or in a rank (which will claim one worker per rank).
+    .. warning::
+      Be careful as to whether this object was initialized in a worker (if workers are used)
+      or in a rank (which will claim one worker per rank).
 
-    Warning: In this World object, the counts (num_nodes, num_ranks, num_workers) are global -- not
-    to be confused with DataLoader num_workers, which is per rank.
+    .. warning::
+      In this World object, the counts (num_nodes, num_ranks, num_workers) are global -- not
+      to be confused with DataLoader num_workers, which is per rank.
 
     Nodes are all assumed to contain the same number of devices (via local_world_size).
 

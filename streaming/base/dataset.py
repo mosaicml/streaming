@@ -90,14 +90,15 @@ class StreamingDataset(IterableDataset):
     Features elastically deterministic shuffling, which enables fast mid-epoch resumption.
 
     Checkpoints are represented in JSON as follows:
-    ```
-    {
-        "epoch": int,
-        "sample_in_epoch": int,
-        "shuffle_seed": int,
-        "num_canonical_nodes": int
-    }
-    ```
+
+    .. code-block:: json
+
+        {
+            "epoch":"int",
+            "sample_in_epoch":"int",
+            "shuffle_seed":"int",
+            "num_canonical_nodes":"int"
+        }
 
     StreamingDataset init takes three kinds of arguments:
       * One or more Streams (you must provide either ``streams`` or ``remote``/``local``):
