@@ -100,9 +100,7 @@ class Stream:
         self._local = local
         self.local = local or mkdtemp()
 
-        self._split = split
-        if split is not None:
-            self.split = split
+        self.split = split or ''
 
         if proportion is not None and repeat is not None:
             raise ValueError('Proportion and repeat must not both be set -- one is derived from ' +
@@ -138,9 +136,7 @@ class Stream:
                 raise ValueError('Download timeout must be positive')
             self.download_timeout = download_timeout
 
-        self._validate_hash = validate_hash
-        if validate_hash is not None:
-            self.validate_hash = validate_hash
+        self.validate_hash = validate_hash
 
         self._keep_zip = keep_zip
         if keep_zip is not None:
@@ -158,13 +154,13 @@ class Stream:
         Args:
             default (Self): Stream containing default values for all optional fields.
         """
-        if self._split is None:
+        if not self.split:
             self.split = default.split or ''
         if self._download_retry is None:
             self.download_retry = default.download_retry
         if self._download_timeout is None:
             self.download_timeout = default.download_timeout
-        if self._validate_hash is None:
+        if self.validate_hash is None:
             self.validate_hash = default.validate_hash or None
         if self._keep_zip is None:
             self.keep_zip = default.keep_zip

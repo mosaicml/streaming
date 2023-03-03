@@ -275,9 +275,9 @@ class StreamingDataset(IterableDataset):
             # Absolute.
             self.pick_per_stream = np.zeros(len(streams), np.int64)
             for idx, stream in enumerate(streams):
-                if stream.repeat:
+                if hasattr(stream, 'repeat'):
                     samples = int(stream.repeat * self.samples_per_stream[idx])
-                elif stream.samples:
+                elif hasattr(stream, 'samples'):
                     samples = stream.samples
                 else:
                     samples = self.samples_per_stream[idx]
