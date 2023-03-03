@@ -1,15 +1,15 @@
 # Dataset preparation
 
-To use Streaming Dataset, We first convert the dataset from its native format to MosaicML's streaming dataset format (a collection of binary `.mds` files). Once in `.mds` format, we can store the dataset in a central location (filesystem, S3, GCS, or OCI) and stream the data to any compute cluster, with any number of devices, and any number of CPU workers, and it all just works.
+To use Streaming Dataset we must first convert the dataset from its native format to MosaicML's Streaming Dataset format called Mosaic Data Shard (MDS). Once in MDS format, we can access the from the local file system ( disk network attached storage, etc.) or object store (GCS, OCS, S3, etc.).  From object store, data can be streamed to train deep learning models and it all just works efficiently.
 
-Follow the below steps to convert the Computer Vision dataset into a streaming MDS format. Also checkout the supported [MDSWriter()](https://streaming.docs.mosaicml.com/en/latest/api_reference/generated/streaming.MDSWriter.html) parameters for advanced usage.
+Check out steps below for information on converting common Computer Vision datasets to MDS format. Please see [MDSWriter()](https://streaming.docs.mosaicml.com/en/latest/api_reference/generated/streaming.MDSWriter.html) parameters for details on advanced usage.
 
 ## 1. [ADE20K](https://groups.csail.mit.edu/vision/datasets/ADE20K/)
 
 **Instructions:**
 
 1. Download the ADE20K dataset from [here](https://groups.csail.mit.edu/vision/datasets/ADE20K/).
-2. That will result in this directory structure:
+2. Listing the output should show the following directory structure:
     <!--pytest.mark.skip-->
     ```bash
     ├── annotations
@@ -20,7 +20,7 @@ Follow the below steps to convert the Computer Vision dataset into a streaming M
         └── validation
     ```
 
-3. Run the [ade20k.py](ade20k.py) script as shown below with the minimalist arguments. The script converts the `train` and `val` dataset split into their own directory. For advanced users, you can look at the supported arguments for [ade20k.py](ade20k.py) and change according to your own needs.
+3. Run the [ade20k.py](ade20k.py) script as shown below with the minimalist arguments. The script converts the `train` and `val` dataset splits into their own directories. For advanced use cases, please see the supported arguments for [ade20k.py](ade20k.py) and modify according as necessary.
       <!--pytest.mark.skip-->
       ```
       python ade20k.py --in_root <Above directory> --out_root <local or remote directory path to save output MDS shard files>
@@ -30,7 +30,7 @@ Follow the below steps to convert the Computer Vision dataset into a streaming M
 
 **Instructions:**
 
-1. Run the [cifar10.py](cifar10.py) script as shown below with the minimalist arguments which also downloads the raw CIFAR10 dataset if it doesn't exist. For advanced users, you can look at the supported arguments for [cifar10.py](cifar10.py) and change according to your own needs.
+1. Run the [cifar10.py](cifar10.py) script as shown below with the minimalist arguments. The CIFAR10 dataset will be automatically downloaded if it doesn't exist locally. For advanced use cases, please see the supported arguments for [cifar10.py](cifar10.py) and modify as necessary.
     <!--pytest.mark.skip-->
     ```
     python cifar10.py --in_root <Above directory> --out_root <local or remote directory path to save output MDS shard files>
@@ -57,7 +57,7 @@ Follow the below steps to convert the Computer Vision dataset into a streaming M
     rm val2017.zip
     ```
 
-    That will result in this directory structure:
+    Listing the output should show the following directory structure:
     <!--pytest.mark.skip-->
     ```bash
     ├── annotations
@@ -71,7 +71,7 @@ Follow the below steps to convert the Computer Vision dataset into a streaming M
     |   |── ...
     ```
 
-2. Run the [coco.py](coco.py) script as shown below with the minimalist arguments. The script converts the `train` and `val` dataset split into their own directory. For advanced users, you can look at the supported arguments for [coco.py](coco.py) and change according to your own needs.
+2. Run the [coco.py](coco.py) script as shown below with the minimalist arguments. The script converts the `train` and `val` dataset splits into their own directories. For advanced use cases, please seet the supported arguments for [coco.py](coco.py) and modify as necessary.
     <!--pytest.mark.skip-->
     ```
     python coco.py --in_root <Above directory> --out_root <local or remote directory path to save output MDS shard files>
@@ -81,7 +81,7 @@ Follow the below steps to convert the Computer Vision dataset into a streaming M
 
 **Instructions:**
 
-1. Download the ImageNet dataset from [here](https://image-net.org/download.php). More specifically, 2 files would be needed, `ILSVRC2012_img_train.tar` for training and `ILSVRC2012_img_val.tar` for validation. Then, untar both the files as shown below.
+1. Download the ImageNet dataset from [here](https://image-net.org/download.php). Two files are needed, `ILSVRC2012_img_train.tar` for training and `ILSVRC2012_img_val.tar` for validation. Next untar both the files as shown below.
     <!--pytest.mark.skip-->
     ```bash
     mkdir val
@@ -95,7 +95,7 @@ Follow the below steps to convert the Computer Vision dataset into a streaming M
     rm ILSVRC2012_img_train.tar
     ```
 
-    That will result in this directory structure:
+    Listing the output should show the following directory structure:
     <!--pytest.mark.skip-->
     ```bash
     ├── train/
@@ -112,7 +112,7 @@ Follow the below steps to convert the Computer Vision dataset into a streaming M
       ├── ......
     ```
 
-2. Run the [imagenet.py](imagenet.py) script as shown below with the minimalist arguments. The script converts the `train` and `val` dataset split into their own directory. For advanced users, you can look at the supported arguments for [imagenet.py](imagenet.py) and change according to your own needs.
+2. Run the [imagenet.py](imagenet.py) script as shown below with the minimalist arguments. The script converts the `train` and `val` dataset splits into their own directories. For advanced uses cases, please see the supported arguments for [imagenet.py](imagenet.py) and modify as needed.
     <!--pytest.mark.skip-->
     ```
     python imagenet.py --in_root <Above directory> --out_root <local or remote directory path to save output MDS shard files>

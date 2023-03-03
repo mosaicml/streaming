@@ -1,6 +1,6 @@
 # Dataset preparation
 
-To use Streaming Dataset, We first convert the dataset from its native format to MosaicML's streaming dataset format (a collection of binary `.mds` files). Once in `.mds` format, we can store the dataset in a central location (filesystem, S3, GCS, etc.) and stream the data to any compute cluster, with any number of devices, and any number of CPU workers, and it all just works.
+To use Streaming Dataset we must first convert the dataset from its native format to MosaicML's Streaming Dataset format called Mosaic Data Shard (MDS). Once in MDS format, we can access the from the local file system ( disk network attached storage, etc.) or object store (GCS, OCS, S3, etc.).  From object store, data can be streamed to train deep learning models and it all just works efficiently.
 
 Check out steps below for information on converting common NLP datasets to MDS format.  Please see [MDSWriter()](https://streaming.docs.mosaicml.com/en/latest/api_reference/generated/streaming.MDSWriter.html) parameters for details on advanced usage.
 
@@ -9,7 +9,7 @@ Check out steps below for information on converting common NLP datasets to MDS f
 
 **Instructions:**
 
-1. Run the [c4.py](c4.py) script as shown below with the minimalist arguments. The script downloads the raw format `train` and `val` split from HuggingFace hub and converts to StreamingDataset MDS format into their own split directory. For advanced users, you can look at the supported arguments for [c4.py](c4.py) and change according to your own needs.
+1. Run the [c4.py](c4.py) script as shown below with the minimalist arguments. The script downloads the raw format with `train` and `val` splits from HuggingFace hub and converts to StreamingDataset MDS format into their own split directories. For more advanced use cases, please see the supported arguments for [c4.py](c4.py) and modify as necessary.
     <!--pytest.mark.skip-->
     ```
     python c4.py --out_root <local or remote directory path to save output MDS shard files>
@@ -20,13 +20,13 @@ Check out steps below for information on converting common NLP datasets to MDS f
 **Instructions:**
 
 1. Download English Wikipedia 2020-01-01 from [here](https://drive.google.com/drive/folders/1cywmDnAsrP5-2vsr8GDc6QUc7VWe-M3v).
-2. unzip the file `results_text.zip` as shown below.
+2. Unzip the file `results_text.zip` as shown below.
     <!--pytest.mark.skip-->
     ```bash
     unzip results_text.zip
     ```
 
-    That will result in this directory structure:
+    Listing the output should show the following directory structure:
     <!--pytest.mark.skip-->
     ```bash
     ├── eval.txt
@@ -38,7 +38,7 @@ Check out steps below for information on converting common NLP datasets to MDS f
     └── part-00499-of-00500
     ```
 
-3. Run the [enwiki_text.py](enwiki_text.py) script as shown below with the minimalist arguments. The script converts the `train` and `val` dataset split into their own split directory. For advanced users, you can look at the supported arguments for [enwiki_text.py](enwiki_text.py) and change according to your own needs.
+3. Run the [enwiki_text.py](enwiki_text.py) script with the minimalist arguments. The script converts the `train` and `val` dataset splits into their own split directories. For more advanced use cases, please see the supported arguments for [enwiki_text.py](enwiki_text.py) and modify as necessary.
     <!--pytest.mark.skip-->
     ```
     python enwiki_text.py --in_root <Above directory> --out_root <local or remote directory path to save output MDS shard files>
@@ -49,7 +49,7 @@ Check out steps below for information on converting common NLP datasets to MDS f
 **Instructions:**
 1. Download the Pile dataset from [here](https://the-eye.eu/public/AI/pile/).
 
-   That will result in this directory structure:
+   Listing the output should show the following directory structure:
     <!--pytest.mark.skip-->
     ```bash
     ├── SHA256SUMS.txt
@@ -65,7 +65,8 @@ Check out steps below for information on converting common NLP datasets to MDS f
     └── val.jsonl.zst
     ```
 
-2. Run the [pile.py](pile.py) script as shown below with the minimalist arguments. The script converts the `train`, `test`, and `val` dataset split into their own split directory. For advanced users, you can look at the supported arguments for [pile.py](pile.py) and change according to your own needs.
+2. Run the [pile.py](pile.py) script with the minimalist arguments. The script converts the `train`, `test`, and `val` dataset splits into their own split directories. For more advanced use cases, please see the supported arguments for [pile.py](pile.py) and modify as necessary.
+
     <!--pytest.mark.skip-->
     ```
     python pile.py --in_root <Above directory> --out_root <local or remote directory path to save output MDS shard files>
