@@ -10,7 +10,7 @@ Follow the below steps to convert the Computer Vision dataset into a streaming M
 
 1. Download the ADE20K dataset from [here](https://groups.csail.mit.edu/vision/datasets/ADE20K/).
 2. That will result in this directory structure:
-
+    <!--pytest.mark.skip-->
     ```bash
     ├── annotations
     │   ├── training
@@ -21,7 +21,7 @@ Follow the below steps to convert the Computer Vision dataset into a streaming M
     ```
 
 3. Run the [ade20k.py](ade20k.py) script as shown below with the minimalist arguments. The script converts the `train` and `val` dataset split into their own directory. For advanced users, you can look at the supported arguments for [ade20k.py](ade20k.py) and change according to your own needs.
-
+      <!--pytest.mark.skip-->
       ```
       python ade20k.py --in_root <Above directory> --out_root <local or remote directory path to save output MDS shard files>
       ```
@@ -31,7 +31,7 @@ Follow the below steps to convert the Computer Vision dataset into a streaming M
 **Instructions:**
 
 1. Run the [cifar10.py](cifar10.py) script as shown below with the minimalist arguments which also downloads the raw CIFAR10 dataset if it doesn't exist. For advanced users, you can look at the supported arguments for [cifar10.py](cifar10.py) and change according to your own needs.
-
+    <!--pytest.mark.skip-->
     ```
     python cifar10.py --in_root <Above directory> --out_root <local or remote directory path to save output MDS shard files>
     ```
@@ -41,7 +41,7 @@ Follow the below steps to convert the Computer Vision dataset into a streaming M
 **Instructions:**
 
 1. Download the COCO 2017 dataset from [here](https://cocodataset.org/#download). Please download both the COCO images and annotations and unzip the files as shown below.
-
+    <!--pytest.mark.skip-->
     ```bash
     mkdir coco
     wget -c http://images.cocodataset.org/annotations/annotations_trainval2017.zip
@@ -58,7 +58,7 @@ Follow the below steps to convert the Computer Vision dataset into a streaming M
     ```
 
     That will result in this directory structure:
-
+    <!--pytest.mark.skip-->
     ```bash
     ├── annotations
     │   ├── instances_train2017.json
@@ -72,7 +72,7 @@ Follow the below steps to convert the Computer Vision dataset into a streaming M
     ```
 
 2. Run the [coco.py](coco.py) script as shown below with the minimalist arguments. The script converts the `train` and `val` dataset split into their own directory. For advanced users, you can look at the supported arguments for [coco.py](coco.py) and change according to your own needs.
-
+    <!--pytest.mark.skip-->
     ```
     python coco.py --in_root <Above directory> --out_root <local or remote directory path to save output MDS shard files>
     ```
@@ -82,7 +82,7 @@ Follow the below steps to convert the Computer Vision dataset into a streaming M
 **Instructions:**
 
 1. Download the ImageNet dataset from [here](https://image-net.org/download.php). More specifically, 2 files would be needed, `ILSVRC2012_img_train.tar` for training and `ILSVRC2012_img_val.tar` for validation. Then, untar both the files as shown below.
-
+    <!--pytest.mark.skip-->
     ```bash
     mkdir val
     mv ILSVRC2012_img_val.tar val/
@@ -96,7 +96,7 @@ Follow the below steps to convert the Computer Vision dataset into a streaming M
     ```
 
     That will result in this directory structure:
-
+    <!--pytest.mark.skip-->
     ```bash
     ├── train/
       ├── n01440764
@@ -113,7 +113,7 @@ Follow the below steps to convert the Computer Vision dataset into a streaming M
     ```
 
 2. Run the [imagenet.py](imagenet.py) script as shown below with the minimalist arguments. The script converts the `train` and `val` dataset split into their own directory. For advanced users, you can look at the supported arguments for [imagenet.py](imagenet.py) and change according to your own needs.
-
+    <!--pytest.mark.skip-->
     ```
     python imagenet.py --in_root <Above directory> --out_root <local or remote directory path to save output MDS shard files>
     ```
