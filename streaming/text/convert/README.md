@@ -2,7 +2,7 @@
 
 To use Streaming Dataset, We first convert the dataset from its native format to MosaicML's streaming dataset format (a collection of binary `.mds` files). Once in `.mds` format, we can store the dataset in a central location (filesystem, S3, GCS, etc.) and stream the data to any compute cluster, with any number of devices, and any number of CPU workers, and it all just works.
 
-Follow the below steps to convert the Natural Language Processing dataset into a streaming MDS format. Also checkout the supported [MDSWriter()](https://streaming.docs.mosaicml.com/en/latest/api_reference/generated/streaming.MDSWriter.html) parameters for advanced usage.
+Check out steps below for information on converting common NLP datasets to MDS format.  Please see [MDSWriter()](https://streaming.docs.mosaicml.com/en/latest/api_reference/generated/streaming.MDSWriter.html) parameters for details on advanced usage.
 
 
 ## 1. [C4: Colossal, Cleaned, Common Crawl dataset](https://huggingface.co/datasets/c4)
