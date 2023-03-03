@@ -122,7 +122,6 @@ class _COCODetection(Dataset):
 
         self.img_keys = list(self.images.keys())
 
-    #@property
     def labelnum(self):
         return len(self.label_info)
 
@@ -158,11 +157,11 @@ def each(dataset: _COCODetection, shuffle: bool) -> Iterable[Dict[str, bytes]]:
     """Generator over each dataset sample.
 
     Args:
-        dataset (COCODetection): COCO detection dataset.
+        dataset (_COCODetection): COCO detection dataset.
         shuffle (bool): Whether to shuffle the samples.
 
     Yields:
-        Sample dicts.
+        Iterator[Iterable[Dict[str, bytes]]]: Sample dicts.
     """
     if shuffle:
         indices = np.random.permutation(len(dataset))
@@ -192,6 +191,11 @@ def main(args: Namespace) -> None:
 
     Args:
         args (Namespace): command-line arguments.
+
+    Raises:
+        FileNotFoundError: Images path does not exist.
+        FileNotFoundError: Annotations file does not exist.
+        ValueError: Number of samples in a dataset does not match.
     """
     columns = {
         'img': 'jpeg',

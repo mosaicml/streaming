@@ -58,6 +58,7 @@ If you have any questions, please feel free to reach out to us on [Twitter](htt
    :caption: How-to Guides
 
    how_to_guides/configure_cloud_storage_cred.md
+   how_to_guides/dataset_conversion_to_mds.md
 
 .. toctree::
    :hidden:

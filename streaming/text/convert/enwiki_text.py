@@ -80,7 +80,7 @@ def process_split(in_root: str, out_root: str, compression: str, hashes: List[st
         progress_bar (int): Whether to display a progress bar.
         leave (int): Whether to leave the progress bar.
         basenames (List[str]): List of input shard basenames.
-        split (str): Split name.
+        split (str): Dataset split name.
     """
     split_dir = os.path.join(out_root, split)
     columns = {'text': 'str'}
@@ -103,7 +103,7 @@ def process_split(in_root: str, out_root: str, compression: str, hashes: List[st
 
 
 def main(args: Namespace) -> None:
-    """Main: create streaming enwiki dataset.
+    """Main: create streaming en-wiki dataset.
 
     Args:
         args (Namespace): command-line arguments.
