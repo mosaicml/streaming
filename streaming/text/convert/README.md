@@ -33,7 +33,7 @@ Check out steps below for information on converting common NLP datasets to MDS f
     ├── .....
     ├── part-00498-of-00500
     └── part-00499-of-00500
-        ```
+    ```
 
 3. Run the [enwiki_text.py](https://github.com/mosaicml/streaming/blob/main/streaming/text/convert/enwiki_text.py) script. The script converts the `train` and `val` dataset splits into their own split directories. For more advanced use cases, please see the supported arguments for [enwiki_text.py](https://github.com/mosaicml/streaming/blob/main/streaming/text/convert/enwiki_text.py) and modify as necessary.
     <!--pytest.mark.skip-->
