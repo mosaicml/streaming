@@ -1,7 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""A mid-epoch-resumable streaming pytorch IterableDataset."""
+"""A mid-epoch-resumable streaming/caching pytorch IterableDataset."""
 
 import json
 import os
@@ -9,7 +9,7 @@ from enum import IntEnum
 from multiprocessing.shared_memory import SharedMemory
 from threading import Thread
 from time import sleep, time
-from typing import Any, Dict, Iterator, Optional, Tuple
+from typing import Any, Dict, Iterator, Optional, Sequence, Tuple
 
 import numpy as np
 import torch
@@ -18,20 +18,13 @@ from filelock import FileLock
 from numpy.typing import NDArray
 from torch.utils.data import IterableDataset
 
-from streaming.base.compression import decompress
-from streaming.base.format import reader_from_json
-from streaming.base.format.base.reader import FileInfo
-from streaming.base.hashing import get_hash
-from streaming.base.index import Index, get_index_basename
+from streaming.base.index import Index
 from streaming.base.partitioning import get_partitions
 from streaming.base.shared import SharedBarrier, create_shared_memory
 from streaming.base.shuffle import get_shuffle
-from streaming.base.storage import download_file
-from streaming.base.util import wait_for_file_to_exist, wait_for_local_leader
+from streaming.base.stream import Stream
+from streaming.base.util import TICK, wait_for_file_to_exist, wait_for_local_leader
 from streaming.base.world import World
-
-# Time to wait, in seconds.
-TICK = 0.07
 
 
 class _ShardState(IntEnum):
@@ -92,85 +85,154 @@ class _PartitionState:
 
 
 class StreamingDataset(IterableDataset):
-    """A streaming pytorch IterableDataset that is also resumable mid-epoch.
+    """A mid-epoch-resumable streaming/caching pytorch IterableDataset.
+
+    Features elastically deterministic shuffling, which enables fast mid-epoch resumption.
 
     Checkpoints are represented in JSON as follows:
+    ```
+    {
+        "epoch": int,
+        "sample_in_epoch": int,
+        "shuffle_seed": int,
+        "num_canonical_nodes": int
+    }
+    ```
 
-        {
-            'epoch': int,
-            'sample_in_epoch': int,
-            'shuffle_seed': int,
-            'num_canonical_nodes': int,
-        }
+    StreamingDataset init takes three kinds of arguments:
+      * One or more Streams (you must provide either ``streams`` or ``remote``/``local``):
+          * ``streams``
+          * ``remote``
+          * ``local``
+      * Knobs to control streaming behavior, which if multiple Streams are provided, become defaults
+        applied to them:
+          * ``split``
+          * ``download_retry``
+          * ``download_timeout``
+          * ``validate_hash``
+          * ``keep_zip``
+          * ``keep_raw``
+      * How to iterate (controlling prefetching, partitioning, and shuffling):
+          * Prefetching:
+              * ``predownload``
+          * Partitioning:
+              * ``partition_algo``
+              * ``num_canonical_nodes``
+              * ``batch_size``
+          * Shuffling:
+              * ``shuffle``
+              * ``shuffle_algo``
+              * ``shuffle_seed``
 
     Args:
-        local (str): Local dataset directory where shards are cached by split.
-        remote (str, optional): Download shards from this remote path or directory. If None, this
-            rank and worker's partition of the dataset must all exist locally. Defaults to
-            ``None``.
-        split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
-        shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
-            ``False``.
-        predownload (int, optional): Target number of samples ahead to download the shards of while
-            iterating. Defaults to ``100_000``.
-        keep_zip (bool, optional): Whether to keep or delete the compressed file when
-            decompressing downloaded shards. If set to None, keep iff remote is local. Defaults to
-            ``None``.
+        streams (Sequence[Stream], optional): One or more Streams to stream/cache samples from,
+            which may be upsampled or downsampled. StreamingDataset uses either ``streams`` or
+            ``remote``/``local``. Defaults to ``None``.
+        remote (str, optional): Remote path or directory to download the dataset from. If ``None``,
+            its data must exist locally. StreamingDataset uses either ``streams`` or
+            ``remote``/``local``. Defaults to ``None``.
+        local (str, optional): Local working directory to download shards to. This is where shards
+            are cached while they are being used. Uses a temp directory if not set.
+            StreamingDataset uses either ``streams`` or ``remote``/``local``. Defaults to ``None``.
+        split (str, optional): Which dataset split to use, if any. If provided, we stream from/to
+            the ``split`` subdirs of  ``remote`` and ``local``. Defaults to ``None``.
         download_retry (int): Number of download re-attempts before giving up. Defaults to ``2``.
         download_timeout (float): Number of seconds to wait for a shard to download before raising
             an exception. Defaults to ``60``.
         validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
-        shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
+        keep_zip (bool): Whether to keep or delete the compressed form when decompressing
+            downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
+            `False``.
+        keep_raw (bool): Whether to keep or delete the decompressed form (or only form)
+            of shards after all their samples have been yielded this epoch. If ``False``, keep iff
+            remote is local or no remote and no compression. Defaults to ``True``.
+        samples_pper_epoch (int, optional): Provide this field iff you are weighting sub-datasets
+            proportionally. Defaults to ``None``.
+        predownload (int, optional): Target number of samples ahead to download the shards of while
+            iterating. Defaults to ``100_000``.
+        partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
         num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
             resumption. Defaults to ``None``, which is interpreted as the number of nodes of the
             initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
-        partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
-        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py2s``.
+        shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
+            ``False``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1s``.
+        shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
     """
 
     def __init__(self,
                  *,
-                 local: str,
+                 streams: Optional[Sequence[Stream]] = None,
                  remote: Optional[str] = None,
+                 local: Optional[str] = None,
                  split: Optional[str] = None,
-                 shuffle: bool = False,
-                 predownload: Optional[int] = 100_000,
-                 keep_zip: Optional[bool] = None,
                  download_retry: int = 2,
                  download_timeout: float = 60,
                  validate_hash: Optional[str] = None,
-                 shuffle_seed: int = 9176,
+                 keep_zip: bool = False,
+                 keep_raw: bool = True,
+                 samples_per_epoch: Optional[int] = None,
+                 predownload: Optional[int] = 100_000,
+                 partition_algo: str = 'orig',
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
-                 partition_algo: str = 'orig',
-                 shuffle_algo: str = 'py2s') -> None:
-        self.local = local
-        self.remote = remote
-        self.split = split or ''  # Empty string for os.path.join().
-        self.shuffle = shuffle
+                 shuffle: bool = False,
+                 shuffle_algo: str = 'py1s',
+                 shuffle_seed: int = 9176) -> None:
+        # Global arguments (which do not live in Streams).
+        self.samples_per_epoch = samples_per_epoch
         self.predownload = predownload
-        self.keep_zip = keep_zip
-        self.download_retry = download_retry
-        self.download_timeout = download_timeout
-        self.validate_hash = validate_hash or None
         self.partition_algo = partition_algo
+        self.num_canonical_nodes = num_canonical_nodes
+        self.batch_size = batch_size
+        self.shuffle = shuffle
         self.shuffle_algo = shuffle_algo
+        self.shuffle_seed = shuffle_seed
 
-        if self.download_retry < 0:
-            raise ValueError('Parameter ``download_retry`` must be non-negative')
-        if self.download_timeout < 0:
+        # Check streams vs remote/local.
+        if bool(streams) == (bool(remote) or bool(local)):
             raise ValueError(
-                'Parameter ``download_timeout`` (in seconds) must be greater than zero')
+                'You must provide either "streams" or "remote"/"local", but not both -- ' +
+                'that would be confusing')
 
-        # Placeholder for _resume_shm, a shared memory object where load_state_dict() saves its
-        # data to be picked up by __iter__().
-        self._resume_shm = None
+        # Initialize the Stream defaults.
+        default = Stream(remote=remote,
+                         local=local,
+                         split=split,
+                         download_retry=download_retry,
+                         download_timeout=download_timeout,
+                         validate_hash=validate_hash,
+                         keep_zip=keep_zip,
+                         keep_raw=keep_raw)
 
-        # Partition state.
-        self._partition_state = None
+        # Normalize to a list of Streams.
+        if streams:
+            for stream in streams:
+                stream.apply_default(default)
+        else:
+            streams = [default]
+
+        # Validate proportions or repeats. Streams must each set at most one of proportion, repeat,
+        # or samples. Proportion (relative) and repeat/samples (absolute) are incompatible with
+        # each other.
+        arr = np.zeros((len(streams), 4), np.uint8)
+        for idx, stream in enumerate(streams):
+            arr[idx, 0] = hasattr(stream, 'proportion')
+            arr[idx, 1] = hasattr(stream, 'repeat')
+            arr[idx, 2] = hasattr(stream, 'samples')
+            arr[idx, 3] = not arr[idx].any()
+        if (arr.sum(1) != 1).any():
+            raise ValueError('Streams must set at most one of "proportion", "repeat", or ' +
+                             '"samples"')
+        if 0 < arr[:, 0].sum() < len(streams):
+            raise ValueError('"Weights" (relative) and "repeat"/samples" (absolute) are ' +
+                             'incompatible with each other')
+        proportional = bool(arr[0, 0])
+        if proportional == (samples_per_epoch is None):
+            raise ValueError('You must provide samples_per_epoch iff using sample proportions')
 
         # Initialize the World context.
         #
@@ -179,31 +241,56 @@ class StreamingDataset(IterableDataset):
         # instantiate a World inside the StreamingDataset destructor.
         self._rank_world = world = World()
 
-        # Seed is set below.
-        self.num_canonical_nodes = num_canonical_nodes
-        self.batch_size = batch_size
-        self.shuffle_seed = shuffle_seed
-
-        # Load the index.json file.
-        basename = get_index_basename()
-        if world.is_local_leader:
-            filename = self._download_file(basename)
-        else:
-            filename = os.path.join(local, self.split, basename)  # pyright: ignore
-
-        # Everyone waits for the file to become populated.
-        wait_for_file_to_exist(filename, TICK, self.download_timeout,
-                               f'{filename} file took too long to download')
-
-        obj = json.load(open(filename))
-        if obj['version'] != 2:
-            raise ValueError('Unsupported version')
-
-        # Initialize shard readers according to the loaded info.
+        # Download each stream's index, load their shards, and map streams <-> shards.
+        self.num_samples = 0
         self.shards = []
-        for info in obj['shards']:
-            shard = reader_from_json(local, self.split, info)
-            self.shards.append(shard)
+        stream_per_shard = []
+        self.shard_offset_per_stream = np.zeros(len(streams), np.int64)
+        self.shards_per_stream = np.zeros(len(streams), np.int64)
+        self.sample_offset_per_stream = np.zeros(len(streams), np.int64)
+        self.samples_per_stream = np.zeros(len(streams), np.int64)
+        for idx, stream in enumerate(streams):
+            stream_shards = stream.get_shards(world)
+            samples = sum(map(len, stream_shards))
+            stream_per_shard += [idx] * len(stream_shards)
+            self.shard_offset_per_stream[idx] = len(self.shards)
+            self.shards_per_stream[idx] = len(stream_shards)
+            self.sample_offset_per_stream[idx] = self.num_samples
+            self.samples_per_stream[idx] = samples
+            self.shards += stream_shards
+            self.num_samples += samples
+        self.stream_per_shard = np.array(stream_per_shard, np.int64)
+
+        # Now that we have the true size of each sub-dataset, derive the proportions/repeats/picks.
+        if proportional:
+            # Relative.
+            self.proportion_per_stream = np.array([stream.proportion for stream in streams],
+                                                  np.float64)
+            self.proportion_per_stream /= self.proportion_per_stream.sum()
+            self.pick_per_stream = (samples_per_epoch * self.proportion_per_stream).astype(
+                np.int64)
+            self.repeat_per_stream = self.pick_per_stream / self.samples_per_stream
+        else:
+            # Absolute.
+            self.pick_per_stream = np.zeros(len(streams), np.int64)
+            for idx, stream in enumerate(streams):
+                if stream.repeat:
+                    samples = int(stream.repeat * self.samples_per_stream[idx])
+                elif stream.samples:
+                    samples = stream.samples
+                else:
+                    samples = self.samples_per_stream[idx]
+                self.pick_per_stream[idx] = samples
+            self.repeat_per_stream = self.pick_per_stream / self.samples_per_stream
+            self.proportion_per_stream = self.pick_per_stream / self.pick_per_stream.sum()
+
+        # Now that we know the true props/reps/picks, inject those back into the Streams,
+        for stream, proportion, repeat, pick in zip(streams, self.proportion_per_stream,
+                                                    self.repeat_per_stream, self.pick_per_stream):
+            stream.proportion = proportion
+            stream.repeat = repeat
+            stream.samples = pick
+        self.streams = streams
 
         # Build the Index (for partitioning and mapping samples to shards).
         self.shard_sizes = np.array([x.samples for x in self.shards])
@@ -276,6 +363,13 @@ class StreamingDataset(IterableDataset):
         # Destroy process group, and de-initialize the distributed package
         if is_dist_pg_initialized:
             dist.destroy_process_group()
+
+        # Placeholder for a shared memory object where load_state_dict() saves its data to be
+        # picked up by __iter__().
+        self._resume_shm = None
+
+        # Placeholder for a _PartitionState which tracks state during __iter__().
+        self._partition_state = None
 
     @property
     def next_epoch(self) -> int:
@@ -446,119 +540,6 @@ class StreamingDataset(IterableDataset):
 
         return sample_ids
 
-    def _download_file(self, basename: str) -> str:
-        """Safely download a file from remote to local cache.
-
-        Args:
-            basename (str): Basename of file to download.
-
-        Returns:
-            str: Local cache filename.
-        """
-        # Calculate paths.
-        if self.remote is None:
-            remote = None
-        else:
-            remote = os.path.join(self.remote, self.split, basename)
-        local = os.path.join(self.local, self.split, basename)
-
-        # Attempt to download, possibly repeating on failure.
-        errors = []
-        for _ in range(1 + self.download_retry):
-            try:
-                download_file(remote, local, self.download_timeout)
-            except FileNotFoundError:  # Bubble up file not found error.
-                raise
-            except Exception as e:  # Retry for all other causes of failure.
-                errors.append(e)
-                continue
-            break
-
-        if self.download_retry < len(errors):
-            raise RuntimeError(
-                f'Failed to download {remote} -> {local}. Got errors:\n{errors}') from errors[-1]
-
-        return local
-
-    def _decompress_shard_part(self, zip_info: FileInfo, zip_filename: str, raw_filename: str,
-                               compression: Optional[str]) -> None:
-        """Validate and decompress shard data.
-
-        Args:
-            zip_info (FileInfo): Compressed file info.
-            zip_filename (str): Compressed filename.
-            raw_filename (str): Decompressed filename.
-            compression (str, optional): Compression algorithm.
-        """
-        # Load compressed.
-        data = open(zip_filename, 'rb').read()
-
-        # Validate what was downloaded.
-        if self.validate_hash:
-            if get_hash(self.validate_hash, data) != zip_info.hashes[self.validate_hash]:
-                raise ValueError(f'Checksum failure: {zip_filename}')
-
-        # Decompress and save that.
-        data = decompress(compression, data)  # pyright: ignore
-        tmp_filename = raw_filename + '.tmp'
-        with open(tmp_filename, 'wb') as out:
-            out.write(data)
-        os.rename(tmp_filename, raw_filename)
-
-        # Maybe remove compressed to save space.
-        if not self.keep_zip:
-            os.remove(zip_filename)
-
-    def _download_shard_part(self,
-                             raw_info: FileInfo,
-                             zip_info: Optional[FileInfo] = None,
-                             compression: Optional[str] = None) -> None:
-        """Download shard data given metadata for the raw and compressed versions of it.
-
-        MDS format uses joint shards (ie, one file per shard). Other formats supported by streaming
-        use split shards (ie, shard data lives in two files per shard: the raw data itself and
-        metadata in a separate file).
-
-        Args:
-            raw_info (FileInfo): Raw file info.
-            zip_info (FileInfo, optional): Zip file info. Defaults to ``None``.
-            compression (str, optional): Compression algorithm used for zip_info. Defaults to
-                ``None``.
-        """
-        # If the local raw file already exists, this is a no-op.
-        raw_filename = os.path.join(self.local, self.split, raw_info.basename)
-        if os.path.isfile(raw_filename):
-            return
-
-        # Is compression used?
-        if zip_info:
-            # Download the compressed form if missing.
-            zip_filename = os.path.join(self.local, self.split, zip_info.basename)
-            if not os.path.isfile(zip_filename):
-                self._download_file(zip_info.basename)
-
-            # Validate and decompress.
-            self._decompress_shard_part(zip_info, zip_filename, raw_filename, compression)
-        else:
-            # Download the raw form.
-            self._download_file(raw_info.basename)
-
-            # Validate if requested.
-            if self.validate_hash:
-                data = open(raw_filename, 'rb').read()
-                if get_hash(self.validate_hash, data) != raw_info.hashes[self.validate_hash]:
-                    raise ValueError(f'Checksum failure: {raw_filename}')
-
-    def _download_shard(self, shard_id: int) -> None:
-        """Download the given shard.
-
-        Args:
-            shard_id (int): Shard ID.
-        """
-        reader = self.shards[shard_id]
-        for raw_info, zip_info in reader.file_pairs:
-            self._download_shard_part(raw_info, zip_info, reader.compression)
-
     def _download_or_skip_shard(self, lock: FileLock, shard_states: NDArray[np.uint8],
                                 shard_id: int, wait_if_downloading: bool) -> None:
         """Download a shard, waiting or skipping if in progress by another worker.
@@ -583,7 +564,10 @@ class StreamingDataset(IterableDataset):
         if state == _ShardState.UNKNOWN:
             shard_states[shard_id] = _ShardState.DOWNLOADING
             lock.release()
-            self._download_shard(shard_id)
+            stream_id = self.stream_per_shard[shard_id]
+            stream = self.streams[stream_id]
+            shard = self.shards[shard_id]
+            stream.download_shard(shard)
             # A shard state that is DOWNLOADING will never be written to elsewhere, so we don't
             # need to take the lock here.
             shard_states[shard_id] = _ShardState.DOWNLOADED
