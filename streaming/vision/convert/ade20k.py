@@ -79,11 +79,16 @@ def get(in_root: str, split: str, shuffle: bool) -> List[Tuple[str, str, str]]:
 
     Args:
         in_root (str): Input dataset directory.
-        split (str): Split name.
+        split (str): Dataset split name.
         shuffle (bool): Whether to shuffle the samples before writing.
 
+    Raises:
+        ValueError: Invalid dataset split name
+        FileNotFoundError: Images path does not exist
+        FileNotFoundError: Annotations path does not exist
+
     Returns:
-        List of samples of (uid, image_filename, annotation_filename).
+        List[Tuple[str, str, str]]: List of samples of (uid, image_filename, annotation_filename).
     """
     # Get uids
     if split not in ('train', 'val'):
@@ -119,10 +124,10 @@ def each(samples: Iterable[Tuple[str, str, str]]) -> Iterable[Dict[str, Any]]:
     """Generator over each dataset sample.
 
     Args:
-        samples (list): List of samples of (uid, image_filename, annotation_filename).
+        samples (Iterable[Tuple[str, str, str]]): A tuple of samples of (uid, image_filename, annotation_filename).
 
     Yields:
-        Sample dicts.
+        Iterator[Iterable[Dict[str, Any]]]: Sample dicts.
     """
     for (uid, image_file, annotation_file) in samples:
         uid = uid.encode('utf-8')
@@ -140,6 +145,9 @@ def main(args: Namespace) -> None:
 
     Args:
         args (Namespace): command-line arguments.
+
+    Raises:
+        ValueError: Number of samples in a dataset does not match.
     """
     columns = {'uid': 'bytes', 'x': 'jpeg', 'y': 'png'}
 
