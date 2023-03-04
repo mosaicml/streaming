@@ -276,6 +276,7 @@ class StreamingDataset(IterableDataset):
                                                   size=len(self.shard_sizes) * np.uint8(0).nbytes)
 
         # Destroy process group, and de-initialize the distributed package
+        dist.barrier()
         if is_dist_pg_initialized:
             dist.destroy_process_group()
 
