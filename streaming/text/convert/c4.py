@@ -1,7 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""C4 (Colossal Cleaned Common Crawl) streaming dataset conversion scripts."""
+"""C4 (Colossal Cleaned Common Crawl) streaming dataset conversion script."""
 
 import os
 from argparse import ArgumentParser, Namespace

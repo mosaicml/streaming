@@ -1,7 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Pile streaming dataset conversion scripts."""
+"""Pile streaming dataset conversion script."""
 
 import json
 import os
