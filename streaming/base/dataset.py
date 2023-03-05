@@ -438,7 +438,7 @@ class StreamingDataset(IterableDataset):
 
         return epoch, sample_in_epoch
 
-    def _get_progress(self, world: World) -> Tuple[int, int]:
+    def _resume_incr_epoch(self, world: World) -> Tuple[int, int]:
         """Start or resume training, pre-incrementing the next epoch.
 
         Args:
@@ -740,7 +740,7 @@ class StreamingDataset(IterableDataset):
         # Discover where we left off, if there is a checkpoint, or start at the next epoch.
         # Also pre-increment the epoch counter.
         world = World()
-        epoch, sample_in_epoch = self._get_progress(world)
+        epoch, sample_in_epoch = self._resume_incr_epoch(world)
 
         # Get this worker's partition of samples to process.
         sample_ids = self._get_partition(world, epoch, sample_in_epoch)
