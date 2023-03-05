@@ -18,6 +18,7 @@ from filelock import FileLock
 from numpy.typing import NDArray
 from torch.utils.data import IterableDataset
 
+from streaming.base.distributed import barrier
 from streaming.base.index import Index
 from streaming.base.partitioning import get_partitions
 from streaming.base.shared import SharedBarrier, create_shared_memory
@@ -362,6 +363,7 @@ class StreamingDataset(IterableDataset):
                                                   size=len(self.shard_sizes) * np.uint8(0).nbytes)
 
         # Destroy process group, and de-initialize the distributed package
+        barrier()
         if is_dist_pg_initialized:
             dist.destroy_process_group()
 
