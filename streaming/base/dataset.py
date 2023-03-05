@@ -400,15 +400,6 @@ class StreamingDataset(IterableDataset):
         """
         return self.index.get_samples_per_device()
 
-    def _set_canonical_num_nodes(self, world: World):
-        """Set the canonical numbers of nodes.
-
-        Args:
-            world (World): World state.
-        """
-        if self.num_canonical_nodes is None:
-            self.num_canonical_nodes = world.num_nodes
-
     def _resume(self, world: World, epoch: int) -> Tuple[int, int]:
         """Either resume from checkpoint or start at the beginning.
 
@@ -425,7 +416,8 @@ class StreamingDataset(IterableDataset):
             shm = SharedMemory(name)
         except FileNotFoundError:
             # There is nothing to resume.
-            self._set_canonical_num_nodes(world)
+            if not self.num_canonical_nodes:
+                self.num_canonical_nodes = world.num_nodes
             return epoch, 0
 
         # SharedMemory buffers may contain additional null bytes at the end.
@@ -436,7 +428,8 @@ class StreamingDataset(IterableDataset):
 
         # Check if the resume state is stale.
         if obj['epoch'] < epoch:
-            self._set_canonical_num_nodes(world)
+            if not self.num_canonical_nodes:
+                self.num_canonical_nodes = world.num_nodes
             return epoch, 0
 
         # Load the correct resumption meta data.
