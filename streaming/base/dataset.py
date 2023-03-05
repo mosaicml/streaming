@@ -95,10 +95,10 @@ class StreamingDataset(IterableDataset):
     .. code-block:: json
 
         {
-            "epoch":"int",
-            "sample_in_epoch":"int",
-            "shuffle_seed":"int",
-            "num_canonical_nodes":"int"
+            "epoch" :"int",
+            "sample_in_epoch": "int",
+            "shuffle_seed": "int",
+            "num_canonical_nodes": "int"
         }
 
     StreamingDataset init takes three kinds of arguments:
