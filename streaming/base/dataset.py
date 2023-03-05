@@ -374,18 +374,16 @@ class StreamingDataset(IterableDataset):
         # Placeholder for a _PartitionState which tracks state during __iter__().
         self._partition_state = None
 
-    @property
-    def next_epoch(self) -> int:
-        """Get property next_epoch.
+    def _get_next_epoch(self) -> int:
+        """Get the next epoch.
 
         Returns:
             int: Next epoch.
         """
         return int(self._next_epoch_arr[0])
 
-    @next_epoch.setter
-    def next_epoch(self, next_epoch: int) -> None:
-        """Set property next_epoch.
+    def _set_next_epoch(self, next_epoch: int) -> None:
+        """Set the next epoch.
 
         Args:
             next_epoch (int): Next epoch.
@@ -441,7 +439,7 @@ class StreamingDataset(IterableDataset):
         return epoch, sample_in_epoch
 
     def _get_progress(self, world: World) -> Tuple[int, int]:
-        """Start or resume training, pre-incrementing next_epoch.
+        """Start or resume training, pre-incrementing the next epoch.
 
         Args:
             world (World): World state.
@@ -453,7 +451,7 @@ class StreamingDataset(IterableDataset):
         self._next_epoch_arr = np.ndarray(1, buffer=self._next_epoch_shm.buf, dtype=np.int64)
 
         # Either resume from checkpoint, or start from scratch.
-        presumed_epoch = self.next_epoch
+        presumed_epoch = self._get_next_epoch()
         epoch, sample_in_epoch = self._resume(world, presumed_epoch)
 
         # Wait for everyone to get the epoch above.
@@ -461,7 +459,7 @@ class StreamingDataset(IterableDataset):
 
         # Set the new next epoch.
         if world.is_local_leader:
-            self.next_epoch = epoch + 1
+            self._set_next_epoch(epoch + 1)
 
         return epoch, sample_in_epoch
 
@@ -770,7 +768,7 @@ class StreamingDataset(IterableDataset):
             Dict[str, Any]: The state.
         """
         world = World()
-        epoch = self.next_epoch - 1
+        epoch = self._get_next_epoch() - 1
         epoch, offset = self._resume(world, epoch)
         if from_beginning:
             sample_in_epoch = num_samples
