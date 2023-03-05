@@ -271,6 +271,10 @@ class StreamingDataset(IterableDataset):
             self.proportion_per_stream /= self.proportion_per_stream.sum()
             self.pick_per_stream = (samples_per_epoch * self.proportion_per_stream).astype(
                 np.int64)
+            short = samples_per_epoch - self.pick_per_stream.sum()
+            rng = np.random.default_rng(shuffle_seed)
+            indices = rng.choice(len(self.pick_per_stream), short, False)
+            self.pick_per_stream[indices] += 1
             self.repeat_per_stream = self.pick_per_stream / self.samples_per_stream
         else:
             # Absolute.
@@ -285,6 +289,7 @@ class StreamingDataset(IterableDataset):
                 self.pick_per_stream[idx] = samples
             self.repeat_per_stream = self.pick_per_stream / self.samples_per_stream
             self.proportion_per_stream = self.pick_per_stream / self.pick_per_stream.sum()
+            self.samples_per_epoch = sum(self.pick_per_stream)
 
         # Now that we know the true props/reps/picks, inject those back into the Streams,
         for stream, proportion, repeat, pick in zip(streams, self.proportion_per_stream,
