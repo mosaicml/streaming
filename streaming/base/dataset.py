@@ -505,86 +505,103 @@ class StreamingDataset(IterableDataset):
         small_per_big = np.repeat(np.arange(self.index.total_samples), pick_per_sample)
         return pick_per_shard, small_per_big
 
-    def _generate_epoch(self,
-                        world: World,
-                        epoch: int,
-                        sample_in_epoch: int,
-                        timeout: float = 60) -> NDArray[np.int64]:
+    def _generate_epoch(self, world: World, epoch: int, sample_in_epoch: int) -> NDArray[np.int64]:
+        """Generate this epoch's arrangement of samples.
+
+        This is only called in local rank zero.
+
+        Args:
+            world (World): World state.
+            epoch (int): Which epoch it is.
+            sample_in_epoch (int): Where we are in the epoch.
+
+        Returns:
+            NDArray[np.int64]: The epoch (num physical nodes, ranks per node, workers per rank,
+                batches per worker, batch size).
+        """
+        # Ensure that num_canonical_nodes has been set.
+        if self.num_canonical_nodes is None:
+            raise RuntimeError('Number of canonical nodes can never be None')
+
+        # Sample each shard of each stream according to their proportions/repeats/samples. This
+        # gives us the resampled size of each underlying shard, and a mapping from each fake
+        # "big" sample ID to its underlying "small" sample ID.
+        pick_per_shard, small_per_big = self._resample_streams(epoch)
+
+        # Partition the global sample space (of resampled "big" sample IDs) into a tensor of
+        # shape (num physical nodes, ranks per node, workers per rank, batches per worker,
+        # samples per batch) such that we have an elastically deterministic sample order.
+        big_ids = get_partitions(self.samples_per_epoch, self.num_canonical_nodes, world.num_nodes,
+                                 world.ranks_per_node, world.workers_per_rank, self.batch_size,
+                                 sample_in_epoch)
+
+        # If we need to shuffle, shuffle in a node-aware and *underlying* shard-aware way.
+        if self.shuffle:
+            shuffle = get_shuffle(self.shuffle_algo, pick_per_shard, self.num_canonical_nodes,
+                                  self.shuffle_seed, epoch)
+            big_ids = np.where(big_ids != -1, shuffle[big_ids], -1)
+
+        # Now that we have partitioning and shuffled with hallucinated "big" sample IDs, we
+        # don't need them anymore, and can convert back to underlying "small" sample IDs.
+        return np.where(big_ids != -1, small_per_big[big_ids], -1)
+
+    def _get_worker_samples(self, world: World, epoch: int,
+                            sample_in_epoch: int) -> NDArray[np.int64]:
         """Get this worker's partition of this epoch's sample space.
 
         Args:
             world (World): World state.
             epoch (int): Which epoch it is.
             sample_in_epoch (int): Where we are in the epoch.
-            timeout (float): Max seconds to wait for the partitioning/shuffle to be generated.
 
         Returns:
             Optional[NDArray[np.int64]]: Our partition of the epoch.
         """
-        # Ensure the parameters are not None. The parameters are either in _resume() or
-        # in constructor method.
-        if self.num_canonical_nodes is None:
-            raise RuntimeError('Number of canonical nodes can never be None')
-        if self.shuffle_seed is None:
-            raise RuntimeError('Shuffle seed can never be None')
-
-        # Decide where to save sample ID data.
-        filename = os.path.join(self._shared_dir, 'epoch.npy')
-
         # Do expensive work that may use all the cores just once, in the local leader.
         if world.is_local_leader:
-            # Sample each shard of each stream according to their proportions/repeats/samples. This
-            # gives us the resampled size of each underlying shard, and a mapping from each fake
-            # "big" sample ID to its underlying "small" sample ID.
-            pick_per_shard, small_per_big = self._resample_streams(epoch)
+            # Generate the global arrangement of samples for this epoch.
+            sample_ids = self._generate_epoch(world, epoch, sample_in_epoch)
 
-            # Partition the global sample space (of resampled "big" sample IDs) into a tensor of
-            # shape (num physical nodes, ranks per node, workers per rank, batches per worker,
-            # samples per batch) such that we have an elastically deterministic sample order.
-            big_ids = get_partitions(self.samples_per_epoch, self.num_canonical_nodes,
-                                     world.num_nodes, world.ranks_per_node, world.workers_per_rank,
-                                     self.batch_size, sample_in_epoch)
+            # Save the generated epoch shape to shared memory.
+            name = f'{self._prefix}_epoch_shape'
+            size = 5 * np.int64().nbytes
+            shape_shm = SharedMemory(name, True, size)
+            shape_shm.buf[:size] = np.array(sample_ids.shape, np.int64).tobytes()
 
-            # If we need to shuffle, shuffle in a node-aware and *underlying* shard-aware way.
-            if self.shuffle:
-                shuffle = get_shuffle(self.shuffle_algo, pick_per_shard, self.num_canonical_nodes,
-                                      self.shuffle_seed, epoch)
-                big_ids = np.where(big_ids != -1, shuffle[big_ids], -1)
+            # Save the generated epoch data to shared memory.
+            name = f'{self._prefix}_epoch_data'
+            size = sample_ids.size * np.int64().nbytes
+            data_shm = SharedMemory(name, True, size)
+            data_shm.buf[:size] = sample_ids.tobytes()
 
-            # Now that we have partitioning and shuffled with hallucinated "big" sample IDs, we
-            # don't need them anymore, and can convert back to underlying "small" sample IDs.
-            sample_ids = np.where(big_ids != -1, small_per_big[big_ids], -1)
+            # After barrier: all other workers on the same node load the sample ID tensor.
+            self._worker_barrier(world.workers_per_node)
+        else:
+            # Before barrier: local rank zero generates the sample ID tensor.
+            self._worker_barrier(world.workers_per_node)
 
-            # Save the generate epoch to file, in order to be picked up by each worker.
-            sample_ids.tofile(filename)
+            # Load the generated epoch shape from shared memory.
+            name = f'{self._prefix}_epoch_shape'
+            size = 5 * np.int64().nbytes
+            shape_shm = SharedMemory(name, False, size)
+            shape = tuple(np.ndarray(5, buffer=shape_shm.buf, dtype=np.int64))
 
-        # Everyone waits for local rank zero to complete.
-        self._worker_barrier(world.workers_per_node)
+            # Attach to the generated epoch data in shared memory.
+            name = f'{self._prefix}_epoch_data'
+            size = np.prod(shape) * np.int64().nbytes
+            data_shm = SharedMemory(name, False, size)
+            sample_ids = np.ndarray(shape, buffer=data_shm.buf, dtype=np.int64)
 
-        # Each worker loads its slice of the sample ID tensor to iterate through.
-        # Tensor shape: (num nodes, ranks per node, workers per rank, samples per worker).
-        sample_id_nbytes = np.int64().nbytes
-        num_bytes = os.path.getsize(filename)
-        if num_bytes % sample_id_nbytes:
-            raise ValueError(f'Generated epoch is invalid: {filename} ({num_bytes} bytes).')
-        num_samples = num_bytes // sample_id_nbytes
-        num_workers = world.num_nodes * world.ranks_per_node * world.workers_per_rank
-        if num_samples % num_workers:
-            raise ValueError(f'Generated epoch is invalid: {filename} ({num_bytes} bytes).')
-        samples_per_worker = num_samples // num_workers
-        offset_in_bytes = world.worker * samples_per_worker * sample_id_nbytes
-        bytes_to_read = samples_per_worker * sample_id_nbytes
-        with open(filename, 'rb', 0) as fp:
-            fp.seek(offset_in_bytes)
-            data = fp.read(bytes_to_read)
-        sample_ids = np.frombuffer(data, np.int64)
+        # Each worker gets their portion of the work.
+        sample_ids = sample_ids[world.node, world.rank_of_node, world.worker_of_rank].flatten()
 
-        # Wait for everyone to read their part.
+        # Wait for everyone to get their part.
         self._worker_barrier(world.workers_per_node)
 
         # Now clean up after ourselves.
         if world.is_local_leader:
-            os.remove(filename)
+            shape_shm.unlink()
+            data_shm.unlink()
 
         return sample_ids
 
@@ -797,7 +814,7 @@ class StreamingDataset(IterableDataset):
         epoch, sample_in_epoch = self._resume_incr_epoch(world)
 
         # Get this worker's partition of samples to process.
-        sample_ids = self._generate_epoch(world, epoch, sample_in_epoch)
+        sample_ids = self._get_worker_samples(world, epoch, sample_in_epoch)
         if not len(sample_ids):  # Resumed at end of epoch, out of samples.
             return
 
