@@ -588,7 +588,7 @@ class StreamingDataset(IterableDataset):
 
             # Attach to the generated epoch data in shared memory.
             name = f'{self._prefix}_epoch_data'
-            size = np.prod(shape) * np.int64().nbytes
+            size = int(np.prod(shape)) * np.int64().nbytes
             data_shm = SharedMemory(name, False, size)
             sample_ids = np.ndarray(shape, buffer=data_shm.buf, dtype=np.int64)
 
