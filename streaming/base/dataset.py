@@ -524,13 +524,13 @@ class StreamingDataset(IterableDataset):
             raise RuntimeError('Number of canonical nodes can never be None')
 
         # Sample each shard of each stream according to their proportions/repeats/samples. This
-        # gives us the resampled size of each underlying shard, and a mapping from each fake
-        # "big" sample ID to its underlying "small" sample ID.
+        # gives us the resampled size of each underlying shard, and a mapping from each fake "big"
+        # sample ID to its underlying "small" sample ID.
         pick_per_shard, small_per_big = self._resample_streams(epoch)
 
-        # Partition the global sample space (of resampled "big" sample IDs) into a tensor of
-        # shape (num physical nodes, ranks per node, workers per rank, batches per worker,
-        # samples per batch) such that we have an elastically deterministic sample order.
+        # Partition the global sample space (of resampled "big" sample IDs) into a tensor of shape
+        # (num physical nodes, ranks per node, workers per rank, batches per worker, samples per
+        # batch) such that we have an elastically deterministic sample order.
         big_ids = get_partitions(self.samples_per_epoch, self.num_canonical_nodes, world.num_nodes,
                                  world.ranks_per_node, world.workers_per_rank, self.batch_size,
                                  sample_in_epoch)
@@ -541,8 +541,8 @@ class StreamingDataset(IterableDataset):
                                   self.shuffle_seed, epoch)
             big_ids = np.where(big_ids != -1, shuffle[big_ids], -1)
 
-        # Now that we have partitioning and shuffled with hallucinated "big" sample IDs, we
-        # don't need them anymore, and can convert back to underlying "small" sample IDs.
+        # Now that we have partitioning and shuffled with hallucinated "big" sample IDs, we don't
+        # need them anymore, and can convert back to underlying "small" sample IDs.
         return np.where(big_ids != -1, small_per_big[big_ids], -1)
 
     def _get_worker_samples(self, world: World, epoch: int,
