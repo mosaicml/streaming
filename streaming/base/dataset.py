@@ -24,7 +24,7 @@ from streaming.base.partitioning import get_partitions
 from streaming.base.shared import SharedBarrier, create_shared_memory
 from streaming.base.shuffle import get_shuffle
 from streaming.base.stream import Stream
-from streaming.base.util import TICK, wait_for_file_to_exist, wait_for_local_leader
+from streaming.base.util import TICK, wait_for_local_leader
 from streaming.base.world import World
 
 
@@ -529,7 +529,6 @@ class StreamingDataset(IterableDataset):
             raise RuntimeError('Shuffle seed can never be None')
 
         # Decide where to save sample ID data.
-        tmp_filename = os.path.join(self._shared_dir, 'epoch.npy.tmp')
         filename = os.path.join(self._shared_dir, 'epoch.npy')
 
         # Do expensive work that may use all the cores just once, in the local leader.
@@ -557,11 +556,10 @@ class StreamingDataset(IterableDataset):
             sample_ids = np.where(big_ids != -1, small_per_big[big_ids], -1)
 
             # Save the generate epoch to file, in order to be picked up by each worker.
-            sample_ids.tofile(tmp_filename)
-            os.rename(tmp_filename, filename)
+            sample_ids.tofile(filename)
 
-        # Everyone waits for the file to become populated.
-        wait_for_file_to_exist(filename, TICK, timeout, 'Partitioning and shuffling took too long')
+        # Everyone waits for local rank zero to complete.
+        self._worker_barrier(world.workers_per_node)
 
         # Each worker loads its slice of the sample ID tensor to iterate through.
         # Tensor shape: (num nodes, ranks per node, workers per rank, samples per worker).
