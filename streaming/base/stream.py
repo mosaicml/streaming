@@ -227,7 +227,7 @@ class Stream:
         os.rename(tmp_filename, raw_filename)
 
         # Maybe remove compressed to save space.
-        if not self.keep_zip:
+        if not self.keep_zip and self.remote != self.local:
             os.remove(zip_filename)
 
     def _download_shard_part(self,
