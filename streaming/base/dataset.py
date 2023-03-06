@@ -185,7 +185,6 @@ class StreamingDataset(IterableDataset):
                  shuffle_algo: str = 'py1s',
                  shuffle_seed: int = 9176) -> None:
         # Global arguments (which do not live in Streams).
-        self.samples_per_epoch = samples_per_epoch
         self.predownload = predownload
         self.partition_algo = partition_algo
         self.num_canonical_nodes = num_canonical_nodes
@@ -468,11 +467,49 @@ class StreamingDataset(IterableDataset):
 
         return epoch, sample_in_epoch
 
-    def _get_partition(self,
-                       world: World,
-                       epoch: int,
-                       sample_in_epoch: int,
-                       timeout: float = 60) -> NDArray[np.int64]:
+    def _resample_streams(self, epoch: int) -> Tuple[NDArray[np.int64], NDArray[np.int64]]:
+        """Perform the up/down-sampling needed to generate the weighted epoch.
+
+        Args:
+            epoch (int): What epoch this is for. Used in seeding the sampling RNG.
+
+        Returns:
+            Tuple[NDArray[np.int64], NDArray[np.int64]]: Sampled shard sizes and sample mapping.
+        """
+        rng = np.random.default_rng(self.shuffle_seed + epoch)
+        pick_per_shard = np.zeros(len(self.shards), np.int64) - 1
+        pick_per_sample = np.zeros(self.index.total_samples, np.int64) - 1
+        for stream_id in range(len(self.streams)):
+            stream_shard_offset = self.shard_offset_per_stream[stream_id]
+            num_stream_shards = self.shards_per_stream[stream_id]
+            shard_ids = np.arange(stream_shard_offset, stream_shard_offset + num_stream_shards)
+            samples_per_shard = self.shard_sizes[shard_ids]
+            stream_picks = self.pick_per_stream[stream_id]
+            stream_samples = sum(samples_per_shard)
+            if stream_picks == stream_samples:
+                pick_per_stream_shard = samples_per_shard
+            else:
+                pick_per_stream_shard = samples_per_shard * stream_picks // stream_samples
+                short = stream_picks - pick_per_stream_shard.sum()
+                indices = rng.choice(num_stream_shards, short, False)
+                pick_per_stream_shard[indices] += 1
+            pick_per_shard[shard_ids] = pick_per_stream_shard
+            for shard_id, shard_picks in zip(shard_ids, pick_per_stream_shard):
+                shard_samples = self.index.samples_per_shard[shard_id]
+                shard_sample_offset = self.index.shard_offsets[shard_id]
+                indices = np.arange(shard_sample_offset, shard_sample_offset + shard_samples)
+                pick_per_sample[indices] = shard_picks // shard_samples
+                short = shard_picks % shard_samples
+                indices = shard_sample_offset + rng.choice(shard_samples, short, False)
+                pick_per_sample[indices] += 1
+        small_per_big = np.repeat(np.arange(self.index.total_samples), pick_per_sample)
+        return pick_per_shard, small_per_big
+
+    def _generate_epoch(self,
+                        world: World,
+                        epoch: int,
+                        sample_in_epoch: int,
+                        timeout: float = 60) -> NDArray[np.int64]:
         """Get this worker's partition of this epoch's sample space.
 
         Args:
@@ -491,21 +528,35 @@ class StreamingDataset(IterableDataset):
         if self.shuffle_seed is None:
             raise RuntimeError('Shuffle seed can never be None')
 
-        # Decide where to save shuffle data.
-        tmp_filename = os.path.join(self._shared_dir, 'shuffle.npy.tmp')
-        filename = os.path.join(self._shared_dir, 'shuffle.npy')
+        # Decide where to save sample ID data.
+        tmp_filename = os.path.join(self._shared_dir, 'epoch.npy.tmp')
+        filename = os.path.join(self._shared_dir, 'epoch.npy')
 
-        # In the local leader, generate this epoch's global sample ordering, then save to file.
-        # Tensor shape: (num nodes, ranks per node, workers per rank, samples per worker).
-        # This operation is expensive.
+        # Do expensive work that may use all the cores just once, in the local leader.
         if world.is_local_leader:
-            sample_ids = get_partitions(self.index.total_samples, self.num_canonical_nodes,
-                                        world.num_nodes, world.ranks_per_node,
-                                        world.workers_per_rank, self.batch_size, sample_in_epoch)
+            # Sample each shard of each stream according to their proportions/repeats/samples. This
+            # gives us the resampled size of each underlying shard, and a mapping from each fake
+            # "big" sample ID to its underlying "small" sample ID.
+            pick_per_shard, small_per_big = self._resample_streams(epoch)
+
+            # Partition the global sample space (of resampled "big" sample IDs) into a tensor of
+            # shape (num physical nodes, ranks per node, workers per rank, batches per worker,
+            # samples per batch) such that we have an elastically deterministic sample order.
+            big_ids = get_partitions(self.samples_per_epoch, self.num_canonical_nodes,
+                                     world.num_nodes, world.ranks_per_node, world.workers_per_rank,
+                                     self.batch_size, sample_in_epoch)
+
+            # If we need to shuffle, shuffle in a node-aware and *underlying* shard-aware way.
             if self.shuffle:
-                mapping = get_shuffle(self.shuffle_algo, self.shard_sizes,
-                                      self.num_canonical_nodes, self.shuffle_seed, epoch)
-                sample_ids = np.where(sample_ids == -1, -1, mapping[sample_ids])
+                shuffle = get_shuffle(self.shuffle_algo, pick_per_shard, self.num_canonical_nodes,
+                                      self.shuffle_seed, epoch)
+                big_ids = np.where(big_ids != -1, shuffle[big_ids], -1)
+
+            # Now that we have partitioning and shuffled with hallucinated "big" sample IDs, we
+            # don't need them anymore, and can convert back to underlying "small" sample IDs.
+            sample_ids = np.where(big_ids != -1, small_per_big[big_ids], -1)
+
+            # Save the generate epoch to file, in order to be picked up by each worker.
             sample_ids.tofile(tmp_filename)
             os.rename(tmp_filename, filename)
 
@@ -517,11 +568,11 @@ class StreamingDataset(IterableDataset):
         sample_id_nbytes = np.int64().nbytes
         num_bytes = os.path.getsize(filename)
         if num_bytes % sample_id_nbytes:
-            raise ValueError(f'Generated shuffle is invalid: {filename} ({num_bytes} bytes).')
+            raise ValueError(f'Generated epoch is invalid: {filename} ({num_bytes} bytes).')
         num_samples = num_bytes // sample_id_nbytes
         num_workers = world.num_nodes * world.ranks_per_node * world.workers_per_rank
         if num_samples % num_workers:
-            raise ValueError(f'Generated shuffle is invalid: {filename} ({num_bytes} bytes).')
+            raise ValueError(f'Generated epoch is invalid: {filename} ({num_bytes} bytes).')
         samples_per_worker = num_samples // num_workers
         offset_in_bytes = world.worker * samples_per_worker * sample_id_nbytes
         bytes_to_read = samples_per_worker * sample_id_nbytes
@@ -748,7 +799,7 @@ class StreamingDataset(IterableDataset):
         epoch, sample_in_epoch = self._resume_incr_epoch(world)
 
         # Get this worker's partition of samples to process.
-        sample_ids = self._get_partition(world, epoch, sample_in_epoch)
+        sample_ids = self._generate_epoch(world, epoch, sample_in_epoch)
         if not len(sample_ids):  # Resumed at end of epoch, out of samples.
             return
 
