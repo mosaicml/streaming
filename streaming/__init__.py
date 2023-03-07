@@ -7,10 +7,20 @@ import streaming.multimodal as multimodal
 import streaming.text as text
 import streaming.vision as vision
 from streaming._version import __version__
-from streaming.base import (CSVWriter, JSONWriter, LocalDataset, MDSWriter, StreamingDataLoader,
-                            StreamingDataset, TSVWriter, XSVWriter)
+from streaming.base import (CSVWriter, JSONWriter, LocalDataset, MDSWriter, Stream,
+                            StreamingDataLoader, StreamingDataset, TSVWriter, XSVWriter)
 
 __all__ = [
-    'StreamingDataLoader', 'StreamingDataset', 'CSVWriter', 'JSONWriter', 'MDSWriter', 'TSVWriter',
-    'XSVWriter', 'LocalDataset', 'multimodal', 'vision', 'text'
+    'StreamingDataLoader',
+    'Stream',
+    'StreamingDataset',
+    'CSVWriter',
+    'JSONWriter',
+    'MDSWriter',
+    'TSVWriter',
+    'XSVWriter',
+    'LocalDataset',
+    'multimodal',
+    'vision',
+    'text',
 ]

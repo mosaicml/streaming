@@ -283,6 +283,7 @@ class StreamingDataset(IterableDataset):
             indices = rng.choice(len(self.pick_per_stream), short, False)
             self.pick_per_stream[indices] += 1
             self.repeat_per_stream = self.pick_per_stream / self.samples_per_stream
+            self.samples_per_epoch = samples_per_epoch
         else:
             # Absolute.
             self.pick_per_stream = np.zeros(len(streams), np.int64)

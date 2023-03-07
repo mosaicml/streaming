@@ -94,14 +94,9 @@ class Stream:
                  validate_hash: Optional[str] = None,
                  keep_zip: Optional[bool] = None,
                  keep_raw: Optional[bool] = None) -> None:
-        if not (remote or local):
-            raise ValueError('Remote and/or local path must be provided')
-
         self.remote = remote
-
         self._local = local
         self.local = local or mkdtemp()
-
         self.split = split or ''
 
         has_proportion = proportion is not None
@@ -113,20 +108,20 @@ class Stream:
 
         self._proportion = proportion
         if proportion is not None:
-            if proportion <= 0:
-                raise ValueError('Proportion must be positive')
+            if proportion < 0:
+                raise ValueError('Proportion must be non-negative')
             self.proportion = proportion
 
         self._repeat = repeat
         if repeat is not None:
-            if repeat <= 0:
-                raise ValueError('Repeat must be positive')
+            if repeat < 0:
+                raise ValueError('Repeat must be non-negative')
             self.repeat = repeat
 
         self._samples = samples
         if samples is not None:
-            if samples <= 0:
-                raise ValueError('Samples must be positive')
+            if samples < 0:
+                raise ValueError('Samples must be non-negative')
             self.samples = samples
 
         self._download_retry = download_retry
@@ -159,6 +154,9 @@ class Stream:
         Args:
             default (Self): Stream containing default values for all optional fields.
         """
+        if not (self.remote or self._local):
+            raise ValueError('Remote and/or local path must be provided')
+
         if not self.split:
             self.split = default.split or ''
         if self._download_retry is None:
