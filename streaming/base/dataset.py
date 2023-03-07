@@ -216,29 +216,18 @@ class StreamingDataset(IterableDataset):
         else:
             streams = [default]
 
-        # Validate proportions or repeats. Streams must each set at most one of proportion, repeat,
-        # or samples. Proportion (relative) and repeat/samples (absolute) are incompatible with
-        # each other.
-        arr = np.zeros((len(streams), 4), np.uint8)
+        # Validate sub-dataset weights ("proportion", "repeat", "samples", or none).
+        is_proportional = hasattr(streams[0], 'proportion')
         for idx, stream in enumerate(streams):
-            arr[idx, 0] = hasattr(stream, 'proportion')
-            arr[idx, 1] = hasattr(stream, 'repeat')
-            arr[idx, 2] = hasattr(stream, 'samples')
-            arr[idx, 3] = not arr[idx].any()
-        if (arr.sum(1) != 1).any():
-            raise ValueError('Streams must set at most one of "proportion", "repeat", or ' +
-                             '"samples"')
-        if 0 < arr[:, 0].sum() < len(streams):
-            raise ValueError('"Weights" (relative) and "repeat"/samples" (absolute) are ' +
-                             'incompatible with each other')
-        proportional = bool(arr[0, 0])
-        if proportional:
-            if not samples_per_epoch:
-                samples_per_epoch = self.index.total_samplaes
-        else:
-            if samples_per_epoch:
-                raise ValueError('Only use samples_per_epoch when proportionally weighting ' +
-                                 'sub-datasets.')
+            has_proportion = hasattr(stream, 'proportion')
+            has_repeat = hasattr(stream, 'repeat')
+            has_samples = hasattr(stream, 'samples')
+            if not (0 <= has_proportion + has_repeat + has_samples <= 1):
+                raise ValueError('Streams must provide at most one of "proportion", "repeat", ' +
+                                 'or "samples"')
+            if is_proportional != has_proportion:
+                raise ValueError('Relative ("proportion") and absolute ("repeat", "samples", ' +
+                                 'none) sub-dataset weights are incompatible with each other')
 
         # Initialize the World context.
         #
@@ -267,8 +256,21 @@ class StreamingDataset(IterableDataset):
             self.num_samples += samples
         self.stream_per_shard = np.array(stream_per_shard, np.int64)
 
+        # Build the Index (for partitioning and mapping samples to shards).
+        self.shard_sizes = np.array([x.samples for x in self.shards])
+        self.index = Index(self.shard_sizes)
+
+        # Check and normalize samples_per_epoch.
+        if is_proportional:
+            if not samples_per_epoch:
+                samples_per_epoch = self.index.total_samples
+        else:
+            if samples_per_epoch:
+                raise ValueError('Only use samples_per_epoch when proportionally weighting ' +
+                                 'sub-datasets.')
+
         # Now that we have the true size of each sub-dataset, derive the proportions/repeats/picks.
-        if proportional:
+        if is_proportional:
             # Relative.
             self.proportion_per_stream = np.array([stream.proportion for stream in streams],
                                                   np.float64)
@@ -302,10 +304,6 @@ class StreamingDataset(IterableDataset):
             stream.repeat = repeat
             stream.samples = pick
         self.streams = streams
-
-        # Build the Index (for partitioning and mapping samples to shards).
-        self.shard_sizes = np.array([x.samples for x in self.shards])
-        self.index = Index(self.shard_sizes)
 
         # Determine and distribute shuffle seed and shm prefix.
         seed_rng = np.random.default_rng(shuffle_seed)
