@@ -12,7 +12,7 @@ def walk(dataset: StreamingDataset) -> List[int]:
     return [sample['value'] for sample in dataset]
 
 
-def float_eq(a, b):
+def float_eq(a: float, b: float) -> bool:
     return abs(a - b) < 1e-6
 
 
@@ -158,7 +158,7 @@ def test_mixing():
             assert stream.samples == 2
 
     def test_mix_proportion_range():
-        proportion = [0, 1/6, 2/6, 3/6]
+        proportion = [0, 1 / 6, 2 / 6, 3 / 6]
         streams = []
         for i in range(4):
             subroot = os.path.join(root, str(i))

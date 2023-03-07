@@ -261,18 +261,11 @@ class StreamingDataset(IterableDataset):
         self.shard_sizes = np.array([x.samples for x in self.shards])
         self.index = Index(self.shard_sizes)
 
-        # Check and normalize samples_per_epoch.
-        if is_proportional:
-            if not samples_per_epoch:
-                samples_per_epoch = self.index.total_samples
-        else:
-            if samples_per_epoch:
-                raise ValueError('Only use samples_per_epoch when proportionally weighting ' +
-                                 'sub-datasets.')
-
         # Now that we have the true size of each sub-dataset, derive the proportions/repeats/picks.
         if is_proportional:
             # Relative.
+            if not samples_per_epoch:
+                samples_per_epoch = self.index.total_samples
             self.proportion_per_stream = np.array([stream.proportion for stream in streams],
                                                   np.float64)
             self.proportion_per_stream /= self.proportion_per_stream.sum()
@@ -286,6 +279,9 @@ class StreamingDataset(IterableDataset):
             self.samples_per_epoch = samples_per_epoch
         else:
             # Absolute.
+            if samples_per_epoch:
+                raise ValueError('Only provide samples_per_epoch when proportionally weighting ' +
+                                 'sub-datasets.')
             self.pick_per_stream = np.zeros(len(streams), np.int64)
             for idx, stream in enumerate(streams):
                 if hasattr(stream, 'repeat'):
