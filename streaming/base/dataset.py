@@ -232,8 +232,13 @@ class StreamingDataset(IterableDataset):
             raise ValueError('"Weights" (relative) and "repeat"/samples" (absolute) are ' +
                              'incompatible with each other')
         proportional = bool(arr[0, 0])
-        if proportional == (samples_per_epoch is None):
-            raise ValueError('You must provide samples_per_epoch iff using sample proportions')
+        if proportional:
+            if not samples_per_epoch:
+                samples_per_epoch = self.index.total_samplaes
+        else:
+            if samples_per_epoch:
+                raise ValueError('Only use samples_per_epoch when proportionally weighting ' +
+                                 'sub-datasets.')
 
         # Initialize the World context.
         #
