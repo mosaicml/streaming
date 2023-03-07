@@ -106,7 +106,7 @@ class StreamingDataset(IterableDataset):
           * ``streams``
           * ``remote``
           * ``local``
-      * Knobs to control streaming behavior, which if multiple Streams are provided, become defaults
+      * Knobs to control streaming behavior, which, if multiple Streams are provided, become defaults
         applied to them:
           * ``split``
           * ``download_retry``
