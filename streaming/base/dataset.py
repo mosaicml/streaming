@@ -636,7 +636,9 @@ class StreamingDataset(IterableDataset):
 
         # Now clean up after ourselves.
         if world.is_local_leader:
+            shape_shm.close()
             shape_shm.unlink()
+            data_shm.close()
             data_shm.unlink()
 
         return worker_samples
