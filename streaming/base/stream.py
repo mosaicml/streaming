@@ -56,10 +56,12 @@ class Stream:
             ``None``.
         split (str, optional): Which dataset split to use, if any. If provided, we stream from/to
             the ``split`` subdirs of  ``remote`` and ``local``. Defaults to ``None``.
-        proportion (float, optional): How much to upsample or downsample this dataset, as the
-            proportion of the total combined dataset that consists of this sub-dataset. We resample
-            each dataset accordingly to achieve those proportions. If provided, must be positive.
-            If set by any of them, must be set by all of them. Defaults to ``None``.
+        proportion (float, optional): How much to upsample or downsample this sub-dataset, as the
+            proportion of the total combined dataset that consists of this sub-dataset. If
+            using proportions, all sub-datasets provided together to the StreamingDataset init must
+            define their proportions. The total combined number of samples is either the
+            StreamingDataset argument "samples_per_epoch" if provided, or kept the same total size
+            as the underlying data if not. If provided, must be positive. Defaults to ``None``.
         repeat (float, optional): How much to upsample or downsample this sub-dataset, as a
             multipler on the number of samples. If provided, must be positive. Defaults to
             ``None``.
