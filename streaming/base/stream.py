@@ -102,9 +102,12 @@ class Stream:
 
         self.split = split or ''
 
-        if proportion is not None and repeat is not None:
-            raise ValueError('Proportion and repeat must not both be set -- one is derived from ' +
-                             'the other in relation to other Streams')
+        has_proportion = proportion is not None
+        has_repeat = repeat is not None
+        has_samples = samples is not None
+        if not (0 <= has_proportion + has_repeat + has_samples <= 1):
+            raise ValueError('At most one of "proportion", "repeat", and "samples" may be ' +
+                             'specified; the others are derived')
 
         self._proportion = proportion
         if proportion is not None:
