@@ -476,16 +476,21 @@ class StreamingDataset(IterableDataset):
         Returns:
             Tuple[NDArray[np.int64], NDArray[np.int64]]: Sampled shard sizes and sample mapping.
         """
+        # Initialize random number generator and arrays.
         rng = np.random.default_rng(self.shuffle_seed + epoch)
         pick_per_shard = np.zeros(len(self.shards), np.int64) - 1
         pick_per_sample = np.zeros(self.index.total_samples, np.int64) - 1
+
+        # Iterate over each stream.
         for stream_id in range(len(self.streams)):
             stream_shard_offset = self.shard_offset_per_stream[stream_id]
             num_stream_shards = self.shards_per_stream[stream_id]
-            shard_ids = np.arange(stream_shard_offset, stream_shard_offset + num_stream_shards)
-            samples_per_shard = self.shard_sizes[shard_ids]
-            stream_picks = self.pick_per_stream[stream_id]
+            stream_shard_ids = stream_shard_offset + np.arange(num_stream_shards)
+
+            # Calculate pick per shard.
+            samples_per_shard = self.shard_sizes[stream_shard_ids]
             stream_samples = sum(samples_per_shard)
+            stream_picks = self.pick_per_stream[stream_id]
             if stream_picks == stream_samples:
                 pick_per_stream_shard = samples_per_shard
             else:
@@ -493,15 +498,21 @@ class StreamingDataset(IterableDataset):
                 short = stream_picks - pick_per_stream_shard.sum()
                 indices = rng.choice(num_stream_shards, short, False)
                 pick_per_stream_shard[indices] += 1
-            pick_per_shard[shard_ids] = pick_per_stream_shard
-            for shard_id, shard_picks in zip(shard_ids, pick_per_stream_shard):
-                shard_samples = self.index.samples_per_shard[shard_id]
+            pick_per_shard[stream_shard_ids] = pick_per_stream_shard
+
+            # Iterate over each shard of this stream.
+            for shard_id, shard_picks in zip(stream_shard_ids, pick_per_stream_shard):
                 shard_sample_offset = self.index.shard_offsets[shard_id]
+                shard_samples = self.index.samples_per_shard[shard_id]
                 indices = np.arange(shard_sample_offset, shard_sample_offset + shard_samples)
+
+                # Calculate pick per sample.
                 pick_per_sample[indices] = shard_picks // shard_samples
                 short = shard_picks % shard_samples
                 indices = shard_sample_offset + rng.choice(shard_samples, short, False)
                 pick_per_sample[indices] += 1
+
+        # Derive sample ID mapping via repeating by pick per sample.
         small_per_big = np.repeat(np.arange(self.index.total_samples), pick_per_sample)
         return pick_per_shard, small_per_big
 
