@@ -517,7 +517,8 @@ class StreamingDataset(IterableDataset):
         small_per_big = np.repeat(np.arange(self.index.total_samples), pick_per_sample)
         return pick_per_shard, small_per_big
 
-    def _generate_epoch(self, world: World, epoch: int, sample_in_epoch: int) -> NDArray[np.int64]:
+    def _generate_epoch_samples(self, world: World, epoch: int,
+                                sample_in_epoch: int) -> NDArray[np.int64]:
         """Generate this epoch's arrangement of samples.
 
         This is only called in local rank zero.
@@ -557,6 +558,56 @@ class StreamingDataset(IterableDataset):
         # need them anymore, and can convert back to underlying "small" sample IDs.
         return np.where(big_ids != -1, small_per_big[big_ids], -1)
 
+    def _share_epoch_samples(self, epoch_samples: NDArray[np.int64]) -> \
+            Tuple[SharedMemory, SharedMemory]:
+        """Put an epoch's sample ordering into shared memory.
+
+        Args:
+            epoch_samples (NDArray[np.int64]): Sample IDs.
+        """
+        ndim = 5
+
+        # Validate shape.
+        if epoch_samples.ndim != ndim:
+            raise ValueError('Sample IDs must be of shape (num physical nodes, ranks per node, ' +
+                             'workers per rank, batches per worker, batch size)')
+
+        # Save the generated epoch shape to shared memory.
+        name = f'{self._prefix}_epoch_shape'
+        size = ndim * np.int64().nbytes
+        shape_shm = SharedMemory(name, True, size)
+        shape_shm.buf[:size] = np.array(epoch_samples.shape, np.int64).tobytes()
+
+        # Save the generated epoch data to shared memory.
+        name = f'{self._prefix}_epoch_data'
+        size = epoch_samples.size * np.int64().nbytes
+        data_shm = SharedMemory(name, True, size)
+        data_shm.buf[:size] = epoch_samples.tobytes()
+
+        return shape_shm, data_shm
+
+    def _attach_epoch_samples(self) -> Tuple[NDArray[np.int64], SharedMemory, SharedMemory]:
+        """Get an epoch's sample ordering from shared memory.
+
+        Returns:
+            NDArray[np.int64]: Sample IDs.
+        """
+        ndim = 5
+
+        # Load the generated epoch shape from shared memory.
+        name = f'{self._prefix}_epoch_shape'
+        size = ndim * np.int64().nbytes
+        shape_shm = SharedMemory(name, False, size)
+        shape = tuple(np.ndarray(5, buffer=shape_shm.buf, dtype=np.int64))
+
+        # Attach to the generated epoch data in shared memory.
+        name = f'{self._prefix}_epoch_data'
+        size = int(np.prod(shape)) * np.int64().nbytes
+        data_shm = SharedMemory(name, False, size)
+        epoch_samples = np.ndarray(shape, buffer=data_shm.buf, dtype=np.int64)
+
+        return epoch_samples, shape_shm, data_shm
+
     def _get_worker_samples(self, world: World, epoch: int,
                             sample_in_epoch: int) -> NDArray[np.int64]:
         """Get this worker's partition of this epoch's sample space.
@@ -569,45 +620,18 @@ class StreamingDataset(IterableDataset):
         Returns:
             Optional[NDArray[np.int64]]: Our partition of the epoch.
         """
-        # Do expensive work that may use all the cores just once, in the local leader.
+        # Do expensive work that may use a lot of cores/memory just once, in the local leader.
         if world.is_local_leader:
-            # Generate the global arrangement of samples for this epoch.
-            sample_ids = self._generate_epoch(world, epoch, sample_in_epoch)
-
-            # Save the generated epoch shape to shared memory.
-            name = f'{self._prefix}_epoch_shape'
-            size = 5 * np.int64().nbytes
-            shape_shm = SharedMemory(name, True, size)
-            shape_shm.buf[:size] = np.array(sample_ids.shape, np.int64).tobytes()
-
-            # Save the generated epoch data to shared memory.
-            name = f'{self._prefix}_epoch_data'
-            size = sample_ids.size * np.int64().nbytes
-            data_shm = SharedMemory(name, True, size)
-            data_shm.buf[:size] = sample_ids.tobytes()
-
-            # After barrier: all other workers on the same node load the sample ID tensor.
+            epoch_samples = self._generate_epoch_samples(world, epoch, sample_in_epoch)
+            shape_shm, data_shm = self._share_epoch_samples(epoch_samples)
             self._worker_barrier(world.workers_per_node)
         else:
-            # Before barrier: local rank zero generates the sample ID tensor.
             self._worker_barrier(world.workers_per_node)
-
-            # Load the generated epoch shape from shared memory.
-            name = f'{self._prefix}_epoch_shape'
-            size = 5 * np.int64().nbytes
-            shape_shm = SharedMemory(name, False, size)
-            shape = tuple(np.ndarray(5, buffer=shape_shm.buf, dtype=np.int64))
-
-            # Attach to the generated epoch data in shared memory.
-            name = f'{self._prefix}_epoch_data'
-            size = int(np.prod(shape)) * np.int64().nbytes
-            data_shm = SharedMemory(name, False, size)
-            sample_ids = np.ndarray(shape, buffer=data_shm.buf, dtype=np.int64)
+            epoch_samples, shape_shm, data_shm = self._attach_epoch_samples()
 
         # Each worker gets their portion of the work.
-        sample_ids = sample_ids[world.node, world.rank_of_node, world.worker_of_rank].flatten()
-
-        # Wait for everyone to get their part.
+        worker_samples = epoch_samples[world.node, world.rank_of_node,
+                                       world.worker_of_rank].flatten()
         self._worker_barrier(world.workers_per_node)
 
         # Now clean up after ourselves.
@@ -615,7 +639,7 @@ class StreamingDataset(IterableDataset):
             shape_shm.unlink()
             data_shm.unlink()
 
-        return sample_ids
+        return worker_samples
 
     def _download_or_skip_shard(self, lock: FileLock, shard_states: NDArray[np.uint8],
                                 shard_id: int, wait_if_downloading: bool) -> None:
