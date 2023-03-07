@@ -223,11 +223,12 @@ class StreamingDataset(IterableDataset):
             has_repeat = hasattr(stream, 'repeat')
             has_samples = hasattr(stream, 'samples')
             if not (0 <= has_proportion + has_repeat + has_samples <= 1):
-                raise ValueError('Streams must provide at most one of "proportion", "repeat", ' +
-                                 'or "samples"')
+                raise ValueError(f'Streams must provide at most one of "proportion", "repeat", ' +
+                                 f'or "samples" (error in stream {idx})')
             if is_proportional != has_proportion:
-                raise ValueError('Relative ("proportion") and absolute ("repeat", "samples", ' +
-                                 'none) sub-dataset weights are incompatible with each other')
+                raise ValueError(f'Relative ("proportion") and absolute ("repeat", "samples", ' +
+                                 f'none) sub-dataset weights are incompatible with each other ' +
+                                 f'(error in stream {idx})')
 
         # Initialize the World context.
         #
