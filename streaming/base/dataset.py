@@ -1,7 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""A mid-epoch-resumable streaming pytorch IterableDataset."""
+"""A mid-epoch-resumable streaming/caching pytorch IterableDataset."""
 
 import json
 import os
@@ -9,7 +9,7 @@ from enum import IntEnum
 from multiprocessing.shared_memory import SharedMemory
 from threading import Thread
 from time import sleep, time
-from typing import Any, Dict, Iterator, Optional, Tuple
+from typing import Any, Dict, Iterator, Optional, Sequence, Tuple
 
 import numpy as np
 import torch
@@ -18,21 +18,14 @@ from filelock import FileLock
 from numpy.typing import NDArray
 from torch.utils.data import IterableDataset
 
-from streaming.base.compression import decompress
 from streaming.base.distributed import barrier
-from streaming.base.format import reader_from_json
-from streaming.base.format.base.reader import FileInfo
-from streaming.base.hashing import get_hash
-from streaming.base.index import Index, get_index_basename
+from streaming.base.index import Index
 from streaming.base.partitioning import get_partitions
 from streaming.base.shared import SharedBarrier, create_shared_memory
 from streaming.base.shuffle import get_shuffle
-from streaming.base.storage import download_file
-from streaming.base.util import wait_for_file_to_exist, wait_for_local_leader
+from streaming.base.stream import Stream
+from streaming.base.util import TICK, wait_for_local_leader
 from streaming.base.world import World
-
-# Time to wait, in seconds.
-TICK = 0.07
 
 
 class _ShardState(IntEnum):
@@ -93,87 +86,149 @@ class _PartitionState:
 
 
 class StreamingDataset(IterableDataset):
-    """A streaming pytorch IterableDataset that is also resumable mid-epoch.
+    """A mid-epoch-resumable streaming/caching pytorch IterableDataset.
+
+    Features elastically deterministic shuffling, which enables fast mid-epoch resumption.
 
     Checkpoints are represented in JSON as follows:
 
     .. code-block:: json
 
         {
-            "epoch":"int",
-            "sample_in_epoch":"int",
-            "shuffle_seed":"int",
-            "num_canonical_nodes":"int"
+            "epoch" :"int",
+            "sample_in_epoch": "int",
+            "shuffle_seed": "int",
+            "num_canonical_nodes": "int"
         }
 
+    StreamingDataset init takes three kinds of arguments:
+      * One or more Streams (you must provide either ``streams`` or ``remote``/``local``):
+          * ``streams``
+          * ``remote``
+          * ``local``
+      * Knobs to control streaming behavior, which, if multiple Streams are provided, become defaults
+        applied to them:
+          * ``split``
+          * ``download_retry``
+          * ``download_timeout``
+          * ``validate_hash``
+          * ``keep_zip``
+          * ``keep_raw``
+      * How to iterate (controlling prefetching, partitioning, and shuffling):
+          * Prefetching:
+              * ``predownload``
+          * Partitioning:
+              * ``partition_algo``
+              * ``num_canonical_nodes``
+              * ``batch_size``
+          * Shuffling:
+              * ``shuffle``
+              * ``shuffle_algo``
+              * ``shuffle_seed``
+
     Args:
-        local (str): Local dataset directory where shards are cached by split.
-        remote (str, optional): Download shards from this remote path or directory. If None, this
-            rank and worker's partition of the dataset must all exist locally. Defaults to
-            ``None``.
-        split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
-        shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
-            ``False``.
-        predownload (int, optional): Target number of samples ahead to download the shards of while
-            iterating. Defaults to ``100_000``.
-        keep_zip (bool, optional): Whether to keep or delete the compressed file when
-            decompressing downloaded shards. If set to None, keep iff remote is local. Defaults to
-            ``None``.
+        streams (Sequence[Stream], optional): One or more Streams to stream/cache samples from,
+            which may be upsampled or downsampled. StreamingDataset uses either ``streams`` or
+            ``remote``/``local``. Defaults to ``None``.
+        remote (str, optional): Remote path or directory to download the dataset from. If ``None``,
+            its data must exist locally. StreamingDataset uses either ``streams`` or
+            ``remote``/``local``. Defaults to ``None``.
+        local (str, optional): Local working directory to download shards to. This is where shards
+            are cached while they are being used. Uses a temp directory if not set.
+            StreamingDataset uses either ``streams`` or ``remote``/``local``. Defaults to ``None``.
+        split (str, optional): Which dataset split to use, if any. If provided, we stream from/to
+            the ``split`` subdirs of  ``remote`` and ``local``. Defaults to ``None``.
         download_retry (int): Number of download re-attempts before giving up. Defaults to ``2``.
         download_timeout (float): Number of seconds to wait for a shard to download before raising
             an exception. Defaults to ``60``.
         validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
-        shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
+        keep_zip (bool): Whether to keep or delete the compressed form when decompressing
+            downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
+            `False``.
+        keep_raw (bool): Whether to keep or delete the decompressed form (or only form)
+            of shards after all their samples have been yielded this epoch. If ``False``, keep iff
+            remote is local or no remote and no compression. Defaults to ``True``.
+        samples_per_epoch (int, optional): Provide this field iff you are weighting sub-datasets
+            proportionally. Defaults to ``None``.
+        predownload (int, optional): Target number of samples ahead to download the shards of while
+            iterating. Defaults to ``100_000``.
+        partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
         num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
             resumption. Defaults to ``None``, which is interpreted as the number of nodes of the
             initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
-        partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
-        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py2s``.
+        shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
+            ``False``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1s``.
+        shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
     """
 
     def __init__(self,
                  *,
-                 local: str,
+                 streams: Optional[Sequence[Stream]] = None,
                  remote: Optional[str] = None,
+                 local: Optional[str] = None,
                  split: Optional[str] = None,
-                 shuffle: bool = False,
-                 predownload: Optional[int] = 100_000,
-                 keep_zip: Optional[bool] = None,
                  download_retry: int = 2,
                  download_timeout: float = 60,
                  validate_hash: Optional[str] = None,
-                 shuffle_seed: int = 9176,
+                 keep_zip: bool = False,
+                 keep_raw: bool = True,
+                 samples_per_epoch: Optional[int] = None,
+                 predownload: Optional[int] = 100_000,
+                 partition_algo: str = 'orig',
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
-                 partition_algo: str = 'orig',
-                 shuffle_algo: str = 'py2s') -> None:
-        self.local = local
-        self.remote = remote
-        self.split = split or ''  # Empty string for os.path.join().
-        self.shuffle = shuffle
+                 shuffle: bool = False,
+                 shuffle_algo: str = 'py1s',
+                 shuffle_seed: int = 9176) -> None:
+        # Global arguments (which do not live in Streams).
         self.predownload = predownload
-        self.keep_zip = keep_zip
-        self.download_retry = download_retry
-        self.download_timeout = download_timeout
-        self.validate_hash = validate_hash or None
         self.partition_algo = partition_algo
+        self.num_canonical_nodes = num_canonical_nodes
+        self.batch_size = batch_size
+        self.shuffle = shuffle
         self.shuffle_algo = shuffle_algo
+        self.shuffle_seed = shuffle_seed
 
-        if self.download_retry < 0:
-            raise ValueError('Parameter ``download_retry`` must be non-negative')
-        if self.download_timeout < 0:
+        # Check streams vs remote/local.
+        if bool(streams) == (bool(remote) or bool(local)):
             raise ValueError(
-                'Parameter ``download_timeout`` (in seconds) must be greater than zero')
+                'You must provide either "streams" or "remote"/"local", but not both -- ' +
+                'that would be confusing')
 
-        # Placeholder for _resume_shm, a shared memory object where load_state_dict() saves its
-        # data to be picked up by __iter__().
-        self._resume_shm = None
+        # Initialize the Stream defaults.
+        default = Stream(remote=remote,
+                         local=local,
+                         split=split,
+                         download_retry=download_retry,
+                         download_timeout=download_timeout,
+                         validate_hash=validate_hash,
+                         keep_zip=keep_zip,
+                         keep_raw=keep_raw)
 
-        # Partition state.
-        self._partition_state = None
+        # Normalize to a list of Streams.
+        if streams:
+            for stream in streams:
+                stream.apply_default(default)
+        else:
+            streams = [default]
+
+        # Validate sub-dataset weights ("proportion", "repeat", "samples", or none).
+        is_proportional = hasattr(streams[0], 'proportion')
+        for idx, stream in enumerate(streams):
+            has_proportion = hasattr(stream, 'proportion')
+            has_repeat = hasattr(stream, 'repeat')
+            has_samples = hasattr(stream, 'samples')
+            if not (0 <= has_proportion + has_repeat + has_samples <= 1):
+                raise ValueError(f'Streams must provide at most one of "proportion", "repeat", ' +
+                                 f'or "samples" (error in stream {idx})')
+            if is_proportional != has_proportion:
+                raise ValueError(f'Relative ("proportion") and absolute ("repeat", "samples", ' +
+                                 f'none) sub-dataset weights are incompatible with each other ' +
+                                 f'(error in stream {idx})')
 
         # Initialize the World context.
         #
@@ -182,35 +237,71 @@ class StreamingDataset(IterableDataset):
         # instantiate a World inside the StreamingDataset destructor.
         self._rank_world = world = World()
 
-        # Seed is set below.
-        self.num_canonical_nodes = num_canonical_nodes
-        self.batch_size = batch_size
-        self.shuffle_seed = shuffle_seed
-
-        # Load the index.json file.
-        basename = get_index_basename()
-        if world.is_local_leader:
-            filename = self._download_file(basename)
-        else:
-            filename = os.path.join(local, self.split, basename)  # pyright: ignore
-
-        # Everyone waits for the file to become populated.
-        wait_for_file_to_exist(filename, TICK, self.download_timeout,
-                               f'{filename} file took too long to download')
-
-        obj = json.load(open(filename))
-        if obj['version'] != 2:
-            raise ValueError('Unsupported version')
-
-        # Initialize shard readers according to the loaded info.
+        # Download each stream's index, load their shards, and map streams <-> shards.
+        self.num_samples = 0
         self.shards = []
-        for info in obj['shards']:
-            shard = reader_from_json(local, self.split, info)
-            self.shards.append(shard)
+        stream_per_shard = []
+        self.shard_offset_per_stream = np.zeros(len(streams), np.int64)
+        self.shards_per_stream = np.zeros(len(streams), np.int64)
+        self.sample_offset_per_stream = np.zeros(len(streams), np.int64)
+        self.samples_per_stream = np.zeros(len(streams), np.int64)
+        for idx, stream in enumerate(streams):
+            stream_shards = stream.get_shards(world)
+            samples = sum(map(len, stream_shards))
+            stream_per_shard += [idx] * len(stream_shards)
+            self.shard_offset_per_stream[idx] = len(self.shards)
+            self.shards_per_stream[idx] = len(stream_shards)
+            self.sample_offset_per_stream[idx] = self.num_samples
+            self.samples_per_stream[idx] = samples
+            self.shards += stream_shards
+            self.num_samples += samples
+        self.stream_per_shard = np.array(stream_per_shard, np.int64)
 
         # Build the Index (for partitioning and mapping samples to shards).
         self.shard_sizes = np.array([x.samples for x in self.shards])
         self.index = Index(self.shard_sizes)
+
+        # Now that we have the true size of each sub-dataset, derive the proportions/repeats/picks.
+        if is_proportional:
+            # Relative.
+            if not samples_per_epoch:
+                samples_per_epoch = self.index.total_samples
+            self.proportion_per_stream = np.array([stream.proportion for stream in streams],
+                                                  np.float64)
+            self.proportion_per_stream /= self.proportion_per_stream.sum()
+            self.pick_per_stream = (samples_per_epoch * self.proportion_per_stream).astype(
+                np.int64)
+            short = samples_per_epoch - self.pick_per_stream.sum()
+            rng = np.random.default_rng(shuffle_seed)
+            indices = rng.choice(len(self.pick_per_stream), short, False)
+            self.pick_per_stream[indices] += 1
+            self.repeat_per_stream = self.pick_per_stream / self.samples_per_stream
+            self.samples_per_epoch = samples_per_epoch
+        else:
+            # Absolute.
+            if samples_per_epoch:
+                raise ValueError('Only provide samples_per_epoch when proportionally weighting ' +
+                                 'sub-datasets.')
+            self.pick_per_stream = np.zeros(len(streams), np.int64)
+            for idx, stream in enumerate(streams):
+                if hasattr(stream, 'repeat'):
+                    samples = int(stream.repeat * self.samples_per_stream[idx])
+                elif hasattr(stream, 'samples'):
+                    samples = stream.samples
+                else:
+                    samples = self.samples_per_stream[idx]
+                self.pick_per_stream[idx] = samples
+            self.repeat_per_stream = self.pick_per_stream / self.samples_per_stream
+            self.proportion_per_stream = self.pick_per_stream / self.pick_per_stream.sum()
+            self.samples_per_epoch = sum(self.pick_per_stream)
+
+        # Now that we know the true props/reps/picks, inject those back into the Streams,
+        for stream, proportion, repeat, pick in zip(streams, self.proportion_per_stream,
+                                                    self.repeat_per_stream, self.pick_per_stream):
+            stream.proportion = proportion
+            stream.repeat = repeat
+            stream.samples = pick
+        self.streams = streams
 
         # Determine and distribute shuffle seed and shm prefix.
         seed_rng = np.random.default_rng(shuffle_seed)
@@ -281,18 +372,23 @@ class StreamingDataset(IterableDataset):
         if is_dist_pg_initialized:
             dist.destroy_process_group()
 
-    @property
-    def next_epoch(self) -> int:
-        """Get property next_epoch.
+        # Placeholder for a shared memory object where load_state_dict() saves its data to be
+        # picked up by __iter__().
+        self._resume_shm = None
+
+        # Placeholder for a _PartitionState which tracks state during __iter__().
+        self._partition_state = None
+
+    def _get_next_epoch(self) -> int:
+        """Get the next epoch.
 
         Returns:
             int: Next epoch.
         """
         return int(self._next_epoch_arr[0])
 
-    @next_epoch.setter
-    def next_epoch(self, next_epoch: int) -> None:
-        """Set property next_epoch.
+    def _set_next_epoch(self, next_epoch: int) -> None:
+        """Set the next epoch.
 
         Args:
             next_epoch (int): Next epoch.
@@ -306,15 +402,6 @@ class StreamingDataset(IterableDataset):
             int: Dataset length.
         """
         return self.index.get_samples_per_device()
-
-    def _set_canonical_num_nodes(self, world: World):
-        """Set the canonical numbers of nodes.
-
-        Args:
-            world (World): World state.
-        """
-        if self.num_canonical_nodes is None:
-            self.num_canonical_nodes = world.num_nodes
 
     def _resume(self, world: World, epoch: int) -> Tuple[int, int]:
         """Either resume from checkpoint or start at the beginning.
@@ -332,7 +419,8 @@ class StreamingDataset(IterableDataset):
             shm = SharedMemory(name)
         except FileNotFoundError:
             # There is nothing to resume.
-            self._set_canonical_num_nodes(world)
+            if not self.num_canonical_nodes:
+                self.num_canonical_nodes = world.num_nodes
             return epoch, 0
 
         # SharedMemory buffers may contain additional null bytes at the end.
@@ -343,7 +431,8 @@ class StreamingDataset(IterableDataset):
 
         # Check if the resume state is stale.
         if obj['epoch'] < epoch:
-            self._set_canonical_num_nodes(world)
+            if not self.num_canonical_nodes:
+                self.num_canonical_nodes = world.num_nodes
             return epoch, 0
 
         # Load the correct resumption meta data.
@@ -354,8 +443,8 @@ class StreamingDataset(IterableDataset):
 
         return epoch, sample_in_epoch
 
-    def _get_progress(self, world: World) -> Tuple[int, int]:
-        """Start or resume training, pre-incrementing next_epoch.
+    def _resume_incr_epoch(self, world: World) -> Tuple[int, int]:
+        """Start or resume training, pre-incrementing the next epoch.
 
         Args:
             world (World): World state.
@@ -367,7 +456,7 @@ class StreamingDataset(IterableDataset):
         self._next_epoch_arr = np.ndarray(1, buffer=self._next_epoch_shm.buf, dtype=np.int64)
 
         # Either resume from checkpoint, or start from scratch.
-        presumed_epoch = self.next_epoch
+        presumed_epoch = self._get_next_epoch()
         epoch, sample_in_epoch = self._resume(world, presumed_epoch)
 
         # Wait for everyone to get the epoch above.
@@ -375,193 +464,184 @@ class StreamingDataset(IterableDataset):
 
         # Set the new next epoch.
         if world.is_local_leader:
-            self.next_epoch = epoch + 1
+            self._set_next_epoch(epoch + 1)
 
         return epoch, sample_in_epoch
 
-    def _get_partition(self,
-                       world: World,
-                       epoch: int,
-                       sample_in_epoch: int,
-                       timeout: float = 60) -> NDArray[np.int64]:
+    def _resample_streams(self, epoch: int) -> Tuple[NDArray[np.int64], NDArray[np.int64]]:
+        """Perform the up/down-sampling needed to generate the weighted epoch.
+
+        Args:
+            epoch (int): What epoch this is for. Used in seeding the sampling RNG.
+
+        Returns:
+            Tuple[NDArray[np.int64], NDArray[np.int64]]: Sampled shard sizes and sample mapping.
+        """
+        # Initialize random number generator and arrays.
+        rng = np.random.default_rng(self.shuffle_seed + epoch)
+        pick_per_shard = np.zeros(len(self.shards), np.int64) - 1
+        pick_per_sample = np.zeros(self.index.total_samples, np.int64) - 1
+
+        # Iterate over each stream.
+        for stream_id in range(len(self.streams)):
+            stream_shard_offset = self.shard_offset_per_stream[stream_id]
+            num_stream_shards = self.shards_per_stream[stream_id]
+            stream_shard_ids = stream_shard_offset + np.arange(num_stream_shards)
+
+            # Calculate pick per shard.
+            samples_per_shard = self.shard_sizes[stream_shard_ids]
+            stream_samples = sum(samples_per_shard)
+            stream_picks = self.pick_per_stream[stream_id]
+            if stream_picks == stream_samples:
+                pick_per_stream_shard = samples_per_shard
+            else:
+                pick_per_stream_shard = samples_per_shard * stream_picks // stream_samples
+                short = stream_picks - pick_per_stream_shard.sum()
+                indices = rng.choice(num_stream_shards, short, False)
+                pick_per_stream_shard[indices] += 1
+            pick_per_shard[stream_shard_ids] = pick_per_stream_shard
+
+            # Iterate over each shard of this stream.
+            for shard_id, shard_picks in zip(stream_shard_ids, pick_per_stream_shard):
+                shard_sample_offset = self.index.shard_offsets[shard_id]
+                shard_samples = self.index.samples_per_shard[shard_id]
+                indices = np.arange(shard_sample_offset, shard_sample_offset + shard_samples)
+
+                # Calculate pick per sample.
+                pick_per_sample[indices] = shard_picks // shard_samples
+                short = shard_picks % shard_samples
+                indices = shard_sample_offset + rng.choice(shard_samples, short, False)
+                pick_per_sample[indices] += 1
+
+        # Derive sample ID mapping via repeating by pick per sample.
+        small_per_big = np.repeat(np.arange(self.index.total_samples), pick_per_sample)
+        return pick_per_shard, small_per_big
+
+    def _generate_epoch_samples(self, world: World, epoch: int,
+                                sample_in_epoch: int) -> NDArray[np.int64]:
+        """Generate this epoch's arrangement of samples.
+
+        This is only called in local rank zero.
+
+        Args:
+            world (World): World state.
+            epoch (int): Which epoch it is.
+            sample_in_epoch (int): Where we are in the epoch.
+
+        Returns:
+            NDArray[np.int64]: The epoch (num physical nodes, ranks per node, workers per rank,
+                batches per worker, batch size).
+        """
+        # Ensure that num_canonical_nodes has been set.
+        if self.num_canonical_nodes is None:
+            raise RuntimeError('Number of canonical nodes can never be None')
+
+        # Sample each shard of each stream according to their proportions/repeats/samples. This
+        # gives us the resampled size of each underlying shard, and a mapping from each fake "big"
+        # sample ID to its underlying "small" sample ID.
+        pick_per_shard, small_per_big = self._resample_streams(epoch)
+
+        # Partition the global sample space (of resampled "big" sample IDs) into a tensor of shape
+        # (num physical nodes, ranks per node, workers per rank, batches per worker, samples per
+        # batch) such that we have an elastically deterministic sample order.
+        big_ids = get_partitions(self.samples_per_epoch, self.num_canonical_nodes, world.num_nodes,
+                                 world.ranks_per_node, world.workers_per_rank, self.batch_size,
+                                 sample_in_epoch)
+
+        # If we need to shuffle, shuffle in a node-aware and *underlying* shard-aware way.
+        if self.shuffle:
+            shuffle = get_shuffle(self.shuffle_algo, pick_per_shard, self.num_canonical_nodes,
+                                  self.shuffle_seed, epoch)
+            big_ids = np.where(big_ids != -1, shuffle[big_ids], -1)
+
+        # Now that we have partitioning and shuffled with hallucinated "big" sample IDs, we don't
+        # need them anymore, and can convert back to underlying "small" sample IDs.
+        return np.where(big_ids != -1, small_per_big[big_ids], -1)
+
+    def _share_epoch_samples(self, epoch_samples: NDArray[np.int64]) -> \
+            Tuple[SharedMemory, SharedMemory]:
+        """Put an epoch's sample ordering into shared memory.
+
+        Args:
+            epoch_samples (NDArray[np.int64]): Sample IDs.
+        """
+        ndim = 5
+
+        # Validate shape.
+        if epoch_samples.ndim != ndim:
+            raise ValueError('Sample IDs must be of shape (num physical nodes, ranks per node, ' +
+                             'workers per rank, batches per worker, batch size)')
+
+        # Save the generated epoch shape to shared memory.
+        name = f'{self._prefix}_epoch_shape'
+        size = ndim * np.int64().nbytes
+        shape_shm = SharedMemory(name, True, size)
+        shape_shm.buf[:size] = np.array(epoch_samples.shape, np.int64).tobytes()
+
+        # Save the generated epoch data to shared memory.
+        name = f'{self._prefix}_epoch_data'
+        size = epoch_samples.size * np.int64().nbytes
+        data_shm = SharedMemory(name, True, size)
+        data_shm.buf[:size] = epoch_samples.tobytes()
+
+        return shape_shm, data_shm
+
+    def _attach_epoch_samples(self) -> Tuple[NDArray[np.int64], SharedMemory, SharedMemory]:
+        """Get an epoch's sample ordering from shared memory.
+
+        Returns:
+            NDArray[np.int64]: Sample IDs.
+        """
+        ndim = 5
+
+        # Load the generated epoch shape from shared memory.
+        name = f'{self._prefix}_epoch_shape'
+        size = ndim * np.int64().nbytes
+        shape_shm = SharedMemory(name, False, size)
+        shape = tuple(np.ndarray(5, buffer=shape_shm.buf, dtype=np.int64))
+
+        # Attach to the generated epoch data in shared memory.
+        name = f'{self._prefix}_epoch_data'
+        size = int(np.prod(shape)) * np.int64().nbytes
+        data_shm = SharedMemory(name, False, size)
+        epoch_samples = np.ndarray(shape, buffer=data_shm.buf, dtype=np.int64)
+
+        return epoch_samples, shape_shm, data_shm
+
+    def _get_worker_samples(self, world: World, epoch: int,
+                            sample_in_epoch: int) -> NDArray[np.int64]:
         """Get this worker's partition of this epoch's sample space.
 
         Args:
             world (World): World state.
             epoch (int): Which epoch it is.
             sample_in_epoch (int): Where we are in the epoch.
-            timeout (float): Max seconds to wait for the partitioning/shuffle to be generated.
 
         Returns:
             Optional[NDArray[np.int64]]: Our partition of the epoch.
         """
-        # Ensure the parameters are not None. The parameters are either in _resume() or
-        # in constructor method.
-        if self.num_canonical_nodes is None:
-            raise RuntimeError('Number of canonical nodes can never be None')
-        if self.shuffle_seed is None:
-            raise RuntimeError('Shuffle seed can never be None')
-
-        # Decide where to save shuffle data.
-        tmp_filename = os.path.join(self._shared_dir, 'shuffle.npy.tmp')
-        filename = os.path.join(self._shared_dir, 'shuffle.npy')
-
-        # In the local leader, generate this epoch's global sample ordering, then save to file.
-        # Tensor shape: (num nodes, ranks per node, workers per rank, samples per worker).
-        # This operation is expensive.
+        # Do expensive work that may use a lot of cores/memory just once, in the local leader.
         if world.is_local_leader:
-            sample_ids = get_partitions(self.index.total_samples, self.num_canonical_nodes,
-                                        world.num_nodes, world.ranks_per_node,
-                                        world.workers_per_rank, self.batch_size, sample_in_epoch)
-            if self.shuffle:
-                mapping = get_shuffle(self.shuffle_algo, self.shard_sizes,
-                                      self.num_canonical_nodes, self.shuffle_seed, epoch)
-                sample_ids = np.where(sample_ids == -1, -1, mapping[sample_ids])
-            sample_ids.tofile(tmp_filename)
-            os.rename(tmp_filename, filename)
+            epoch_samples = self._generate_epoch_samples(world, epoch, sample_in_epoch)
+            shape_shm, data_shm = self._share_epoch_samples(epoch_samples)
+            self._worker_barrier(world.workers_per_node)
+        else:
+            self._worker_barrier(world.workers_per_node)
+            epoch_samples, shape_shm, data_shm = self._attach_epoch_samples()
 
-        # Everyone waits for the file to become populated.
-        wait_for_file_to_exist(filename, TICK, timeout, 'Partitioning and shuffling took too long')
-
-        # Each worker loads its slice of the sample ID tensor to iterate through.
-        # Tensor shape: (num nodes, ranks per node, workers per rank, samples per worker).
-        sample_id_nbytes = np.int64().nbytes
-        num_bytes = os.path.getsize(filename)
-        if num_bytes % sample_id_nbytes:
-            raise ValueError(f'Generated shuffle is invalid: {filename} ({num_bytes} bytes).')
-        num_samples = num_bytes // sample_id_nbytes
-        num_workers = world.num_nodes * world.ranks_per_node * world.workers_per_rank
-        if num_samples % num_workers:
-            raise ValueError(f'Generated shuffle is invalid: {filename} ({num_bytes} bytes).')
-        samples_per_worker = num_samples // num_workers
-        offset_in_bytes = world.worker * samples_per_worker * sample_id_nbytes
-        bytes_to_read = samples_per_worker * sample_id_nbytes
-        with open(filename, 'rb', 0) as fp:
-            fp.seek(offset_in_bytes)
-            data = fp.read(bytes_to_read)
-        sample_ids = np.frombuffer(data, np.int64)
-
-        # Wait for everyone to read their part.
+        # Each worker gets their portion of the work.
+        worker_samples = epoch_samples[world.node, world.rank_of_node,
+                                       world.worker_of_rank].flatten()
         self._worker_barrier(world.workers_per_node)
 
         # Now clean up after ourselves.
         if world.is_local_leader:
-            os.remove(filename)
+            shape_shm.close()
+            shape_shm.unlink()
+            data_shm.close()
+            data_shm.unlink()
 
-        return sample_ids
-
-    def _download_file(self, basename: str) -> str:
-        """Safely download a file from remote to local cache.
-
-        Args:
-            basename (str): Basename of file to download.
-
-        Returns:
-            str: Local cache filename.
-        """
-        # Calculate paths.
-        if self.remote is None:
-            remote = None
-        else:
-            remote = os.path.join(self.remote, self.split, basename)
-        local = os.path.join(self.local, self.split, basename)
-
-        # Attempt to download, possibly repeating on failure.
-        errors = []
-        for _ in range(1 + self.download_retry):
-            try:
-                download_file(remote, local, self.download_timeout)
-            except FileNotFoundError:  # Bubble up file not found error.
-                raise
-            except Exception as e:  # Retry for all other causes of failure.
-                errors.append(e)
-                continue
-            break
-
-        if self.download_retry < len(errors):
-            raise RuntimeError(
-                f'Failed to download {remote} -> {local}. Got errors:\n{errors}') from errors[-1]
-
-        return local
-
-    def _decompress_shard_part(self, zip_info: FileInfo, zip_filename: str, raw_filename: str,
-                               compression: Optional[str]) -> None:
-        """Validate and decompress shard data.
-
-        Args:
-            zip_info (FileInfo): Compressed file info.
-            zip_filename (str): Compressed filename.
-            raw_filename (str): Decompressed filename.
-            compression (str, optional): Compression algorithm.
-        """
-        # Load compressed.
-        data = open(zip_filename, 'rb').read()
-
-        # Validate what was downloaded.
-        if self.validate_hash:
-            if get_hash(self.validate_hash, data) != zip_info.hashes[self.validate_hash]:
-                raise ValueError(f'Checksum failure: {zip_filename}')
-
-        # Decompress and save that.
-        data = decompress(compression, data)  # pyright: ignore
-        tmp_filename = raw_filename + '.tmp'
-        with open(tmp_filename, 'wb') as out:
-            out.write(data)
-        os.rename(tmp_filename, raw_filename)
-
-        # Maybe remove compressed to save space.
-        if not self.keep_zip:
-            os.remove(zip_filename)
-
-    def _download_shard_part(self,
-                             raw_info: FileInfo,
-                             zip_info: Optional[FileInfo] = None,
-                             compression: Optional[str] = None) -> None:
-        """Download shard data given metadata for the raw and compressed versions of it.
-
-        MDS format uses joint shards (ie, one file per shard). Other formats supported by streaming
-        use split shards (ie, shard data lives in two files per shard: the raw data itself and
-        metadata in a separate file).
-
-        Args:
-            raw_info (FileInfo): Raw file info.
-            zip_info (FileInfo, optional): Zip file info. Defaults to ``None``.
-            compression (str, optional): Compression algorithm used for zip_info. Defaults to
-                ``None``.
-        """
-        # If the local raw file already exists, this is a no-op.
-        raw_filename = os.path.join(self.local, self.split, raw_info.basename)
-        if os.path.isfile(raw_filename):
-            return
-
-        # Is compression used?
-        if zip_info:
-            # Download the compressed form if missing.
-            zip_filename = os.path.join(self.local, self.split, zip_info.basename)
-            if not os.path.isfile(zip_filename):
-                self._download_file(zip_info.basename)
-
-            # Validate and decompress.
-            self._decompress_shard_part(zip_info, zip_filename, raw_filename, compression)
-        else:
-            # Download the raw form.
-            self._download_file(raw_info.basename)
-
-            # Validate if requested.
-            if self.validate_hash:
-                data = open(raw_filename, 'rb').read()
-                if get_hash(self.validate_hash, data) != raw_info.hashes[self.validate_hash]:
-                    raise ValueError(f'Checksum failure: {raw_filename}')
-
-    def _download_shard(self, shard_id: int) -> None:
-        """Download the given shard.
-
-        Args:
-            shard_id (int): Shard ID.
-        """
-        reader = self.shards[shard_id]
-        for raw_info, zip_info in reader.file_pairs:
-            self._download_shard_part(raw_info, zip_info, reader.compression)
+        return worker_samples
 
     def _download_or_skip_shard(self, lock: FileLock, shard_states: NDArray[np.uint8],
                                 shard_id: int, wait_if_downloading: bool) -> None:
@@ -587,7 +667,10 @@ class StreamingDataset(IterableDataset):
         if state == _ShardState.UNKNOWN:
             shard_states[shard_id] = _ShardState.DOWNLOADING
             lock.release()
-            self._download_shard(shard_id)
+            stream_id = self.stream_per_shard[shard_id]
+            stream = self.streams[stream_id]
+            shard = self.shards[shard_id]
+            stream.download_shard(shard)
             # A shard state that is DOWNLOADING will never be written to elsewhere, so we don't
             # need to take the lock here.
             shard_states[shard_id] = _ShardState.DOWNLOADED
@@ -766,10 +849,10 @@ class StreamingDataset(IterableDataset):
         # Discover where we left off, if there is a checkpoint, or start at the next epoch.
         # Also pre-increment the epoch counter.
         world = World()
-        epoch, sample_in_epoch = self._get_progress(world)
+        epoch, sample_in_epoch = self._resume_incr_epoch(world)
 
         # Get this worker's partition of samples to process.
-        sample_ids = self._get_partition(world, epoch, sample_in_epoch)
+        sample_ids = self._get_worker_samples(world, epoch, sample_in_epoch)
         if not len(sample_ids):  # Resumed at end of epoch, out of samples.
             return
 
@@ -794,7 +877,7 @@ class StreamingDataset(IterableDataset):
             Dict[str, Any]: The state.
         """
         world = World()
-        epoch = self.next_epoch - 1
+        epoch = self._get_next_epoch() - 1
         epoch, offset = self._resume(world, epoch)
         if from_beginning:
             sample_in_epoch = num_samples
