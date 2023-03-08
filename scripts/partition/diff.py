@@ -10,9 +10,7 @@ from typing import List
 import numpy as np
 from tqdm import tqdm
 
-from streaming.base.partitioning import get_partitions
-
-get_partitions2 = get_partitions
+from streaming.base.partition import get_partitions
 
 
 def parse_args() -> Namespace:
@@ -22,6 +20,8 @@ def parse_args() -> Namespace:
         Namespace: Command-line arguments.
     """
     args = ArgumentParser()
+    args.add_argument('-a1', '--algo1', type=str, default='orig')
+    args.add_argument('-a2', '--algo2', type=str, required=True)
     args.add_argument('-c', '--canonical_nodes', type=str, default='1-64')
     args.add_argument('-p', '--physical_nodes', type=str, default='1-64')
     args.add_argument('-r', '--ranks_per_node', type=str, default='1-8')
@@ -96,11 +96,11 @@ def main(args: Namespace) -> None:
                         for b in batch_sizes:
                             for n in dataset_sizes:
                                 t0 = time()
-                                ids = get_partitions(n, c, p, r, w, b, 0)
+                                ids = get_partitions(args.algo1, n, c, p, r, w, b, 0)
                                 t = time() - t0
                                 tt.append(t)
                                 t0 = time()
-                                ids2 = get_partitions2(n, c, p, r, w, b, 0)
+                                ids2 = get_partitions(args.algo2, n, c, p, r, w, b, 0)
                                 t2 = time() - t0
                                 tt2.append(t2)
                                 try:
