@@ -9,7 +9,7 @@ from time import time
 
 import numpy as np
 
-from streaming.base.partitioning import get_partitions
+from streaming.base.partition import get_partitions
 from streaming.base.shuffle import get_shuffle
 
 
@@ -25,25 +25,22 @@ def parse_args() -> Namespace:
                       type=str,
                       required=True,
                       help='Path to a streaming dataset index file')
+    args.add_argument('-a',
+                      '--partition_algo',
+                      type=str,
+                      default='orig',
+                      help='Partitioning algorithm (orig)')
     args.add_argument('-s',
                       '--shuffle_algo',
                       type=str,
                       default='py2s',
-                      help='Which shuffling algorithm to use (py1s, py2s)')
+                      help='Shuffling algorithm (py1s, py2s)')
     args.add_argument('-b', '--batch_size', type=int, default=256, help='Batch size per rank')
     args.add_argument('-o', '--offset', type=int, default=0, help='Sample offset in the epoch')
-    args.add_argument('-c',
-                      '--num_canonical_nodes',
-                      type=int,
-                      default=1,
-                      help='Number of canonical nodes')
-    args.add_argument('-p',
-                      '--num_physical_nodes',
-                      type=int,
-                      default=1,
-                      help='Number of physical nodes')
-    args.add_argument('--ranks_per_node', type=int, default=8, help='Ranks per node')
-    args.add_argument('--workers_per_rank', type=int, default=8, help='Workers per rank')
+    args.add_argument('-c', '--num_canonical_nodes', type=int, default=1, help='Canonical nodes')
+    args.add_argument('-p', '--num_physical_nodes', type=int, default=1, help='Physical nodes')
+    args.add_argument('-r', '--ranks_per_node', type=int, default=8, help='Ranks per node')
+    args.add_argument('-w', '--workers_per_rank', type=int, default=8, help='Workers per rank')
     return args.parse_args()
 
 
@@ -60,8 +57,9 @@ def main(args: Namespace) -> None:
     num_samples = sum(shard_sizes)
 
     t0 = time()
-    ids = get_partitions(num_samples, args.num_canonical_nodes, args.num_physical_nodes,
-                         args.ranks_per_node, args.workers_per_rank, args.batch_size, args.offset)
+    ids = get_partitions(args.partition_algo, num_samples, args.num_canonical_nodes,
+                         args.num_physical_nodes, args.ranks_per_node, args.workers_per_rank,
+                         args.batch_size, args.offset)
     t_part = time() - t0
     print(f'Partition: {t_part:.3f} sec')
 
