@@ -42,11 +42,13 @@ def get_partitions_orig(num_samples: int,
     if num_canonical_nodes < num_physical_nodes:
         if num_physical_nodes % num_canonical_nodes:
             raise ValueError('Either canonical or physical nodes must be evenly divisible by ' +
-                             'the other')
+                             'the other, otherwise striping slices of shards over nodes may ' +
+                             'lead to each node downloading all shards')
     elif num_physical_nodes < num_canonical_nodes:
         if num_canonical_nodes % num_physical_nodes:
             raise ValueError('Either canonical or physical nodes must be evenly divisible by ' +
-                             'the other')
+                             'the other, otherwise striping slices of shards over nodes may ' +
+                             'lead to each node downloading all shards')
 
     batch_size = batch_size or 1
 
