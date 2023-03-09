@@ -28,7 +28,7 @@ def get_partitions(algo: str,
     Either canonical or physical nodes must be evenly divisible by the other.
 
     It is suggested to set num_canonical_nodes higher than your expected number of physical nodes,
-    beecause scaling your number of nodes below that level may result in more shards being used
+    because scaling your number of nodes below that level may result in more shards being used
     across node boundaries due to preserving the same global sample order.
 
     Args:
