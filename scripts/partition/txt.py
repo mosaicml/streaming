@@ -6,7 +6,7 @@
 import math
 from argparse import ArgumentParser, Namespace
 
-from streaming.base.partitioning import get_partitions
+from streaming.base.partition import get_partitions
 
 
 def parse_args() -> Namespace:
@@ -16,6 +16,7 @@ def parse_args() -> Namespace:
         Namespace: Command-line arguments.
     """
     args = ArgumentParser()
+    args.add_argument('-a', '--algo', type=str, default='orig')
     args.add_argument('-n', '--dataset_size', type=int, default=678)
     args.add_argument('-b', '--device_batch_size', type=int, default=7)
     args.add_argument('-o', '--offset_in_epoch', type=int, default=0)
@@ -32,7 +33,7 @@ def main(args: Namespace) -> None:
     Args:
         args (Namespace): Command-line arguments.
     """
-    ids = get_partitions(args.dataset_size, args.canonical_nodes, args.physical_nodes,
+    ids = get_partitions(args.algo, args.dataset_size, args.canonical_nodes, args.physical_nodes,
                          args.node_devices, args.device_workers, args.device_batch_size,
                          args.offset_in_epoch)
     ids = ids.reshape(args.physical_nodes, args.node_devices, args.device_workers, -1,
