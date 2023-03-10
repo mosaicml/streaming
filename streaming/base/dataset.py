@@ -230,6 +230,10 @@ class StreamingDataset(IterableDataset):
                                  f'none) sub-dataset weights are incompatible with each other ' +
                                  f'(error in stream {stream_id})')
 
+        # Set streams.
+        self.streams = streams
+        self.num_streams = len(streams)
+
         # Initialize the World context.
         #
         # Beware: This information is for the per-rank process. DataLoader worker processes may see
@@ -241,11 +245,11 @@ class StreamingDataset(IterableDataset):
         self.num_samples = 0
         self.shards = []
         stream_per_shard = []
-        self.shard_offset_per_stream = np.zeros(len(streams), np.int64)
-        self.shards_per_stream = np.zeros(len(streams), np.int64)
-        self.sample_offset_per_stream = np.zeros(len(streams), np.int64)
-        self.samples_per_stream = np.zeros(len(streams), np.int64)
-        for stream_id, stream in enumerate(streams):
+        self.shard_offset_per_stream = np.zeros(self.num_streams, np.int64)
+        self.shards_per_stream = np.zeros(self.num_streams, np.int64)
+        self.sample_offset_per_stream = np.zeros(self.num_streams, np.int64)
+        self.samples_per_stream = np.zeros(self.num_streams, np.int64)
+        for stream_id, stream in enumerate(self.streams):
             stream_shards = stream.get_shards(world)
             samples = sum(map(len, stream_shards))
             stream_per_shard += [stream_id] * len(stream_shards)
@@ -266,7 +270,7 @@ class StreamingDataset(IterableDataset):
             # Relative.
             if not samples_per_epoch:
                 samples_per_epoch = self.index.total_samples
-            self.proportion_per_stream = np.array([stream.proportion for stream in streams],
+            self.proportion_per_stream = np.array([stream.proportion for stream in self.streams],
                                                   np.float64)
             self.proportion_per_stream /= self.proportion_per_stream.sum()
             self.pick_per_stream = (samples_per_epoch * self.proportion_per_stream).astype(
@@ -282,8 +286,8 @@ class StreamingDataset(IterableDataset):
             if samples_per_epoch:
                 raise ValueError('Only provide samples_per_epoch when proportionally weighting ' +
                                  'sub-datasets.')
-            self.pick_per_stream = np.zeros(len(streams), np.int64)
-            for stream_id, stream in enumerate(streams):
+            self.pick_per_stream = np.zeros(self.num_streams, np.int64)
+            for stream_id, stream in enumerate(self.streams):
                 if hasattr(stream, 'repeat'):
                     samples = int(stream.repeat * self.samples_per_stream[stream_id])
                 elif hasattr(stream, 'samples'):
@@ -296,12 +300,11 @@ class StreamingDataset(IterableDataset):
             self.samples_per_epoch = sum(self.pick_per_stream)
 
         # Now that we know the true props/reps/picks, inject those back into the Streams,
-        for stream, proportion, repeat, pick in zip(streams, self.proportion_per_stream,
+        for stream, proportion, repeat, pick in zip(self.streams, self.proportion_per_stream,
                                                     self.repeat_per_stream, self.pick_per_stream):
             stream.proportion = proportion
             stream.repeat = repeat
             stream.samples = pick
-        self.streams = streams
 
         # Determine and distribute shuffle seed and shm prefix.
         seed_rng = np.random.default_rng(shuffle_seed)
