@@ -218,17 +218,17 @@ class StreamingDataset(IterableDataset):
 
         # Validate sub-dataset weights ("proportion", "repeat", "samples", or none).
         is_proportional = hasattr(streams[0], 'proportion')
-        for idx, stream in enumerate(streams):
+        for stream_id, stream in enumerate(streams):
             has_proportion = hasattr(stream, 'proportion')
             has_repeat = hasattr(stream, 'repeat')
             has_samples = hasattr(stream, 'samples')
             if not (0 <= has_proportion + has_repeat + has_samples <= 1):
                 raise ValueError(f'Streams must provide at most one of "proportion", "repeat", ' +
-                                 f'or "samples" (error in stream {idx})')
+                                 f'or "samples" (error in stream {stream_id})')
             if is_proportional != has_proportion:
                 raise ValueError(f'Relative ("proportion") and absolute ("repeat", "samples", ' +
                                  f'none) sub-dataset weights are incompatible with each other ' +
-                                 f'(error in stream {idx})')
+                                 f'(error in stream {stream_id})')
 
         # Initialize the World context.
         #
@@ -245,14 +245,14 @@ class StreamingDataset(IterableDataset):
         self.shards_per_stream = np.zeros(len(streams), np.int64)
         self.sample_offset_per_stream = np.zeros(len(streams), np.int64)
         self.samples_per_stream = np.zeros(len(streams), np.int64)
-        for idx, stream in enumerate(streams):
+        for stream_id, stream in enumerate(streams):
             stream_shards = stream.get_shards(world)
             samples = sum(map(len, stream_shards))
-            stream_per_shard += [idx] * len(stream_shards)
-            self.shard_offset_per_stream[idx] = len(self.shards)
-            self.shards_per_stream[idx] = len(stream_shards)
-            self.sample_offset_per_stream[idx] = self.num_samples
-            self.samples_per_stream[idx] = samples
+            stream_per_shard += [stream_id] * len(stream_shards)
+            self.shard_offset_per_stream[stream_id] = len(self.shards)
+            self.shards_per_stream[stream_id] = len(stream_shards)
+            self.sample_offset_per_stream[stream_id] = self.num_samples
+            self.samples_per_stream[stream_id] = samples
             self.shards += stream_shards
             self.num_samples += samples
         self.stream_per_shard = np.array(stream_per_shard, np.int64)
@@ -283,14 +283,14 @@ class StreamingDataset(IterableDataset):
                 raise ValueError('Only provide samples_per_epoch when proportionally weighting ' +
                                  'sub-datasets.')
             self.pick_per_stream = np.zeros(len(streams), np.int64)
-            for idx, stream in enumerate(streams):
+            for stream_id, stream in enumerate(streams):
                 if hasattr(stream, 'repeat'):
-                    samples = int(stream.repeat * self.samples_per_stream[idx])
+                    samples = int(stream.repeat * self.samples_per_stream[stream_id])
                 elif hasattr(stream, 'samples'):
                     samples = stream.samples
                 else:
-                    samples = self.samples_per_stream[idx]
-                self.pick_per_stream[idx] = samples
+                    samples = self.samples_per_stream[stream_id]
+                self.pick_per_stream[stream_id] = samples
             self.repeat_per_stream = self.pick_per_stream / self.samples_per_stream
             self.proportion_per_stream = self.pick_per_stream / self.pick_per_stream.sum()
             self.samples_per_epoch = sum(self.pick_per_stream)
@@ -698,31 +698,31 @@ class StreamingDataset(IterableDataset):
 
         return lock, shard_states
 
-    def __getitem__(self, idx: int) -> Any:
+    def __getitem__(self, sample_id: int) -> Any:
         """Get sample by global index, blocking to download its shard if not present.
 
         Args:
-            idx (int): Sample index.
+            sample_id (int): Sample index.
 
         Returns:
             Dict[str, Any]: Mapping of column name to column data.
         """
         # Locate the shard and sample offset within that shard where the sample lives.
-        shard_idx, idx_in_shard = self.index.find_sample(idx)
-        shard = self.shards[shard_idx]
+        shard_id, shard_sample_id = self.index.find_sample(sample_id)
+        shard = self.shards[shard_id]
 
         try:
             # Attempt to directly access the sample for performance reasons.
-            sample = shard[idx_in_shard]
+            sample = shard[shard_sample_id]
         except:
             # Get handles to the shared shard states array and its protective file lock.
             lock, shard_states = self._get_shard_states()
 
             # Download the shard if not already being downloaded. Block if download in progress.
-            self._download_or_skip_shard(lock, shard_states, shard_idx, True)
+            self._download_or_skip_shard(lock, shard_states, shard_id, True)
 
             # Finally, access the sample.
-            sample = shard[idx_in_shard]
+            sample = shard[shard_sample_id]
 
         # Return the retrieved sample.
         return sample
