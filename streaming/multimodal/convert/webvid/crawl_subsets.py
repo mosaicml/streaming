@@ -1,7 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Download videos, creating an MDS dataset.
+"""Download videos, saving subsets as MDS datasets, then iterate over them together.
 
 Instructions:
 
@@ -223,7 +223,7 @@ def main(args: Namespace) -> None:
 
     # Iterate the combined dataset 3 times.
     for epoch in range(3):
-        print('Epoch {epoch}:')
+        print(f'Epoch {epoch}:')
         for idx, sample in enumerate(dataset):
             text = ' '.join(sample['name'].split())
             print(f'{idx:6} | {text}')
