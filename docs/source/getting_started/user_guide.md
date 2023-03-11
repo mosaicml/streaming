@@ -161,6 +161,14 @@ from torch.utils.data import DataLoader
 dataloader = DataLoader(dataset=dataset)
 ```
 
+Now, clean up after ourselves.
+<!--pytest-codeblocks:cont-->
+```python
+from shutil import rmtree
+
+rmtree(output_dir)
+```
+
 You've now seen an in-depth look at how to prepare and use streaming datasets with PyTorch. To continue learning about Streaming, please continue to explore our [examples](../examples/cifar10.ipynb/)!
 
 ## Other options
