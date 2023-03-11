@@ -260,10 +260,11 @@ class StreamingDataset(IterableDataset):
             self.shards += stream_shards
             self.num_samples += samples
         self.stream_per_shard = np.array(stream_per_shard, np.int64)
+        self.num_shards = len(self.shards)
 
         # Build the Index (for partitioning and mapping samples to shards).
-        self.shard_sizes = np.array([x.samples for x in self.shards])
-        self.index = Index(self.shard_sizes)
+        self.samples_per_shard = np.array([x.samples for x in self.shards])
+        self.index = Index(self.samples_per_shard)
 
         # Now that we have the true size of each sub-dataset, derive the proportions/repeats/picks.
         if is_proportional:
@@ -277,7 +278,7 @@ class StreamingDataset(IterableDataset):
                 np.int64)
             short = samples_per_epoch - self.pick_per_stream.sum()
             rng = np.random.default_rng(shuffle_seed)
-            indices = rng.choice(len(self.pick_per_stream), short, False)
+            indices = rng.choice(self.num_streams, short, False)
             self.pick_per_stream[indices] += 1
             self.repeat_per_stream = self.pick_per_stream / self.samples_per_stream
             self.samples_per_epoch = samples_per_epoch
@@ -368,7 +369,7 @@ class StreamingDataset(IterableDataset):
         # Create or attach shard_states array (tells if each shard is unknown, downloading, or
         # downloaded).
         self._shard_states = create_shared_memory(name=f'{self._prefix}_shard_states',
-                                                  size=len(self.shard_sizes) * np.uint8(0).nbytes)
+                                                  size=self.num_shards * np.uint8(0).nbytes)
 
         # Destroy process group, and de-initialize the distributed package
         barrier()
@@ -482,23 +483,23 @@ class StreamingDataset(IterableDataset):
         """
         # Initialize random number generator and arrays.
         rng = np.random.default_rng(self.shuffle_seed + epoch)
-        pick_per_shard = np.zeros(len(self.shards), np.int64) - 1
-        pick_per_sample = np.zeros(self.index.total_samples, np.int64) - 1
+        pick_per_shard = np.zeros(self.num_shards, np.int64) - 1
+        pick_per_sample = np.zeros(self.num_samples, np.int64) - 1
 
         # Iterate over each stream.
-        for stream_id in range(len(self.streams)):
+        for stream_id in range(self.num_streams):
             stream_shard_offset = self.shard_offset_per_stream[stream_id]
             num_stream_shards = self.shards_per_stream[stream_id]
             stream_shard_ids = stream_shard_offset + np.arange(num_stream_shards)
 
             # Calculate pick per shard.
-            samples_per_shard = self.shard_sizes[stream_shard_ids]
-            stream_samples = sum(samples_per_shard)
+            samples_per_stream_shard = self.samples_per_shard[stream_shard_ids]
+            stream_samples = sum(samples_per_stream_shard)
             stream_picks = self.pick_per_stream[stream_id]
             if stream_picks == stream_samples:
-                pick_per_stream_shard = samples_per_shard
+                pick_per_stream_shard = samples_per_stream_shard
             else:
-                pick_per_stream_shard = samples_per_shard * stream_picks // stream_samples
+                pick_per_stream_shard = samples_per_stream_shard * stream_picks // stream_samples
                 short = stream_picks - pick_per_stream_shard.sum()
                 indices = rng.choice(num_stream_shards, short, False)
                 pick_per_stream_shard[indices] += 1
@@ -507,7 +508,7 @@ class StreamingDataset(IterableDataset):
             # Iterate over each shard of this stream.
             for shard_id, shard_picks in zip(stream_shard_ids, pick_per_stream_shard):
                 shard_sample_offset = self.index.shard_offsets[shard_id]
-                shard_samples = self.index.samples_per_shard[shard_id]
+                shard_samples = self.samples_per_shard[shard_id]
                 indices = np.arange(shard_sample_offset, shard_sample_offset + shard_samples)
 
                 # Calculate pick per sample.
@@ -517,7 +518,7 @@ class StreamingDataset(IterableDataset):
                 pick_per_sample[indices] += 1
 
         # Derive sample ID mapping via repeating by pick per sample.
-        small_per_big = np.repeat(np.arange(self.index.total_samples), pick_per_sample)
+        small_per_big = np.repeat(np.arange(self.num_samples), pick_per_sample)
         return pick_per_shard, small_per_big
 
     def _generate_sample_ids(self, world: World, epoch: int,
@@ -695,9 +696,7 @@ class StreamingDataset(IterableDataset):
         # Get the filelock that protects shard_states shared memory array.
         lock = FileLock(self.shard_states_filename)
 
-        shard_states = np.ndarray(len(self.shard_sizes),
-                                  buffer=self._shard_states.buf,
-                                  dtype=np.uint8)
+        shard_states = np.ndarray(self.num_shards, buffer=self._shard_states.buf, dtype=np.uint8)
 
         return lock, shard_states
 
