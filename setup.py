@@ -70,9 +70,9 @@ extra_deps['dev'] = [
     'toml==0.10.2',
     'yamllint==1.29.0',
     'moto>=4.0,<5',
-    'fastapi==0.92.0',
-    'pydantic==1.10.5',
-    'uvicorn==0.20.0',
+    'fastapi==0.94.0',
+    'pydantic==1.10.6',
+    'uvicorn==0.21.0',
 ]
 
 extra_deps['docs'] = [
