@@ -54,7 +54,7 @@ There are a few parameters that need to be initialized before {class}`streaming.
 1. Provide the local filesystem directory path or a remote cloud provider storage path to store the compressed dataset files. If it is a remote path, the output files are automatically upload to a remote path.
 <!--pytest-codeblocks:cont-->
 ```python
-output_dir = 'test_output_dir2'
+output_dir = 'test_output_dir'
 ```
 
 2. Provide the column field as `Dict[str, str]`, which maps a feature name or label name with a streaming supported encoding type.
