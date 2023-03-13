@@ -77,7 +77,7 @@ class Stream:
             downloaded shards. If ``False``, keep if and only if remote is local or no remote.
             Defaults to ``None``.
         keep_raw (bool, optional): Whether to keep or delete the decompressed form (or only form)
-            of shards after all their samples have been yielded this epoch. If ``False``, keep if 
+            of shards after all their samples have been yielded this epoch. If ``False``, keep if
             and only if remote is local or no remote and no compression. Defaults to ``None``.
     """
 
