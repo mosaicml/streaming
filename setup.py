@@ -80,7 +80,7 @@ extra_deps['docs'] = [
     'docutils==0.17.1',
     'furo==2022.9.29',
     'myst-parser==0.18.1',
-    'nbsphinx==0.8.12',
+    'nbsphinx==0.9.0',
     'pandoc==2.3',
     'pypandoc==1.11',
     'sphinx-argparse==0.4.0',
