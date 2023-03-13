@@ -72,7 +72,7 @@ extra_deps['dev'] = [
     'moto>=4.0,<5',
     'fastapi==0.94.0',
     'pydantic==1.10.6',
-    'uvicorn==0.20.0',
+    'uvicorn==0.21.0',
 ]
 
 extra_deps['docs'] = [
