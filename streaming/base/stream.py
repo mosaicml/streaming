@@ -74,10 +74,10 @@ class Stream:
         validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
         keep_zip (bool, optional): Whether to keep or delete the compressed form when decompressing
-            downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
-            `None``.
+            downloaded shards. If ``False``, keep if remote is local or no remote. Defaults to
+            ``None``.
         keep_raw (bool, optional): Whether to keep or delete the decompressed form (or only form)
-            of shards after all their samples have been yielded this epoch. If ``False``, keep iff
+            of shards after all their samples have been yielded this epoch. If ``False``, keep if
             remote is local or no remote and no compression. Defaults to ``None``.
     """
 
