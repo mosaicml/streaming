@@ -20,7 +20,7 @@ from torch.utils.data import IterableDataset
 
 from streaming.base.distributed import barrier
 from streaming.base.index import Index
-from streaming.base.partitioning import get_partitions
+from streaming.base.partition import get_partitions
 from streaming.base.shared import SharedBarrier, create_shared_memory
 from streaming.base.shuffle import get_shuffle
 from streaming.base.stream import Stream
@@ -544,9 +544,9 @@ class StreamingDataset(IterableDataset):
         # Partition the global sample space (of resampled "big" sample IDs) into a tensor of shape
         # (num physical nodes, ranks per node, workers per rank, batches per worker, samples per
         # batch) such that we have an elastically deterministic sample order.
-        big_ids = get_partitions(self.samples_per_epoch, self.num_canonical_nodes, world.num_nodes,
-                                 world.ranks_per_node, world.workers_per_rank, self.batch_size,
-                                 sample_in_epoch)
+        big_ids = get_partitions(self.partition_algo, self.samples_per_epoch,
+                                 self.num_canonical_nodes, world.num_nodes, world.ranks_per_node,
+                                 world.workers_per_rank, self.batch_size, sample_in_epoch)
 
         # If we need to shuffle, shuffle in a node-aware and *underlying* shard-aware way.
         if self.shuffle:

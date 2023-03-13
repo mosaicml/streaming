@@ -1,22 +1,29 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Partitions the sample space to nodes, ranks, and workers."""
+"""Apportion shards/samples to nodes/ranks/workers for elastically deterministic sample order."""
 
 import math
 from typing import Optional
 
 import numpy as np
+from numpy.typing import NDArray
 
 
-def get_partitions(num_samples: int,
-                   num_canonical_nodes: int,
-                   num_physical_nodes: int,
-                   ranks_per_node: int,
-                   workers_per_rank: int,
-                   batch_size: Optional[int] = None,
-                   drop_first: int = 0):
+def get_partitions_orig(num_samples: int,
+                        num_canonical_nodes: int,
+                        num_physical_nodes: int,
+                        ranks_per_node: int,
+                        workers_per_rank: int,
+                        batch_size: Optional[int] = None,
+                        drop_first: int = 0) -> NDArray[np.int64]:
     """Partition the given number of samples to nodes, ranks, and workers.
+
+    Either canonical or physical nodes must be evenly divisible by the other.
+
+    It is suggested to set num_canonical_nodes higher than your expected number of physical nodes,
+    because scaling your number of nodes below that level may result in more shards being used
+    across node boundaries due to preserving the same global sample order.
 
     Args:
         num_samples (int): Dataset size.
@@ -29,8 +36,20 @@ def get_partitions(num_samples: int,
         drop_first (int): Number of samples seen already, which are dropped. Defaults to ``0``.
 
     Returns:
-        NDArray[np.int64]: Partitions of shape (physical nodes, ranks, workers, batches, samples).
+        NDArray[np.int64]: Partitions of shape (physical nodes, ranks per node, workers per rank,
+            batches per worker, batch size).
     """
+    if num_canonical_nodes < num_physical_nodes:
+        if num_physical_nodes % num_canonical_nodes:
+            raise ValueError('Either canonical or physical nodes must be evenly divisible by ' +
+                             'the other, otherwise striping slices of shards over nodes may ' +
+                             'lead to each node downloading all shards')
+    elif num_physical_nodes < num_canonical_nodes:
+        if num_canonical_nodes % num_physical_nodes:
+            raise ValueError('Either canonical or physical nodes must be evenly divisible by ' +
+                             'the other, otherwise striping slices of shards over nodes may ' +
+                             'lead to each node downloading all shards')
+
     batch_size = batch_size or 1
 
     # Divide the full dataset sample range into a sample range per canonical node.
@@ -38,7 +57,6 @@ def get_partitions(num_samples: int,
     node_ratio = 0
     padding = 0
     if num_canonical_nodes < num_physical_nodes:
-        assert not num_physical_nodes % num_canonical_nodes
         node_ratio = num_physical_nodes // num_canonical_nodes
         overflow = samples_per_canonical_node % node_ratio
         if overflow:
