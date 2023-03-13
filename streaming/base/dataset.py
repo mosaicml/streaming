@@ -19,6 +19,7 @@ from numpy.typing import NDArray
 from torch.utils.data import IterableDataset
 
 from streaming.base.distributed import barrier
+from streaming.base.eviction import attach_evictions, get_evictions, share_evictions
 from streaming.base.index import Index
 from streaming.base.partition import get_partitions
 from streaming.base.shared import SharedBarrier, create_shared_memory
@@ -612,7 +613,8 @@ class StreamingDataset(IterableDataset):
 
         return sample_ids, shape_shm, data_shm
 
-    def _get_work(self, world: World, epoch: int, sample_in_epoch: int) -> NDArray[np.int64]:
+    def _get_work(self, world: World, epoch: int, sample_in_epoch: int) -> \
+            Tuple[NDArray[np.int64], Optional[NDArray[np.int64]]]:
         """Get this worker's partition of this epoch's sample space.
 
         Args:
@@ -635,16 +637,40 @@ class StreamingDataset(IterableDataset):
         # Each worker gets their portion of the work.
         worker_sample_ids = epoch_sample_ids[world.node, world.rank_of_node,
                                              world.worker_of_rank].flatten()
-        self._worker_barrier(world.workers_per_node)
+        # From those sample IDs, calculate exactly when to evict each shard from local storage.
+        #
+        # This is complicated by the fact that the PyTorch DataLoader prefetches samples from each
+        # worker round robin. So, each worker of local rank zero will have its own list of shard
+        # evictions for the whole node.
+        if not world.rank_of_node:
+            if not world.worker_of_rank:
+                node_sample_ids = epoch_sample_ids[world.node]
+                evictions_per_worker = get_evictions(self.streams, self.shards_per_stream,
+                                                     self.samples_per_shard, node_sample_ids)
+                eviction_shms = share_evictions(self._prefix, evictions_per_worker)
+                worker_evictions = evictions_per_worker[world.worker_of_rank]
+                self._worker_barrier(world.workers_per_node)
+            else:
+                self._worker_barrier(world.workers_per_node)
+                eviction_shms = []
+                worker_evictions = attach_evictions(self._prefix, world.worker_of_rank)
+        else:
+            self._worker_barrier(world.workers_per_node)
+            eviction_shms = []
+            worker_evictions = None
 
         # Now clean up after ourselves.
+        self._worker_barrier(world.workers_per_node)
+        shms = [shape_shm, data_shm] + eviction_shms
         if world.is_local_leader:
-            shape_shm.close()
-            shape_shm.unlink()
-            data_shm.close()
-            data_shm.unlink()
+            for shm in shms:
+                shm.close()
+                shm.unlink()
+        else:
+            for shm in shms:
+                shm.close()
 
-        return worker_sample_ids
+        return worker_sample_ids, worker_evictions
 
     def _download_or_skip_shard(self, lock: FileLock, shard_states: NDArray[np.uint8],
                                 shard_id: int, wait_if_downloading: bool) -> None:
@@ -818,7 +844,8 @@ class StreamingDataset(IterableDataset):
                 sleep(TICK)
             state.ready_index += 1
 
-    def _each_sample(self, sample_ids: NDArray[np.int64]) -> Iterator[int]:
+    def _each_sample(self, sample_ids: NDArray[np.int64],
+                     evictions: Optional[NDArray[np.int64]]) -> Iterator[int]:
         """Iterate over each sample ID, while downloading ahead in the background.
 
         Args:
@@ -831,6 +858,7 @@ class StreamingDataset(IterableDataset):
         Thread(target=self._download_thread, args=(self._partition_state,), daemon=True).start()
         Thread(target=self._ready_thread, args=(self._partition_state,), daemon=True).start()
         yield from self._partition_state
+        del evictions  # TODO
 
     def __iter__(self) -> Iterator[Dict[str, Any]]:
         """Iterate over all the samples in our partition.
@@ -853,12 +881,12 @@ class StreamingDataset(IterableDataset):
         epoch, sample_in_epoch = self._resume_incr_epoch(world)
 
         # Get this worker's partition of samples to process.
-        sample_ids = self._get_work(world, epoch, sample_in_epoch)
+        sample_ids, evictions = self._get_work(world, epoch, sample_in_epoch)
         if not len(sample_ids):  # Resumed at end of epoch, out of samples.
             return
 
         # Iterate over the samples while downloading ahead.
-        for sample_id in self._each_sample(sample_ids):
+        for sample_id in self._each_sample(sample_ids, evictions):
             yield self[sample_id]
 
     def state_dict(self, num_samples: int, from_beginning: bool) -> Dict[str, Any]:

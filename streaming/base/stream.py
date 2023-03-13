@@ -146,6 +146,8 @@ class Stream:
         if keep_raw is not None:
             self.keep_raw = keep_raw
 
+        self.keep_raw_interval = 100_000
+
     def apply_default(self, default: Self) -> None:
         """Apply defaults, setting any unset fields.
 
