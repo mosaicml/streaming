@@ -52,37 +52,37 @@ class RandomClassificationDataset:
 There are a few parameters that need to be initialized before {class}`streaming.MDSWriter` gets called. Some of the parameters are optional, and others are required parameters. Let's look at each of them where we start with two required parameters.
 
 1. Provide the local filesystem directory path or a remote cloud provider storage path to store the compressed dataset files. If it is a remote path, the output files are automatically upload to a remote path.
-    <!--pytest-codeblocks:cont-->
-    ```python
-    output_dir = 'test_output_dir'
-    ```
+<!--pytest-codeblocks:cont-->
+```python
+output_dir = 'test_output_dir'
+```
 
 2. Provide the column field as `Dict[str, str]`, which maps a feature name or label name with a streaming supported encoding type.
-    <!--pytest-codeblocks:cont-->
-    ```python
-    columns = {'x': 'pkl', 'y': 'pkl'}
-    ```
+<!--pytest-codeblocks:cont-->
+```python
+columns = {'x': 'pkl', 'y': 'pkl'}
+```
 
 The below parameters are optional to {class}`streaming.MDSWriter`. Let's look at each one of them
 
 1. Provide a name of a compression algorithm; the default is `None`. Streaming supports families of compression algorithms such as `br`, `gzip`, `snappy`, `zstd`, and `bz2` with the level of compression.
-    <!--pytest-codeblocks:cont-->
-    ```python
-    compression = 'zstd:7'
-    ```
+<!--pytest-codeblocks:cont-->
+```python
+compression = 'zstd:7'
+```
 
 2. Provide a name of a hashing algorithm; the default is `None`. Streaming supports families of hashing algorithm such as `sha`, `blake`, `md5`, `xxHash`, etc.
-    <!--pytest-codeblocks:cont-->
-    ```python
-    hashes = ['sha1']
-    ```
+<!--pytest-codeblocks:cont-->
+```python
+hashes = ['sha1']
+```
 
 3. Provide a shard size limit, after which point to start a new shard.
-    <!--pytest-codeblocks:cont-->
-    ```python
-    # Number act as a byte, e.g., 1024 bytes
-    limit = 1024
-    ```
+<!--pytest-codeblocks:cont-->
+```python
+# Number act as a byte, e.g., 1024 bytes
+limit = 1024
+```
 
 Once the parameters are initialized, the last thing we need is a generator that iterates over the data sample.
 <!--pytest-codeblocks:cont-->
@@ -112,6 +112,14 @@ dataset = RandomClassificationDataset()
 with MDSWriter(out=output_dir, columns=columns, compression=compression, hashes=hashes, size_limit=limit) as out:
     for sample in each(dataset):
         out.write(sample)
+```
+
+Clean up after ourselves.
+<!--pytest-codeblocks:cont-->
+```
+from shutil import rmtree
+
+rmtree(output_dir)
 ```
 
 Once the dataset has been written, the output directory contains two types of files. The first is an index.json file that contains the metadata of shards and second is the shard files. For example,
@@ -159,14 +167,6 @@ The final step is to pass the dataset to PyTorch {class}`torch.utils.data.DataLo
 from torch.utils.data import DataLoader
 
 dataloader = DataLoader(dataset=dataset)
-```
-
-Now, clean up after ourselves.
-<!--pytest-codeblocks:cont-->
-```python
-from shutil import rmtree
-
-rmtree(output_dir)
 ```
 
 You've now seen an in-depth look at how to prepare and use streaming datasets with PyTorch. To continue learning about Streaming, please continue to explore our [examples](../examples/cifar10.ipynb/)!
