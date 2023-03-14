@@ -9,7 +9,7 @@ from enum import IntEnum
 from multiprocessing.shared_memory import SharedMemory
 from threading import Thread
 from time import sleep, time
-from typing import Any, Dict, Iterator, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
 
 import numpy as np
 import torch
@@ -19,6 +19,7 @@ from numpy.typing import NDArray
 from torch.utils.data import IterableDataset
 
 from streaming.base.distributed import barrier
+from streaming.base.eviction import get_evictions_per_worker
 from streaming.base.index import Index
 from streaming.base.partition import get_partitions
 from streaming.base.shared import SharedBarrier, create_shared_memory
@@ -612,8 +613,34 @@ class StreamingDataset(IterableDataset):
 
         return sample_ids, shape_shm, data_shm
 
-    def _get_work(self, world: World, epoch: int, sample_in_epoch: int) -> NDArray[np.int64]:
-        """Get this worker's partition of this epoch's sample space.
+    def _get_evictions(self, node_sample_ids: NDArray[np.int64]) -> List[NDArray[np.int64]]:
+        """Calculate shard evictions given this node this epoch's sample ID tensor.
+
+        Args:
+            node_sample_ids (NDArray[np.int64]): Sample ID tensor of shape (ranks per node, workers
+                per rank, batches per worker, batch size).
+
+        Returns:
+            List[NDArray[np.int64]]: Packed evictions per worker.
+        """
+        # Convert sample IDs to shard IDs, handling -1s.
+        shard_ids = np.arange(self.num_shards)
+        sample_to_shard = np.repeat(shard_ids, self.samples_per_shard)
+        node_shard_ids = np.where(node_sample_ids != -1, sample_to_shard[node_sample_ids], -1)
+
+        # Gather keep_raw_ttl per shard for efficient lookup.
+        int64_max = np.iinfo(np.int64).max
+        stream_ttls = np.zeros(self.num_streams, np.int64)
+        for stream_id, stream in enumerate(self.streams):
+            stream_ttls[stream_id] = int64_max if stream.keep_raw else stream.keep_raw_ttl
+        shard_ttls = np.repeat(stream_ttls, self.shards_per_stream)
+
+        # Calculate evictions per worker given node shard IDs tensor and shard TTLs.
+        return get_evictions_per_worker(node_shard_ids, shard_ttls)
+
+    def _get_work(self, world: World, epoch: int, sample_in_epoch: int) -> \
+            Tuple[NDArray[np.int64], Optional[NDArray[np.int64]]]:
+        """Get this worker's sample ordering and shard evictions for this epoch.
 
         Args:
             world (World): World state.
@@ -621,9 +648,12 @@ class StreamingDataset(IterableDataset):
             sample_in_epoch (int): Where we are in the epoch.
 
         Returns:
-            Optional[NDArray[np.int64]]: Our partition of the epoch.
+            Tuple[NDArray[np.int64], Optional[NDArray[np.int64]]]: This worker's sample ordering
+                and shard evictions for this epoch.
         """
-        # Do expensive work that may use a lot of cores/memory just once, in the local leader.
+        # Calculate the global arrangement of sample IDs for this epoch. This is done in each local
+        # leader because this work is expensive in terms of cores/memory. Results are then
+        # distributed via shared memory.
         if world.is_local_leader:
             epoch_sample_ids = self._generate_sample_ids(world, epoch, sample_in_epoch)
             shape_shm, data_shm = self._share_sample_ids(epoch_sample_ids)
@@ -632,9 +662,22 @@ class StreamingDataset(IterableDataset):
             self._worker_barrier(world.workers_per_node)
             epoch_sample_ids, shape_shm, data_shm = self._attach_sample_ids()
 
-        # Each worker gets their portion of the work.
+        # From node sample IDs, calculate exactly when to evict each shard from node local storage.
+        #
+        # This is complicated by the fact that the PyTorch DataLoader prefetches samples from each
+        # worker round robin. So, each worker of local rank zero will have its own list of shard
+        # evictions for the whole node.
+        if not world.rank_of_node:
+            evictions_per_worker = self._get_evictions(epoch_sample_ids[world.node])
+            worker_evictions = evictions_per_worker[world.worker_of_rank]
+        else:
+            worker_evictions = None
+
+        # Each worker gets their portion of the samples.
         worker_sample_ids = epoch_sample_ids[world.node, world.rank_of_node,
                                              world.worker_of_rank].flatten()
+
+        # Wait for everyone to finish using shape_shm and data_shm.
         self._worker_barrier(world.workers_per_node)
 
         # Now clean up after ourselves.
@@ -644,7 +687,7 @@ class StreamingDataset(IterableDataset):
             data_shm.close()
             data_shm.unlink()
 
-        return worker_sample_ids
+        return worker_sample_ids, worker_evictions
 
     def _download_or_skip_shard(self, lock: FileLock, shard_states: NDArray[np.uint8],
                                 shard_id: int, wait_if_downloading: bool) -> None:
@@ -853,7 +896,7 @@ class StreamingDataset(IterableDataset):
         epoch, sample_in_epoch = self._resume_incr_epoch(world)
 
         # Get this worker's partition of samples to process.
-        sample_ids = self._get_work(world, epoch, sample_in_epoch)
+        sample_ids, _ = self._get_work(world, epoch, sample_in_epoch)
         if not len(sample_ids):  # Resumed at end of epoch, out of samples.
             return
 
