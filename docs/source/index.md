@@ -16,6 +16,7 @@ Streaming was originally developed as a part of MosaicML’s Composer training l
 
 ## Installation
 
+<!--pytest.mark.skip-->
 ```bash
 pip install mosaicml-streaming
 ```
