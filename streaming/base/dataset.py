@@ -218,17 +218,21 @@ class StreamingDataset(IterableDataset):
 
         # Validate sub-dataset weights ("proportion", "repeat", "samples", or none).
         is_proportional = hasattr(streams[0], 'proportion')
-        for idx, stream in enumerate(streams):
+        for stream_id, stream in enumerate(streams):
             has_proportion = hasattr(stream, 'proportion')
             has_repeat = hasattr(stream, 'repeat')
             has_samples = hasattr(stream, 'samples')
             if not (0 <= has_proportion + has_repeat + has_samples <= 1):
                 raise ValueError(f'Streams must provide at most one of "proportion", "repeat", ' +
-                                 f'or "samples" (error in stream {idx})')
+                                 f'or "samples" (error in stream {stream_id})')
             if is_proportional != has_proportion:
                 raise ValueError(f'Relative ("proportion") and absolute ("repeat", "samples", ' +
                                  f'none) sub-dataset weights are incompatible with each other ' +
-                                 f'(error in stream {idx})')
+                                 f'(error in stream {stream_id})')
+
+        # Set streams.
+        self.streams = streams
+        self.num_streams = len(streams)
 
         # Initialize the World context.
         #
@@ -241,39 +245,40 @@ class StreamingDataset(IterableDataset):
         self.num_samples = 0
         self.shards = []
         stream_per_shard = []
-        self.shard_offset_per_stream = np.zeros(len(streams), np.int64)
-        self.shards_per_stream = np.zeros(len(streams), np.int64)
-        self.sample_offset_per_stream = np.zeros(len(streams), np.int64)
-        self.samples_per_stream = np.zeros(len(streams), np.int64)
-        for idx, stream in enumerate(streams):
+        self.shard_offset_per_stream = np.zeros(self.num_streams, np.int64)
+        self.shards_per_stream = np.zeros(self.num_streams, np.int64)
+        self.sample_offset_per_stream = np.zeros(self.num_streams, np.int64)
+        self.samples_per_stream = np.zeros(self.num_streams, np.int64)
+        for stream_id, stream in enumerate(self.streams):
             stream_shards = stream.get_shards(world)
             samples = sum(map(len, stream_shards))
-            stream_per_shard += [idx] * len(stream_shards)
-            self.shard_offset_per_stream[idx] = len(self.shards)
-            self.shards_per_stream[idx] = len(stream_shards)
-            self.sample_offset_per_stream[idx] = self.num_samples
-            self.samples_per_stream[idx] = samples
+            stream_per_shard += [stream_id] * len(stream_shards)
+            self.shard_offset_per_stream[stream_id] = len(self.shards)
+            self.shards_per_stream[stream_id] = len(stream_shards)
+            self.sample_offset_per_stream[stream_id] = self.num_samples
+            self.samples_per_stream[stream_id] = samples
             self.shards += stream_shards
             self.num_samples += samples
         self.stream_per_shard = np.array(stream_per_shard, np.int64)
+        self.num_shards = len(self.shards)
 
         # Build the Index (for partitioning and mapping samples to shards).
-        self.shard_sizes = np.array([x.samples for x in self.shards])
-        self.index = Index(self.shard_sizes)
+        self.samples_per_shard = np.array([x.samples for x in self.shards])
+        self.index = Index(self.samples_per_shard)
 
         # Now that we have the true size of each sub-dataset, derive the proportions/repeats/picks.
         if is_proportional:
             # Relative.
             if not samples_per_epoch:
                 samples_per_epoch = self.index.total_samples
-            self.proportion_per_stream = np.array([stream.proportion for stream in streams],
+            self.proportion_per_stream = np.array([stream.proportion for stream in self.streams],
                                                   np.float64)
             self.proportion_per_stream /= self.proportion_per_stream.sum()
             self.pick_per_stream = (samples_per_epoch * self.proportion_per_stream).astype(
                 np.int64)
             short = samples_per_epoch - self.pick_per_stream.sum()
             rng = np.random.default_rng(shuffle_seed)
-            indices = rng.choice(len(self.pick_per_stream), short, False)
+            indices = rng.choice(self.num_streams, short, False)
             self.pick_per_stream[indices] += 1
             self.repeat_per_stream = self.pick_per_stream / self.samples_per_stream
             self.samples_per_epoch = samples_per_epoch
@@ -282,26 +287,25 @@ class StreamingDataset(IterableDataset):
             if samples_per_epoch:
                 raise ValueError('Only provide samples_per_epoch when proportionally weighting ' +
                                  'sub-datasets.')
-            self.pick_per_stream = np.zeros(len(streams), np.int64)
-            for idx, stream in enumerate(streams):
+            self.pick_per_stream = np.zeros(self.num_streams, np.int64)
+            for stream_id, stream in enumerate(self.streams):
                 if hasattr(stream, 'repeat'):
-                    samples = int(stream.repeat * self.samples_per_stream[idx])
+                    samples = int(stream.repeat * self.samples_per_stream[stream_id])
                 elif hasattr(stream, 'samples'):
                     samples = stream.samples
                 else:
-                    samples = self.samples_per_stream[idx]
-                self.pick_per_stream[idx] = samples
+                    samples = self.samples_per_stream[stream_id]
+                self.pick_per_stream[stream_id] = samples
             self.repeat_per_stream = self.pick_per_stream / self.samples_per_stream
             self.proportion_per_stream = self.pick_per_stream / self.pick_per_stream.sum()
             self.samples_per_epoch = sum(self.pick_per_stream)
 
         # Now that we know the true props/reps/picks, inject those back into the Streams,
-        for stream, proportion, repeat, pick in zip(streams, self.proportion_per_stream,
+        for stream, proportion, repeat, pick in zip(self.streams, self.proportion_per_stream,
                                                     self.repeat_per_stream, self.pick_per_stream):
             stream.proportion = proportion
             stream.repeat = repeat
             stream.samples = pick
-        self.streams = streams
 
         # Determine and distribute shuffle seed and shm prefix.
         seed_rng = np.random.default_rng(shuffle_seed)
@@ -365,7 +369,7 @@ class StreamingDataset(IterableDataset):
         # Create or attach shard_states array (tells if each shard is unknown, downloading, or
         # downloaded).
         self._shard_states = create_shared_memory(name=f'{self._prefix}_shard_states',
-                                                  size=len(self.shard_sizes) * np.uint8(0).nbytes)
+                                                  size=self.num_shards * np.uint8(0).nbytes)
 
         # Destroy process group, and de-initialize the distributed package
         barrier()
@@ -479,23 +483,23 @@ class StreamingDataset(IterableDataset):
         """
         # Initialize random number generator and arrays.
         rng = np.random.default_rng(self.shuffle_seed + epoch)
-        pick_per_shard = np.zeros(len(self.shards), np.int64) - 1
-        pick_per_sample = np.zeros(self.index.total_samples, np.int64) - 1
+        pick_per_shard = np.zeros(self.num_shards, np.int64) - 1
+        pick_per_sample = np.zeros(self.num_samples, np.int64) - 1
 
         # Iterate over each stream.
-        for stream_id in range(len(self.streams)):
+        for stream_id in range(self.num_streams):
             stream_shard_offset = self.shard_offset_per_stream[stream_id]
             num_stream_shards = self.shards_per_stream[stream_id]
             stream_shard_ids = stream_shard_offset + np.arange(num_stream_shards)
 
             # Calculate pick per shard.
-            samples_per_shard = self.shard_sizes[stream_shard_ids]
-            stream_samples = sum(samples_per_shard)
+            samples_per_stream_shard = self.samples_per_shard[stream_shard_ids]
+            stream_samples = sum(samples_per_stream_shard)
             stream_picks = self.pick_per_stream[stream_id]
             if stream_picks == stream_samples:
-                pick_per_stream_shard = samples_per_shard
+                pick_per_stream_shard = samples_per_stream_shard
             else:
-                pick_per_stream_shard = samples_per_shard * stream_picks // stream_samples
+                pick_per_stream_shard = samples_per_stream_shard * stream_picks // stream_samples
                 short = stream_picks - pick_per_stream_shard.sum()
                 indices = rng.choice(num_stream_shards, short, False)
                 pick_per_stream_shard[indices] += 1
@@ -504,7 +508,7 @@ class StreamingDataset(IterableDataset):
             # Iterate over each shard of this stream.
             for shard_id, shard_picks in zip(stream_shard_ids, pick_per_stream_shard):
                 shard_sample_offset = self.index.shard_offsets[shard_id]
-                shard_samples = self.index.samples_per_shard[shard_id]
+                shard_samples = self.samples_per_shard[shard_id]
                 indices = np.arange(shard_sample_offset, shard_sample_offset + shard_samples)
 
                 # Calculate pick per sample.
@@ -514,11 +518,11 @@ class StreamingDataset(IterableDataset):
                 pick_per_sample[indices] += 1
 
         # Derive sample ID mapping via repeating by pick per sample.
-        small_per_big = np.repeat(np.arange(self.index.total_samples), pick_per_sample)
+        small_per_big = np.repeat(np.arange(self.num_samples), pick_per_sample)
         return pick_per_shard, small_per_big
 
-    def _generate_epoch_samples(self, world: World, epoch: int,
-                                sample_in_epoch: int) -> NDArray[np.int64]:
+    def _generate_sample_ids(self, world: World, epoch: int,
+                             sample_in_epoch: int) -> NDArray[np.int64]:
         """Generate this epoch's arrangement of samples.
 
         This is only called in local rank zero.
@@ -558,17 +562,17 @@ class StreamingDataset(IterableDataset):
         # need them anymore, and can convert back to underlying "small" sample IDs.
         return np.where(big_ids != -1, small_per_big[big_ids], -1)
 
-    def _share_epoch_samples(self, epoch_samples: NDArray[np.int64]) -> \
+    def _share_sample_ids(self, sample_ids: NDArray[np.int64]) -> \
             Tuple[SharedMemory, SharedMemory]:
         """Put an epoch's sample ordering into shared memory.
 
         Args:
-            epoch_samples (NDArray[np.int64]): Sample IDs.
+            sample_ids (NDArray[np.int64]): Sample IDs.
         """
         ndim = 5
 
         # Validate shape.
-        if epoch_samples.ndim != ndim:
+        if sample_ids.ndim != ndim:
             raise ValueError('Sample IDs must be of shape (num physical nodes, ranks per node, ' +
                              'workers per rank, batches per worker, batch size)')
 
@@ -576,17 +580,17 @@ class StreamingDataset(IterableDataset):
         name = f'{self._prefix}_epoch_shape'
         size = ndim * np.int64().nbytes
         shape_shm = SharedMemory(name, True, size)
-        shape_shm.buf[:size] = np.array(epoch_samples.shape, np.int64).tobytes()
+        shape_shm.buf[:size] = np.array(sample_ids.shape, np.int64).tobytes()
 
         # Save the generated epoch data to shared memory.
         name = f'{self._prefix}_epoch_data'
-        size = epoch_samples.size * np.int64().nbytes
+        size = sample_ids.size * np.int64().nbytes
         data_shm = SharedMemory(name, True, size)
-        data_shm.buf[:size] = epoch_samples.tobytes()
+        data_shm.buf[:size] = sample_ids.tobytes()
 
         return shape_shm, data_shm
 
-    def _attach_epoch_samples(self) -> Tuple[NDArray[np.int64], SharedMemory, SharedMemory]:
+    def _attach_sample_ids(self) -> Tuple[NDArray[np.int64], SharedMemory, SharedMemory]:
         """Get an epoch's sample ordering from shared memory.
 
         Returns:
@@ -604,12 +608,11 @@ class StreamingDataset(IterableDataset):
         name = f'{self._prefix}_epoch_data'
         size = int(np.prod(shape)) * np.int64().nbytes
         data_shm = SharedMemory(name, False, size)
-        epoch_samples = np.ndarray(shape, buffer=data_shm.buf, dtype=np.int64)
+        sample_ids = np.ndarray(shape, buffer=data_shm.buf, dtype=np.int64)
 
-        return epoch_samples, shape_shm, data_shm
+        return sample_ids, shape_shm, data_shm
 
-    def _get_worker_samples(self, world: World, epoch: int,
-                            sample_in_epoch: int) -> NDArray[np.int64]:
+    def _get_work(self, world: World, epoch: int, sample_in_epoch: int) -> NDArray[np.int64]:
         """Get this worker's partition of this epoch's sample space.
 
         Args:
@@ -622,16 +625,16 @@ class StreamingDataset(IterableDataset):
         """
         # Do expensive work that may use a lot of cores/memory just once, in the local leader.
         if world.is_local_leader:
-            epoch_samples = self._generate_epoch_samples(world, epoch, sample_in_epoch)
-            shape_shm, data_shm = self._share_epoch_samples(epoch_samples)
+            epoch_sample_ids = self._generate_sample_ids(world, epoch, sample_in_epoch)
+            shape_shm, data_shm = self._share_sample_ids(epoch_sample_ids)
             self._worker_barrier(world.workers_per_node)
         else:
             self._worker_barrier(world.workers_per_node)
-            epoch_samples, shape_shm, data_shm = self._attach_epoch_samples()
+            epoch_sample_ids, shape_shm, data_shm = self._attach_sample_ids()
 
         # Each worker gets their portion of the work.
-        worker_samples = epoch_samples[world.node, world.rank_of_node,
-                                       world.worker_of_rank].flatten()
+        worker_sample_ids = epoch_sample_ids[world.node, world.rank_of_node,
+                                             world.worker_of_rank].flatten()
         self._worker_barrier(world.workers_per_node)
 
         # Now clean up after ourselves.
@@ -641,7 +644,7 @@ class StreamingDataset(IterableDataset):
             data_shm.close()
             data_shm.unlink()
 
-        return worker_samples
+        return worker_sample_ids
 
     def _download_or_skip_shard(self, lock: FileLock, shard_states: NDArray[np.uint8],
                                 shard_id: int, wait_if_downloading: bool) -> None:
@@ -693,37 +696,35 @@ class StreamingDataset(IterableDataset):
         # Get the filelock that protects shard_states shared memory array.
         lock = FileLock(self.shard_states_filename)
 
-        shard_states = np.ndarray(len(self.shard_sizes),
-                                  buffer=self._shard_states.buf,
-                                  dtype=np.uint8)
+        shard_states = np.ndarray(self.num_shards, buffer=self._shard_states.buf, dtype=np.uint8)
 
         return lock, shard_states
 
-    def __getitem__(self, idx: int) -> Any:
+    def __getitem__(self, sample_id: int) -> Any:
         """Get sample by global index, blocking to download its shard if not present.
 
         Args:
-            idx (int): Sample index.
+            sample_id (int): Sample index.
 
         Returns:
             Dict[str, Any]: Mapping of column name to column data.
         """
         # Locate the shard and sample offset within that shard where the sample lives.
-        shard_idx, idx_in_shard = self.index.find_sample(idx)
-        shard = self.shards[shard_idx]
+        shard_id, shard_sample_id = self.index.find_sample(sample_id)
+        shard = self.shards[shard_id]
 
         try:
             # Attempt to directly access the sample for performance reasons.
-            sample = shard[idx_in_shard]
+            sample = shard[shard_sample_id]
         except:
             # Get handles to the shared shard states array and its protective file lock.
             lock, shard_states = self._get_shard_states()
 
             # Download the shard if not already being downloaded. Block if download in progress.
-            self._download_or_skip_shard(lock, shard_states, shard_idx, True)
+            self._download_or_skip_shard(lock, shard_states, shard_id, True)
 
             # Finally, access the sample.
-            sample = shard[idx_in_shard]
+            sample = shard[shard_sample_id]
 
         # Return the retrieved sample.
         return sample
@@ -852,7 +853,7 @@ class StreamingDataset(IterableDataset):
         epoch, sample_in_epoch = self._resume_incr_epoch(world)
 
         # Get this worker's partition of samples to process.
-        sample_ids = self._get_worker_samples(world, epoch, sample_in_epoch)
+        sample_ids = self._get_work(world, epoch, sample_in_epoch)
         if not len(sample_ids):  # Resumed at end of epoch, out of samples.
             return
 
