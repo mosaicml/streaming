@@ -248,7 +248,7 @@ class Writer(ABC):
             self._reset_cache()
         self._write_index()
         logger.debug(f'Waiting for all shard files to get uploaded to {self.remote}')
-        self.executor.shutdown(wait=True, cancel_futures=False)
+        self.executor.shutdown(wait=True)
         if self.remote and not self.keep_local:
             shutil.rmtree(self.local)
 
