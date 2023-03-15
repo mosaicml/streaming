@@ -73,23 +73,6 @@ class _IterState:
         """Stop the thread and exit."""
         self.is_stopped = True
 
-    def __iter__(self) -> Iterator[int]:
-        """Iterate over our samples while waiting for them to download first.
-
-        Returns:
-            Iterator[int]: Each sample, having been downloaded.
-        """
-        while self.yield_index < self.total:
-            if self.yield_index < self.ready_index:
-                sample_id = self.sample_ids[self.yield_index]
-                if sample_id != -1:  # If -1, we skip.
-                    yield sample_id
-                self.yield_index += 1
-                continue
-            if self.is_stopped:
-                break
-            sleep(TICK)
-
 
 class StreamingDataset(IterableDataset):
     """A mid-epoch-resumable streaming/caching pytorch IterableDataset.
@@ -936,6 +919,27 @@ class StreamingDataset(IterableDataset):
                 sleep(TICK)
             it.ready_index += 1
 
+    def _each_sample_id(self) -> Iterator[int]:
+        """Iterate over our samples while waiting for them to download first.
+
+        Returns:
+            Iterator[int]: Each sample, having been downloaded.
+        """
+        it = self._iter_state
+        if it is None:
+            raise ValueError('Internal error: iter_state is not initialized')
+
+        while it.yield_index < it.total:
+            if it.yield_index < it.ready_index:
+                sample_id = it.sample_ids[it.yield_index]
+                if sample_id != -1:  # If -1, we skip.
+                    yield sample_id
+                it.yield_index += 1
+                continue
+            if it.is_stopped:
+                break
+            sleep(TICK)
+
     def __iter__(self) -> Iterator[Dict[str, Any]]:
         """Iterate over all the samples in our partition.
 
@@ -965,7 +969,7 @@ class StreamingDataset(IterableDataset):
         self._iter_state = _IterState(sample_ids, evictions)
         Thread(target=self._download_thread, daemon=True).start()
         Thread(target=self._ready_thread, daemon=True).start()
-        yield from map(self.__getitem__, self._iter_state)
+        yield from map(self.__getitem__, self._each_sample_id())
 
     def _cleanup_shared_memory(self, shm: Any, world: World) -> None:
         """Clean up the shared memory resources.
