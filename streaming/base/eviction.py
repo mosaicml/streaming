@@ -64,12 +64,13 @@ def get_evictions_per_worker(node_shard_ids: NDArray[np.int64],
     index = 0
     timestep = 0
     evictions_per_worker = [[] for _ in range(workers_per_rank)]
-    for _ in range(batches_per_worker):
-        for worker in range(workers_per_rank):
-            for _ in range(batch_size):
+    for batch_of_worker in range(batches_per_worker):
+        for worker_of_rank in range(workers_per_rank):
+            for sample_of_batch in range(batch_size):
+                worker_timestep = batch_of_worker * batch_size + sample_of_batch
                 while index < len(evictions) and evictions[index][0] == timestep:
                     shard_id = evictions[index][1]
-                    evictions_per_worker[worker].append((timestep, shard_id))
+                    evictions_per_worker[worker_of_rank].append((worker_timestep, shard_id))
                     index += 1
                 timestep += 1
 
