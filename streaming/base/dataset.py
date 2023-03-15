@@ -874,20 +874,6 @@ class StreamingDataset(IterableDataset):
                 sleep(TICK)
             state.ready_index += 1
 
-    def _each_sample(self, sample_ids: NDArray[np.int64]) -> Iterator[int]:
-        """Iterate over each sample ID, while downloading ahead in the background.
-
-        Args:
-            sample_ids (NDArray[np.int64]): The sample IDs to download and iterate.
-
-        Returns:
-            Iterator[int]: Each sample ID, having been downloaded.
-        """
-        self._partition_state = _PartitionState(sample_ids)
-        Thread(target=self._download_thread, args=(self._partition_state,), daemon=True).start()
-        Thread(target=self._ready_thread, args=(self._partition_state,), daemon=True).start()
-        yield from self._partition_state
-
     def __iter__(self) -> Iterator[Dict[str, Any]]:
         """Iterate over all the samples in our partition.
 
@@ -913,9 +899,11 @@ class StreamingDataset(IterableDataset):
         if not len(sample_ids):  # Resumed at end of epoch, out of samples.
             return
 
-        # Iterate over the samples while downloading ahead.
-        for sample_id in self._each_sample(sample_ids):
-            yield self[sample_id]
+        # Iterate over the samples while downloading beforehand and evicting afterward.
+        self._partition_state = _PartitionState(sample_ids)
+        Thread(target=self._download_thread, args=(self._partition_state,), daemon=True).start()
+        Thread(target=self._ready_thread, args=(self._partition_state,), daemon=True).start()
+        yield from map(self.__getitem__, self._partition_state)
 
     def state_dict(self, num_samples: int, from_beginning: bool) -> Dict[str, Any]:
         """Get a dict containing training state (called from non-worker process).
