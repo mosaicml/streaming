@@ -145,12 +145,15 @@ class StreamingDataset(IterableDataset):
         validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
         keep_zip (bool): Whether to keep or delete the compressed form when decompressing
-            downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
+            downloaded shards. If ``False``, keep if remote is local or no remote. Defaults to
             `False``.
-        keep_raw (bool): Whether to keep or delete the decompressed form (or only form)
-            of shards after all their samples have been yielded this epoch. If ``False``, keep iff
-            remote is local or no remote and no compression. Defaults to ``True``.
-        samples_per_epoch (int, optional): Provide this field iff you are weighting sub-datasets
+        keep_raw (bool, optional): Whether to keep or delete the decompressed form (or only form)
+            of shards after they have been used for the time being this epoch. If ``False``, keep
+            if remote is local or no remote and no compression. Defaults to ``None``.
+        raw_ttl (float): If ``keep_raw`` is ``False``, the maximum amount of time between
+            successive usages of a shard on this node before it is dropped after the last usage, as
+            a fraction of the epoch size. Defaults to ``0.25``.
+        samples_per_epoch (int, optional): Provide this field if you are weighting sub-datasets
             proportionally. Defaults to ``None``.
         predownload (int, optional): Target number of samples ahead to download the shards of while
             iterating. Defaults to ``100_000``.
@@ -177,6 +180,7 @@ class StreamingDataset(IterableDataset):
                  validate_hash: Optional[str] = None,
                  keep_zip: bool = False,
                  keep_raw: bool = True,
+                 raw_ttl: float = 0.25,
                  samples_per_epoch: Optional[int] = None,
                  predownload: Optional[int] = 100_000,
                  partition_algo: str = 'orig',
@@ -208,7 +212,8 @@ class StreamingDataset(IterableDataset):
                          download_timeout=download_timeout,
                          validate_hash=validate_hash,
                          keep_zip=keep_zip,
-                         keep_raw=keep_raw)
+                         keep_raw=keep_raw,
+                         raw_ttl=raw_ttl)
 
         # Normalize to a list of Streams.
         if streams:
@@ -628,11 +633,10 @@ class StreamingDataset(IterableDataset):
         sample_to_shard = np.repeat(shard_ids, self.samples_per_shard)
         node_shard_ids = np.where(node_sample_ids != -1, sample_to_shard[node_sample_ids], -1)
 
-        # Gather keep_raw_ttl per shard for efficient lookup.
-        int64_max = np.iinfo(np.int64).max
-        stream_ttls = np.zeros(self.num_streams, np.int64)
+        # Gather raw_ttl per shard for efficient lookup.
+        stream_ttls = np.zeros(self.num_streams, np.float64)
         for stream_id, stream in enumerate(self.streams):
-            stream_ttls[stream_id] = int64_max if stream.keep_raw else stream.keep_raw_ttl
+            stream_ttls[stream_id] = 1 if stream.keep_raw else stream.raw_ttl
         shard_ttls = np.repeat(stream_ttls, self.shards_per_stream)
 
         # Calculate evictions per worker given node shard IDs tensor and shard TTLs.

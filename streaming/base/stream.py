@@ -47,6 +47,7 @@ class Stream:
           * ``validate_hash``
           * ``keep_zip``
           * ``keep_raw``
+          * ``raw_ttl``
 
     Args:
         remote (str, optional): Remote path or directory to download the dataset from. If ``None``,
@@ -74,11 +75,14 @@ class Stream:
         validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
         keep_zip (bool, optional): Whether to keep or delete the compressed form when decompressing
-            downloaded shards. If ``False``, keep if and only if remote is local or no remote.
-            Defaults to ``None``.
+            downloaded shards. If ``False``, keep if remote is local or no remote. Defaults to
+            ``None``.
         keep_raw (bool, optional): Whether to keep or delete the decompressed form (or only form)
-            of shards after all their samples have been yielded this epoch. If ``False``, keep if
-            and only if remote is local or no remote and no compression. Defaults to ``None``.
+            of shards after they have been used for the time being this epoch. If ``False``, keep
+            if remote is local or no remote and no compression. Defaults to ``None``.
+        raw_ttl (float, optional): If ``keep_raw`` is ``False``, the maximum amount of time between
+            successive usages of a shard on this node before it is dropped after the last usage, as
+            a fraction of the epoch size. Defaults to ``None``.
     """
 
     def __init__(self,
@@ -93,7 +97,8 @@ class Stream:
                  download_timeout: Optional[float] = None,
                  validate_hash: Optional[str] = None,
                  keep_zip: Optional[bool] = None,
-                 keep_raw: Optional[bool] = None) -> None:
+                 keep_raw: Optional[bool] = None,
+                 raw_ttl: Optional[float] = None) -> None:
         self.remote = remote
         self._local = local
         self.local = local or mkdtemp()
@@ -146,7 +151,9 @@ class Stream:
         if keep_raw is not None:
             self.keep_raw = keep_raw
 
-        self.keep_raw_ttl = 100_000
+        self._raw_ttl = raw_ttl
+        if raw_ttl is not None:
+            self.raw_ttl = raw_ttl
 
     def apply_default(self, default: Self) -> None:
         """Apply defaults, setting any unset fields.
@@ -171,6 +178,8 @@ class Stream:
             self.keep_zip = default.keep_zip
         if self._keep_raw is None:
             self.keep_raw = default.keep_raw
+        if self._raw_ttl is None:
+            self.raw_ttl = default.raw_ttl
 
     def _download_file(self, basename: str) -> str:
         """Safely download a file from remote to local cache.

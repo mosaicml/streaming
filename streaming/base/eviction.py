@@ -10,12 +10,14 @@ from numpy.typing import NDArray
 
 
 def get_evictions_per_worker(node_shard_ids: NDArray[np.int64],
-                             shard_ttls: NDArray[np.int64]) -> List[NDArray[np.int64]]:
+                             shard_ttls: NDArray[np.float64]) -> List[NDArray[np.int64]]:
     """Calculate shard evictions across workers given node shard IDs and shard TTLs.
 
     Args:
-        node_shard_ids (NDArray[np.int64]): This node this epoch's shard ID tensor.
-        shard_ttls (NDArray[np.int64]): TTL per shard. I64_MAX if cache forever.
+        node_shard_ids (NDArray[np.int64]): This node this epoch's shard ID tensor (ranks per node,
+            workers per rank, batches per worker, batch size).
+        shard_ttls (NDArray[np.float64]): TTL (time to live) per shard, as a fraction of the number
+            of timesteps this epoch. Set to 1 if cache shards forever.
 
     Returns:
         List[NDArray[np.int64]]: Evictions divided across workers.
@@ -43,19 +45,15 @@ def get_evictions_per_worker(node_shard_ids: NDArray[np.int64],
             prev_shard_id = shard_id
             if last_seen[shard_id] != -1:
                 prev_timestep = last_seen[shard_id]
-                interval = timestep - prev_timestep
-                if shard_ttls[shard_id] < interval:
+                interval_frac = (timestep - prev_timestep) / num_timesteps
+                if shard_ttls[shard_id] < interval_frac:
                     evictions.append((prev_timestep, shard_id))
             last_seen[shard_id] = timestep
 
-    # Get the final eviction for each shard that was used.
-    i64_max = np.iinfo(np.int64).max
+    # Get the final eviction for each shard that was used and should be evicted.
     for shard_id, shard_ttl in enumerate(shard_ttls):
-        if last_seen[shard_id] == -1:
-            continue
         prev_timestep = last_seen[shard_id]
-        interval = i64_max - prev_timestep
-        if shard_ttl < interval:
+        if prev_timestep != -1 and shard_ttl < 1:
             evictions.append((prev_timestep, shard_id))
 
     # Sort eviction pairs of (timestep, shard ID) into an array.
