@@ -53,15 +53,20 @@ class _PartitionState:
       downloads in progress).
 
     Args:
-        sample_ids (NDArray[np.int64]): This worker's partition of the sample space.
+        sample_ids (NDArray[np.int64]): IDs of samples to yield.
+        evictions (NDArray[np.int64], optional): Shard evictions as pairs of (timestep, shard ID).
     """
 
-    def __init__(self, sample_ids: NDArray[np.int64]) -> None:
+    def __init__(self, sample_ids: NDArray[np.int64],
+                 evictions: Optional[NDArray[np.int64]]) -> None:
         self.sample_ids = sample_ids
+        self.evictions = evictions
+
         self.total = len(sample_ids)
         self.yield_index = 0
         self.ready_index = 0
         self.download_index = 0
+
         self.is_stopped = False
 
     def stop(self) -> None:
@@ -950,12 +955,12 @@ class StreamingDataset(IterableDataset):
         epoch, sample_in_epoch = self._resume_incr_epoch(world)
 
         # Get this worker's partition of samples to process.
-        sample_ids, _ = self._get_work(world, epoch, sample_in_epoch)
+        sample_ids, evictions = self._get_work(world, epoch, sample_in_epoch)
         if not len(sample_ids):  # Resumed at end of epoch, out of samples.
             return
 
         # Iterate over the samples while downloading beforehand and evicting afterward.
-        self._partition_state = _PartitionState(sample_ids)
+        self._partition_state = _PartitionState(sample_ids, evictions)
         Thread(target=self._download_thread, args=(self._partition_state,), daemon=True).start()
         Thread(target=self._ready_thread, args=(self._partition_state,), daemon=True).start()
         yield from map(self.__getitem__, self._partition_state)
