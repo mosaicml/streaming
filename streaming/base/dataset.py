@@ -41,7 +41,7 @@ class _ShardState(IntEnum):
     DOWNLOADED = 2
 
 
-class _PartitionState:
+class _IterState:
     """The download status of a partition of samples.
 
     0 <= yield <= ready <= download <= total
@@ -391,8 +391,8 @@ class StreamingDataset(IterableDataset):
         # picked up by __iter__().
         self._resume_shm = None
 
-        # Placeholder for a _PartitionState which tracks state during __iter__().
-        self._partition_state = None
+        # Placeholder for an _IterState which tracks state during __iter__().
+        self._iter_state = None
 
     def _get_next_epoch(self) -> int:
         """Get the next epoch.
@@ -845,7 +845,7 @@ class StreamingDataset(IterableDataset):
         # Return the retrieved sample.
         return sample
 
-    def _download_thread(self, state: _PartitionState) -> None:
+    def _download_thread(self) -> None:
         """Download the relevant shards in the background while we are being iterated.
 
         This thread is started at the beginning of each epoch, and exits either when out of samples
@@ -853,43 +853,44 @@ class StreamingDataset(IterableDataset):
         time).
 
         Each worker has its own download thread, which iterates ahead of the main thread.
-
-        Args:
-            state (_PartitionState): The partition state.
         """
+        it = self._iter_state
+        if it is None:
+            raise ValueError('Internal error: iter_state is not initialized')
+
         shard_states_lock, shard_states = self._get_shard_states()
 
         # Download loop.
         while True:
             # If we've started a new epoch early (__iter__ was called again), exit this thread
             # because there can only be one epoch at once.
-            if state.is_stopped:
+            if it.is_stopped:
                 break
 
             # If we're out of samples this epoch, exit this thread because we are done downloading.
-            if state.download_index == state.total:
+            if it.download_index == it.total:
                 break
 
             # If we are requested to only pre-download so many samples, if we have as many or more
             # downloaded already, we wait and check again later.
             if self.predownload is not None:
-                samples_ahead = state.download_index - state.yield_index
+                samples_ahead = it.download_index - it.yield_index
                 if self.predownload <= samples_ahead:
                     sleep(TICK)
                     continue
 
             # If we hit -1, we skip.
-            sample_id = state.sample_ids[state.download_index]
+            sample_id = it.sample_ids[it.download_index]
             if sample_id == -1:
-                state.download_index += 1
+                it.download_index += 1
                 continue
 
             # Download and decompress the shard for this sample, if not already done.
             shard_id, _ = self.index.find_sample(sample_id)
             self._download_or_skip_shard(shard_states_lock, shard_states, shard_id, False)
-            state.download_index += 1
+            it.download_index += 1
 
-    def _ready_thread(self, state: _PartitionState) -> None:
+    def _ready_thread(self) -> None:
         """Download the relevant shards in the background while we are being iterated.
 
         This thread is started at the beginning of each epoch, and exits either when out of samples
@@ -897,42 +898,43 @@ class StreamingDataset(IterableDataset):
         time).
 
         Each worker has its own ready thread, which iterates ahead of the main thread.
-
-        Args:
-            state (_PartitionState): The partition state.
         """
+        it = self._iter_state
+        if it is None:
+            raise ValueError('Internal error: iter_state is not initialized')
+
         _, shard_states = self._get_shard_states()
 
         # Download loop.
         while True:
             # If we've started a new epoch early (__iter__ was called again), exit this thread
             # because there can only be one epoch at once.
-            if state.is_stopped:
+            if it.is_stopped:
                 break
 
             # If we're out of samples this epoch, exit this thread because we are done downloading.
-            if state.ready_index == state.total:
+            if it.ready_index == it.total:
                 break
 
             # If we are requested to only pre-download so many samples, if we have as many or more
             # downloaded already, we wait and check again later.
             if self.predownload is not None:
-                samples_ahead = state.ready_index - state.yield_index
+                samples_ahead = it.ready_index - it.yield_index
                 if self.predownload <= samples_ahead:
                     sleep(TICK)
                     continue
 
             # If we hit -1, we skip.
-            sample_id = state.sample_ids[state.ready_index]
+            sample_id = it.sample_ids[it.ready_index]
             if sample_id == -1:
-                state.ready_index += 1
+                it.ready_index += 1
                 continue
 
             # Download and decompress the shard for this sample, if not already done.
             shard_id, _ = self.index.find_sample(sample_id)
             while shard_states[shard_id] != _ShardState.DOWNLOADED:
                 sleep(TICK)
-            state.ready_index += 1
+            it.ready_index += 1
 
     def __iter__(self) -> Iterator[Dict[str, Any]]:
         """Iterate over all the samples in our partition.
@@ -946,8 +948,8 @@ class StreamingDataset(IterableDataset):
             self._worker_barrier.lock = FileLock(self._worker_barrier.filelock_path)
 
         # Exit the thread that is downloading the shards for last epoch, if it exists.
-        if self._partition_state:
-            self._partition_state.stop()
+        if self._iter_state:
+            self._iter_state.stop()
 
         # Discover where we left off, if there is a checkpoint, or start at the next epoch.
         # Also pre-increment the epoch counter.
@@ -960,10 +962,10 @@ class StreamingDataset(IterableDataset):
             return
 
         # Iterate over the samples while downloading beforehand and evicting afterward.
-        self._partition_state = _PartitionState(sample_ids, evictions)
-        Thread(target=self._download_thread, args=(self._partition_state,), daemon=True).start()
-        Thread(target=self._ready_thread, args=(self._partition_state,), daemon=True).start()
-        yield from map(self.__getitem__, self._partition_state)
+        self._iter_state = _IterState(sample_ids, evictions)
+        Thread(target=self._download_thread, daemon=True).start()
+        Thread(target=self._ready_thread, daemon=True).start()
+        yield from map(self.__getitem__, self._iter_state)
 
     def _cleanup_shared_memory(self, shm: Any, world: World) -> None:
         """Clean up the shared memory resources.
