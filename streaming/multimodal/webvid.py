@@ -309,7 +309,7 @@ class StreamingOutsideDTWebVid(StreamingDataset):
         while True:
             # If we've started a new epoch early (__iter__ was called again), exit this thread
             # because there can only be one epoch at once.
-            if it.is_stopped:
+            if it.should_exit():
                 break
 
             # If we're out of samples this epoch, exit this thread because we are done downloading.

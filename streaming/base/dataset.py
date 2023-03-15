@@ -7,7 +7,7 @@ import json
 import os
 from enum import IntEnum
 from multiprocessing.shared_memory import SharedMemory
-from threading import Thread
+from threading import Lock, Thread
 from time import sleep, time
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
 
@@ -47,15 +47,17 @@ class _IterState:
     0 <= yield <= ready <= download <= total
 
     Cursors
-    * The yield cursor points to the (downloaded) sample we are yielding.
-    * The ready cursor points to the last contiguously downloaded sample.
     * The download cursor points to the sample we are downloading (skipping other workers'
       downloads in progress).
+    * The ready cursor points to the last contiguously downloaded sample.
+    * The yield cursor points to the (downloaded) sample we are yielding.
 
     Args:
         sample_ids (NDArray[np.int64]): IDs of samples to yield.
         evictions (NDArray[np.int64], optional): Shard evictions as pairs of (timestep, shard ID).
     """
+
+    _num_threads_to_exit = 3
 
     def __init__(self, sample_ids: NDArray[np.int64],
                  evictions: Optional[NDArray[np.int64]]) -> None:
@@ -63,15 +65,46 @@ class _IterState:
         self.evictions = evictions
 
         self.total = len(sample_ids)
-        self.yield_index = 0
-        self.ready_index = 0
         self.download_index = 0
+        self.ready_index = 0
+        self.yield_index = 0
 
-        self.is_stopped = False
+        self._lock = Lock()
+        self._is_exiting = False
+        self._num_exits = 0
 
-    def stop(self) -> None:
-        """Stop the thread and exit."""
-        self.is_stopped = True
+    def exit(self) -> None:
+        """Signal threads to exit, wait until they have all exited, then return."""
+        # Signal threads to exit.
+        with self._lock:
+            if self._is_exiting:
+                raise ValueError('Called exit() on an IterState that is already exiting.')
+            self._is_exiting = True
+
+        # Wait until they have all exited, returning is_exiting to False.
+        while True:
+            with self._lock:
+                if not self._is_exiting:
+                    break
+            sleep(TICK)
+
+    def should_exit(self) -> bool:
+        """Check if the calling thread should exit, processing it if so.
+
+        Returns:
+            bool: Whether to exit.
+        """
+        with self._lock:
+            # Normal case: thread is not exiting.
+            if not self._is_exiting:
+                return False
+
+            # Exit case: do some accounting, then return True.
+            self._num_exits += 1
+            if self._num_exits == self._num_threads_to_exit:
+                self._is_exiting = False
+                self._num_exits = 0
+            return True
 
 
 class StreamingDataset(IterableDataset):
@@ -832,7 +865,7 @@ class StreamingDataset(IterableDataset):
         """Download the relevant shards in the background while we are being iterated.
 
         This thread is started at the beginning of each epoch, and exits either when out of samples
-        or when a new epoch is started, calling stop() on its state (only one epoch is valid at a
+        or when a new epoch is started, calling exit() on its state (only one epoch is valid at a
         time).
 
         Each worker has its own download thread, which iterates ahead of the main thread.
@@ -847,7 +880,7 @@ class StreamingDataset(IterableDataset):
         while True:
             # If we've started a new epoch early (__iter__ was called again), exit this thread
             # because there can only be one epoch at once.
-            if it.is_stopped:
+            if it.should_exit():
                 break
 
             # If we're out of samples this epoch, exit this thread because we are done downloading.
@@ -877,7 +910,7 @@ class StreamingDataset(IterableDataset):
         """Download the relevant shards in the background while we are being iterated.
 
         This thread is started at the beginning of each epoch, and exits either when out of samples
-        or when a new epoch is started, calling stop() on its state (only one epoch is valid at a
+        or when a new epoch is started, calling exit() on its state (only one epoch is valid at a
         time).
 
         Each worker has its own ready thread, which iterates ahead of the main thread.
@@ -892,7 +925,7 @@ class StreamingDataset(IterableDataset):
         while True:
             # If we've started a new epoch early (__iter__ was called again), exit this thread
             # because there can only be one epoch at once.
-            if it.is_stopped:
+            if it.should_exit():
                 break
 
             # If we're out of samples this epoch, exit this thread because we are done downloading.
@@ -936,7 +969,7 @@ class StreamingDataset(IterableDataset):
                     yield sample_id
                 it.yield_index += 1
                 continue
-            if it.is_stopped:
+            if it.should_exit():
                 break
             sleep(TICK)
 
@@ -953,7 +986,7 @@ class StreamingDataset(IterableDataset):
 
         # Exit the thread that is downloading the shards for last epoch, if it exists.
         if self._iter_state:
-            self._iter_state.stop()
+            self._iter_state.exit()
 
         # Discover where we left off, if there is a checkpoint, or start at the next epoch.
         # Also pre-increment the epoch counter.
