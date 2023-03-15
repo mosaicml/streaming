@@ -636,8 +636,17 @@ class StreamingDataset(IterableDataset):
         # Gather raw_ttl per shard for efficient lookup.
         stream_ttls = np.zeros(self.num_streams, np.float64)
         for stream_id, stream in enumerate(self.streams):
-            stream_ttls[stream_id] = 1 if stream.keep_raw else stream.raw_ttl
+            if stream.keep_raw:
+                ttl = 1
+            elif stream.remote is None or stream.remote == stream.local:
+                ttl = 1
+            else:
+                ttl = stream.raw_ttl
+            stream_ttls[stream_id] = ttl
         shard_ttls = np.repeat(stream_ttls, self.shards_per_stream)
+        for shard_id, shard in enumerate(self.shards):
+            if not shard.compression:
+                shard_ttls[shard_id] = 1
 
         # Calculate evictions per worker given node shard IDs tensor and shard TTLs.
         return get_evictions_per_worker(node_shard_ids, shard_ttls)
