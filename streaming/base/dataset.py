@@ -71,40 +71,39 @@ class _IterState:
 
         self._lock = Lock()
         self._is_exiting = False
-        self._num_exits = 0
+        self._num_exited = 0
 
-    def exit(self) -> None:
+    def exit_threads(self) -> None:
         """Signal threads to exit, wait until they have all exited, then return."""
         # Signal threads to exit.
         with self._lock:
             if self._is_exiting:
-                raise ValueError('Called exit() on an IterState that is already exiting.')
+                raise ValueError('Called exit_threads() on an IterState that is already exiting.')
             self._is_exiting = True
 
-        # Wait until they have all exited, returning is_exiting to False.
+        # Block until they have all exited, returning _is_exiting to False.
         while True:
             with self._lock:
                 if not self._is_exiting:
                     break
             sleep(TICK)
 
-    def should_exit(self) -> bool:
-        """Check if the calling thread should exit, processing it if so.
+    def are_threads_exiting(self) -> bool:
+        """Check if the calling thread should exit.
 
         Returns:
             bool: Whether to exit.
         """
         with self._lock:
-            # Normal case: thread is not exiting.
-            if not self._is_exiting:
-                return False
+            return self._is_exiting
 
-            # Exit case: do some accounting, then return True.
-            self._num_exits += 1
-            if self._num_exits == self._num_threads_to_exit:
-                self._is_exiting = False
-                self._num_exits = 0
-            return True
+    def thread_exited(self) -> None:
+        """Note that a thread has exited."""
+        with self._lock:
+            self._num_exited += 1
+            if self._num_exited == self._num_threads_to_exit:
+                self._is_exiting = False  # Set to False even if exit_threads() was never called.
+                self._num_exited = 0
 
 
 class StreamingDataset(IterableDataset):
@@ -865,8 +864,8 @@ class StreamingDataset(IterableDataset):
         """Download the relevant shards in the background while we are being iterated.
 
         This thread is started at the beginning of each epoch, and exits either when out of samples
-        or when a new epoch is started, calling exit() on its state (only one epoch is valid at a
-        time).
+        or when a new epoch is started, calling exit_threads() on its state (only one epoch is
+        valid at a time).
 
         Each worker has its own download thread, which iterates ahead of the main thread.
         """
@@ -880,7 +879,7 @@ class StreamingDataset(IterableDataset):
         while True:
             # If we've started a new epoch early (__iter__ was called again), exit this thread
             # because there can only be one epoch at once.
-            if it.should_exit():
+            if it.are_threads_exiting():
                 break
 
             # If we're out of samples this epoch, exit this thread because we are done downloading.
@@ -906,12 +905,15 @@ class StreamingDataset(IterableDataset):
             self._download_or_skip_shard(shard_states_lock, shard_states, shard_id, False)
             it.download_index += 1
 
+        # Note that we exited.
+        it.thread_exited()
+
     def _ready_thread(self) -> None:
         """Download the relevant shards in the background while we are being iterated.
 
         This thread is started at the beginning of each epoch, and exits either when out of samples
-        or when a new epoch is started, calling exit() on its state (only one epoch is valid at a
-        time).
+        or when a new epoch is started, calling exit_threads() on its state (only one epoch is
+        valid at a time).
 
         Each worker has its own ready thread, which iterates ahead of the main thread.
         """
@@ -925,7 +927,7 @@ class StreamingDataset(IterableDataset):
         while True:
             # If we've started a new epoch early (__iter__ was called again), exit this thread
             # because there can only be one epoch at once.
-            if it.should_exit():
+            if it.are_threads_exiting():
                 break
 
             # If we're out of samples this epoch, exit this thread because we are done downloading.
@@ -952,6 +954,9 @@ class StreamingDataset(IterableDataset):
                 sleep(TICK)
             it.ready_index += 1
 
+        # Note that we exited.
+        it.thread_exited()
+
     def _each_sample_id(self) -> Iterator[int]:
         """Iterate over our samples while waiting for them to download first.
 
@@ -965,13 +970,14 @@ class StreamingDataset(IterableDataset):
         while it.yield_index < it.total:
             if it.yield_index < it.ready_index:
                 sample_id = it.sample_ids[it.yield_index]
-                if sample_id != -1:  # If -1, we skip.
+                if sample_id != -1:
                     yield sample_id
                 it.yield_index += 1
                 continue
-            if it.should_exit():
+            if it.are_threads_exiting():
                 break
             sleep(TICK)
+        it.thread_exited()
 
     def __iter__(self) -> Iterator[Dict[str, Any]]:
         """Iterate over all the samples in our partition.
@@ -986,7 +992,7 @@ class StreamingDataset(IterableDataset):
 
         # Exit the thread that is downloading the shards for last epoch, if it exists.
         if self._iter_state:
-            self._iter_state.exit()
+            self._iter_state.exit_threads()
 
         # Discover where we left off, if there is a checkpoint, or start at the next epoch.
         # Also pre-increment the epoch counter.
