@@ -30,11 +30,14 @@ class StreamingCIFAR10(StreamingVisionDataset):
         validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
         keep_zip (bool): Whether to keep or delete the compressed form when decompressing
-            downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
+            downloaded shards. If ``False``, keep if remote is local or no remote. Defaults to
             `False``.
-        keep_raw (bool): Whether to keep or delete the decompressed form (or only form)
-            of shards after all their samples have been yielded this epoch. If ``False``, keep iff
-            remote is local or no remote and no compression. Defaults to ``True``.
+        keep_raw (bool, optional): Whether to keep or delete the decompressed form (or only form)
+            of shards after they have been used for the time being this epoch. If ``False``, keep
+            if remote is local or no remote and no compression. Defaults to ``None``.
+        raw_ttl (float): If ``keep_raw`` is ``False``, the maximum amount of time between
+            successive usages of a shard on this node before it is dropped after the last usage, as
+            a fraction of the epoch size. Defaults to ``0.25``.
         samples_per_epoch (int, optional): Provide this field iff you are weighting sub-datasets
             proportionally. Defaults to ``None``.
         predownload (int, optional): Target number of samples ahead to download the shards of while

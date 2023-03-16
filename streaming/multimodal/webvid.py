@@ -32,11 +32,14 @@ class StreamingInsideWebVid(StreamingDataset):
         validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
         keep_zip (bool): Whether to keep or delete the compressed form when decompressing
-            downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
+            downloaded shards. If ``False``, keep if remote is local or no remote. Defaults to
             `False``.
-        keep_raw (bool): Whether to keep or delete the decompressed form (or only form)
-            of shards after all their samples have been yielded this epoch. If ``False``, keep iff
-            remote is local or no remote and no compression. Defaults to ``True``.
+        keep_raw (bool, optional): Whether to keep or delete the decompressed form (or only form)
+            of shards after they have been used for the time being this epoch. If ``False``, keep
+            if remote is local or no remote and no compression. Defaults to ``None``.
+        raw_ttl (float): If ``keep_raw`` is ``False``, the maximum amount of time between
+            successive usages of a shard on this node before it is dropped after the last usage, as
+            a fraction of the epoch size. Defaults to ``0.25``.
         samples_per_epoch (int, optional): Provide this field iff you are weighting sub-datasets
             proportionally. Defaults to ``None``.
         predownload (int, optional): Target number of samples ahead to download the shards of while
@@ -88,11 +91,14 @@ class StreamingOutsideGIWebVid(StreamingDataset):
         validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
         keep_zip (bool): Whether to keep or delete the compressed form when decompressing
-            downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
+            downloaded shards. If ``False``, keep if remote is local or no remote. Defaults to
             `False``.
-        keep_raw (bool): Whether to keep or delete the decompressed form (or only form)
-            of shards after all their samples have been yielded this epoch. If ``False``, keep iff
-            remote is local or no remote and no compression. Defaults to ``True``.
+        keep_raw (bool, optional): Whether to keep or delete the decompressed form (or only form)
+            of shards after they have been used for the time being this epoch. If ``False``, keep
+            if remote is local or no remote and no compression. Defaults to ``None``.
+        raw_ttl (float): If ``keep_raw`` is ``False``, the maximum amount of time between
+            successive usages of a shard on this node before it is dropped after the last usage, as
+            a fraction of the epoch size. Defaults to ``0.25``.
         samples_per_epoch (int, optional): Provide this field iff you are weighting sub-datasets
             proportionally. Defaults to ``None``.
         predownload (int, optional): Target number of samples ahead to download the shards of while
@@ -121,6 +127,7 @@ class StreamingOutsideGIWebVid(StreamingDataset):
                  validate_hash: Optional[str] = None,
                  keep_zip: bool = False,
                  keep_raw: bool = True,
+                 raw_ttl: float = 0.25,
                  samples_per_epoch: Optional[int] = None,
                  predownload: Optional[int] = 100_000,
                  partition_algo: str = 'orig',
@@ -139,6 +146,7 @@ class StreamingOutsideGIWebVid(StreamingDataset):
                          validate_hash=validate_hash,
                          keep_zip=keep_zip,
                          keep_raw=keep_raw,
+                         raw_ttl=raw_ttl,
                          samples_per_epoch=samples_per_epoch,
                          predownload=predownload,
                          partition_algo=partition_algo,
@@ -200,11 +208,14 @@ class StreamingOutsideDTWebVid(StreamingDataset):
         validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
         keep_zip (bool): Whether to keep or delete the compressed form when decompressing
-            downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
+            downloaded shards. If ``False``, keep if remote is local or no remote. Defaults to
             `False``.
-        keep_raw (bool): Whether to keep or delete the decompressed form (or only form)
-            of shards after all their samples have been yielded this epoch. If ``False``, keep iff
-            remote is local or no remote and no compression. Defaults to ``True``.
+        keep_raw (bool, optional): Whether to keep or delete the decompressed form (or only form)
+            of shards after they have been used for the time being this epoch. If ``False``, keep
+            if remote is local or no remote and no compression. Defaults to ``None``.
+        raw_ttl (float): If ``keep_raw`` is ``False``, the maximum amount of time between
+            successive usages of a shard on this node before it is dropped after the last usage, as
+            a fraction of the epoch size. Defaults to ``0.25``.
         samples_per_epoch (int, optional): Provide this field iff you are weighting sub-datasets
             proportionally. Defaults to ``None``.
         predownload (int, optional): Target number of samples ahead to download the shards of while
@@ -233,6 +244,7 @@ class StreamingOutsideDTWebVid(StreamingDataset):
                  validate_hash: Optional[str] = None,
                  keep_zip: bool = False,
                  keep_raw: bool = True,
+                 raw_ttl: float = 0.25,
                  samples_per_epoch: Optional[int] = None,
                  predownload: Optional[int] = 100_000,
                  partition_algo: str = 'orig',
@@ -251,6 +263,7 @@ class StreamingOutsideDTWebVid(StreamingDataset):
                          validate_hash=validate_hash,
                          keep_zip=keep_zip,
                          keep_raw=keep_raw,
+                         raw_ttl=raw_ttl,
                          samples_per_epoch=samples_per_epoch,
                          predownload=predownload,
                          partition_algo=partition_algo,
