@@ -42,7 +42,7 @@ class StreamingC4(StreamingDataset):
         raw_ttl (float): If ``keep_raw`` is ``False``, the maximum amount of time between
             successive usages of a shard on this node before it is dropped after the last usage, as
             a fraction of the epoch size. Defaults to ``0.25``.
-        samples_per_epoch (int, optional): Provide this field iff you are weighting sub-datasets
+        samples_per_epoch (int, optional): Provide this field if you are weighting sub-datasets
             proportionally. Defaults to ``None``.
         predownload (int, optional): Target number of samples ahead to download the shards of while
             iterating. Defaults to ``100_000``.
