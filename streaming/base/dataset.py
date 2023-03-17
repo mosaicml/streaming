@@ -42,25 +42,29 @@ class _ShardState(IntEnum):
 
 
 class _IterState:
-    """The download status of a partition of samples.
+    """State of StreamingDataset.__iter__(), used to track and coordinate its threads.
 
-    0 <= yield <= ready <= download <= total
+    Has methods to implement early exit when a new epoch is started before the last one is done.
 
-    Cursors
-    * The download cursor points to the sample we are downloading (skipping other workers'
+    Note: 0 <= eviction <= yield <= ready <= download <= total.
+
+    Indices (in the order they advance in):
+    * The download index points to the sample we are presently downloading (skipping other workers'
       downloads in progress).
-    * The ready cursor points to the last contiguously downloaded sample.
-    * The yield cursor points to the (downloaded) sample we are yielding.
+    * The ready index points to the furthest contiguously downloaded sample (by any worker on this
+      node).
+    * The yield index points to the (downloaded) sample we are yielding.
+    * The eviction index points to the already-yielded index whose shard evictions we are
+      processing.
 
     Args:
         sample_ids (NDArray[np.int64]): IDs of samples to yield.
-        evictions (NDArray[np.int64], optional): Shard evictions as pairs of (timestep, shard ID).
+        evictions (NDArray[np.int64]): Shard evictions as pairs of (timestep, shard ID).
     """
 
-    _num_threads_to_exit = 3
+    _num_threads_to_exit = 4  # Download, ready, yield, eviction.
 
-    def __init__(self, sample_ids: NDArray[np.int64],
-                 evictions: Optional[NDArray[np.int64]]) -> None:
+    def __init__(self, sample_ids: NDArray[np.int64], evictions: NDArray[np.int64]) -> None:
         self.sample_ids = sample_ids
         self.evictions = evictions
 
@@ -68,13 +72,18 @@ class _IterState:
         self.download_index = 0
         self.ready_index = 0
         self.yield_index = 0
+        self.eviction_index = 0
 
         self._lock = Lock()
         self._is_exiting = False
         self._num_exited = 0
 
     def exit_threads(self) -> None:
-        """Signal threads to exit, wait until they have all exited, then return."""
+        """Signal threads to exit, wait until they have all exited, then return.
+
+        This is called when the user starts a new epoch without the threads from the previous epoch
+        having exited yet.
+        """
         # Signal threads to exit.
         with self._lock:
             if self._is_exiting:
@@ -727,7 +736,7 @@ class StreamingDataset(IterableDataset):
         return get_evictions_per_worker(node_shard_ids, shard_ttls)
 
     def _get_work(self, world: World, epoch: int, sample_in_epoch: int) -> \
-            Tuple[NDArray[np.int64], Optional[NDArray[np.int64]]]:
+            Tuple[NDArray[np.int64], NDArray[np.int64]]:
         """Get this worker's sample ordering and shard evictions for this epoch.
 
         Args:
@@ -759,7 +768,7 @@ class StreamingDataset(IterableDataset):
             evictions_per_worker = self._get_evictions(epoch_sample_ids[world.node])
             worker_evictions = evictions_per_worker[world.worker_of_rank]
         else:
-            worker_evictions = None
+            worker_evictions = np.array([], np.int64)
 
         # Each worker gets their portion of the samples.
         worker_sample_ids = epoch_sample_ids[world.node, world.rank_of_node,
@@ -818,6 +827,17 @@ class StreamingDataset(IterableDataset):
         else:
             raise RuntimeError('Unknown shard state')
 
+    def _evict_shard(self, lock: FileLock, shard_states: NDArray[np.uint8], shard_id: int) -> None:
+        """Evict a shard, returning when done.
+
+        Args:
+            lock (FileLock): The lock protecting ``shard_states``.
+            shard_states (NDArray[np.uint8]): The download status of each shard, as an array in
+                shared memory.
+            shard_id (int): Shard ID.
+        """
+        pass  # TODO
+
     def _get_shard_states(self) -> Tuple[FileLock, NDArray[np.uint8]]:
         """Get the shared shard states array and its protecting lock.
 
@@ -867,7 +887,8 @@ class StreamingDataset(IterableDataset):
         or when a new epoch is started, calling exit_threads() on its state (only one epoch is
         valid at a time).
 
-        Each worker has its own download thread, which iterates ahead of the main thread.
+        Each worker has its own download thread, which iterates ahead of the ready, yield, and
+        eviction threads.
         """
         it = self._iter_state
         if it is None:
@@ -903,19 +924,22 @@ class StreamingDataset(IterableDataset):
             # Download and decompress the shard for this sample, if not already done.
             shard_id, _ = self.index.find_sample(sample_id)
             self._download_or_skip_shard(shard_states_lock, shard_states, shard_id, False)
+
+            # Step.
             it.download_index += 1
 
         # Note that we exited.
         it.thread_exited()
 
     def _ready_thread(self) -> None:
-        """Download the relevant shards in the background while we are being iterated.
+        """Wait for the relevant shards to become downloaded while we are being iterated.
 
         This thread is started at the beginning of each epoch, and exits either when out of samples
         or when a new epoch is started, calling exit_threads() on its state (only one epoch is
         valid at a time).
 
-        Each worker has its own ready thread, which iterates ahead of the main thread.
+        Each worker has its own ready thread, which iterates behind the download thread and ahead
+        of the yield and eviction threads.
         """
         it = self._iter_state
         if it is None:
@@ -923,7 +947,7 @@ class StreamingDataset(IterableDataset):
 
         _, shard_states = self._get_shard_states()
 
-        # Download loop.
+        # Ready loop.
         while True:
             # If we've started a new epoch early (__iter__ was called again), exit this thread
             # because there can only be one epoch at once.
@@ -948,10 +972,12 @@ class StreamingDataset(IterableDataset):
                 it.ready_index += 1
                 continue
 
-            # Download and decompress the shard for this sample, if not already done.
+            # Wait for the shard for this sample to be downloaded and decompressed, if not already.
             shard_id, _ = self.index.find_sample(sample_id)
             while shard_states[shard_id] != _ShardState.DOWNLOADED:
                 sleep(TICK)
+
+            # Step.
             it.ready_index += 1
 
         # Note that we exited.
@@ -960,6 +986,13 @@ class StreamingDataset(IterableDataset):
     def _each_sample_id(self) -> Iterator[int]:
         """Iterate over our samples while waiting for them to download first.
 
+        This method is entered at the beginning of each epoch, and exits either when out of samples
+        or when a new epoch is started, calling exit_threads() on its state (only one epoch is
+        valid at a time).
+
+        Each worker has its own yield thread (main thread), which iterates behind the download and
+        ready threads and ahead of the eviction thread.
+
         Returns:
             Iterator[int]: Each sample, having been downloaded.
         """
@@ -967,16 +1000,80 @@ class StreamingDataset(IterableDataset):
         if it is None:
             raise ValueError('Internal error: iter_state is not initialized')
 
-        while it.yield_index < it.total:
-            if it.yield_index < it.ready_index:
-                sample_id = it.sample_ids[it.yield_index]
-                if sample_id != -1:
-                    yield sample_id
-                it.yield_index += 1
-                continue
+        # Yield loop.
+        while True:
+            # If we've started a new epoch before this one is finished, exit this thread.
             if it.are_threads_exiting():
                 break
-            sleep(TICK)
+
+            # Have we yielded all samples?
+            if it.yield_index == it.total:
+                break
+
+            # Is there a sample ready to yield?
+            if it.ready_index <= it.yield_index:
+                sleep(TICK)
+                continue
+
+            # Yield sample ID if not -1.
+            sample_id = it.sample_ids[it.yield_index]
+            if sample_id != -1:
+                yield sample_id
+
+            # Step.
+            it.yield_index += 1
+
+        # Note that we exited.
+        it.thread_exited()
+
+    def _eviction_thread(self) -> None:
+        """As samples become yielded, possibly evict their shards.
+
+        This thread is started at the beginning of each epoch, and exits either when out of samples
+        or when a new epoch is started, calling exit_threads() on its state (only one epoch is
+        valid at a time).
+
+        Each worker has its own eviction thread, which iterates behind the download, ready, and
+        yield threads.
+        """
+        it = self._iter_state
+        if it is None:
+            raise ValueError('Internal error: iter_state is not initialized')
+
+        shard_states_lock, shard_states = self._get_shard_states()
+
+        array_index = 0
+
+        # Eviction loop.
+        while True:
+            # If we've started a new epoch before this one is finished, exit this thread.
+            if it.are_threads_exiting():
+                break
+
+            # Have we processed all timesteps?
+            if it.eviction_index == it.total:
+                break
+
+            # Are we out of evictions?
+            if array_index == len(it.evictions):
+                break
+
+            # Is there a timestep ready to process?
+            if it.yield_index <= it.eviction_index:
+                sleep(TICK)
+                continue
+
+            # If we are at a timestep with eviction(s), perform them one at a time.
+            timestep_to_evict, shard_id = it.evictions[array_index]
+            if it.eviction_index == timestep_to_evict:
+                self._evict_shard(shard_states_lock, shard_states, shard_id)
+                array_index += 1
+                continue
+
+            # Step.
+            it.eviction_index += 1
+
+        # Note that we exited.
         it.thread_exited()
 
     def __iter__(self) -> Iterator[Dict[str, Any]]:
@@ -1008,6 +1105,7 @@ class StreamingDataset(IterableDataset):
         self._iter_state = _IterState(sample_ids, evictions)
         Thread(target=self._download_thread, daemon=True).start()
         Thread(target=self._ready_thread, daemon=True).start()
+        Thread(target=self._eviction_thread, daemon=True).start()
         yield from map(self.__getitem__, self._each_sample_id())
 
     def _cleanup_shared_memory(self, shm: Any, world: World) -> None:
