@@ -33,12 +33,11 @@ class _ShardState(IntEnum):
     """The download status of a shard.
 
     Restrictions:
-    - The initial state of UNKNOWN must be zero.
-    - The state will only ever change in the upward direction.
+    - The initial state, MISSING, must be zero.
     """
-    UNKNOWN = 0
+    MISSING = 0
     DOWNLOADING = 1
-    DOWNLOADED = 2
+    PRESENT = 2
 
 
 class _IterState:
@@ -798,34 +797,29 @@ class StreamingDataset(IterableDataset):
             wait_if_downloading (bool): Whether to wait or skip if the shard is currently being
                 downloaded by someone else.
         """
-        # First, the fast path: check the shared memory shard state without taking the lock. The
-        # shard states only ever go up, so if we're at the downloaded state, it's downloaded.
-        state = shard_states[shard_id]
-        if state == _ShardState.DOWNLOADED:
-            return
-
-        # Shard is not necessarily downloaded, so check and update state with the lock.
         lock.acquire()
         state = shard_states[shard_id]
-        if state == _ShardState.UNKNOWN:
+        if state == _ShardState.MISSING:
             shard_states[shard_id] = _ShardState.DOWNLOADING
             lock.release()
             stream_id = self.stream_per_shard[shard_id]
             stream = self.streams[stream_id]
             shard = self.shards[shard_id]
+            shard = self.shards[shard_id]
             stream.download_shard(shard)
-            # A shard state that is DOWNLOADING will never be written to elsewhere, so we don't
-            # need to take the lock here.
-            shard_states[shard_id] = _ShardState.DOWNLOADED
+            lock.acquire()
+            shard_states[shard_id] = _ShardState.PRESENT
+            lock.release()
         elif state == _ShardState.DOWNLOADING:
             lock.release()
             if wait_if_downloading:
-                while shard_states[shard_id] != _ShardState.DOWNLOADED:
+                while shard_states[shard_id] != _ShardState.PRESENT:
                     sleep(TICK)
-        elif state == _ShardState.DOWNLOADED:
+        elif state == _ShardState.PRESENT:
             lock.release()
         else:
-            raise RuntimeError('Unknown shard state')
+            lock.release()
+            raise RuntimeError('Internal error: unknown shard state')
 
     def _evict_shard(self, lock: FileLock, shard_states: NDArray[np.uint8], shard_id: int) -> None:
         """Evict a shard, returning when done.
@@ -836,7 +830,31 @@ class StreamingDataset(IterableDataset):
                 shared memory.
             shard_id (int): Shard ID.
         """
-        pass  # TODO
+        lock.acquire()
+        state = shard_states[shard_id]
+        if state == _ShardState.MISSING:
+            lock.release()
+        elif state == _ShardState.DOWNLOADING:
+            lock.release()
+            while shard_states[shard_id] != _ShardState.PRESENT:
+                sleep(TICK)
+            lock.acquire()
+            stream_id = self.stream_per_shard[shard_id]
+            stream = self.streams[stream_id]
+            shard = self.shards[shard_id]
+            shard = self.shards[shard_id]
+            stream.evict_shard(shard)
+            lock.release()
+        elif state == _ShardState.PRESENT:
+            stream_id = self.stream_per_shard[shard_id]
+            stream = self.streams[stream_id]
+            shard = self.shards[shard_id]
+            shard = self.shards[shard_id]
+            stream.evict_shard(shard)
+            lock.release()
+        else:
+            lock.release()
+            raise RuntimeError('Internal error: unknown shard state')
 
     def _get_shard_states(self) -> Tuple[FileLock, NDArray[np.uint8]]:
         """Get the shared shard states array and its protecting lock.
@@ -892,7 +910,7 @@ class StreamingDataset(IterableDataset):
         """
         it = self._iter_state
         if it is None:
-            raise ValueError('Internal error: iter_state is not initialized')
+            raise RuntimeError('Internal error: iter_state is not initialized')
 
         shard_states_lock, shard_states = self._get_shard_states()
 
@@ -943,7 +961,7 @@ class StreamingDataset(IterableDataset):
         """
         it = self._iter_state
         if it is None:
-            raise ValueError('Internal error: iter_state is not initialized')
+            raise RuntimeError('Internal error: iter_state is not initialized')
 
         _, shard_states = self._get_shard_states()
 
@@ -974,7 +992,7 @@ class StreamingDataset(IterableDataset):
 
             # Wait for the shard for this sample to be downloaded and decompressed, if not already.
             shard_id, _ = self.index.find_sample(sample_id)
-            while shard_states[shard_id] != _ShardState.DOWNLOADED:
+            while shard_states[shard_id] != _ShardState.PRESENT:
                 sleep(TICK)
 
             # Step.
@@ -998,7 +1016,7 @@ class StreamingDataset(IterableDataset):
         """
         it = self._iter_state
         if it is None:
-            raise ValueError('Internal error: iter_state is not initialized')
+            raise RuntimeError('Internal error: iter_state is not initialized')
 
         # Yield loop.
         while True:
@@ -1038,7 +1056,7 @@ class StreamingDataset(IterableDataset):
         """
         it = self._iter_state
         if it is None:
-            raise ValueError('Internal error: iter_state is not initialized')
+            raise RuntimeError('Internal error: iter_state is not initialized')
 
         shard_states_lock, shard_states = self._get_shard_states()
 

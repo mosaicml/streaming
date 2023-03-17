@@ -293,6 +293,26 @@ class Stream:
         for raw_info, zip_info in shard.file_pairs:
             self._download_shard_part(raw_info, zip_info, shard.compression)
 
+    def _evict_file(self, basename: str) -> None:
+        """Evict the given shard file.
+
+        Args:
+            basename (str): Relative path to file.
+        """
+        filename = os.path.join(self.local, basename)
+        if os.path.exists(filename):
+            os.remove(filename)
+
+    def evict_shard(self, shard: Reader) -> None:
+        """Evict the given shard.
+
+        Args:
+            shard (Reader): Which shard.
+        """
+        for raw_info, zip_info in shard.file_pairs:
+            self._evict_file(raw_info.basename)
+            self._evict_file(zip_info.basename)
+
     def get_shards(self, world: World) -> List[Reader]:
         """Load this Stream's index, retrieving its shard readers.
 
