@@ -805,7 +805,6 @@ class StreamingDataset(IterableDataset):
             stream_id = self.stream_per_shard[shard_id]
             stream = self.streams[stream_id]
             shard = self.shards[shard_id]
-            shard = self.shards[shard_id]
             stream.download_shard(shard)
             lock.acquire()
             shard_states[shard_id] = _ShardState.PRESENT
@@ -842,13 +841,11 @@ class StreamingDataset(IterableDataset):
             stream_id = self.stream_per_shard[shard_id]
             stream = self.streams[stream_id]
             shard = self.shards[shard_id]
-            shard = self.shards[shard_id]
             stream.evict_shard(shard)
             lock.release()
         elif state == _ShardState.PRESENT:
             stream_id = self.stream_per_shard[shard_id]
             stream = self.streams[stream_id]
-            shard = self.shards[shard_id]
             shard = self.shards[shard_id]
             stream.evict_shard(shard)
             lock.release()
