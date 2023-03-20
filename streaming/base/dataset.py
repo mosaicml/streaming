@@ -124,7 +124,7 @@ class StreamingDataset(IterableDataset):
     .. code-block:: json
 
         {
-            "epoch" :"int",
+            "epoch": "int",
             "sample_in_epoch": "int",
             "shuffle_seed": "int",
             "num_canonical_nodes": "int"
