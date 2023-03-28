@@ -178,6 +178,7 @@ class S3Uploader(CloudUploader):
         from botocore.config import Config
         config = Config()
         self.s3 = boto3.client('s3', config=config)
+        self.check_bucket_exists(self.remote)  # pyright: ignore
 
     def upload_file(self, filename: str):
         """Upload file from local instance to AWS S3 bucket.
@@ -202,6 +203,26 @@ class S3Uploader(CloudUploader):
                 Callback=lambda bytes_transferred: pbar.update(bytes_transferred),
             )
         self.clear_local(local=local_filename)
+
+    def check_bucket_exists(self, remote: str):
+        """Raise an exception if the bucket does not exist.
+
+        Args:
+            remote (str): S3 bucket path.
+
+        Raises:
+            error: Bucket does not exist.
+        """
+        from botocore.exceptions import ClientError
+
+        bucket_name = urllib.parse.urlparse(remote).netloc
+        try:
+            self.s3.head_bucket(Bucket=bucket_name)
+        except ClientError as error:
+            if error.response['Error']['Code'] == '404':
+                error.args = (f'Bucket `{bucket_name}` does not exist! ' +
+                              f'Check the bucket permission or create the bucket.',)
+            raise error
 
 
 class GCSUploader(CloudUploader):
@@ -235,6 +256,7 @@ class GCSUploader(CloudUploader):
                                        endpoint_url='https://storage.googleapis.com',
                                        aws_access_key_id=os.environ['GCS_KEY'],
                                        aws_secret_access_key=os.environ['GCS_SECRET'])
+        self.check_bucket_exists(self.remote)  # pyright: ignore
 
     def upload_file(self, filename: str):
         """Upload file from local instance to Google Cloud Storage bucket.
@@ -259,6 +281,26 @@ class GCSUploader(CloudUploader):
                 Callback=lambda bytes_transferred: pbar.update(bytes_transferred),
             )
         self.clear_local(local=local_filename)
+
+    def check_bucket_exists(self, remote: str):
+        """Raise an exception if the bucket does not exist.
+
+        Args:
+            remote (str): S3 bucket path.
+
+        Raises:
+            error: Bucket does not exist.
+        """
+        from botocore.exceptions import ClientError
+
+        bucket_name = urllib.parse.urlparse(remote).netloc
+        try:
+            self.gcs_client.head_bucket(Bucket=bucket_name)
+        except ClientError as error:
+            if error.response['Error']['Code'] == '404':
+                error.args = (f'Bucket `{bucket_name}` does not exist! ' +
+                              f'Check the bucket permission or create the bucket.',)
+            raise error
 
 
 class OCIUploader(CloudUploader):
@@ -287,10 +329,11 @@ class OCIUploader(CloudUploader):
 
         import oci
         config = oci.config.from_file()
-        client = oci.object_storage.ObjectStorageClient(
+        self.client = oci.object_storage.ObjectStorageClient(
             config=config, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
-        self.namespace = client.get_namespace().data
-        self.upload_manager = oci.object_storage.UploadManager(client)
+        self.namespace = self.client.get_namespace().data
+        self.upload_manager = oci.object_storage.UploadManager(self.client)
+        self.check_bucket_exists(self.remote)  # pyright: ignore
 
     def upload_file(self, filename: str):
         """Upload file from local instance to OCI Cloud Storage bucket.
@@ -319,6 +362,27 @@ class OCIUploader(CloudUploader):
                 progress_callback=lambda bytes_transferred: pbar.update(bytes_transferred),
             )
         self.clear_local(local=local_filename)
+
+    def check_bucket_exists(self, remote: str):
+        """Raise an exception if the bucket does not exist.
+
+        Args:
+            remote (str): S3 bucket path.
+
+        Raises:
+            error: Bucket does not exist.
+        """
+        from oci.exceptions import ServiceError
+
+        obj = urllib.parse.urlparse(remote)
+        bucket_name = obj.netloc.split('@' + self.namespace)[0]
+        try:
+            self.client.head_bucket(bucket_name=bucket_name, namespace_name=self.namespace)
+        except ServiceError as error:
+            if error.status == 404:
+                error.args = (f'Bucket `{bucket_name}` does not exist! ' +
+                              f'Check the bucket permission or create the bucket.',)
+            raise error
 
 
 class LocalUploader(CloudUploader):
