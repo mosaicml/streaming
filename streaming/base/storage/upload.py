@@ -178,7 +178,7 @@ class S3Uploader(CloudUploader):
         from botocore.config import Config
         config = Config()
         self.s3 = boto3.client('s3', config=config)
-        self.bucket_exists(self.remote)  # pyright: ignore
+        self.check_bucket_exists(self.remote)  # pyright: ignore
 
     def upload_file(self, filename: str):
         """Upload file from local instance to AWS S3 bucket.
@@ -204,7 +204,7 @@ class S3Uploader(CloudUploader):
             )
         self.clear_local(local=local_filename)
 
-    def bucket_exists(self, remote: str):
+    def check_bucket_exists(self, remote: str):
         """Raise an exception if the bucket does not exist.
 
         Args:
@@ -256,7 +256,7 @@ class GCSUploader(CloudUploader):
                                        endpoint_url='https://storage.googleapis.com',
                                        aws_access_key_id=os.environ['GCS_KEY'],
                                        aws_secret_access_key=os.environ['GCS_SECRET'])
-        self.bucket_exists(self.remote)  # pyright: ignore
+        self.check_bucket_exists(self.remote)  # pyright: ignore
 
     def upload_file(self, filename: str):
         """Upload file from local instance to Google Cloud Storage bucket.
@@ -282,7 +282,7 @@ class GCSUploader(CloudUploader):
             )
         self.clear_local(local=local_filename)
 
-    def bucket_exists(self, remote: str):
+    def check_bucket_exists(self, remote: str):
         """Raise an exception if the bucket does not exist.
 
         Args:
@@ -333,7 +333,7 @@ class OCIUploader(CloudUploader):
             config=config, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
         self.namespace = self.client.get_namespace().data
         self.upload_manager = oci.object_storage.UploadManager(self.client)
-        self.bucket_exists(self.remote)  # pyright: ignore
+        self.check_bucket_exists(self.remote)  # pyright: ignore
 
     def upload_file(self, filename: str):
         """Upload file from local instance to OCI Cloud Storage bucket.
@@ -363,7 +363,7 @@ class OCIUploader(CloudUploader):
             )
         self.clear_local(local=local_filename)
 
-    def bucket_exists(self, remote: str):
+    def check_bucket_exists(self, remote: str):
         """Raise an exception if the bucket does not exist.
 
         Args:

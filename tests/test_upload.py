@@ -14,8 +14,8 @@ from streaming.base.storage.upload import CloudUploader, GCSUploader, LocalUploa
 
 class TestCloudUploader:
 
-    @patch('streaming.base.storage.upload.S3Uploader.bucket_exists')
-    @patch('streaming.base.storage.upload.GCSUploader.bucket_exists')
+    @patch('streaming.base.storage.upload.S3Uploader.check_bucket_exists')
+    @patch('streaming.base.storage.upload.GCSUploader.check_bucket_exists')
     @pytest.mark.parametrize(
         'mapping',
         [['s3://bucket/dir/file', S3Uploader], [None, 's3://bucket/dir/file', S3Uploader],
@@ -73,7 +73,7 @@ class TestCloudUploader:
         assert not os.path.exists(local_file_path)
 
     @pytest.mark.parametrize('out', ['s3://bucket/dir', 'gs://bucket/dir'])
-    def test_bucket_exists_exception(self, out: str):
+    def test_check_bucket_exists_exception(self, out: str):
         import botocore
         with pytest.raises(botocore.exceptions.ClientError):
             _ = CloudUploader.get(out=out)
@@ -81,7 +81,7 @@ class TestCloudUploader:
 
 class TestS3Uploader:
 
-    @patch('streaming.base.storage.upload.S3Uploader.bucket_exists')
+    @patch('streaming.base.storage.upload.S3Uploader.check_bucket_exists')
     @pytest.mark.parametrize('out', ['s3://bucket/dir', ('./dir1', 's3://bucket/dir/')])
     def test_instantiation(self, mocked_requests: Mock, out: Any):
         mocked_requests.side_effect = None
@@ -126,7 +126,7 @@ class TestS3Uploader:
             assert not os.path.exists(local_file_path)
 
     @pytest.mark.parametrize('out', ['s3://bucket/dir'])
-    def test_bucket_exists_exception(self, out: str):
+    def test_check_bucket_exists_exception(self, out: str):
         import botocore
         with pytest.raises(botocore.exceptions.ClientError):
             _ = S3Uploader(out=out)
@@ -134,7 +134,7 @@ class TestS3Uploader:
 
 class TestGCSUploader:
 
-    @patch('streaming.base.storage.upload.GCSUploader.bucket_exists')
+    @patch('streaming.base.storage.upload.GCSUploader.check_bucket_exists')
     @pytest.mark.parametrize('out', ['gs://bucket/dir', ('./dir1', 'gs://bucket/dir/')])
     def test_instantiation(self, mocked_requests: Mock, out: Any):
         mocked_requests.side_effect = None
@@ -179,7 +179,7 @@ class TestGCSUploader:
             assert not os.path.exists(local_file_path)
 
     @pytest.mark.parametrize('out', ['gs://bucket/dir'])
-    def test_bucket_exists_exception(self, out: str):
+    def test_check_bucket_exists_exception(self, out: str):
         import botocore
         with pytest.raises(botocore.exceptions.ClientError):
             _ = GCSUploader(out=out)
