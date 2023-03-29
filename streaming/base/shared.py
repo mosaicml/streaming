@@ -166,10 +166,12 @@ class CreateSharedMemory:
     """Create a new Shared Memory block or attach to an existing shared memory block.
 
     Args:
-        name (Optional[str], optional): A unique shared memory block name. Defaults to None.
-        create (Optional[bool], optional): Creates a new shared memory block or attaches to an existing shared memory block. Defaults to None.
-        size (int, optional): A size of a shared memory block. Defaults to 0.
-        auto_cleanup (bool, optional): Register atexit handler for cleanup or not. Defaults to True.
+        name (Optional[str], optional): A unique shared memory block name. Defaults to ``None``.
+        create (Optional[bool], optional): Creates a new shared memory block or attaches to an
+            existing shared memory block. Defaults to ``None``.
+        size (int, optional): A size of a shared memory block. Defaults to ``0``.
+        auto_cleanup (bool, optional): Register atexit handler for cleanup or not.
+            Defaults to ``True``.
     """
 
     def __init__(self,
@@ -181,7 +183,9 @@ class CreateSharedMemory:
         self.created_shms = []
         self.opened_shms = []
         shm = None
-        original_register = resource_tracker.register
+        # Avoid tracking shared memory resources because if the child process release the
+        # resources, the parent process still complains about resource leak.
+        original_rtracker_reg = resource_tracker.register
         resource_tracker.register = self.fix_register
 
         try:
@@ -205,9 +209,11 @@ class CreateSharedMemory:
                     self.opened_shms.append(shm)
             self.shm = shm
         finally:
-            resource_tracker.register = original_register
+            resource_tracker.register = original_rtracker_reg
 
         if auto_cleanup:
+            # atexit handler doesn't get called if the program is killed by a signal not
+            # handled by python or when os.exit() is called or for any python internal fatal error.
             atexit.register(self.cleanup)
 
     # Monkey-patched "multiprocessing.resource_tracker" to avoid unwanted resource tracker warnings.
@@ -242,7 +248,7 @@ class CreateSharedMemory:
 
     def cleanup(self):
         """Clean up SharedMemory resources."""
-        original_unregister = resource_tracker.unregister
+        original_rtracker_unreg = resource_tracker.unregister
         resource_tracker.unregister = self.fix_unregister
         # Close each SharedMemory instance
         try:
@@ -255,4 +261,4 @@ class CreateSharedMemory:
         except FileNotFoundError:
             pass
         finally:
-            resource_tracker.unregister = original_unregister
+            resource_tracker.unregister = original_rtracker_unreg
