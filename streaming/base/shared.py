@@ -183,10 +183,8 @@ class CreateSharedMemory:
         self.created_shms = []
         self.opened_shms = []
         shm = None
-        # Avoid tracking shared memory resources because if the child process release the
-        # resources, the parent process still complains about resource leak.
+        # save the original register tracker function
         original_rtracker_reg = resource_tracker.register
-        resource_tracker.register = self.fix_register
 
         try:
             if create is True:
@@ -194,6 +192,10 @@ class CreateSharedMemory:
                 shm = SharedMemory(name, create, size)
                 self.created_shms.append(shm)
             elif create is False:
+                # Avoid tracking shared memory resources in a process who attaches to an existing
+                # shared memory block because the process who created the shared memory is
+                # responsible for destroying the shared memory block.
+                resource_tracker.register = self.fix_register
                 # Attaches to an existing shared memory block
                 shm = SharedMemory(name, create, size)
                 self.opened_shms.append(shm)
@@ -204,6 +206,7 @@ class CreateSharedMemory:
                     self.created_shms.append(shm)
                 except FileExistsError:
                     sleep(TICK)
+                    resource_tracker.register = self.fix_register
                     # Attaches to an existing shared memory block
                     shm = SharedMemory(name, False, size)
                     self.opened_shms.append(shm)
@@ -248,16 +251,19 @@ class CreateSharedMemory:
 
     def cleanup(self):
         """Clean up SharedMemory resources."""
+        # save the original unregister tracker function
         original_rtracker_unreg = resource_tracker.unregister
-        resource_tracker.unregister = self.fix_unregister
+
         # Close each SharedMemory instance
         try:
             for shm in self.created_shms:
                 shm.close()
+                # Destroy the shared memory block
                 shm.unlink()
             for shm in self.opened_shms:
+                resource_tracker.unregister = self.fix_unregister
                 shm.close()
-        # skip the error if a child process already cleaned up the SharedMemory
+        # skip the error if a child process already cleaned up the shared memory
         except FileNotFoundError:
             pass
         finally:
