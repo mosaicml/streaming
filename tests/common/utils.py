@@ -15,6 +15,7 @@ def local_remote_dir() -> Any:
     """Creates a temporary directory and then deletes it when the calling function is done."""
     try:
         mock_dir = tempfile.TemporaryDirectory()
+        # print(f'creating {mock_dir}')
         mock_local_dir = os.path.join(mock_dir.name, 'local')
         mock_remote_dir = os.path.join(mock_dir.name, 'remote')
         yield mock_local_dir, mock_remote_dir
