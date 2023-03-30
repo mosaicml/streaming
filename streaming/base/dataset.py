@@ -6,7 +6,6 @@
 import json
 import os
 from enum import IntEnum
-from multiprocessing.shared_memory import SharedMemory
 from threading import Thread
 from time import sleep, time
 from typing import Any, Dict, Iterator, Optional, Sequence, Tuple
@@ -21,10 +20,10 @@ from torch.utils.data import IterableDataset
 from streaming.base.distributed import barrier
 from streaming.base.index import Index
 from streaming.base.partition import get_partitions
-from streaming.base.shared import SharedBarrier, create_shared_memory
+from streaming.base.shared import CreateSharedMemory, SharedBarrier
 from streaming.base.shuffle import get_shuffle
 from streaming.base.stream import Stream
-from streaming.base.util import TICK, wait_for_local_leader
+from streaming.base.util import TICK
 from streaming.base.world import World
 
 
@@ -347,8 +346,7 @@ class StreamingDataset(IterableDataset):
         # Create the shared memory-backed worker barrier, without its lock, which is unpickleable.
         worker_barrier_filelock_path = os.path.join(self._shared_dir, 'barrier_filelock')
         worker_barrier_shm_path = f'{self._prefix}_barrier'
-        self._worker_barrier = SharedBarrier(worker_barrier_filelock_path, worker_barrier_shm_path,
-                                             world.is_local_leader)
+        self._worker_barrier = SharedBarrier(worker_barrier_filelock_path, worker_barrier_shm_path)
 
         # Remove the lock that makes it unpickleable
         del self._worker_barrier.lock
@@ -358,8 +356,9 @@ class StreamingDataset(IterableDataset):
         # Note: we do not assume that the end of __iter__() will ever be reached, so we need to
         # increment the epoch counter at the start of __iter__() instead of at the end, so we need
         # to track what the next epoch is, not the current epoch.
-        self._next_epoch_shm = create_shared_memory(name=f'{self._prefix}_next_epoch',
-                                                    size=np.int64().nbytes)
+        next_epoch_shm = CreateSharedMemory(name=f'{self._prefix}_next_epoch',
+                                            size=np.int64().nbytes)
+        self._next_epoch_shm = next_epoch_shm.shm
         self._next_epoch_arr = np.ndarray(1, buffer=self._next_epoch_shm.buf, dtype=np.int64)
         self._next_epoch_arr[0] = 0
 
@@ -368,8 +367,9 @@ class StreamingDataset(IterableDataset):
 
         # Create or attach shard_states array (tells if each shard is unknown, downloading, or
         # downloaded).
-        self._shard_states = create_shared_memory(name=f'{self._prefix}_shard_states',
-                                                  size=self.num_shards * np.uint8(0).nbytes)
+        shard_states_shm = CreateSharedMemory(name=f'{self._prefix}_shard_states',
+                                              size=self.num_shards * np.uint8(0).nbytes)
+        self._shard_states = shard_states_shm.shm
 
         # Destroy process group, and de-initialize the distributed package
         barrier()
@@ -420,7 +420,8 @@ class StreamingDataset(IterableDataset):
         # Get the resume state, if it exists.
         name = f'{self._prefix}_resume'
         try:
-            shm = SharedMemory(name)
+            resume_shm = CreateSharedMemory(name=name, create=False)
+            shm = resume_shm.shm
         except FileNotFoundError:
             # There is nothing to resume.
             if not self.num_canonical_nodes:
@@ -563,7 +564,7 @@ class StreamingDataset(IterableDataset):
         return np.where(big_ids != -1, small_per_big[big_ids], -1)
 
     def _share_sample_ids(self, sample_ids: NDArray[np.int64]) -> \
-            Tuple[SharedMemory, SharedMemory]:
+            Tuple[CreateSharedMemory, CreateSharedMemory]:
         """Put an epoch's sample ordering into shared memory.
 
         Args:
@@ -579,18 +580,21 @@ class StreamingDataset(IterableDataset):
         # Save the generated epoch shape to shared memory.
         name = f'{self._prefix}_epoch_shape'
         size = ndim * np.int64().nbytes
-        shape_shm = SharedMemory(name, True, size)
+        shape_shm_obj = CreateSharedMemory(name=name, create=True, size=size, auto_cleanup=False)
+        shape_shm = shape_shm_obj.shm
         shape_shm.buf[:size] = np.array(sample_ids.shape, np.int64).tobytes()
 
         # Save the generated epoch data to shared memory.
         name = f'{self._prefix}_epoch_data'
         size = sample_ids.size * np.int64().nbytes
-        data_shm = SharedMemory(name, True, size)
+        data_shm_obj = CreateSharedMemory(name=name, create=True, size=size, auto_cleanup=False)
+        data_shm = data_shm_obj.shm
         data_shm.buf[:size] = sample_ids.tobytes()
 
-        return shape_shm, data_shm
+        return shape_shm_obj, data_shm_obj
 
-    def _attach_sample_ids(self) -> Tuple[NDArray[np.int64], SharedMemory, SharedMemory]:
+    def _attach_sample_ids(
+            self) -> Tuple[NDArray[np.int64], CreateSharedMemory, CreateSharedMemory]:
         """Get an epoch's sample ordering from shared memory.
 
         Returns:
@@ -601,16 +605,18 @@ class StreamingDataset(IterableDataset):
         # Load the generated epoch shape from shared memory.
         name = f'{self._prefix}_epoch_shape'
         size = ndim * np.int64().nbytes
-        shape_shm = SharedMemory(name, False, size)
+        shape_shm_obj = CreateSharedMemory(name=name, create=False, size=size, auto_cleanup=False)
+        shape_shm = shape_shm_obj.shm
         shape = tuple(np.ndarray(5, buffer=shape_shm.buf, dtype=np.int64))
 
         # Attach to the generated epoch data in shared memory.
         name = f'{self._prefix}_epoch_data'
         size = int(np.prod(shape)) * np.int64().nbytes
-        data_shm = SharedMemory(name, False, size)
+        data_shm_obj = CreateSharedMemory(name=name, create=False, size=size, auto_cleanup=False)
+        data_shm = data_shm_obj.shm
         sample_ids = np.ndarray(shape, buffer=data_shm.buf, dtype=np.int64)
 
-        return sample_ids, shape_shm, data_shm
+        return sample_ids, shape_shm_obj, data_shm_obj
 
     def _get_work(self, world: World, epoch: int, sample_in_epoch: int) -> NDArray[np.int64]:
         """Get this worker's partition of this epoch's sample space.
@@ -626,11 +632,11 @@ class StreamingDataset(IterableDataset):
         # Do expensive work that may use a lot of cores/memory just once, in the local leader.
         if world.is_local_leader:
             epoch_sample_ids = self._generate_sample_ids(world, epoch, sample_in_epoch)
-            shape_shm, data_shm = self._share_sample_ids(epoch_sample_ids)
+            shape_shm_obj, data_shm_obj = self._share_sample_ids(epoch_sample_ids)
             self._worker_barrier(world.workers_per_node)
         else:
             self._worker_barrier(world.workers_per_node)
-            epoch_sample_ids, shape_shm, data_shm = self._attach_sample_ids()
+            epoch_sample_ids, shape_shm_obj, data_shm_obj = self._attach_sample_ids()
 
         # Each worker gets their portion of the work.
         worker_sample_ids = epoch_sample_ids[world.node, world.rank_of_node,
@@ -638,11 +644,10 @@ class StreamingDataset(IterableDataset):
         self._worker_barrier(world.workers_per_node)
 
         # Now clean up after ourselves.
-        if world.is_local_leader:
-            shape_shm.close()
-            shape_shm.unlink()
-            data_shm.close()
-            data_shm.unlink()
+        shape_shm_obj.cleanup()
+        data_shm_obj.cleanup()
+
+        self._worker_barrier(world.workers_per_node)
 
         return worker_sample_ids
 
@@ -905,43 +910,9 @@ class StreamingDataset(IterableDataset):
         """
         name = f'{self._prefix}_resume'
         data = json.dumps(obj, sort_keys=True).encode('utf-8')
-        try:
-            # some platforms choose to allocate chunks of memory based upon that platform’s memory
-            # page size, hence, the exact size of the shared memory block may be larger or
-            # equal to the size requested.
-            self._resume_shm = SharedMemory(name, True, len(data))
-            self._resume_shm.buf[:len(data)] = data
-        except FileExistsError:
-            sleep(TICK)
-            self._resume_shm = SharedMemory(name)
-            assert len(self._resume_shm.buf) == len(data)
-
-    def _cleanup_shared_memory(self, shm: Any, world: World) -> None:
-        """Clean up the shared memory resources.
-
-        Args:
-            shm (Any): A SharedMemory object
-            world (World): World state.
-        """
-        if shm is not None:
-            # Close each SharedMemory instance
-            shm.close()
-            if world.is_local_leader:
-                # Call unlink only once to release the shared memory
-                shm.unlink()
-            else:
-                # Wait for local leader process to execute first
-                sleep(1)
-
-    def __del__(self):
-        # Wait for the local rank 0 process
-        world = self._rank_world
-        wait_for_local_leader(world)
-
-        # Clean up shared memory resources
-        if hasattr(self, '_next_epoch_shm'):
-            self._cleanup_shared_memory(self._next_epoch_shm, world)
-        if hasattr(self, '_shard_states'):
-            self._cleanup_shared_memory(self._shard_states, world)
-        if hasattr(self, '_resume_shm'):
-            self._cleanup_shared_memory(self._resume_shm, world)
+        # some platforms choose to allocate chunks of memory based upon that platform’s memory
+        # page size, hence, the exact size of the shared memory block may be larger or
+        # equal to the size requested.
+        resume_shm = CreateSharedMemory(name=name, size=len(data))
+        self._resume_shm = resume_shm.shm
+        self._resume_shm.buf[:len(data)] = data
