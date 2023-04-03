@@ -325,7 +325,8 @@ def get_shm_prefix(my_locals: List[str], world: World) -> Tuple[str, SharedMemor
     # Local leader goes first, checking and registering.
     if world.is_local_leader:
         # Local leader walks the existing shm prefixes starting from zero, verifying that there is
-        # no local working directory overlap.
+        # no local working directory overlap.  When attaching to an existing shm fails, we have
+        # reached the end of the existing shms.
         for prefix_int in range(10**6):
             prefix = f'{prefix_int:06}'
             name = f'{prefix}_locals'
@@ -339,7 +340,7 @@ def get_shm_prefix(my_locals: List[str], world: World) -> Tuple[str, SharedMemor
                 raise ValueError(f'Reused local working directory: {sorted(my_locals_set)} vs ' +
                                  f'{sorted(their_locals_set)}')
 
-        # Local leader registers the next available shm prefix, recording its locals.
+        # Local leader registers the first available shm prefix, recording its locals.
         prefix = f'{prefix_int:06}'  # pyright: ignore
         name = f'{prefix}_locals'
         data = _pack_locals(my_locals_set)
