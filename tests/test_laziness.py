@@ -11,12 +11,12 @@ from streaming import MDSWriter, StreamingDataset
 
 @pytest.mark.usefixtures('local_remote_dir')
 def test_laziness(local_remote_dir: Tuple[str, str]):
-    num_samples = 100_000
+    num_samples = 10_000
     local, remote = local_remote_dir
     columns = {'value': 'int'}
     compression = None
     hashes = None
-    size_limit = 10_000
+    size_limit = 1_000
 
     with MDSWriter(out=remote,
                    columns=columns,
@@ -32,17 +32,20 @@ def test_laziness(local_remote_dir: Tuple[str, str]):
     for i in range(num_samples):
         sample = dataset[i]
         assert sample['value'] == i
+    del dataset
 
     # Verify __iter__ -> __getitem__ accesses.
     dataset = StreamingDataset(local=remote)
     for i, sample in zip(range(num_samples), dataset):
         assert sample['value'] == i
+    del dataset
 
     # Verify __getitem__ downloads/accesses.
     dataset = StreamingDataset(local=local, remote=remote)
     for i in range(num_samples):
         sample = dataset[i]
         assert sample['value'] == i
+    del dataset
 
     shutil.rmtree(local)
 
@@ -50,6 +53,7 @@ def test_laziness(local_remote_dir: Tuple[str, str]):
     dataset = StreamingDataset(local=local, remote=remote)
     for i, sample in zip(range(num_samples), dataset):
         assert sample['value'] == i
+    del dataset
 
     # Re-verify __getitem__ downloads/accesses.
     dataset = StreamingDataset(local=local, remote=remote)

@@ -303,7 +303,8 @@ def get_shm_prefix(my_locals: List[str], world: World) -> str:
             their_locals = text.split('\0')
             both = set(my_locals) & set(their_locals)
             if both:
-                raise ValueError('Reused local working directory: {sorted(both)}')
+                raise ValueError(f'Reused local working directory: {sorted(my_locals)} vs ' +
+                                 f'{sorted(their_locals)}')
 
         # Local leader registers the next available shm prefix, recording its locals.
         prefix = f'{prefix_int:06}'  # pyright: ignore

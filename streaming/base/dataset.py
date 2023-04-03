@@ -343,6 +343,13 @@ class StreamingDataset(IterableDataset):
         # Placeholder for a _PartitionState which tracks state during __iter__().
         self._partition_state = None
 
+    def __del__(self) -> None:
+        """Destructor, which releases its local working directories."""
+        try:
+            self._locals_shm.buf[:4] = np.int32(0).tobytes()
+        except:
+            pass
+
     def _get_next_epoch(self) -> int:
         """Get the next epoch.
 

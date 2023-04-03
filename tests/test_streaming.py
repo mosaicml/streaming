@@ -98,6 +98,9 @@ def test_dataloader_determinism(mds_dataset_dir: Any, batch_size: int, seed: int
     for batch in dataloader:
         sample_order.extend(batch['id'][:])
 
+    del dataloader
+    del dataset
+
     # Build StreamingDataset again to test deterministic sample ID
     dataset = StreamingDataset(local=local_dir,
                                remote=remote_dir,
@@ -187,6 +190,9 @@ def test_streamingdataloader_mid_epoch_resumption(mds_dataset_dir: Any, batch_si
             break
         sample_order.extend(batch['id'][:])
 
+    del dataloader
+    del dataset
+
     dataset = StreamingDataset(local=local_dir,
                                remote=remote_dir,
                                shuffle=shuffle,
@@ -235,6 +241,8 @@ def test_multiple_dataset_instantiation(mds_dataset_dir: Any, shuffle_seed: tupl
         train_sample_order.extend(batch['id'][:])
 
     shutil.rmtree(local_dir)
+    del train_dataloader
+    del train_dataset
 
     # Build val StreamingDataset
     val_dataset = StreamingDataset(local=local_dir,
