@@ -7,20 +7,17 @@ import json
 import os
 from enum import IntEnum
 from threading import Thread
-from time import sleep, time
+from time import sleep
 from typing import Any, Dict, Iterator, Optional, Sequence, Tuple
 
 import numpy as np
-import torch
-import torch.distributed as dist
 from filelock import FileLock
 from numpy.typing import NDArray
 from torch.utils.data import IterableDataset
 
-from streaming.base.distributed import barrier
 from streaming.base.index import Index
 from streaming.base.partition import get_partitions
-from streaming.base.shared import CreateSharedMemory, SharedBarrier
+from streaming.base.shared import CreateSharedMemory, SharedBarrier, get_shm_prefix
 from streaming.base.shuffle import get_shuffle
 from streaming.base.stream import Stream
 from streaming.base.util import TICK
@@ -306,46 +303,14 @@ class StreamingDataset(IterableDataset):
             stream.repeat = repeat
             stream.samples = pick
 
-        # Determine and distribute shuffle seed and shm prefix.
-        seed_rng = np.random.default_rng(shuffle_seed)
-        self.shuffle_seed = int(seed_rng.integers(1 << 60))
-        prefix_int = int(seed_rng.integers(1 << 24))
-        self._prefix = f'{prefix_int:06x}'
-
-        # Should be a unique shared directory per each StreamingDataset instantiation to avoid a
-        # conflict between a different StreamingDataset instance on a same machine.
-        start_time = time()
-        while True:
-            self._shared_dir = os.path.join(os.path.sep, 'tmp', 'streaming', self._prefix)
-            if os.path.exists(self._shared_dir):
-                prefix_int = int(seed_rng.integers(1 << 24))
-                self._prefix = f'{prefix_int:06x}'
-            else:
-                break
-            elapsed = time() - start_time
-            # Raise an exception if not finding a unique shared directory in 60 secs
-            if elapsed > 60:
-                raise RuntimeError(''.join([
-                    f'Could not find the unique shared directory, bailing out.',
-                    'Please provide a different `shuffle_seed` value.'
-                ]))
-
-            sleep(TICK)
-
-        # Initialize the distributed package and synchronize all the ranks
-        is_dist_pg_initialized = False
-        if self._rank_world.num_ranks > 1:
-            if dist.is_available() and not dist.is_initialized():
-                is_dist_pg_initialized = True
-                dist.init_process_group(backend='nccl' if torch.cuda.is_available() and
-                                        dist.is_nccl_available() else 'gloo',
-                                        rank=world.rank,
-                                        world_size=world.num_ranks)
-            dist.barrier()
+        # Register/lookup our shared memory prefix and filelock root directory.
+        my_locals = [os.path.abspath(stream.local) for stream in streams]
+        self._shm_prefix, self._locals_shm = get_shm_prefix(my_locals, world)
+        self._filelock_root = os.path.join(os.path.sep, 'tmp', 'streaming', self._shm_prefix)
 
         # Create the shared memory-backed worker barrier, without its lock, which is unpickleable.
-        worker_barrier_filelock_path = os.path.join(self._shared_dir, 'barrier_filelock')
-        worker_barrier_shm_path = f'{self._prefix}_barrier'
+        worker_barrier_filelock_path = os.path.join(self._filelock_root, 'barrier_filelock')
+        worker_barrier_shm_path = f'{self._shm_prefix}_barrier'
         self._worker_barrier = SharedBarrier(worker_barrier_filelock_path, worker_barrier_shm_path)
 
         # Remove the lock that makes it unpickleable
@@ -356,25 +321,20 @@ class StreamingDataset(IterableDataset):
         # Note: we do not assume that the end of __iter__() will ever be reached, so we need to
         # increment the epoch counter at the start of __iter__() instead of at the end, so we need
         # to track what the next epoch is, not the current epoch.
-        next_epoch_shm = CreateSharedMemory(name=f'{self._prefix}_next_epoch',
+        next_epoch_shm = CreateSharedMemory(name=f'{self._shm_prefix}_next_epoch',
                                             size=np.int64().nbytes)
         self._next_epoch_shm = next_epoch_shm.shm
         self._next_epoch_arr = np.ndarray(1, buffer=self._next_epoch_shm.buf, dtype=np.int64)
         self._next_epoch_arr[0] = 0
 
         # Get the filelock filename that protects shard_states shared memory array.
-        self.shard_states_filename = os.path.join(self._shared_dir, '_shard_states_filelock')
+        self.shard_states_filename = os.path.join(self._filelock_root, '_shard_states_filelock')
 
         # Create or attach shard_states array (tells if each shard is unknown, downloading, or
         # downloaded).
-        shard_states_shm = CreateSharedMemory(name=f'{self._prefix}_shard_states',
+        shard_states_shm = CreateSharedMemory(name=f'{self._shm_prefix}_shard_states',
                                               size=self.num_shards * np.uint8(0).nbytes)
         self._shard_states = shard_states_shm.shm
-
-        # Destroy process group, and de-initialize the distributed package
-        barrier()
-        if is_dist_pg_initialized:
-            dist.destroy_process_group()
 
         # Placeholder for a shared memory object where load_state_dict() saves its data to be
         # picked up by __iter__().
@@ -418,7 +378,7 @@ class StreamingDataset(IterableDataset):
             Tuple[int, int]: What epoch this is, and sample offset in that epoch.
         """
         # Get the resume state, if it exists.
-        name = f'{self._prefix}_resume'
+        name = f'{self._shm_prefix}_resume'
         try:
             resume_shm = CreateSharedMemory(name=name, create=False)
             shm = resume_shm.shm
@@ -578,14 +538,14 @@ class StreamingDataset(IterableDataset):
                              'workers per rank, batches per worker, batch size)')
 
         # Save the generated epoch shape to shared memory.
-        name = f'{self._prefix}_epoch_shape'
+        name = f'{self._shm_prefix}_epoch_shape'
         size = ndim * np.int64().nbytes
         shape_shm_obj = CreateSharedMemory(name=name, create=True, size=size, auto_cleanup=False)
         shape_shm = shape_shm_obj.shm
         shape_shm.buf[:size] = np.array(sample_ids.shape, np.int64).tobytes()
 
         # Save the generated epoch data to shared memory.
-        name = f'{self._prefix}_epoch_data'
+        name = f'{self._shm_prefix}_epoch_data'
         size = sample_ids.size * np.int64().nbytes
         data_shm_obj = CreateSharedMemory(name=name, create=True, size=size, auto_cleanup=False)
         data_shm = data_shm_obj.shm
@@ -603,14 +563,14 @@ class StreamingDataset(IterableDataset):
         ndim = 5
 
         # Load the generated epoch shape from shared memory.
-        name = f'{self._prefix}_epoch_shape'
+        name = f'{self._shm_prefix}_epoch_shape'
         size = ndim * np.int64().nbytes
         shape_shm_obj = CreateSharedMemory(name=name, create=False, size=size, auto_cleanup=False)
         shape_shm = shape_shm_obj.shm
         shape = tuple(np.ndarray(5, buffer=shape_shm.buf, dtype=np.int64))
 
         # Attach to the generated epoch data in shared memory.
-        name = f'{self._prefix}_epoch_data'
+        name = f'{self._shm_prefix}_epoch_data'
         size = int(np.prod(shape)) * np.int64().nbytes
         data_shm_obj = CreateSharedMemory(name=name, create=False, size=size, auto_cleanup=False)
         data_shm = data_shm_obj.shm
@@ -908,7 +868,7 @@ class StreamingDataset(IterableDataset):
         Args:
             obj (Dict[str, Any]): The state.
         """
-        name = f'{self._prefix}_resume'
+        name = f'{self._shm_prefix}_resume'
         data = json.dumps(obj, sort_keys=True).encode('utf-8')
         # some platforms choose to allocate chunks of memory based upon that platform’s memory
         # page size, hence, the exact size of the shared memory block may be larger or

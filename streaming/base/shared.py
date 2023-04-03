@@ -13,10 +13,14 @@ import shutil
 from multiprocessing import resource_tracker  # pyright: ignore
 from multiprocessing.shared_memory import SharedMemory
 from time import sleep
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 import numpy as np
+import torch
 from filelock import FileLock
+from torch import distributed as dist
+
+from streaming.base.world import World
 
 # Time to wait, in seconds.
 TICK = 0.07
@@ -268,3 +272,78 @@ class CreateSharedMemory:
             pass
         finally:
             resource_tracker.unregister = original_rtracker_unreg
+
+
+def get_shm_prefix(my_locals: List[str], world: World) -> str:
+    """Register or lookup our shared memory prefix.
+
+    Args:
+        my_locals (List[str]): Local working dir of each stream, relative to /. We need to verify
+            that there is no overlap with any other currently running StreamingDataset.
+        world (World): Our place in the world.
+
+    Returns:
+        Tuple[str, CreateSharedMemory]: Shared memory prefix and object. The name is required to be
+            very short for Mac OSX.
+    """
+    # Local leader goes first, checking and registering.
+    if world.is_local_leader:
+        # Local leader walks the existing shm prefixes starting from zero, verifying that there is
+        # no local working directory overlap.
+        for prefix_int in range(10**6):
+            prefix = f'{prefix_int:06}'
+            name = f'{prefix}_locals'
+            try:
+                shm = CreateSharedMemory(name, False).shm
+            except:
+                break
+            size = np.frombuffer(shm.buf[:4], np.int32)[0]
+            data = bytes(shm.buf[4:size])
+            text = data.decode('utf-8')
+            their_locals = text.split('\0')
+            both = set(my_locals) & set(their_locals)
+            if both:
+                raise ValueError('Reused local working directory: {sorted(both)}')
+
+        # Local leader registers the next available shm prefix, recording its locals.
+        prefix = f'{prefix_int:06}'  # pyright: ignore
+        name = f'{prefix}_locals'
+        text = '\0'.join(my_locals)
+        data = text.encode('utf-8')
+        size = 4 + len(data)
+        shm = CreateSharedMemory(name, True, size).shm
+        shm.buf[:4] = np.int32(size).tobytes()
+        shm.buf[4:4 + len(data)] = data
+
+    # Distributed barrier over all ranks, possibly setting up dist to do so.
+    destroy_dist = False
+    if 1 < world.num_ranks:
+        if dist.is_available() and not dist.is_initialized():
+            backend = 'nccl' if torch.cuda.is_available() and dist.is_nccl_available() else 'gloo'
+            dist.init_process_group(backend=backend, rank=world.rank, world_size=world.num_ranks)
+            destroy_dist = True
+
+        dist.barrier()
+    # Non-local leaders go next, searching for match.
+    if not world.is_local_leader:
+        for prefix_int in range(10**6):
+            prefix = f'{prefix_int:06}'
+            name = f'{prefix}_locals'
+            try:
+                shm = CreateSharedMemory(name, False).shm
+            except:
+                raise RuntimeError('Internal error: shm prefix was not registered by local leader')
+            size = np.frombuffer(shm.buf[:4], np.int32)[0]
+            data = bytes(shm.buf[4:size])
+            text = data.decode('utf-8')
+            their_locals = text.split('\0')
+            if my_locals == their_locals:
+                break
+
+    # Distributed barrier, then tear down dist if we set it up.
+    if dist.is_available() and dist.is_initialized():
+        dist.barrier()
+    if destroy_dist:
+        dist.destroy_process_group()
+
+    return prefix, shm  # pyright: ignore
