@@ -322,8 +322,8 @@ def get_shm_prefix(my_locals: List[str], world: World) -> str:
             backend = 'nccl' if torch.cuda.is_available() and dist.is_nccl_available() else 'gloo'
             dist.init_process_group(backend=backend, rank=world.rank, world_size=world.num_ranks)
             destroy_dist = True
-
         dist.barrier()
+
     # Non-local leaders go next, searching for match.
     if not world.is_local_leader:
         for prefix_int in range(10**6):
