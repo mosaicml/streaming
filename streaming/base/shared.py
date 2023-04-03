@@ -13,7 +13,7 @@ import shutil
 from multiprocessing import resource_tracker  # pyright: ignore
 from multiprocessing.shared_memory import SharedMemory
 from time import sleep
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Optional, Set, Tuple
 
 import numpy as np
 import torch
@@ -274,6 +274,35 @@ class CreateSharedMemory:
             resource_tracker.unregister = original_rtracker_unreg
 
 
+def _pack_locals(dirnames: Set[str]) -> bytes:
+    """Pack local dirnames.
+
+    Args:
+        dirnames (Set[str]): Unpacked local dirnames.
+
+    Returns:
+        bytes: Packed local dirnames.
+    """
+    text = '\0'.join(sorted(dirnames))
+    data = text.encode('utf-8')
+    size = 4 + len(data)
+    return b''.join([np.int32(size).tobytes(), data])
+
+
+def _unpack_locals(data: bytes) -> Set[str]:
+    """Unpack local dirnames.
+
+    Args:
+        data (bytes): Packed local dirnames.
+
+    Returns:
+        Set[str]: Unpacked local dirnames.
+    """
+    size = np.frombuffer(data[:4], np.int32)[0]
+    text = data[4:size].decode('utf-8')
+    return set(text.split('\0'))
+
+
 def get_shm_prefix(my_locals: List[str], world: World) -> Tuple[str, SharedMemory]:
     """Register or lookup our shared memory prefix.
 
@@ -286,6 +315,13 @@ def get_shm_prefix(my_locals: List[str], world: World) -> Tuple[str, SharedMemor
         Tuple[str, CreateSharedMemory]: Shared memory prefix and object. The name is required to be
             very short for Mac OSX.
     """
+    # Check my locals for overlap.
+    my_locals_set = set()
+    for dirname in my_locals:
+        if dirname in my_locals_set:
+            raise ValueError(f'Reused local working directory: {dirname}')
+        my_locals_set.add(dirname)
+
     # Local leader goes first, checking and registering.
     if world.is_local_leader:
         # Local leader walks the existing shm prefixes starting from zero, verifying that there is
@@ -297,24 +333,18 @@ def get_shm_prefix(my_locals: List[str], world: World) -> Tuple[str, SharedMemor
                 shm = CreateSharedMemory(name, False).shm
             except:
                 break
-            size = np.frombuffer(shm.buf[:4], np.int32)[0]
-            data = bytes(shm.buf[4:size])
-            text = data.decode('utf-8')
-            their_locals = text.split('\0')
-            both = set(my_locals) & set(their_locals)
+            their_locals_set = _unpack_locals(bytes(shm.buf))
+            both = my_locals_set & their_locals_set
             if both:
-                raise ValueError(f'Reused local working directory: {sorted(my_locals)} vs ' +
-                                 f'{sorted(their_locals)}')
+                raise ValueError(f'Reused local working directory: {sorted(my_locals_set)} vs ' +
+                                 f'{sorted(their_locals_set)}')
 
         # Local leader registers the next available shm prefix, recording its locals.
         prefix = f'{prefix_int:06}'  # pyright: ignore
         name = f'{prefix}_locals'
-        text = '\0'.join(my_locals)
-        data = text.encode('utf-8')
-        size = 4 + len(data)
-        shm = CreateSharedMemory(name, True, size).shm
-        shm.buf[:4] = np.int32(size).tobytes()
-        shm.buf[4:4 + len(data)] = data
+        data = _pack_locals(my_locals_set)
+        shm = CreateSharedMemory(name, True, len(data)).shm
+        shm.buf[:len(data)] = data
 
     # Distributed barrier over all ranks, possibly setting up dist to do so.
     destroy_dist = False
@@ -334,11 +364,8 @@ def get_shm_prefix(my_locals: List[str], world: World) -> Tuple[str, SharedMemor
                 shm = CreateSharedMemory(name, False).shm
             except:
                 raise RuntimeError('Internal error: shm prefix was not registered by local leader')
-            size = np.frombuffer(shm.buf[:4], np.int32)[0]
-            data = bytes(shm.buf[4:size])
-            text = data.decode('utf-8')
-            their_locals = text.split('\0')
-            if my_locals == their_locals:
+            their_locals_set = _unpack_locals(bytes(shm.buf))
+            if my_locals_set == their_locals_set:
                 break
 
     # Distributed barrier, then tear down dist if we set it up.
