@@ -13,7 +13,7 @@ import shutil
 from multiprocessing import resource_tracker  # pyright: ignore
 from multiprocessing.shared_memory import SharedMemory
 from time import sleep
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -274,7 +274,7 @@ class CreateSharedMemory:
             resource_tracker.unregister = original_rtracker_unreg
 
 
-def get_shm_prefix(my_locals: List[str], world: World) -> str:
+def get_shm_prefix(my_locals: List[str], world: World) -> Tuple[str, SharedMemory]:
     """Register or lookup our shared memory prefix.
 
     Args:
