@@ -309,7 +309,7 @@ def get_shm_prefix(my_locals: List[str], world: World) -> Tuple[str, SharedMemor
     Args:
         my_locals (List[str]): Local working dir of each stream, relative to /. We need to verify
             that there is no overlap with any other currently running StreamingDataset.
-        world (World): Our place in the world.
+        world (World): Information about nodes, ranks, and workers.
 
     Returns:
         Tuple[str, CreateSharedMemory]: Shared memory prefix and object. The name is required to be
@@ -319,7 +319,7 @@ def get_shm_prefix(my_locals: List[str], world: World) -> Tuple[str, SharedMemor
     my_locals_set = set()
     for dirname in my_locals:
         if dirname in my_locals_set:
-            raise ValueError(f'Reused local working directory: {dirname}')
+            raise ValueError(f'Reused local directory: {dirname}. Provide a different one.')
         my_locals_set.add(dirname)
 
     # Local leader goes first, checking and registering.
@@ -337,8 +337,8 @@ def get_shm_prefix(my_locals: List[str], world: World) -> Tuple[str, SharedMemor
             their_locals_set = _unpack_locals(bytes(shm.buf))
             both = my_locals_set & their_locals_set
             if both:
-                raise ValueError(f'Reused local working directory: {sorted(my_locals_set)} vs ' +
-                                 f'{sorted(their_locals_set)}')
+                raise ValueError(f'Reused local directory: {sorted(my_locals_set)} vs ' +
+                                 f'{sorted(their_locals_set)}. Provide a different one.')
 
         # Local leader registers the first available shm prefix, recording its locals.
         prefix = f'{prefix_int:06}'  # pyright: ignore
