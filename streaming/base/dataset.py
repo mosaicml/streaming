@@ -345,10 +345,11 @@ class StreamingDataset(IterableDataset):
 
     def __del__(self) -> None:
         """Destructor, which releases its local working directories."""
-        try:
-            self._locals_shm.buf[:4] = np.int32(0).tobytes()
-        except:
-            pass
+        if hasattr(self, '_locals_shm'):
+            try:
+                self._locals_shm.buf[:4] = np.int32(0).tobytes()
+            except:
+                pass
 
     def _get_next_epoch(self) -> int:
         """Get the next epoch.
