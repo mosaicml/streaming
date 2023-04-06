@@ -302,8 +302,6 @@ class StreamingOutsideDTWebVid(StreamingDataset):
         Args:
             state (_PartitionState): The partition state.
         """
-        shard_states_lock, shard_states = self._get_shard_states()
-
         # Download loop.
         while True:
             # If we've started a new epoch early (__iter__ was called again), exit this thread
@@ -331,7 +329,7 @@ class StreamingOutsideDTWebVid(StreamingDataset):
 
             # Download and decompress the shard for this sample, if not already done.
             shard_id, _ = self.index.find_sample(sample_id)
-            self._download_or_skip_shard(shard_states_lock, shard_states, shard_id, False)
+            self._download_or_skip_shard(shard_id, False)
 
             # Predownload the sample's extra data.
             obj = super().__getitem__(sample_id)

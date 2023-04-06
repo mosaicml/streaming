@@ -312,29 +312,28 @@ class StreamingDataset(IterableDataset):
         worker_barrier_filelock_path = os.path.join(self._filelock_root, 'barrier_filelock')
         worker_barrier_shm_path = f'{self._shm_prefix}_barrier'
         self._worker_barrier = SharedBarrier(worker_barrier_filelock_path, worker_barrier_shm_path)
-
-        # Remove the lock that makes it unpickleable
-        del self._worker_barrier.lock
+        del self._worker_barrier.lock  # Remove the lock that makes it unpickleable
 
         # Set up the epoch counter.
         #
         # Note: we do not assume that the end of __iter__() will ever be reached, so we need to
         # increment the epoch counter at the start of __iter__() instead of at the end, so we need
         # to track what the next epoch is, not the current epoch.
-        next_epoch_shm = CreateSharedMemory(name=f'{self._shm_prefix}_next_epoch',
-                                            size=np.int64().nbytes)
-        self._next_epoch_shm = next_epoch_shm.shm
+        self._next_epoch_shm = CreateSharedMemory(name=f'{self._shm_prefix}_next_epoch',
+                                                  size=np.int64().nbytes).shm
         self._next_epoch_arr = np.ndarray(1, buffer=self._next_epoch_shm.buf, dtype=np.int64)
         self._next_epoch_arr[0] = 0
 
-        # Get the filelock filename that protects shard_states shared memory array.
-        self.shard_states_filename = os.path.join(self._filelock_root, '_shard_states_filelock')
-
-        # Create or attach shard_states array (tells if each shard is unknown, downloading, or
+        # Create or attach shard states array (tells if each shard is unknown, downloading, or
         # downloaded).
-        shard_states_shm = CreateSharedMemory(name=f'{self._shm_prefix}_shard_states',
-                                              size=self.num_shards * np.uint8(0).nbytes)
-        self._shard_states = shard_states_shm.shm
+        self._shard_states_filelock_path = os.path.join(self._filelock_root,
+                                                        '_shard_states_filelock')
+        self._shard_states_lock: FileLock
+        self._shard_states_shm = CreateSharedMemory(name=f'{self._shm_prefix}_shard_states',
+                                                    size=self.num_shards * np.uint8(0).nbytes).shm
+        self._shard_states = np.ndarray(self.num_shards,
+                                        buffer=self._shard_states_shm.buf,
+                                        dtype=np.uint8)
 
         # Placeholder for a shared memory object where load_state_dict() saves its data to be
         # picked up by __iter__().
@@ -619,59 +618,46 @@ class StreamingDataset(IterableDataset):
 
         return worker_sample_ids
 
-    def _download_or_skip_shard(self, lock: FileLock, shard_states: NDArray[np.uint8],
-                                shard_id: int, wait_if_downloading: bool) -> None:
+    def _download_or_skip_shard(self, shard_id: int, wait_if_downloading: bool) -> None:
         """Download a shard, waiting or skipping if in progress by another worker.
 
         Args:
-            lock (FileLock): The lock protecting ``shard_states``.
-            shard_states (NDArray[np.uint8]): The download status of each shard, as an array in
-                shared memory.
             shard_id (int): Shard ID.
             wait_if_downloading (bool): Whether to wait or skip if the shard is currently being
                 downloaded by someone else.
         """
         # First, the fast path: check the shared memory shard state without taking the lock. The
         # shard states only ever go up, so if we're at the downloaded state, it's downloaded.
-        state = shard_states[shard_id]
+        state = self._shard_states[shard_id]
         if state == _ShardState.DOWNLOADED:
             return
 
+        # FileLocks contain threading locks, which are not pickleable, so must be created lazily.
+        if not hasattr(self, '_shard_states_lock'):
+            self._shard_states_lock = FileLock(self._shard_states_filelock_path)
+
         # Shard is not necessarily downloaded, so check and update state with the lock.
-        lock.acquire()
-        state = shard_states[shard_id]
+        self._shard_states_lock.acquire()
+        state = self._shard_states[shard_id]
         if state == _ShardState.UNKNOWN:
-            shard_states[shard_id] = _ShardState.DOWNLOADING
-            lock.release()
+            self._shard_states[shard_id] = _ShardState.DOWNLOADING
+            self._shard_states_lock.release()
             stream_id = self.stream_per_shard[shard_id]
             stream = self.streams[stream_id]
             shard = self.shards[shard_id]
             stream.download_shard(shard)
             # A shard state that is DOWNLOADING will never be written to elsewhere, so we don't
             # need to take the lock here.
-            shard_states[shard_id] = _ShardState.DOWNLOADED
+            self._shard_states[shard_id] = _ShardState.DOWNLOADED
         elif state == _ShardState.DOWNLOADING:
-            lock.release()
+            self._shard_states_lock.release()
             if wait_if_downloading:
-                while shard_states[shard_id] != _ShardState.DOWNLOADED:
+                while self._shard_states[shard_id] != _ShardState.DOWNLOADED:
                     sleep(TICK)
         elif state == _ShardState.DOWNLOADED:
-            lock.release()
+            self._shard_states_lock.release()
         else:
             raise RuntimeError('Unknown shard state')
-
-    def _get_shard_states(self) -> Tuple[FileLock, NDArray[np.uint8]]:
-        """Get the shared shard states array and its protecting lock.
-
-        Returns:
-            Tuple[FileLock, NDArray[np.uint8]]: Lock, and array.
-        """
-        # Get the filelock that protects shard_states shared memory array.
-        lock = FileLock(self.shard_states_filename)
-
-        shard_states = np.ndarray(self.num_shards, buffer=self._shard_states.buf, dtype=np.uint8)
-
-        return lock, shard_states
 
     def __getitem__(self, sample_id: int) -> Any:
         """Get sample by global index, blocking to download its shard if not present.
@@ -690,11 +676,8 @@ class StreamingDataset(IterableDataset):
             # Attempt to directly access the sample for performance reasons.
             sample = shard[shard_sample_id]
         except:
-            # Get handles to the shared shard states array and its protective file lock.
-            lock, shard_states = self._get_shard_states()
-
             # Download the shard if not already being downloaded. Block if download in progress.
-            self._download_or_skip_shard(lock, shard_states, shard_id, True)
+            self._download_or_skip_shard(shard_id, True)
 
             # Finally, access the sample.
             sample = shard[shard_sample_id]
@@ -714,8 +697,6 @@ class StreamingDataset(IterableDataset):
         Args:
             state (_PartitionState): The partition state.
         """
-        shard_states_lock, shard_states = self._get_shard_states()
-
         # Download loop.
         while True:
             # If we've started a new epoch early (__iter__ was called again), exit this thread
@@ -743,7 +724,7 @@ class StreamingDataset(IterableDataset):
 
             # Download and decompress the shard for this sample, if not already done.
             shard_id, _ = self.index.find_sample(sample_id)
-            self._download_or_skip_shard(shard_states_lock, shard_states, shard_id, False)
+            self._download_or_skip_shard(shard_id, False)
             state.download_index += 1
 
     def _ready_thread(self, state: _PartitionState) -> None:
@@ -758,8 +739,6 @@ class StreamingDataset(IterableDataset):
         Args:
             state (_PartitionState): The partition state.
         """
-        _, shard_states = self._get_shard_states()
-
         # Download loop.
         while True:
             # If we've started a new epoch early (__iter__ was called again), exit this thread
@@ -787,7 +766,7 @@ class StreamingDataset(IterableDataset):
 
             # Download and decompress the shard for this sample, if not already done.
             shard_id, _ = self.index.find_sample(sample_id)
-            while shard_states[shard_id] != _ShardState.DOWNLOADED:
+            while self._shard_states[shard_id] != _ShardState.DOWNLOADED:
                 sleep(TICK)
             state.ready_index += 1
 
