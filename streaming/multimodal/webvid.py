@@ -8,7 +8,7 @@ from time import sleep
 from typing import Any, Optional
 
 from streaming.base import StreamingDataset
-from streaming.base.dataset import TICK, _PartitionState
+from streaming.base.dataset import TICK, _IterState
 from streaming.base.storage import download_file
 
 
@@ -290,7 +290,7 @@ class StreamingOutsideDTWebVid(StreamingDataset):
 
         return obj
 
-    def _download_thread(self, state: _PartitionState) -> None:
+    def _download_thread(self, state: _IterState) -> None:
         """Download the relevant shards in the background while we are being iterated.
 
         This thread is started at the beginning of each epoch, and exits either when out of samples
@@ -300,7 +300,7 @@ class StreamingOutsideDTWebVid(StreamingDataset):
         Each worker has its own download thread, which iterates ahead of the main thread.
 
         Args:
-            state (_PartitionState): The partition state.
+            state (_IterState): The partition state.
         """
         # Download loop.
         while True:

@@ -36,7 +36,7 @@ class _ShardState(IntEnum):
     DOWNLOADED = 2
 
 
-class _PartitionState:
+class _IterState:
     """The download status of a partition of samples.
 
     0 <= yield <= ready <= download <= total
@@ -339,8 +339,8 @@ class StreamingDataset(IterableDataset):
         # picked up by __iter__().
         self._resume_shm = None
 
-        # Placeholder for a _PartitionState which tracks state during __iter__().
-        self._partition_state = None
+        # Placeholder for a _IterState which tracks state during __iter__().
+        self._iter_state = None
 
     def __del__(self) -> None:
         """Destructor, which releases its local working directories."""
@@ -685,7 +685,7 @@ class StreamingDataset(IterableDataset):
         # Return the retrieved sample.
         return sample
 
-    def _download_thread(self, state: _PartitionState) -> None:
+    def _download_thread(self, state: _IterState) -> None:
         """Download the relevant shards in the background while we are being iterated.
 
         This thread is started at the beginning of each epoch, and exits either when out of samples
@@ -695,7 +695,7 @@ class StreamingDataset(IterableDataset):
         Each worker has its own download thread, which iterates ahead of the main thread.
 
         Args:
-            state (_PartitionState): The partition state.
+            state (_IterState): The partition state.
         """
         # Download loop.
         while True:
@@ -727,7 +727,7 @@ class StreamingDataset(IterableDataset):
             self._download_or_skip_shard(shard_id, False)
             state.download_index += 1
 
-    def _ready_thread(self, state: _PartitionState) -> None:
+    def _ready_thread(self, state: _IterState) -> None:
         """Download the relevant shards in the background while we are being iterated.
 
         This thread is started at the beginning of each epoch, and exits either when out of samples
@@ -737,7 +737,7 @@ class StreamingDataset(IterableDataset):
         Each worker has its own ready thread, which iterates ahead of the main thread.
 
         Args:
-            state (_PartitionState): The partition state.
+            state (_IterState): The partition state.
         """
         # Download loop.
         while True:
@@ -779,10 +779,10 @@ class StreamingDataset(IterableDataset):
         Returns:
             Iterator[int]: Each sample ID, having been downloaded.
         """
-        self._partition_state = _PartitionState(sample_ids)
-        Thread(target=self._download_thread, args=(self._partition_state,), daemon=True).start()
-        Thread(target=self._ready_thread, args=(self._partition_state,), daemon=True).start()
-        yield from self._partition_state
+        self._iter_state = _IterState(sample_ids)
+        Thread(target=self._download_thread, args=(self._iter_state,), daemon=True).start()
+        Thread(target=self._ready_thread, args=(self._iter_state,), daemon=True).start()
+        yield from self._iter_state
 
     def __iter__(self) -> Iterator[Dict[str, Any]]:
         """Iterate over all the samples in our partition.
@@ -796,8 +796,8 @@ class StreamingDataset(IterableDataset):
             self._worker_barrier.lock = FileLock(self._worker_barrier.filelock_path)
 
         # Exit the thread that is downloading the shards for last epoch, if it exists.
-        if self._partition_state:
-            self._partition_state.stop()
+        if self._iter_state:
+            self._iter_state.stop()
 
         # Discover where we left off, if there is a checkpoint, or start at the next epoch.
         # Also pre-increment the epoch counter.
