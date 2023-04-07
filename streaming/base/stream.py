@@ -170,6 +170,19 @@ class Stream:
         if self._keep_raw is None:
             self.keep_raw = default.keep_raw
 
+    def evict_shard(self, shard: Reader) -> None:
+        """Evict the given shard.
+
+        Args:
+            shard (Reader): Which shard.
+        """
+        for raw_info, zip_info in shard.file_pairs:
+            for info in [raw_info, zip_info]:
+                if info:
+                    path = os.path.join(self.local, self.split, info.basename)
+                    if os.path.exists(path):
+                        os.remove(path)
+
     def _download_file(self, basename: str) -> str:
         """Safely download a file from remote to local cache.
 

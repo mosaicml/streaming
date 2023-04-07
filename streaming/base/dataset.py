@@ -28,12 +28,14 @@ class _ShardState(IntEnum):
     """The download status of a shard.
 
     Restrictions:
-    - The initial state of UNKNOWN must be zero.
-    - The state will only ever change in the upward direction.
+    - The initial state of INVALID must be zero.
+    - State transitions: MISSING -> DOWNLOADING -> PRESENT -> EVICTING -> MISSING.
     """
-    UNKNOWN = 0
-    DOWNLOADING = 1
-    DOWNLOADED = 2
+    INVALID = 0
+    MISSING = 1
+    DOWNLOADING = 2
+    PRESENT = 3
+    EVICTING = 4
 
 
 class _IterState:
@@ -669,46 +671,93 @@ class StreamingDataset(IterableDataset):
 
         return worker_sample_ids
 
-    def _download_or_skip_shard(self, shard_id: int, wait_if_downloading: bool) -> None:
-        """Download a shard, waiting or skipping if in progress by another worker.
+    def _evict_shard(self, shard_id: int, blocking: bool = True) -> None:
+        """Evict a shard, waiting if in progress by another worker.
 
         Args:
             shard_id (int): Shard ID.
-            wait_if_downloading (bool): Whether to wait or skip if the shard is currently being
+            blocking (bool): Whether to wait or fire-and-forget if the shard is currently being
                 downloaded by someone else.
         """
-        # First, the fast path: check the shared memory shard state without taking the lock. The
-        # shard states only ever go up, so if we're at the downloaded state, it's downloaded.
-        state = self._shard_states[shard_id]
-        if state == _ShardState.DOWNLOADED:
-            return
-
         # FileLocks contain threading locks, which are not pickleable, so must be created lazily.
         if not hasattr(self, '_shard_states_lock'):
             self._shard_states_lock = FileLock(self._shard_states_filelock_path)
 
-        # Shard is not necessarily downloaded, so check and update state with the lock.
+        def do_evict_shard(shard_id: int) -> None:
+            self._shard_states[shard_id] = _ShardState.EVICTING
+            self._shard_states_lock.release()
+            stream_id = self.stream_per_shard[shard_id]
+            stream = self.streams[stream_id]
+            shard = self.shards[shard_id]
+            stream.evict_shard(shard)
+            self._shard_states_lock.acquire()
+            self._shard_states[shard_id] = _ShardState.MISSING
+            self._shard_states_lock.release()
+
         self._shard_states_lock.acquire()
         state = self._shard_states[shard_id]
-        if state == _ShardState.UNKNOWN:
+        if state == _ShardState.MISSING:
+            self._shard_states_lock.release()
+        elif state == _ShardState.DOWNLOADING:
+            self._shard_states_lock.release()
+            while self._shard_states[shard_id] == _ShardState.DOWNLOADING:
+                sleep(TICK)
+            self._shard_states_lock.acquire()
+            do_evict_shard(shard_id)
+        elif state == _ShardState.PRESENT:
+            do_evict_shard(shard_id)
+        elif state == _ShardState.EVICTING:
+            self._shard_states_lock.release()
+            if blocking:
+                while self._shard_states[shard_id] == _ShardState.EVICTING:
+                    sleep(TICK)
+        else:
+            self._shard_states_lock.release()
+            raise RuntimeError(f'Unknown shard state: {state}')
+
+    def _download_shard(self, shard_id: int, blocking: bool = True) -> None:
+        """Download a shard, waiting or skipping if in progress by another worker.
+
+        Args:
+            shard_id (int): Shard ID.
+            blocking (bool): Whether to wait or fire-and-forget if the shard is currently being
+                downloaded by someone else.
+        """
+        # FileLocks contain threading locks, which are not pickleable, so must be created lazily.
+        if not hasattr(self, '_shard_states_lock'):
+            self._shard_states_lock = FileLock(self._shard_states_filelock_path)
+
+        def do_download_shard(shard_id: int) -> None:
             self._shard_states[shard_id] = _ShardState.DOWNLOADING
             self._shard_states_lock.release()
             stream_id = self.stream_per_shard[shard_id]
             stream = self.streams[stream_id]
             shard = self.shards[shard_id]
             stream.download_shard(shard)
-            # A shard state that is DOWNLOADING will never be written to elsewhere, so we don't
-            # need to take the lock here.
-            self._shard_states[shard_id] = _ShardState.DOWNLOADED
+            self._shard_states_lock.acquire()
+            self._shard_states[shard_id] = _ShardState.PRESENT
+            self._shard_states_lock.release()
+
+        self._shard_states_lock.acquire()
+        state = self._shard_states[shard_id]
+        if state == _ShardState.MISSING:
+            do_download_shard(shard_id)
         elif state == _ShardState.DOWNLOADING:
             self._shard_states_lock.release()
-            if wait_if_downloading:
-                while self._shard_states[shard_id] != _ShardState.DOWNLOADED:
+            if blocking:
+                while self._shard_states[shard_id] == _ShardState.DOWNLOADING:
                     sleep(TICK)
-        elif state == _ShardState.DOWNLOADED:
+        elif state == _ShardState.PRESENT:
             self._shard_states_lock.release()
+        elif state == _ShardState.EVICTING:
+            self._shard_states_lock.release()
+            while self._shard_states[shard_id] == _ShardState.EVICTING:
+                sleep(TICK)
+            self._shard_states_lock.acquire()
+            do_download_shard(shard_id)
         else:
-            raise RuntimeError('Unknown shard state')
+            self._shard_states_lock.release()
+            raise RuntimeError(f'Unknown shard state: {state}')
 
     def __getitem__(self, sample_id: int) -> Any:
         """Get sample by global index, blocking to download its shard if not present.
@@ -719,21 +768,13 @@ class StreamingDataset(IterableDataset):
         Returns:
             Dict[str, Any]: Mapping of column name to column data.
         """
-        # Locate the shard and sample offset within that shard where the sample lives.
         shard_id, shard_sample_id = self.index.find_sample(sample_id)
         shard = self.shards[shard_id]
-
         try:
-            # Attempt to directly access the sample for performance reasons.
             sample = shard[shard_sample_id]
         except:
-            # Download the shard if not already being downloaded. Block if download in progress.
-            self._download_or_skip_shard(shard_id, True)
-
-            # Finally, access the sample.
+            self._download_shard(shard_id)
             sample = shard[shard_sample_id]
-
-        # Return the retrieved sample.
         return sample
 
     def _download_thread(self, state: _IterState) -> None:
@@ -775,7 +816,7 @@ class StreamingDataset(IterableDataset):
 
             # Download and decompress the shard for this sample, if not already done.
             shard_id, _ = self.index.find_sample(sample_id)
-            self._download_or_skip_shard(shard_id, False)
+            self._download_shard(shard_id, False)
             state.download_index += 1
 
     def _ready_thread(self, state: _IterState) -> None:
@@ -790,7 +831,7 @@ class StreamingDataset(IterableDataset):
         Args:
             state (_IterState): The partition state.
         """
-        # Download loop.
+        # Ready loop.
         while True:
             # If we've started a new epoch early (__iter__ was called again), exit this thread
             # because there can only be one epoch at once.
@@ -815,9 +856,9 @@ class StreamingDataset(IterableDataset):
                 state.ready_index += 1
                 continue
 
-            # Download and decompress the shard for this sample, if not already done.
+            # Wait for this shard to become downloaded and decompressed, if not already.
             shard_id, _ = self.index.find_sample(sample_id)
-            while self._shard_states[shard_id] != _ShardState.DOWNLOADED:
+            while self._shard_states[shard_id] != _ShardState.PRESENT:
                 sleep(TICK)
             state.ready_index += 1
 
