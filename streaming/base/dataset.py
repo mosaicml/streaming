@@ -314,7 +314,6 @@ class StreamingDataset(IterableDataset):
         worker_barrier_filelock_path = os.path.join(self._filelock_root, 'barrier_filelock')
         worker_barrier_shm_path = f'{self._shm_prefix}_barrier'
         self._worker_barrier = SharedBarrier(worker_barrier_filelock_path, worker_barrier_shm_path)
-        del self._worker_barrier.lock  # Remove the lock that makes it unpickleable
 
         # Set up the epoch counter.
         #
@@ -336,13 +335,47 @@ class StreamingDataset(IterableDataset):
         self._shard_states = np.ndarray(self.num_shards,
                                         buffer=self._shard_states_shm.buf,
                                         dtype=np.uint8)
+        if world.is_local_leader:
+            self._init_shard_states(self._shard_states)
+        self._worker_barrier(world.workers_per_node)
 
         # Placeholder for a shared memory object where load_state_dict() saves its data to be
         # picked up by __iter__().
         self._resume_shm = None
 
-        # Placeholder for a _IterState which tracks state during __iter__().
+        # Placeholder for an _IterState which tracks state during __iter__().
         self._iter_state = None
+
+        del self._worker_barrier.lock  # Remove the lock that makes it unpickleable.
+
+    def _init_shard_states(self, shard_states: NDArray[np.int64]) -> None:
+        """Initialize a shard_states array by checking the filesystem cache.
+
+        Args:
+            shard_states (NDArray[np.int64]): Shard states array.
+        """
+        filenames = set()
+        for stream in self.streams:
+            root = os.path.join(stream.local, stream.split)
+            for dirname, subdirs, subfiles in os.walk(root):
+                for basename in subfiles:
+                    filename = os.path.join(dirname, basename)
+                    filenames.add(filename)
+
+        for shard_id, shard in enumerate(self.shards):
+            stream_id = self.stream_per_shard[shard_id]
+            stream = self.streams[stream_id]
+            have = False
+            for raw_info, zip_info in shard.file_pairs:
+                for info in [raw_info, zip_info]:
+                    if info:
+                        filename = os.path.join(stream.local, stream.split, info.basename)
+                        if filename in filenames:
+                            have = True
+                            break
+                if have:
+                    break
+            shard_states[shard_id] = _ShardState.PRESENT if have else _ShardState.MISSING
 
     def __del__(self) -> None:
         """Destructor, which releases its local working directories."""

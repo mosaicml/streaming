@@ -164,6 +164,8 @@ class SharedBarrier:
         # Note that we exited.
         with self.lock:
             self.num_exit += 1
+            if self.num_exit == num_procs:
+                self.num_exit = -1
 
 
 class CreateSharedMemory:
