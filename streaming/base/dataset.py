@@ -357,7 +357,7 @@ class StreamingDataset(IterableDataset):
         filenames = set()
         for stream in self.streams:
             root = os.path.join(stream.local, stream.split)
-            for dirname, subdirs, subfiles in os.walk(root):
+            for dirname, _, subfiles in os.walk(root):
                 for basename in subfiles:
                     filename = os.path.join(dirname, basename)
                     filenames.add(filename)
