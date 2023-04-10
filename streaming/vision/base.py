@@ -81,8 +81,9 @@ class StreamingVisionDataset(StreamingDataset, VisionDataset):
             partitioned over the workers. Defaults to ``None``.
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
             ``False``.
-        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1s``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1b``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
+        shuffle_block_size (int): Unit of shuffle. Defaults to ``1 << 18``.
         transforms (callable, optional): A function/transforms that takes in an image and a label
             and returns the transformed versions of both. Defaults to ``None``.
         transform (callable, optional): A function/transform that takes in an image and returns a
@@ -107,8 +108,9 @@ class StreamingVisionDataset(StreamingDataset, VisionDataset):
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
                  shuffle: bool = False,
-                 shuffle_algo: str = 'py1s',
+                 shuffle_algo: str = 'py1b',
                  shuffle_seed: int = 9176,
+                 shuffle_block_size: int = 1 << 18,
                  transforms: Optional[Callable] = None,
                  transform: Optional[Callable] = None,
                  target_transform: Optional[Callable] = None) -> None:
@@ -127,7 +129,8 @@ class StreamingVisionDataset(StreamingDataset, VisionDataset):
                                   batch_size=batch_size,
                                   shuffle=shuffle,
                                   shuffle_algo=shuffle_algo,
-                                  shuffle_seed=shuffle_seed)
+                                  shuffle_seed=shuffle_seed,
+                                  shuffle_block_size=shuffle_block_size)
 
         has_transforms = transforms is not None
         has_separate_transform = transform is not None or target_transform is not None

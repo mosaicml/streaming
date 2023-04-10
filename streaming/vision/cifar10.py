@@ -47,8 +47,9 @@ class StreamingCIFAR10(StreamingVisionDataset):
             partitioned over the workers. Defaults to ``None``.
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
             ``False``.
-        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1s``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1b``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
+        shuffle_block_size (int): Unit of shuffle. Defaults to ``1 << 18``.
         transform (callable, optional): A function/transform that takes in an image and returns a
             transformed version. Defaults to ``None``.
         target_transform (callable, optional): A function/transform that takes in a target and

@@ -16,7 +16,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 
-def _divide_spans(spans: List[Tuple[int, int]], num_samples: int, num_parts: int) -> \
+def divide_spans(spans: List[Tuple[int, int]], num_samples: int, num_parts: int) -> \
         Tuple[List[Tuple[int, int]], List[Tuple[int, int]]]:
     """Divide the spans into discrete, equal sized partitions.
 
@@ -66,8 +66,11 @@ def _divide_spans(spans: List[Tuple[int, int]], num_samples: int, num_parts: int
     return out_spans, super_spans
 
 
-def get_shuffle_py1s(shard_sizes: NDArray[np.int64], num_canonical_nodes: int, seed: int,
-                     epoch: int) -> NDArray[np.int64]:
+def get_shuffle_py1s(shard_sizes: NDArray[np.int64],
+                     num_canonical_nodes: int,
+                     seed: int,
+                     epoch: int,
+                     block_size: int = 1 << 18) -> NDArray[np.int64]:
     """Get the shuffled global ordering of samples for an epoch.
 
     The assignment of shards to nodes is fixed across epochs, but each grouping of shards is
@@ -79,6 +82,8 @@ def get_shuffle_py1s(shard_sizes: NDArray[np.int64], num_canonical_nodes: int, s
         seed (int): Base random seed, which is held constant over an entire training run.
         epoch (int): Current epoch, which is added to the seed to get a different deterministic
             shuffle each epoch.
+        block_size (int): Unit of shuffle (ignored, because we shuffle on the basis of shards).
+            Defaults to ``1 << 18``.
 
     Returns:
         NDArray[np.int64]: 1:1 mapping of sample ID to shuffled sample ID.
@@ -96,7 +101,7 @@ def get_shuffle_py1s(shard_sizes: NDArray[np.int64], num_canonical_nodes: int, s
     run_rng.shuffle(spans)
 
     # Break the shard spans at canonical node boundaries.
-    spans, super_spans = _divide_spans(spans, num_samples, num_canonical_nodes)
+    spans, super_spans = divide_spans(spans, num_samples, num_canonical_nodes)
 
     # Shuffle the span ordering within each canonical node uniquely to this epoch.
     epoch_rng = np.random.default_rng(seed + epoch)

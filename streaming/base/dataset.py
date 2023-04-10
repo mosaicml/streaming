@@ -121,6 +121,7 @@ class StreamingDataset(IterableDataset):
               * ``shuffle``
               * ``shuffle_algo``
               * ``shuffle_seed``
+              * ``shuffle_block_size``
 
     Args:
         streams (Sequence[Stream], optional): One or more Streams to stream/cache samples from,
@@ -157,8 +158,9 @@ class StreamingDataset(IterableDataset):
             partitioned over the workers. Defaults to ``None``.
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
             ``False``.
-        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1s``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1b``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
+        shuffle_block_size (int): Unit of shuffle. Defaults to ``1 << 18``.
     """
 
     def __init__(self,
@@ -178,8 +180,9 @@ class StreamingDataset(IterableDataset):
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
                  shuffle: bool = False,
-                 shuffle_algo: str = 'py1s',
-                 shuffle_seed: int = 9176) -> None:
+                 shuffle_algo: str = 'py1b',
+                 shuffle_seed: int = 9176,
+                 shuffle_block_size: int = 1 << 18) -> None:
         # Global arguments (which do not live in Streams).
         self.predownload = predownload
         self.partition_algo = partition_algo
@@ -188,6 +191,7 @@ class StreamingDataset(IterableDataset):
         self.shuffle = shuffle
         self.shuffle_algo = shuffle_algo
         self.shuffle_seed = shuffle_seed
+        self.shuffle_block_size = shuffle_block_size
 
         # Check streams vs remote/local.
         if bool(streams) == (bool(remote) or bool(local)):
@@ -524,7 +528,7 @@ class StreamingDataset(IterableDataset):
         # If we need to shuffle, shuffle in a node-aware and *underlying* shard-aware way.
         if self.shuffle:
             shuffle = get_shuffle(self.shuffle_algo, pick_per_shard, self.num_canonical_nodes,
-                                  self.shuffle_seed, epoch)
+                                  self.shuffle_seed, epoch, self.shuffle_block_size)
             big_ids = np.where(big_ids != -1, shuffle[big_ids], -1)
 
         # Now that we have partitioning and shuffled with hallucinated "big" sample IDs, we don't
