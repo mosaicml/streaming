@@ -13,6 +13,7 @@ import numpy as np
 from pyarrow import parquet as pq
 
 from streaming import MDSWriter
+from streaming.base.storage import CloudUploader
 
 
 def parse_args() -> Namespace:
@@ -181,11 +182,11 @@ def upload(local: str, remote: str) -> None:
         local (str): Path on local filesystem.
         remote (str): Path on remote filesystem.
     """
-    local = local.replace(' ', '\\ ')
-    remote = remote.replace(' ', '\\ ')
-    cmd = f'aws s3 cp {local} {remote}'
-    if os.system(cmd):
-        raise RuntimeError(f'Download failed: {cmd}.')
+    local_dir = os.path.dirname(local)
+    remote_dir = os.path.dirname(remote)
+    filename = os.path.basename(local)
+    cl_uploader = CloudUploader(out=(local_dir, remote_dir))
+    cl_uploader.upload_file(filename)
 
 
 def convert_and_upload_shards(args: Namespace) -> bool:
@@ -220,6 +221,7 @@ def convert_and_upload_shards(args: Namespace) -> bool:
             print(f'Shard {idx:05}: converting...')
             convert(parquet_filename, mds_dirname, hashes)
         print(f'Shard {idx:05}: uploading...')
+        os.rename(mds_shard_filename, os.path.join(mds_dirname, f'shard.{idx:05}.mds'))
         upload(mds_shard_filename, remote_shard_filename)
         with open(done_filename, 'w') as out:
             out.write('')

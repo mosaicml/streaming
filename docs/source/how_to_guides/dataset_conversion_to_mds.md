@@ -15,3 +15,13 @@ We've already created conversion scripts that can be used to convert popular pub
 ```{include} ../../../streaming/vision/convert/README.md
 :start-line: 8
 ```
+
+## Multimodal Datasets Conversion Examples
+### [LAION-400M](https://laion.ai/blog/laion-400-open-dataset/)
+```{include} ../../../streaming/multimodal/convert/laion/laion400m/README.md
+:start-line: 8
+```
+### [WebVid](https://m-bain.github.io/webvid-dataset/)
+```{include} ../../../streaming/multimodal/convert/webvid/README.md
+:start-line: 12
+```
