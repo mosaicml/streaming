@@ -221,7 +221,9 @@ def convert_and_upload_shards(args: Namespace) -> bool:
             print(f'Shard {idx:05}: converting...')
             convert(parquet_filename, mds_dirname, hashes)
         print(f'Shard {idx:05}: uploading...')
-        os.rename(mds_shard_filename, os.path.join(mds_dirname, f'shard.{idx:05}.mds'))
+        rename_mds_shard_filename = os.path.join(mds_dirname, f'shard.{idx:05}.mds')
+        os.rename(mds_shard_filename, rename_mds_shard_filename)
+        mds_shard_filename = rename_mds_shard_filename
         upload(mds_shard_filename, remote_shard_filename)
         with open(done_filename, 'w') as out:
             out.write('')
