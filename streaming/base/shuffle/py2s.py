@@ -104,8 +104,11 @@ def _partition(shards: List[_Shard], num_parts: int) -> List[List[_Shard]]:
     return lists
 
 
-def get_shuffle_py2s(shard_sizes: NDArray[np.int64], num_canonical_nodes: int, seed: int,
-                     epoch: int) -> NDArray[np.int64]:
+def get_shuffle_py2s(shard_sizes: NDArray[np.int64],
+                     num_canonical_nodes: int,
+                     seed: int,
+                     epoch: int,
+                     block_size: int = 1 << 18) -> NDArray[np.int64]:
     """Get the shuffled global ordering of samples for an epoch.
 
     The assignment of shards to nodes is fixed across epochs, but each grouping of shards is
@@ -117,6 +120,8 @@ def get_shuffle_py2s(shard_sizes: NDArray[np.int64], num_canonical_nodes: int, s
         seed (int): Base random seed, which is held constant over an entire training run.
         epoch (int): Current epoch, which is added to the seed to get a different deterministic
             shuffle each epoch.
+        block_size (int): Unit of shuffle (ignored, because we shuffle on the basis of shards).
+            Defaults to ``1 << 18``.
 
     Returns:
         NDArray[np.int64]: 1:1 mapping of sample ID to shuffled sample ID.

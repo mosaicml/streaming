@@ -47,8 +47,9 @@ class StreamingEnWiki(StreamingDataset):
             partitioned over the workers. Defaults to ``None``.
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
             ``False``.
-        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1s``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1b``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
+        shuffle_block_size (int): Unit of shuffle. Defaults to ``1 << 18``.
     """
 
     def __init__(self,
@@ -67,22 +68,26 @@ class StreamingEnWiki(StreamingDataset):
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
                  shuffle: bool = False,
-                 shuffle_algo: str = 'py1s',
-                 shuffle_seed: int = 9176) -> None:
-        super().__init__(local=local,
-                         remote=remote,
+                 shuffle_algo: str = 'py1b',
+                 shuffle_seed: int = 9176,
+                 shuffle_block_size: int = 1 << 18) -> None:
+        super().__init__(remote=remote,
+                         local=local,
                          split=split,
-                         shuffle=shuffle,
-                         predownload=predownload,
-                         keep_zip=keep_zip,
                          download_retry=download_retry,
                          download_timeout=download_timeout,
                          validate_hash=validate_hash,
-                         shuffle_seed=shuffle_seed,
+                         keep_zip=keep_zip,
+                         keep_raw=keep_raw,
+                         samples_per_epoch=samples_per_epoch,
+                         predownload=predownload,
+                         partition_algo=partition_algo,
                          num_canonical_nodes=num_canonical_nodes,
                          batch_size=batch_size,
-                         partition_algo=partition_algo,
-                         shuffle_algo=shuffle_algo)
+                         shuffle=shuffle,
+                         shuffle_algo=shuffle_algo,
+                         shuffle_seed=shuffle_seed,
+                         shuffle_block_size=shuffle_block_size)
         self.field_dtypes = {
             'input_ids': np.int32,
             'input_mask': np.int32,
