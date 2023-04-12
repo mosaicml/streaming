@@ -10,13 +10,13 @@ We've already created conversion scripts that can be used to convert popular pub
 :start-line: 8
 ```
 
-## Vision Datasets Conversion Examples
+## Vision Dataset Conversion Examples
 
 ```{include} ../../../streaming/vision/convert/README.md
 :start-line: 8
 ```
 
-## Multimodal Datasets Conversion Examples
+## Multimodal Dataset Conversion Examples
 ### [LAION-400M](https://laion.ai/blog/laion-400-open-dataset/)
 ```{include} ../../../streaming/multimodal/convert/laion/laion400m/README.md
 :start-line: 8

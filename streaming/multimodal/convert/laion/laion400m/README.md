@@ -4,7 +4,7 @@
 
 To use Streaming Dataset, we must first convert the dataset from its native format to MosaicML's Streaming Dataset format called Mosaic Dataset Shard (MDS). Once in MDS format, we can access the dataset from the local file system (disk network attached storage, etc.) or object store (GCS, OCS, S3, etc.). From the object store, data can be streamed to train deep learning models, and it all works efficiently.
 
-Check out the steps below for information on converting WebVid datasets to MDS format—also, checkout [MDSWriter()](https://streaming.docs.mosaicml.com/en/latest/api_reference/generated/streaming.MDSWriter.html) parameters for details on advanced usage.
+Check out the steps below for information on converting WebVid datasets to MDS format—also, checkout [MDSWriter](https://streaming.docs.mosaicml.com/en/latest/api_reference/generated/streaming.MDSWriter.html) parameters for details on advanced usage.
 
 **1. Install dependencies**
 Install package `img2dataset`.
