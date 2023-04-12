@@ -47,9 +47,9 @@ If you have any questions, please feel free to reach out to us on [Twitter](htt
 .. toctree::
    :hidden:
    :maxdepth: 1
-   :caption: Internal Guides
+   :caption: Fundamentals
 
-   internal_guides/environments.md
+   fundamentals/environments.md
 
 .. toctree::
    :hidden:

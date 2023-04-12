@@ -1,6 +1,6 @@
 # Environments
 
-Streaming Dataset relies on certain environment variables that need to be set to work for the distributed workload.
+StreamingDataset relies on certain environment variables that need to be set to work for the distributed workload.
 
 - **WORLD_SIZE**: Total number of processes to launch across all nodes.
 - **LOCAL_WORLD_SIZE**: Total number of processes to launch for each node.
