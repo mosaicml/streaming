@@ -20,7 +20,7 @@ Create an MDS dataset from a CSV file containing video URLs (downloads the video
     ```
     python webvid.py --in <CSV filepath> --out_root <Output MDS directory> 
     ```
-#### Multiple MDS sub-datasets conversion
+#### Multiple MDS sub-dataset conversion
 
 Create multiple MDS sub-datasets from a CSV file containing video URLs and a list of substrings to match against (downloads the videos).
 
@@ -34,7 +34,7 @@ Create multiple MDS sub-datasets from a CSV file containing video URLs and a lis
     ```
 
 #### Split out MDS datasets column
-Iterate an existing MDS dataset containing videos, creating a new MDS dataset where the videos are stored separately as MDS files.
+Iterate an existing MDS dataset containing videos, creating a new MDS dataset without video contents embedded in it, instead, add a video filepath in a new MDS dataset where the video files (MP4) are stored separately.
 
 1. Run the [inside_to_outside.py](https://github.com/mosaicml/streaming/blob/main/streaming/multimodal/convert/webvid/inside_to_outside.py) script with minimum required arguments as shown below
     <!--pytest.mark.skip-->
