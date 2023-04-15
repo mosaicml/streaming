@@ -72,7 +72,7 @@ def test_mix_samples_mul(root: str):
         streams.append(stream)
     dataset = StreamingDataset(streams=streams)
     assert dataset.num_samples == 8
-    assert walk(dataset) == [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7]
+    assert walk(dataset) == [0, 1, 0, 1, 2, 3, 2, 3, 4, 5, 4, 5, 6, 7, 6, 7]
     for stream in streams:
         assert float_eq(stream.proportion, 0.25)
         assert stream.repeat == 2
@@ -88,7 +88,7 @@ def test_mix_samples_range(root: str):
         streams.append(stream)
     dataset = StreamingDataset(streams=streams)
     assert dataset.num_samples == 8
-    assert walk(dataset) == [2, 3, 4, 4, 5, 5, 6, 6, 6, 7, 7, 7]
+    assert walk(dataset) == [2, 3, 4, 5, 4, 5, 6, 7, 6, 7, 6, 7]
     for i, stream in enumerate(streams):
         assert float_eq(stream.proportion, i / 6)
         assert stream.repeat == i
@@ -104,7 +104,7 @@ def test_mix_repeat(root: str):
         streams.append(stream)
     dataset = StreamingDataset(streams=streams)
     assert dataset.num_samples == 8
-    assert walk(dataset) == [2, 3, 4, 4, 5, 5, 6, 6, 6, 7, 7, 7]
+    assert walk(dataset) == [2, 3, 4, 5, 4, 5, 6, 7, 6, 7, 6, 7]
     for i, stream in enumerate(streams):
         assert float_eq(stream.proportion, i / 6)
         assert stream.repeat == i
@@ -126,7 +126,7 @@ def test_mix_repeat_and_samples(root: str):
         streams.append(stream)
     dataset = StreamingDataset(streams=streams)
     assert dataset.num_samples == 8
-    assert walk(dataset) == [2, 3, 4, 4, 5, 5, 6, 6, 6, 7, 7, 7]
+    assert walk(dataset) == [2, 3, 4, 5, 4, 5, 6, 7, 6, 7, 6, 7]
     for i, stream in enumerate(streams):
         assert float_eq(stream.proportion, i / 6)
         assert stream.repeat == i
@@ -148,7 +148,7 @@ def test_mix_repeat_samples_none(root: str):
         streams.append(stream)
     dataset = StreamingDataset(streams=streams)
     assert dataset.num_samples == 8
-    assert walk(dataset) == [2, 3, 4, 4, 5, 5, 6, 6, 6, 7, 7, 7]
+    assert walk(dataset) == [2, 3, 4, 5, 4, 5, 6, 7, 6, 7, 6, 7]
     for i, stream in enumerate(streams):
         assert float_eq(stream.proportion, i / 6)
         assert stream.repeat == i
@@ -180,7 +180,7 @@ def test_mix_proportion_range(root: str):
         streams.append(stream)
     dataset = StreamingDataset(streams=streams, samples_per_epoch=12)
     assert dataset.num_samples == 8
-    assert walk(dataset) == [2, 3, 4, 4, 5, 5, 6, 6, 6, 7, 7, 7]
+    assert walk(dataset) == [2, 3, 4, 5, 4, 5, 6, 7, 6, 7, 6, 7]
     for i, stream in enumerate(streams):
         assert float_eq(stream.proportion, i / 6)
         assert stream.repeat == i
