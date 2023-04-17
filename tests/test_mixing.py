@@ -3,7 +3,7 @@
 
 import os
 from shutil import rmtree
-from typing import List
+from typing import List, Tuple
 
 import numpy as np
 import pytest
@@ -19,9 +19,10 @@ def float_eq(a: float, b: float) -> bool:
     return abs(a - b) < 1e-6
 
 
+@pytest.mark.usefixtures('local_remote_dir')
 @pytest.fixture()
-def root():
-    root = '/tmp/foo'
+def root(local_remote_dir: Tuple[str, str]):
+    root, _ = local_remote_dir
     columns = {'value': 'int'}
     for i in range(4):
         subroot = os.path.join(root, str(i))
