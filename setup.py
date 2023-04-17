@@ -90,7 +90,7 @@ extra_deps['docs'] = [
     'sphinxcontrib-images==0.9.4',
     'sphinxcontrib.katex==0.9.4',
     'sphinxemoji==0.2.0',
-    'sphinxext.opengraph==0.8.1',
+    'sphinxext.opengraph==0.8.2',
     'sphinx-tabs>=3,<4',
 ]
 
