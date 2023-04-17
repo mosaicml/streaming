@@ -488,10 +488,19 @@ class StreamingDataset(IterableDataset):
                     shard_shuffle_units.append(remainder)
                 shuffle_units.append(shard_shuffle_units)
 
-                # Calculate sample IDs.
+                # Calculate sample IDs of any full repeats.
                 shard_sample_offset = self.index.shard_offsets[shard_id]
-                shard_sample_ids = shard_sample_offset + np.arange(shard_picks) % shard_samples
-                sample_ids.append(shard_sample_ids)
+                num_full_repeats = shard_picks // shard_samples
+                if num_full_repeats:
+                    full_repeat = shard_sample_offset + np.arange(shard_samples)
+                    sample_ids += [full_repeat] * num_full_repeats
+
+                # Calculate sample IDs of a possible partial repeat.
+                short = shard_picks % shard_samples
+                if short:
+                    partial_repeat = shard_sample_offset + rng.choice(shard_samples, short, False)
+                    partial_repeat.sort()
+                    sample_ids.append(partial_repeat)
 
         shuffle_units = np.concatenate(shuffle_units)
         sample_ids = np.concatenate(sample_ids)

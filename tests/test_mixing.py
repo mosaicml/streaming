@@ -5,6 +5,7 @@ import os
 from shutil import rmtree
 from typing import List
 
+import numpy as np
 import pytest
 
 from streaming import MDSWriter, Stream, StreamingDataset
@@ -185,3 +186,19 @@ def test_mix_proportion_range(root: str):
         assert float_eq(stream.proportion, i / 6)
         assert stream.repeat == i
         assert stream.samples == i * 2
+
+
+def test_mix_balance(root: str):
+    streams = []
+    for i in range(4):
+        subroot = os.path.join(root, str(i))
+        stream = Stream(local=subroot, samples=3)
+        streams.append(stream)
+    dataset = StreamingDataset(streams=streams)
+    counts = np.zeros(8, np.int64)
+    for _ in range(1000):
+        for value in walk(dataset):
+            counts[value] += 1
+    rates = counts / counts.sum() * len(counts)
+    for rate in rates:
+        assert 0.975 < rate < 1.025
