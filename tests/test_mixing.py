@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from shutil import rmtree
 from typing import List, Tuple
 
 import numpy as np
@@ -33,7 +32,6 @@ def root(local_remote_dir: Tuple[str, str]):
                 sample = {'value': value}
                 out.write(sample)
     yield root
-    rmtree(root)
 
 
 def test_mix_none(root: str):
