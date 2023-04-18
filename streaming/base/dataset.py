@@ -98,7 +98,7 @@ class StreamingDataset(IterableDataset):
         }
 
     StreamingDataset init takes three kinds of arguments:
-    
+
     * One or more Streams (you must provide either ``streams`` or ``remote``/``local``):
 
       * ``streams``
