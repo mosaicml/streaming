@@ -98,29 +98,30 @@ class StreamingDataset(IterableDataset):
         }
 
     StreamingDataset init takes three kinds of arguments:
-        * One or more Streams (you must provide either ``streams`` or ``remote``/``local``):
-            * ``streams``
-            * ``remote``
-            * ``local``
-        * Knobs to control streaming behavior, which, if multiple Streams are provided, become defaults applied to them:
-            * ``split``
-            * ``download_retry``
-            * ``download_timeout``
-            * ``validate_hash``
-            * ``keep_zip``
-            * ``keep_raw``
-        * How to iterate (controlling prefetching, partitioning, and shuffling):
-            * Prefetching:
-            * ``predownload``
-            * Partitioning:
-                * ``partition_algo``
-                * ``num_canonical_nodes``
-                * ``batch_size``
-            * Shuffling:
-                * ``shuffle``
-                * ``shuffle_algo``
-                * ``shuffle_seed``
-                * ``shuffle_block_size``
+      * One or more Streams (you must provide either ``streams`` or ``remote``/``local``):
+          * ``streams``
+          * ``remote``
+          * ``local``
+      * Knobs to control streaming behavior, which, if multiple Streams are provided, become defaults
+        applied to them:
+          * ``split``
+          * ``download_retry``
+          * ``download_timeout``
+          * ``validate_hash``
+          * ``keep_zip``
+          * ``keep_raw``
+      * How to iterate (controlling prefetching, partitioning, and shuffling):
+          * Prefetching:
+              * ``predownload``
+          * Partitioning:
+              * ``partition_algo``
+              * ``num_canonical_nodes``
+              * ``batch_size``
+          * Shuffling:
+              * ``shuffle``
+              * ``shuffle_algo``
+              * ``shuffle_seed``
+              * ``shuffle_block_size``
 
     Args:
         streams (Sequence[Stream], optional): One or more Streams to stream/cache samples from,
