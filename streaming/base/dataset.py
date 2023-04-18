@@ -456,8 +456,8 @@ class StreamingDataset(IterableDataset):
         """
         # Initialize random number generator and arrays.
         rng = np.random.default_rng(self.shuffle_seed + epoch)
-        pick_per_shard = np.zeros(self.num_shards, np.int64) - 1
-        pick_per_sample = np.zeros(self.num_samples, np.int64) - 1
+        shuffle_units = []
+        sample_ids = []
 
         # Iterate over each stream.
         for stream_id in range(self.num_streams):
@@ -465,7 +465,7 @@ class StreamingDataset(IterableDataset):
             num_stream_shards = self.shards_per_stream[stream_id]
             stream_shard_ids = stream_shard_offset + np.arange(num_stream_shards)
 
-            # Calculate pick per shard.
+            # Calculate pick per stream shard.
             samples_per_stream_shard = self.samples_per_shard[stream_shard_ids]
             stream_samples = sum(samples_per_stream_shard)
             stream_picks = self.pick_per_stream[stream_id]
@@ -476,23 +476,35 @@ class StreamingDataset(IterableDataset):
                 short = stream_picks - pick_per_stream_shard.sum()
                 indices = rng.choice(num_stream_shards, short, False)
                 pick_per_stream_shard[indices] += 1
-            pick_per_shard[stream_shard_ids] = pick_per_stream_shard
 
             # Iterate over each shard of this stream.
-            for shard_id, shard_picks in zip(stream_shard_ids, pick_per_stream_shard):
+            for shard_id, shard_samples, shard_picks in zip(stream_shard_ids,
+                                                            samples_per_stream_shard,
+                                                            pick_per_stream_shard):
+                # Calculate shuffle units.
+                shard_shuffle_units = [shard_samples] * (shard_picks // shard_samples)
+                remainder = shard_picks % shard_samples
+                if remainder:
+                    shard_shuffle_units.append(remainder)
+                shuffle_units.append(shard_shuffle_units)
+
+                # Calculate sample IDs of any full repeats.
                 shard_sample_offset = self.index.shard_offsets[shard_id]
-                shard_samples = self.samples_per_shard[shard_id]
-                indices = np.arange(shard_sample_offset, shard_sample_offset + shard_samples)
+                num_full_repeats = shard_picks // shard_samples
+                if num_full_repeats:
+                    full_repeat = shard_sample_offset + np.arange(shard_samples)
+                    sample_ids += [full_repeat] * num_full_repeats
 
-                # Calculate pick per sample.
-                pick_per_sample[indices] = shard_picks // shard_samples
+                # Calculate sample IDs of a possible partial repeat.
                 short = shard_picks % shard_samples
-                indices = shard_sample_offset + rng.choice(shard_samples, short, False)
-                pick_per_sample[indices] += 1
+                if short:
+                    partial_repeat = shard_sample_offset + rng.choice(shard_samples, short, False)
+                    partial_repeat.sort()
+                    sample_ids.append(partial_repeat)
 
-        # Derive sample ID mapping via repeating by pick per sample.
-        small_per_big = np.repeat(np.arange(self.num_samples), pick_per_sample)
-        return pick_per_shard, small_per_big
+        shuffle_units = np.concatenate(shuffle_units)
+        sample_ids = np.concatenate(sample_ids)
+        return shuffle_units, sample_ids
 
     def _generate_sample_ids(self, world: World, epoch: int,
                              sample_in_epoch: int) -> NDArray[np.int64]:
@@ -516,7 +528,7 @@ class StreamingDataset(IterableDataset):
         # Sample each shard of each stream according to their proportions/repeats/samples. This
         # gives us the resampled size of each underlying shard, and a mapping from each fake "big"
         # sample ID to its underlying "small" sample ID.
-        pick_per_shard, small_per_big = self._resample_streams(epoch)
+        shuffle_units, small_per_big = self._resample_streams(epoch)
 
         # Partition the global sample space (of resampled "big" sample IDs) into a tensor of shape
         # (num physical nodes, ranks per node, workers per rank, batches per worker, samples per
@@ -527,7 +539,7 @@ class StreamingDataset(IterableDataset):
 
         # If we need to shuffle, shuffle in a node-aware and *underlying* shard-aware way.
         if self.shuffle:
-            shuffle = get_shuffle(self.shuffle_algo, pick_per_shard, self.num_canonical_nodes,
+            shuffle = get_shuffle(self.shuffle_algo, shuffle_units, self.num_canonical_nodes,
                                   self.shuffle_seed, epoch, self.shuffle_block_size)
             big_ids = np.where(big_ids != -1, shuffle[big_ids], -1)
 
