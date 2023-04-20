@@ -3,9 +3,10 @@
 
 """Read and decode sample from shards."""
 
+import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, Dict, Iterator, List, Optional, Set
 
 __all__ = ['FileInfo', 'Reader', 'JointReader', 'SplitReader']
 
@@ -62,6 +63,84 @@ class Reader(ABC):
             int: Sample count.
         """
         return self.samples
+
+    def init_local_dir(self, ls: Set[str], keep_zip: bool) -> bool:
+        """Bring what shard files are present to a consistent state, returning whether prsent.
+
+        Args:
+            ls (Set[str]): The listing of all files under dirname/[split/]. This is listed once
+                and then saved because there could potentially be very many shard files.
+            keep_zip (bool): Whether to keep zip files when decompressing. Possible when
+                compression was used. Necessary when local is the remote or there is no remote.
+
+        Returns:
+            bool: Whether the shard is present.
+        """
+        # For raw/zip to be considered present, each raw/zip file must be present.
+        raw_files_present = 0
+        zip_files_present = 0
+        for raw_info, zip_info in self.file_pairs:
+            if raw_info:
+                filename = os.path.join(self.dirname, self.split, raw_info.basename)
+                if filename in ls:
+                    raw_files_present += 1
+            if zip_info:
+                filename = os.path.join(self.dirname, self.split, zip_info.basename)
+                if filename in ls:
+                    zip_files_present += 1
+
+        # If the shard raw files are partially present, garbage collect the present ones and mark
+        # the shard raw as not present, in order to achieve consistency.
+        if not raw_files_present:
+            is_raw_present = False
+        elif raw_files_present < len(self.file_pairs):
+            is_raw_present = False
+            for raw_info, _ in self.file_pairs:
+                if raw_info:
+                    filename = os.path.join(self.dirname, self.split, raw_info.basename)
+                    if filename in ls:
+                        os.remove(filename)
+        else:
+            is_raw_present = True
+
+        # Same as the above, but for shard zip files.
+        if not zip_files_present:
+            is_zip_present = False
+        elif zip_files_present < len(self.file_pairs):
+            is_zip_present = False
+            for _, zip_info in self.file_pairs:
+                if zip_info:
+                    filename = os.path.join(self.dirname, self.split, zip_info.basename)
+                    if filename in ls:
+                        os.remove(filename)
+        else:
+            is_zip_present = True
+
+        # Do we keep_zip?
+        if keep_zip:
+            # If we can keep_zip, and we do, and have either raw or zip, we must have the other one
+            # too.
+            if self.compression and (is_zip_present ^ is_raw_present):
+                if is_raw_present:
+                    is_raw_present = False
+                    for raw_info, _ in self.file_pairs:
+                        filename = os.path.join(self.dirname, self.split, raw_info.basename)
+                        os.remove(filename)
+                elif is_zip_present:
+                    is_zip_present = False
+                    for _, zip_info in self.file_pairs:
+                        filename = os.path.join(self.dirname, self.split, zip_info.basename)
+                        os.remove(filename)
+        else:
+            # If we don't keep_zip, drop any zip files.
+            if is_zip_present:
+                is_zip_present = False
+                for _, zip_info in self.file_pairs:
+                    filename = os.path.join(self.dirname, self.split, zip_info.basename)
+                    os.remove(filename)
+
+        # Now, the shard is either entirely or not at all present given keep_zip.
+        return is_raw_present
 
     @abstractmethod
     def decode_sample(self, data: bytes) -> Dict[str, Any]:

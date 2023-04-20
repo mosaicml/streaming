@@ -310,17 +310,16 @@ class Stream:
         Returns:
             `List[Reader]: Shard readers.
         """
-        # Load the index.json file.
+        # Download the index.
         basename = get_index_basename()
         if world.is_local_leader:
             filename = self._download_file(basename)
         else:
             filename = os.path.join(self.local, self.split, basename)  # pyright: ignore
+            wait_for_file_to_exist(filename, TICK, self.download_timeout,
+                                   f'{filename} file took too long to download')
 
-        # Everyone waits for the file to become populated.
-        wait_for_file_to_exist(filename, TICK, self.download_timeout,
-                               f'{filename} file took too long to download')
-
+        # Load and validate the index.
         obj = json.load(open(filename))
         if obj['version'] != 2:
             raise ValueError(f'Unsupported version: {obj["version"]}')
@@ -332,3 +331,28 @@ class Stream:
             shards.append(shard)
 
         return shards
+
+    def init_local_dir(self, shards: List[Reader]) -> List[bool]:
+        """Bring a local directory into a consistent state, getting which shards are present.
+
+        Args:
+            shards (List[Reader]): List of this stream's shards.
+
+        Returns:
+            List[bool]: List of whether each stream shard is present.
+        """
+        # List the cache directory (so that we hit the filesystem once).
+        local_dirname = os.path.join(self.local, self.split)
+        ls = set()
+        for dirname, _, subfiles in os.walk(local_dirname):
+            for subfile in subfiles:
+                filename = os.path.join(dirname, subfile)
+                ls.add(filename)
+
+        # Determine which shards are present, making local dir consistent.
+        safe_keep_zip = self.keep_zip or self.remote in [None, self.local]
+        are_shards_present = []
+        for shard in shards:
+            is_shard_present = shard.init_local_dir(ls, safe_keep_zip)
+            are_shards_present.append(is_shard_present)
+        return are_shards_present
