@@ -55,19 +55,19 @@ def download_from_s3(remote: str, local: str, timeout: float) -> None:
         extra_args['RequestPayer'] = 'requester'
 
     try:
-        _download_file()
+        _download_file(extra_args=extra_args)
     except NoCredentialsError:
         # Public S3 buckets without credentials
-        _download_file(unsigned=True)
+        _download_file(unsigned=True, extra_args=extra_args)
     except ClientError as e:
         if e.response['Error']['Code'] in S3_NOT_FOUND_CODES:
-            e.args = (f'Object {remote} not found! Either check the bucket path or the bucket' +
+            e.args = (f'Object {remote} not found! Either check the bucket path or the bucket ' +
                       f'permission. If the bucket is a requester pays bucket, then set ' +
-                      f'`MOSAICML_STREAMING_AWS_REQUESTER_PAYS` to `1`.')
+                      f'`MOSAICML_STREAMING_AWS_REQUESTER_PAYS` to `1`.',)
             raise e
         elif e.response['Error']['Code'] == '400':
             # Public S3 buckets without credentials
-            _download_file(unsigned=True)
+            _download_file(unsigned=True, extra_args=extra_args)
     except Exception:
         raise
 
