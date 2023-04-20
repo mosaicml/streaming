@@ -51,8 +51,12 @@ def download_from_s3(remote: str, local: str, timeout: float) -> None:
     extra_args = {}
     # When enabled, the requester instead of the bucket owner pays the cost of the request
     # and the data download from the bucket.
-    if os.environ.get('MOSAICML_STREAMING_AWS_REQUESTER_PAYS') == '1':
-        extra_args['RequestPayer'] = 'requester'
+    if os.environ.get('MOSAICML_STREAMING_AWS_REQUESTER_PAYS') is not None:
+        requester_pays_buckets = os.environ.get(  # yapf: ignore
+            'MOSAICML_STREAMING_AWS_REQUESTER_PAYS').split(',')  # pyright: ignore
+        requester_pays_buckets = [name.strip() for name in requester_pays_buckets]
+        if obj.netloc in requester_pays_buckets:
+            extra_args['RequestPayer'] = 'requester'
 
     try:
         _download_file(extra_args=extra_args)
@@ -62,8 +66,9 @@ def download_from_s3(remote: str, local: str, timeout: float) -> None:
     except ClientError as e:
         if e.response['Error']['Code'] in S3_NOT_FOUND_CODES:
             e.args = (f'Object {remote} not found! Either check the bucket path or the bucket ' +
-                      f'permission. If the bucket is a requester pays bucket, then set ' +
-                      f'`MOSAICML_STREAMING_AWS_REQUESTER_PAYS` to `1`.',)
+                      f'permission. If the bucket is a requester pays bucket, then provide the ' +
+                      f'bucket name to the environment variable ' +
+                      f'`MOSAICML_STREAMING_AWS_REQUESTER_PAYS`.',)
             raise e
         elif e.response['Error']['Code'] == '400':
             # Public S3 buckets without credentials

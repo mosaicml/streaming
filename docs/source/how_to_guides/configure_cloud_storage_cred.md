@@ -48,16 +48,22 @@ aws_secret_access_key=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
 
 More details on these files can be found [here](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html). The streaming dataset reads the `~/.aws/config` and `~/.aws/credentials` to authenticate your credentials and stream data into your instance.
 
-If the bucket you are accessing is a [Requester Pays](https://docs.aws.amazon.com/AmazonS3/latest/userguide/RequesterPaysBuckets.html) bucket, then you have to set the below environment variable to access the bucket.
+If the bucket you are accessing is a [Requester Pays](https://docs.aws.amazon.com/AmazonS3/latest/userguide/RequesterPaysBuckets.html) bucket, then set the below environment variable by providing a bucket name. If there are more than one requester pays bucket, provide each one separated by a comma.
 
 ````{tabs}
 ```{code-tab} py
 import os
-os.environ['MOSAICML_STREAMING_AWS_REQUESTER_PAYS'] = '1'
+os.environ['MOSAICML_STREAMING_AWS_REQUESTER_PAYS'] = 'streaming-bucket'
+
+# For more than one requester pays bucket
+os.environ['MOSAICML_STREAMING_AWS_REQUESTER_PAYS'] = 'streaming-bucket,another-bucket'
 ```
 
 ```{code-tab} sh
-export MOSAICML_STREAMING_AWS_REQUESTER_PAYS='1'
+export MOSAICML_STREAMING_AWS_REQUESTER_PAYS='streaming-bucket'
+
+# For more than one requester pays bucket
+export MOSAICML_STREAMING_AWS_REQUESTER_PAYS='streaming-bucket,another-bucket'
 ```
 ````
 
