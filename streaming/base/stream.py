@@ -27,26 +27,32 @@ class Stream:
     different mixtures of samples.
 
     Stream init takes three kinds of arguments:
-      * At least one of ``remote`` and ``local`` must exist. If no ``remote``, the data must be
-        local. If no ``local``, we cache to a temp directory.
-          * ``remote``
-          * ``local``
-      * At most one of ``proportion``, ``repeat``, or ``samples`` may exist. If none are provided,
-        each sample is seen once per epoch. If provided one of these, we derive the others.
-        Note that ``proportion`` (relative) and ``repeat``/``samples`` (absolute) are mutually
-        incompatible -- you must entirely use one or the other (or neither) for all sub-datasets.
-          * ``proportion``
-          * ``repeat``
-          * ``samples``
-      * The remaining arguments are optional knobs for controlling downloading behavior and default
-        to ``None``. If ``None``, they take a default value provided to or by the StreamingDataset
-        init.
-          * ``split``
-          * ``download_retry``
-          * ``download_timeout``
-          * ``validate_hash``
-          * ``keep_zip``
-          * ``keep_raw``
+
+    * At least one of ``remote`` and ``local`` must exist. If no ``remote``, the data must be
+      local. If no ``local``, we cache to a temp directory.
+
+      * ``remote``
+      * ``local``
+
+    * At most one of ``proportion``, ``repeat``, or ``samples`` may exist. If none are provided,
+      each sample is seen once per epoch. If provided one of these, we derive the others.
+      Note that ``proportion`` (relative) and ``repeat``/``samples`` (absolute) are mutually
+      incompatible -- you must entirely use one or the other (or neither) for all sub-datasets.
+
+      * ``proportion``
+      * ``repeat``
+      * ``samples``
+
+    * The remaining arguments are optional knobs for controlling downloading behavior and default
+      to ``None``. If ``None``, they take a default value provided to or by the StreamingDataset
+      init.
+
+      * ``split``
+      * ``download_retry``
+      * ``download_timeout``
+      * ``validate_hash``
+      * ``keep_zip``
+      * ``keep_raw``
 
     Args:
         remote (str, optional): Remote path or directory to download the dataset from. If ``None``,

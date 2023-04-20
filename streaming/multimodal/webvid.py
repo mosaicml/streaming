@@ -49,8 +49,9 @@ class StreamingInsideWebVid(StreamingDataset):
             partitioned over the workers. Defaults to ``None``.
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
             ``False``.
-        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1s``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1b``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
+        shuffle_block_size (int): Unit of shuffle. Defaults to ``1 << 18``.
     """
 
     def __getitem__(self, idx: int) -> Any:
@@ -105,8 +106,9 @@ class StreamingOutsideGIWebVid(StreamingDataset):
             partitioned over the workers. Defaults to ``None``.
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
             ``False``.
-        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1s``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1b``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
+        shuffle_block_size (int): Unit of shuffle. Defaults to ``1 << 18``.
         extra_local (str, optional): Base destination of extra local sample downloads.
         extra_remote (str, optional): Base source of extra remote sample downloads.
     """
@@ -127,8 +129,9 @@ class StreamingOutsideGIWebVid(StreamingDataset):
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
                  shuffle: bool = False,
-                 shuffle_algo: str = 'py1s',
+                 shuffle_algo: str = 'py1b',
                  shuffle_seed: int = 9176,
+                 shuffle_block_size: int = 1 << 18,
                  extra_local: Optional[str] = None,
                  extra_remote: Optional[str] = None) -> None:
         super().__init__(remote=remote,
@@ -146,7 +149,8 @@ class StreamingOutsideGIWebVid(StreamingDataset):
                          batch_size=batch_size,
                          shuffle=shuffle,
                          shuffle_algo=shuffle_algo,
-                         shuffle_seed=shuffle_seed)
+                         shuffle_seed=shuffle_seed,
+                         shuffle_block_size=shuffle_block_size)
 
         # Videos are stored outside of their shards here.
         self.download_timeout = download_timeout
@@ -217,8 +221,9 @@ class StreamingOutsideDTWebVid(StreamingDataset):
             partitioned over the workers. Defaults to ``None``.
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
             ``False``.
-        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1s``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1b``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
+        shuffle_block_size (int): Unit of shuffle. Defaults to ``1 << 18``.
         extra_local (str, optional): Base destination of extra local sample downloads.
         extra_remote (str, optional): Base source of extra remote sample downloads.
     """
@@ -239,8 +244,9 @@ class StreamingOutsideDTWebVid(StreamingDataset):
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
                  shuffle: bool = False,
-                 shuffle_algo: str = 'py1s',
+                 shuffle_algo: str = 'py1b',
                  shuffle_seed: int = 9176,
+                 shuffle_block_size: int = 1 << 18,
                  extra_local: Optional[str] = None,
                  extra_remote: Optional[str] = None) -> None:
         super().__init__(remote=remote,
@@ -258,7 +264,8 @@ class StreamingOutsideDTWebVid(StreamingDataset):
                          batch_size=batch_size,
                          shuffle=shuffle,
                          shuffle_algo=shuffle_algo,
-                         shuffle_seed=shuffle_seed)
+                         shuffle_seed=shuffle_seed,
+                         shuffle_block_size=shuffle_block_size)
 
         # Videos are stored outside of their shards here.
         self.download_timeout = download_timeout

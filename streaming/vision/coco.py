@@ -49,8 +49,9 @@ class StreamingCOCO(StreamingDataset):
             partitioned over the workers. Defaults to ``None``.
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
             ``False``.
-        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1s``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1b``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
+        shuffle_block_size (int): Unit of shuffle. Defaults to ``1 << 18``.
         transform (callable, optional): A function/transform that takes in an image and bboxes and
             returns a transformed version. Defaults to ``None``.
     """
@@ -71,8 +72,9 @@ class StreamingCOCO(StreamingDataset):
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
                  shuffle: bool = False,
-                 shuffle_algo: str = 'py1s',
+                 shuffle_algo: str = 'py1b',
                  shuffle_seed: int = 9176,
+                 shuffle_block_size: int = 1 << 18,
                  transform: Optional[Callable] = None) -> None:
         super().__init__(remote=remote,
                          local=local,
@@ -89,7 +91,8 @@ class StreamingCOCO(StreamingDataset):
                          batch_size=batch_size,
                          shuffle=shuffle,
                          shuffle_algo=shuffle_algo,
-                         shuffle_seed=shuffle_seed)
+                         shuffle_seed=shuffle_seed,
+                         shuffle_block_size=shuffle_block_size)
         self.transform = transform
 
     def __getitem__(self, idx: int) -> Any:

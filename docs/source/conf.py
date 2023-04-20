@@ -163,10 +163,8 @@ html_static_path = ['_static']
 html_title = ' Streaming'
 
 # Customize CSS
-html_css_files = ['css/custom.css']
-html_js_files = [
-    'js/posthog.js',
-]
+html_css_files = ['css/custom.css', 'https://cdn.jsdelivr.net/npm/@docsearch/css@3']
+html_js_files = ['js/posthog.js']
 
 # MosaicML Streaming logo
 # html_logo = 'https://storage.googleapis.com/docs.mosaicml.com/images/streaming-logo-light-mode.png'
@@ -209,10 +207,11 @@ images_config = {
 intersphinx_mapping = {
     'boto3': ('https://boto3.amazonaws.com/v1/documentation/api/latest/', None),
     'botocore': ('https://botocore.amazonaws.com/v1/documentation/api/latest', None),
-    'composer': ('https://docs.mosaicml.com/en/stable/', None),
+    'composer': ('https://docs.mosaicml.com/projects/composer/en/latest', None),
     'coolname': ('https://coolname.readthedocs.io/en/latest/', None),
     'datasets': ('https://huggingface.co/docs/datasets/master/en/', None),
     'libcloud': ('https://libcloud.readthedocs.io/en/stable/', None),
+    'mcli': ('https://docs.mosaicml.com/projects/mcli/en/latest', None),
     'numpy': ('https://numpy.org/doc/stable/', None),
     'PIL': ('https://pillow.readthedocs.io/en/stable', None),
     'python': ('https://docs.python.org/3/', None),
@@ -221,7 +220,6 @@ intersphinx_mapping = {
     'torchtext': ('https://pytorch.org/text/stable/', None),
     'torchvision': ('https://pytorch.org/vision/stable/', None),
     'transformers': ('https://huggingface.co/docs/transformers/master/en/', None),
-    'yahp': ('https://docs.mosaicml.com/projects/yahp/en/stable/', None),
 }
 
 nitpicky = False  # warn on broken links

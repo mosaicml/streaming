@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from shutil import rmtree
-from typing import List
+from typing import List, Tuple
 
+import numpy as np
 import pytest
 
 from streaming import MDSWriter, Stream, StreamingDataset
@@ -18,9 +18,10 @@ def float_eq(a: float, b: float) -> bool:
     return abs(a - b) < 1e-6
 
 
+@pytest.mark.usefixtures('local_remote_dir')
 @pytest.fixture()
-def root():
-    root = '/tmp/foo'
+def root(local_remote_dir: Tuple[str, str]):
+    root, _ = local_remote_dir
     columns = {'value': 'int'}
     for i in range(4):
         subroot = os.path.join(root, str(i))
@@ -31,7 +32,6 @@ def root():
                 sample = {'value': value}
                 out.write(sample)
     yield root
-    rmtree(root)
 
 
 def test_mix_none(root: str):
@@ -72,7 +72,7 @@ def test_mix_samples_mul(root: str):
         streams.append(stream)
     dataset = StreamingDataset(streams=streams)
     assert dataset.num_samples == 8
-    assert walk(dataset) == [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7]
+    assert walk(dataset) == [0, 1, 0, 1, 2, 3, 2, 3, 4, 5, 4, 5, 6, 7, 6, 7]
     for stream in streams:
         assert float_eq(stream.proportion, 0.25)
         assert stream.repeat == 2
@@ -88,7 +88,7 @@ def test_mix_samples_range(root: str):
         streams.append(stream)
     dataset = StreamingDataset(streams=streams)
     assert dataset.num_samples == 8
-    assert walk(dataset) == [2, 3, 4, 4, 5, 5, 6, 6, 6, 7, 7, 7]
+    assert walk(dataset) == [2, 3, 4, 5, 4, 5, 6, 7, 6, 7, 6, 7]
     for i, stream in enumerate(streams):
         assert float_eq(stream.proportion, i / 6)
         assert stream.repeat == i
@@ -104,7 +104,7 @@ def test_mix_repeat(root: str):
         streams.append(stream)
     dataset = StreamingDataset(streams=streams)
     assert dataset.num_samples == 8
-    assert walk(dataset) == [2, 3, 4, 4, 5, 5, 6, 6, 6, 7, 7, 7]
+    assert walk(dataset) == [2, 3, 4, 5, 4, 5, 6, 7, 6, 7, 6, 7]
     for i, stream in enumerate(streams):
         assert float_eq(stream.proportion, i / 6)
         assert stream.repeat == i
@@ -126,7 +126,7 @@ def test_mix_repeat_and_samples(root: str):
         streams.append(stream)
     dataset = StreamingDataset(streams=streams)
     assert dataset.num_samples == 8
-    assert walk(dataset) == [2, 3, 4, 4, 5, 5, 6, 6, 6, 7, 7, 7]
+    assert walk(dataset) == [2, 3, 4, 5, 4, 5, 6, 7, 6, 7, 6, 7]
     for i, stream in enumerate(streams):
         assert float_eq(stream.proportion, i / 6)
         assert stream.repeat == i
@@ -148,7 +148,7 @@ def test_mix_repeat_samples_none(root: str):
         streams.append(stream)
     dataset = StreamingDataset(streams=streams)
     assert dataset.num_samples == 8
-    assert walk(dataset) == [2, 3, 4, 4, 5, 5, 6, 6, 6, 7, 7, 7]
+    assert walk(dataset) == [2, 3, 4, 5, 4, 5, 6, 7, 6, 7, 6, 7]
     for i, stream in enumerate(streams):
         assert float_eq(stream.proportion, i / 6)
         assert stream.repeat == i
@@ -180,8 +180,24 @@ def test_mix_proportion_range(root: str):
         streams.append(stream)
     dataset = StreamingDataset(streams=streams, samples_per_epoch=12)
     assert dataset.num_samples == 8
-    assert walk(dataset) == [2, 3, 4, 4, 5, 5, 6, 6, 6, 7, 7, 7]
+    assert walk(dataset) == [2, 3, 4, 5, 4, 5, 6, 7, 6, 7, 6, 7]
     for i, stream in enumerate(streams):
         assert float_eq(stream.proportion, i / 6)
         assert stream.repeat == i
         assert stream.samples == i * 2
+
+
+def test_mix_balance(root: str):
+    streams = []
+    for i in range(4):
+        subroot = os.path.join(root, str(i))
+        stream = Stream(local=subroot, samples=3)
+        streams.append(stream)
+    dataset = StreamingDataset(streams=streams)
+    counts = np.zeros(8, np.int64)
+    for _ in range(1000):
+        for value in walk(dataset):
+            counts[value] += 1
+    rates = counts / counts.sum() * len(counts)
+    for rate in rates:
+        assert 0.975 < rate < 1.025
