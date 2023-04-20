@@ -23,11 +23,12 @@ def download_from_s3(remote: str, local: str, timeout: float) -> None:
         timeout (float): How long to wait for shard to download before raising an exception.
     """
 
-    def _download_file(unsigned: bool = False) -> None:
+    def _download_file(unsigned: bool = False, extra_args: dict = {}) -> None:
         """Download the file from AWS S3 bucket. The bucket can be either public or private.
 
         Args:
             unsigned (bool, optional): Set to True if it is a public bucket. Defaults to False.
+            extra_args (bool, optional): Extra arguments supported by boto3. Defaults to {}.
         """
         if unsigned:
             # Client will be using unsigned mode in which public
@@ -36,7 +37,7 @@ def download_from_s3(remote: str, local: str, timeout: float) -> None:
         else:
             config = Config(read_timeout=timeout)
         s3 = boto3.client('s3', config=config)
-        s3.download_file(obj.netloc, obj.path.lstrip('/'), local)
+        s3.download_file(obj.netloc, obj.path.lstrip('/'), local, ExtraArgs=extra_args)
 
     import boto3
     from botocore import UNSIGNED
@@ -46,6 +47,12 @@ def download_from_s3(remote: str, local: str, timeout: float) -> None:
     obj = urllib.parse.urlparse(remote)
     if obj.scheme != 's3':
         raise ValueError(f'Expected obj.scheme to be "s3", got {obj.scheme} for remote={remote}')
+
+    extra_args = {}
+    # When enabled, the requester instead of the bucket owner pays the cost of the request
+    # and the data download from the bucket.
+    if os.environ.get('MOSAICML_STREAMING_AWS_REQUESTER_PAYS') == '1':
+        extra_args['RequestPayer'] = 'requester'
 
     try:
         _download_file()
