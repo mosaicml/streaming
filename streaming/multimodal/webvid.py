@@ -33,7 +33,7 @@ class StreamingInsideWebVid(StreamingDataset):
             shards. Defaults to ``None``.
         keep_zip (bool): Whether to keep or delete the compressed form when decompressing
             downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
-            `False``.
+            ``False``.
         keep_raw (bool): Whether to keep or delete the decompressed form (or only form)
             of shards after all their samples have been yielded this epoch. If ``False``, keep iff
             remote is local or no remote and no compression. Defaults to ``True``.
@@ -90,7 +90,7 @@ class StreamingOutsideGIWebVid(StreamingDataset):
             shards. Defaults to ``None``.
         keep_zip (bool): Whether to keep or delete the compressed form when decompressing
             downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
-            `False``.
+            ``False``.
         keep_raw (bool): Whether to keep or delete the decompressed form (or only form)
             of shards after all their samples have been yielded this epoch. If ``False``, keep iff
             remote is local or no remote and no compression. Defaults to ``True``.
@@ -205,7 +205,7 @@ class StreamingOutsideDTWebVid(StreamingDataset):
             shards. Defaults to ``None``.
         keep_zip (bool): Whether to keep or delete the compressed form when decompressing
             downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
-            `False``.
+            ``False``.
         keep_raw (bool): Whether to keep or delete the decompressed form (or only form)
             of shards after all their samples have been yielded this epoch. If ``False``, keep iff
             remote is local or no remote and no compression. Defaults to ``True``.
