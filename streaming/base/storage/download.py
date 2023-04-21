@@ -7,7 +7,7 @@ import os
 import shutil
 import urllib.parse
 from time import sleep, time
-from typing import Optional
+from typing import Any, Dict, Optional
 
 __all__ = ['download_or_wait']
 
@@ -23,12 +23,13 @@ def download_from_s3(remote: str, local: str, timeout: float) -> None:
         timeout (float): How long to wait for shard to download before raising an exception.
     """
 
-    def _download_file(unsigned: bool = False, extra_args: dict = {}) -> None:
+    def _download_file(unsigned: bool = False,
+                       extra_args: Optional[Dict[str, Any]] = None) -> None:
         """Download the file from AWS S3 bucket. The bucket can be either public or private.
 
         Args:
-            unsigned (bool, optional): Set to True if it is a public bucket. Defaults to False.
-            extra_args (bool, optional): Extra arguments supported by boto3. Defaults to {}.
+            unsigned (bool, optional):  Set to True if it is a public bucket. Defaults to False.
+            extra_args (Dict[str, Any], optional): Extra arguments supported by boto3. Defaults to None.
         """
         if unsigned:
             # Client will be using unsigned mode in which public
@@ -36,6 +37,9 @@ def download_from_s3(remote: str, local: str, timeout: float) -> None:
             config = Config(read_timeout=timeout, signature_version=UNSIGNED)
         else:
             config = Config(read_timeout=timeout)
+
+        if extra_args is None:
+            extra_args = {}
         s3 = boto3.client('s3', config=config)
         s3.download_file(obj.netloc, obj.path.lstrip('/'), local, ExtraArgs=extra_args)
 
