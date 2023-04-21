@@ -32,13 +32,14 @@ class StreamingImageNet(StreamingVisionDataset):
         keep_zip (bool): Whether to keep or delete the compressed form when decompressing
             downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
             ``False``.
-        keep_raw (bool): Whether to keep or delete the decompressed form (or only form)
-            of shards after all their samples have been yielded this epoch. If ``False``, keep iff
-            remote is local or no remote and no compression. Defaults to ``True``.
         samples_per_epoch (int, optional): Provide this field iff you are weighting sub-datasets
             proportionally. Defaults to ``None``.
         predownload (int, optional): Target number of samples ahead to download the shards of while
             iterating. Defaults to ``100_000``.
+        cache_limit (int, optional): Maximum size in bytes of this StreamingDataset's shard cache.
+            Before downloading a shard, the least recently used resident shard(s) may be evicted
+            (deleted from the local cache) in order to stay under the limit. Set to ``None`` to
+            disable shard eviction. Defaults to ``None``.
         partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
         num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
             resumption. Defaults to ``None``, which is interpreted as the number of nodes of the

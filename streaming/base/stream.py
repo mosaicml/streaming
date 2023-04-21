@@ -52,7 +52,6 @@ class Stream:
       * ``download_timeout``
       * ``validate_hash``
       * ``keep_zip``
-      * ``keep_raw``
 
     Args:
         remote (str, optional): Remote path or directory to download the dataset from. If ``None``,
@@ -82,9 +81,6 @@ class Stream:
         keep_zip (bool, optional): Whether to keep or delete the compressed form when decompressing
             downloaded shards. If ``False``, keep if and only if remote is local or no remote.
             Defaults to ``None``.
-        keep_raw (bool, optional): Whether to keep or delete the decompressed form (or only form)
-            of shards after all their samples have been yielded this epoch. If ``False``, keep if
-            and only if remote is local or no remote and no compression. Defaults to ``None``.
     """
 
     def __init__(self,
@@ -98,8 +94,7 @@ class Stream:
                  download_retry: Optional[int] = None,
                  download_timeout: Optional[float] = None,
                  validate_hash: Optional[str] = None,
-                 keep_zip: Optional[bool] = None,
-                 keep_raw: Optional[bool] = None) -> None:
+                 keep_zip: Optional[bool] = None) -> None:
         self.remote = remote
         self._local = local
         self.local = local or mkdtemp()
@@ -148,10 +143,6 @@ class Stream:
         if keep_zip is not None:
             self.keep_zip = keep_zip
 
-        self._keep_raw = keep_raw
-        if keep_raw is not None:
-            self.keep_raw = keep_raw
-
     def apply_default(self, default: Self) -> None:
         """Apply defaults, setting any unset fields.
 
@@ -173,8 +164,6 @@ class Stream:
             self.validate_hash = default.validate_hash or None
         if self._keep_zip is None:
             self.keep_zip = default.keep_zip
-        if self._keep_raw is None:
-            self.keep_raw = default.keep_raw
 
     def evict_shard(self, shard: Reader) -> None:
         """Evict the given shard.
