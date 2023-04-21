@@ -330,10 +330,10 @@ class StreamingDataset(IterableDataset):
         self._shm_prefix, self._locals_shm = get_shm_prefix(my_locals, world)
         self._filelock_root = os.path.join(os.path.sep, 'tmp', 'streaming', self._shm_prefix)
 
-        # Create the shared memory-backed worker barrier, without its lock, which is unpickleable.
-        worker_barrier_filelock_path = os.path.join(self._filelock_root, 'barrier_filelock')
-        worker_barrier_shm_path = f'{self._shm_prefix}_barrier'
-        self._worker_barrier = SharedBarrier(worker_barrier_filelock_path, worker_barrier_shm_path)
+        # Create the shared memory-backed barrier, without its lock, which is unpickleable.
+        shared_barrier_filelock_path = os.path.join(self._filelock_root, 'barrier_filelock')
+        shared_barrier_shm_path = f'{self._shm_prefix}_barrier'
+        self._shared_barrier = SharedBarrier(shared_barrier_filelock_path, shared_barrier_shm_path)
 
         # Set up the epoch counter.
         #
@@ -359,7 +359,7 @@ class StreamingDataset(IterableDataset):
             for shard_id, is_shard_present in enumerate(are_shards_present):
                 self._shard_states[shard_id] = \
                     _ShardState.PRESENT if is_shard_present else _ShardState.MISSING
-        self._worker_barrier(world.workers_per_node)
+        self._shared_barrier(world.workers_per_node)
 
         # Placeholder for a shared memory object where load_state_dict() saves its data to be
         # picked up by __iter__().
@@ -368,7 +368,7 @@ class StreamingDataset(IterableDataset):
         # Placeholder for an _IterState which tracks state during __iter__().
         self._iter_state = None
 
-        del self._worker_barrier.lock  # Remove the lock that makes it unpickleable.
+        del self._shared_barrier.lock  # Remove the lock that makes it unpickleable.
 
     def __del__(self) -> None:
         """Destructor, which releases its local working directories."""
@@ -460,7 +460,7 @@ class StreamingDataset(IterableDataset):
         epoch, sample_in_epoch = self._resume(world, presumed_epoch)
 
         # Wait for everyone to get the epoch above.
-        self._worker_barrier(world.workers_per_node)
+        self._shared_barrier(world.workers_per_node)
 
         # Set the new next epoch.
         if world.is_local_leader:
@@ -691,21 +691,21 @@ class StreamingDataset(IterableDataset):
         if world.is_local_leader:
             epoch_sample_ids = self._generate_sample_ids(world, epoch, sample_in_epoch)
             shape_shm_obj, data_shm_obj = self._share_sample_ids(epoch_sample_ids)
-            self._worker_barrier(world.workers_per_node)
+            self._shared_barrier(world.workers_per_node)
         else:
-            self._worker_barrier(world.workers_per_node)
+            self._shared_barrier(world.workers_per_node)
             epoch_sample_ids, shape_shm_obj, data_shm_obj = self._attach_sample_ids()
 
         # Each worker gets their portion of the work.
         worker_sample_ids = epoch_sample_ids[world.node, world.rank_of_node,
                                              world.worker_of_rank].flatten()
-        self._worker_barrier(world.workers_per_node)
+        self._shared_barrier(world.workers_per_node)
 
         # Now clean up after ourselves.
         shape_shm_obj.cleanup()
         data_shm_obj.cleanup()
 
-        self._worker_barrier(world.workers_per_node)
+        self._shared_barrier(world.workers_per_node)
 
         return worker_sample_ids
 
@@ -920,10 +920,10 @@ class StreamingDataset(IterableDataset):
         Returns:
             Iterator[Dict[str, Any]]: Each sample.
         """
-        # Lazily create the worker barrier's FileLock, which contains a threading Lock, which is
+        # Lazily create the shared barrier's FileLock, which contains a threading Lock, which is
         # unpickleable.
-        if not hasattr(self._worker_barrier, 'lock'):
-            self._worker_barrier.lock = FileLock(self._worker_barrier.filelock_path)
+        if not hasattr(self._shared_barrier, 'lock'):
+            self._shared_barrier.lock = FileLock(self._shared_barrier.filelock_path)
 
         # Exit the thread that is downloading the shards for last epoch, if it exists.
         if self._iter_state:
