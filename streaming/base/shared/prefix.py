@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from torch import distributed as dist
 
-from streaming.base.shared import CreateSharedMemory
+from streaming.base.shared import SharedMemory
 from streaming.base.world import World
 
 
@@ -57,8 +57,8 @@ def get_shm_prefix(my_locals: List[str], world: World) -> Tuple[str, SharedMemor
         world (World): Information about nodes, ranks, and workers.
 
     Returns:
-        Tuple[str, CreateSharedMemory]: Shared memory prefix and object. The name is required to be
-            very short for Mac OSX.
+        Tuple[str, SharedMemory]: Shared memory prefix and object. The name is required to be very
+            short due to limitations of Python on Mac OSX.
     """
     # Check my locals for overlap.
     my_locals_set = set()
@@ -76,7 +76,7 @@ def get_shm_prefix(my_locals: List[str], world: World) -> Tuple[str, SharedMemor
             prefix = f'{prefix_int:06}'
             name = f'{prefix}_locals'
             try:
-                shm = CreateSharedMemory(name, False).shm
+                shm = SharedMemory(name, False)
             except:
                 break
             their_locals_set = _unpack_locals(bytes(shm.buf))
@@ -89,7 +89,7 @@ def get_shm_prefix(my_locals: List[str], world: World) -> Tuple[str, SharedMemor
         prefix = f'{prefix_int:06}'  # pyright: ignore
         name = f'{prefix}_locals'
         data = _pack_locals(my_locals_set)
-        shm = CreateSharedMemory(name, True, len(data)).shm
+        shm = SharedMemory(name, True, len(data))
         shm.buf[:len(data)] = data
 
     # Distributed barrier over all ranks, possibly setting up dist to do so.
@@ -107,7 +107,7 @@ def get_shm_prefix(my_locals: List[str], world: World) -> Tuple[str, SharedMemor
             prefix = f'{prefix_int:06}'
             name = f'{prefix}_locals'
             try:
-                shm = CreateSharedMemory(name, False).shm
+                shm = SharedMemory(name, False)
             except:
                 raise RuntimeError('Internal error: shm prefix was not registered by local leader')
             their_locals_set = _unpack_locals(bytes(shm.buf))

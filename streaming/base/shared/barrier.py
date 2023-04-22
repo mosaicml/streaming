@@ -14,7 +14,7 @@ from time import sleep
 import numpy as np
 from filelock import FileLock
 
-from streaming.base.shared.memory import CreateSharedMemory
+from streaming.base.shared.memory import SharedMemory
 
 # Time to wait, in seconds.
 TICK = 0.07
@@ -37,13 +37,10 @@ class SharedBarrier:
 
     def __init__(self, filelock_path: str, shm_path: str) -> None:
         self.filelock_path = filelock_path
-        self.created_shms = []
-        self.opened_shms = []
 
         # Create three int32 fields in shared memory: num_enter, num_exit, flag.
         size = 3 * np.int32(0).nbytes
-        shared_barrier_shm = CreateSharedMemory(name=shm_path, size=size)
-        self._shm = shared_barrier_shm.shm
+        self._shm = SharedMemory(name=shm_path, size=size)
 
         # Create filelock.
         dirname = os.path.dirname(filelock_path)
