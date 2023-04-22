@@ -8,6 +8,7 @@ from unittest.mock import Mock, patch
 
 import boto3
 import pytest
+from botocore.exceptions import ClientError
 
 from streaming.base.storage.download import (download_file, download_from_gcs, download_from_local,
                                              download_from_s3, download_or_wait)
@@ -45,8 +46,8 @@ class TestS3Client:
             assert os.path.isfile(tmp.name)
 
     @pytest.mark.usefixtures('s3_client', 's3_test', 'remote_local_file')
-    def test_filenotfound_exception(self, remote_local_file: Any):
-        with pytest.raises(FileNotFoundError):
+    def test_clienterror_exception(self, remote_local_file: Any):
+        with pytest.raises(ClientError):
             mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='s3://')
             download_from_s3(mock_remote_filepath, mock_local_filepath, 60)
 

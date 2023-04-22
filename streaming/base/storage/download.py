@@ -7,7 +7,7 @@ import os
 import shutil
 import urllib.parse
 from time import sleep, time
-from typing import Optional
+from typing import Any, Dict, Optional
 
 __all__ = ['download_or_wait']
 
@@ -23,11 +23,13 @@ def download_from_s3(remote: str, local: str, timeout: float) -> None:
         timeout (float): How long to wait for shard to download before raising an exception.
     """
 
-    def _download_file(unsigned: bool = False) -> None:
+    def _download_file(unsigned: bool = False,
+                       extra_args: Optional[Dict[str, Any]] = None) -> None:
         """Download the file from AWS S3 bucket. The bucket can be either public or private.
 
         Args:
-            unsigned (bool, optional): Set to True if it is a public bucket. Defaults to False.
+            unsigned (bool, optional):  Set to True if it is a public bucket. Defaults to False.
+            extra_args (Dict[str, Any], optional): Extra arguments supported by boto3. Defaults to None.
         """
         if unsigned:
             # Client will be using unsigned mode in which public
@@ -35,8 +37,11 @@ def download_from_s3(remote: str, local: str, timeout: float) -> None:
             config = Config(read_timeout=timeout, signature_version=UNSIGNED)
         else:
             config = Config(read_timeout=timeout)
+
+        if extra_args is None:
+            extra_args = {}
         s3 = boto3.client('s3', config=config)
-        s3.download_file(obj.netloc, obj.path.lstrip('/'), local)
+        s3.download_file(obj.netloc, obj.path.lstrip('/'), local, ExtraArgs=extra_args)
 
     import boto3
     from botocore import UNSIGNED
@@ -47,17 +52,31 @@ def download_from_s3(remote: str, local: str, timeout: float) -> None:
     if obj.scheme != 's3':
         raise ValueError(f'Expected obj.scheme to be "s3", got {obj.scheme} for remote={remote}')
 
+    extra_args = {}
+    # When enabled, the requester instead of the bucket owner pays the cost of the request
+    # and the data download from the bucket.
+    if os.environ.get('MOSAICML_STREAMING_AWS_REQUESTER_PAYS') is not None:
+        requester_pays_buckets = os.environ.get(  # yapf: ignore
+            'MOSAICML_STREAMING_AWS_REQUESTER_PAYS').split(',')  # pyright: ignore
+        requester_pays_buckets = [name.strip() for name in requester_pays_buckets]
+        if obj.netloc in requester_pays_buckets:
+            extra_args['RequestPayer'] = 'requester'
+
     try:
-        _download_file()
+        _download_file(extra_args=extra_args)
     except NoCredentialsError:
         # Public S3 buckets without credentials
-        _download_file(unsigned=True)
+        _download_file(unsigned=True, extra_args=extra_args)
     except ClientError as e:
         if e.response['Error']['Code'] in S3_NOT_FOUND_CODES:
-            raise FileNotFoundError(f'Object {remote} not found.') from e
+            e.args = (f'Object {remote} not found! Either check the bucket path or the bucket ' +
+                      f'permission. If the bucket is a requester pays bucket, then provide the ' +
+                      f'bucket name to the environment variable ' +
+                      f'`MOSAICML_STREAMING_AWS_REQUESTER_PAYS`.',)
+            raise e
         elif e.response['Error']['Code'] == '400':
             # Public S3 buckets without credentials
-            _download_file(unsigned=True)
+            _download_file(unsigned=True, extra_args=extra_args)
     except Exception:
         raise
 
