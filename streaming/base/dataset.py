@@ -265,10 +265,8 @@ class StreamingDataset(IterableDataset):
         self.shards_per_stream = np.zeros(self.num_streams, np.int64)
         self.sample_offset_per_stream = np.zeros(self.num_streams, np.int64)
         self.samples_per_stream = np.zeros(self.num_streams, np.int64)
-        are_shards_present = []
         for stream_id, stream in enumerate(self.streams):
             stream_shards = stream.get_shards(world)
-            are_shards_present += stream.init_local_dir(stream_shards)
             samples = sum(map(len, stream_shards))
             stream_per_shard += [stream_id] * len(stream_shards)
             self.shard_offset_per_stream[stream_id] = len(self.shards)
@@ -341,7 +339,6 @@ class StreamingDataset(IterableDataset):
         # increment the epoch counter at the start of __iter__() instead of at the end, so we need
         # to track what the next epoch is, not the current epoch.
         self._next_epoch = SharedArray(f'{self._shm_prefix}_next_epoch', 1, np.int64)
-        self._next_epoch[0] = 0
 
         # Create or attach shard states array (tells if each shard is unknown, downloading, or
         # downloaded).
@@ -350,10 +347,38 @@ class StreamingDataset(IterableDataset):
         self._shard_states_lock: FileLock
         self._shard_states = SharedArray(f'{self._shm_prefix}_shard_states', self.num_shards,
                                          np.uint8)
+
+        # Size of each shard in bytes (raw and zip).
+        #
+        # Notes:
+        # - Used for accounting to keep us under cache_limit.
+        # - If compression was not used, the shard will not have a zip version, and we use -1.
+        # - A "shard" comprises either one or two files, depending on the format.
+        self._shard_raw_sizes = SharedArray(f'{self._shm_prefix}_shard_raw_sizes', self.num_shards,
+                                            np.int64)
+        self._shard_zip_sizes = SharedArray(f'{self._shm_prefix}_shard_zip_sizes', self.num_shards,
+                                            np.int64)
+
+        # Initialize shared memory objects.
         if world.is_local_leader:
+            # Set initial epoch.
+            self._next_epoch[0] = 0
+
+            # Set initial shard states according to local dirs.
+            are_shards_present = []
+            for stream in self.streams:
+                stream_shards = stream.get_shards(world)
+                are_shards_present += stream.init_local_dir(stream_shards)
             for shard_id, is_shard_present in enumerate(are_shards_present):
                 self._shard_states[shard_id] = \
                     _ShardState.PRESENT if is_shard_present else _ShardState.MISSING
+
+            # Collect shard raw/zip sizes.
+            raw_sizes, zip_sizes = zip(
+                *map(lambda shard: shard.get_raw_and_zip_sizes(), self.shards))
+            self._shard_raw_sizes[:] = raw_sizes
+            self._shard_zip_sizes[:] = zip_sizes
+
         self._shared_barrier(world.workers_per_node)
 
         # Placeholder for a shared memory object where load_state_dict() saves its data to be

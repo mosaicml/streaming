@@ -6,7 +6,7 @@
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict, Iterator, List, Optional, Set
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 
 __all__ = ['FileInfo', 'Reader', 'JointReader', 'SplitReader']
 
@@ -141,6 +141,25 @@ class Reader(ABC):
 
         # Now, the shard is either entirely or not at all present given keep_zip.
         return is_raw_present
+
+    def get_raw_and_zip_sizes(self) -> Tuple[int, int]:
+        """Calculate the size in bytes of the raw and zip versions of this shard.
+
+        Returns:
+            Tuple[int, int]: Raw size and zip size, or -1 if not available.
+        """
+        raw_size = 0
+        zip_size = 0
+        for raw_info, zip_info in self.file_pairs:
+            if raw_info is None:
+                raw_size = -1
+            else:
+                raw_size += raw_info.bytes
+            if zip_info is None:
+                zip_size = -1
+            else:
+                zip_size += zip_info.bytes
+        return raw_size, zip_size
 
     @abstractmethod
     def decode_sample(self, data: bytes) -> Dict[str, Any]:
