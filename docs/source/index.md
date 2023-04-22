@@ -50,6 +50,10 @@ If you have any questions, please feel free to reach out to us on [Twitter](htt
    :maxdepth: 1
    :caption: Fundamentals
 
+   fundamentals/dataset_format.md
+   fundamentals/Introduction_to_writer.md
+   fundamentals/compression.md
+   fundamentals/hashing.md
    fundamentals/environments.md
    fundamentals/shuffling.md
 
@@ -69,6 +73,7 @@ If you have any questions, please feel free to reach out to us on [Twitter](htt
    examples/cifar10.ipynb
    examples/facesynthetics.ipynb
    examples/synthetic_nlp.ipynb
+   examples/multiprocess_dataset_conversion.ipynb
 
 .. toctree::
    :hidden:
