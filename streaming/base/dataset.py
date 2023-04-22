@@ -17,7 +17,7 @@ from torch.utils.data import IterableDataset
 
 from streaming.base.index import Index
 from streaming.base.partition import get_partitions
-from streaming.base.shared import SharedBarrier, SharedMemory, get_shm_prefix
+from streaming.base.shared import SharedArray, SharedBarrier, SharedMemory, get_shm_prefix
 from streaming.base.shuffle import get_shuffle
 from streaming.base.stream import Stream
 from streaming.base.util import TICK
@@ -340,21 +340,16 @@ class StreamingDataset(IterableDataset):
         # Note: we do not assume that the end of __iter__() will ever be reached, so we need to
         # increment the epoch counter at the start of __iter__() instead of at the end, so we need
         # to track what the next epoch is, not the current epoch.
-        self._next_epoch_shm = SharedMemory(name=f'{self._shm_prefix}_next_epoch',
-                                            size=np.int64().nbytes)
-        self._next_epoch_arr = np.ndarray(1, buffer=self._next_epoch_shm.buf, dtype=np.int64)
-        self._next_epoch_arr[0] = 0
+        self._next_epoch = SharedArray(f'{self._shm_prefix}_next_epoch', 1, np.int64)
+        self._next_epoch[0] = 0
 
         # Create or attach shard states array (tells if each shard is unknown, downloading, or
         # downloaded).
         self._shard_states_filelock_path = os.path.join(self._filelock_root,
                                                         '_shard_states_filelock')
         self._shard_states_lock: FileLock
-        self._shard_states_shm = SharedMemory(name=f'{self._shm_prefix}_shard_states',
-                                              size=self.num_shards * np.uint8(0).nbytes)
-        self._shard_states = np.ndarray(self.num_shards,
-                                        buffer=self._shard_states_shm.buf,
-                                        dtype=np.uint8)
+        self._shard_states = SharedArray(f'{self._shm_prefix}_shard_states', self.num_shards,
+                                         np.uint8)
         if world.is_local_leader:
             for shard_id, is_shard_present in enumerate(are_shards_present):
                 self._shard_states[shard_id] = \
@@ -384,7 +379,7 @@ class StreamingDataset(IterableDataset):
         Returns:
             int: Next epoch.
         """
-        return int(self._next_epoch_arr[0])
+        return int(self._next_epoch[0])
 
     def _set_next_epoch(self, next_epoch: int) -> None:
         """Set the next epoch.
@@ -392,7 +387,7 @@ class StreamingDataset(IterableDataset):
         Args:
             next_epoch (int): Next epoch.
         """
-        self._next_epoch_arr[0] = next_epoch
+        self._next_epoch[0] = next_epoch
 
     def __len__(self) -> int:
         """Get the length as an IterableDataset.
@@ -451,9 +446,6 @@ class StreamingDataset(IterableDataset):
         Returns:
             Tuple[int, int]: What epoch this is, and sample offset in that epoch.
         """
-        # Reference the same shared memory object in a worker process
-        self._next_epoch_arr = np.ndarray(1, buffer=self._next_epoch_shm.buf, dtype=np.int64)
-
         # Either resume from checkpoint, or start from scratch.
         presumed_epoch = self._get_next_epoch()
         epoch, sample_in_epoch = self._resume(world, presumed_epoch)

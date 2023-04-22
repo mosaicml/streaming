@@ -8,10 +8,9 @@ from random import random
 from time import sleep
 from typing import Any
 
-import numpy as np
 import pytest
 
-from streaming.base.shared import SharedBarrier
+from streaming.base.shared import SharedArray, SharedBarrier
 
 
 class TestSharedBarrier:
@@ -21,7 +20,7 @@ class TestSharedBarrier:
     def test_params(self, filelock_path: str, shm_path: str):
         barrier = SharedBarrier(filelock_path, shm_path)
         assert barrier.filelock_path == filelock_path
-        assert isinstance(barrier._arr, np.ndarray)
+        assert isinstance(barrier._arr, SharedArray)
         assert barrier._arr.shape == (3,)
         assert barrier.num_enter == 0
         assert barrier.num_exit == -1

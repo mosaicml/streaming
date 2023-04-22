@@ -14,7 +14,7 @@ from time import sleep
 import numpy as np
 from filelock import FileLock
 
-from streaming.base.shared.memory import SharedMemory
+from streaming.base.shared.array import SharedArray
 
 # Time to wait, in seconds.
 TICK = 0.07
@@ -39,18 +39,16 @@ class SharedBarrier:
         self.filelock_path = filelock_path
 
         # Create three int32 fields in shared memory: num_enter, num_exit, flag.
-        size = 3 * np.int32(0).nbytes
-        self._shm = SharedMemory(name=shm_path, size=size)
+        self._arr = SharedArray(shm_path, 3, np.int32)
+        self.num_enter = 0
+        self.num_exit = -1
+        self.flag = True
 
         # Create filelock.
         dirname = os.path.dirname(filelock_path)
-        os.makedirs(dirname, exist_ok=True)
+        if dirname:
+            os.makedirs(dirname, exist_ok=True)
         self.lock = FileLock(filelock_path)
-
-        self._arr = np.ndarray(3, buffer=self._shm.buf, dtype=np.int32)
-        self._arr[0] = 0
-        self._arr[1] = -1
-        self._arr[2] = True
 
         def cleanup():
             """Directory clean up."""
@@ -120,10 +118,6 @@ class SharedBarrier:
         Args:
             num_procs (int): How many processes are sharing this barrier.
         """
-        # Re-init the numpy array pointing to shared memory. Necessary when spawn is the
-        # multiprocessing method used.
-        self._arr = np.ndarray(3, buffer=self._shm.buf, dtype=np.int32)
-
         # Initialize num_exit to the number of processes.
         with self.lock:
             if self.num_exit == -1:
