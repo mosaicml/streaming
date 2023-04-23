@@ -188,6 +188,9 @@ class Reader(ABC):
         keep_zip. If we are not keeping zip files after decompression, they don't count to the
         shard's persistent size on disk.
 
+        Args:
+            keep_zip (bool): Whether to keep zip files after decompressing.
+
         Returns:
             int: Size in bytes.
         """
