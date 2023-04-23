@@ -232,19 +232,8 @@ class StreamingDataset(IterableDataset):
         else:
             streams = [default]
 
-        # Validate sub-dataset weights ("proportion", "repeat", "samples", or none).
-        is_proportional = hasattr(streams[0], 'proportion')
-        for stream_id, stream in enumerate(streams):
-            has_proportion = hasattr(stream, 'proportion')
-            has_repeat = hasattr(stream, 'repeat')
-            has_samples = hasattr(stream, 'samples')
-            if not (0 <= has_proportion + has_repeat + has_samples <= 1):
-                raise ValueError(f'Streams must provide at most one of "proportion", "repeat", ' +
-                                 f'or "samples" (error in stream {stream_id})')
-            if is_proportional != has_proportion:
-                raise ValueError(f'Relative ("proportion") and absolute ("repeat", "samples", ' +
-                                 f'none) sub-dataset weights are incompatible with each other ' +
-                                 f'(error in stream {stream_id})')
+        # Validate sub-dataset weight scheme ("proportion", "repeat", "samples", or none).
+        are_weights_relative = Stream.validate_weights(streams)
 
         # Set streams.
         self.streams = streams
@@ -283,7 +272,7 @@ class StreamingDataset(IterableDataset):
         self.index = Index(self.samples_per_shard)
 
         # Now that we have the true size of each sub-dataset, derive the proportions/repeats/picks.
-        if is_proportional:
+        if are_weights_relative:
             # Relative.
             if not samples_per_epoch:
                 samples_per_epoch = self.index.total_samples

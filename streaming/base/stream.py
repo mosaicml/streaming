@@ -6,7 +6,7 @@
 import json
 import os
 from tempfile import mkdtemp
-from typing import List, Optional
+from typing import List, Optional, Sequence
 
 from typing_extensions import Self
 
@@ -164,6 +164,31 @@ class Stream:
             self.validate_hash = default.validate_hash or None
         if self._keep_zip is None:
             self.keep_zip = default.keep_zip
+
+    @classmethod
+    def validate_weights(cls, streams: Sequence[Self]) -> bool:
+        """Validate stream weights, returning whether relative or absolute weighting was used.
+
+        Args:
+            streams (Sequence[Stream]): Every stream comprising the dataset.
+
+        Returns:
+            bool: Whether streams are weighted relatively (proportionally).
+        """
+        # Validate sub-dataset weights ("proportion", "repeat", "samples", or none).
+        is_relative = hasattr(streams[0], 'proportion')
+        for stream_id, stream in enumerate(streams):
+            has_proportion = hasattr(stream, 'proportion')
+            has_repeat = hasattr(stream, 'repeat')
+            has_samples = hasattr(stream, 'samples')
+            if not (0 <= has_proportion + has_repeat + has_samples <= 1):
+                raise ValueError(f'Streams must provide at most one of "proportion", "repeat", ' +
+                                 f'or "samples" (error in stream {stream_id})')
+            if is_relative != has_proportion:
+                raise ValueError(f'Relative ("proportion") and absolute ("repeat", "samples", ' +
+                                 f'none) sub-dataset weights are incompatible with each other ' +
+                                 f'(error in stream {stream_id})')
+        return is_relative
 
     def evict_shard(self, shard: Reader) -> None:
         """Evict the given shard.
