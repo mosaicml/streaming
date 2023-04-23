@@ -142,6 +142,7 @@ class Stream:
         self._keep_zip = keep_zip
         if keep_zip is not None:
             self.keep_zip = keep_zip
+            self.safe_keep_zip = self.keep_zip or self.remote in {None, self.local}
 
     def apply_default(self, default: Self) -> None:
         """Apply defaults, setting any unset fields.
@@ -164,6 +165,7 @@ class Stream:
             self.validate_hash = default.validate_hash or None
         if self._keep_zip is None:
             self.keep_zip = default.keep_zip
+            self.safe_keep_zip = self.keep_zip or self.remote in {None, self.local}
 
     @classmethod
     def validate_weights(cls, streams: Sequence[Self]) -> bool:
@@ -364,9 +366,8 @@ class Stream:
                 ls.add(filename)
 
         # Determine which shards are present, making local dir consistent.
-        safe_keep_zip = self.keep_zip or self.remote in [None, self.local]
         are_shards_present = []
         for shard in shards:
-            is_shard_present = shard.init_local_dir(ls, safe_keep_zip)
+            is_shard_present = shard.init_local_dir(ls, self.safe_keep_zip)
             are_shards_present.append(is_shard_present)
         return are_shards_present

@@ -6,7 +6,7 @@
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Set
 
 __all__ = ['FileInfo', 'Reader', 'JointReader', 'SplitReader']
 
@@ -142,24 +142,63 @@ class Reader(ABC):
         # Now, the shard is either entirely or not at all present given keep_zip.
         return is_raw_present
 
-    def get_raw_and_zip_sizes(self) -> Tuple[int, int]:
-        """Calculate the size in bytes of the raw and zip versions of this shard.
+    def get_raw_size(self) -> int:
+        """Get the raw (uncompressed) size of this shard.
 
         Returns:
-            Tuple[int, int]: Raw size and zip size, or -1 if not available.
+            int: Size in bytes.
         """
-        raw_size = 0
-        zip_size = 0
-        for raw_info, zip_info in self.file_pairs:
-            if raw_info is None:
-                raw_size = -1
+        size = 0
+        for info, _ in self.file_pairs:
+            size += info.bytes
+        return size
+
+    def get_zip_size(self) -> Optional[int]:
+        """Get the zip (compressed) size of this shard, if compression was used.
+
+        Returns:
+            Optional[int]: Size in bytes, or ``None`` if does not exist.
+        """
+        size = 0
+        for _, info in self.file_pairs:
+            if info is None:
+                return None
+            size += info.bytes
+        return size
+
+    def get_full_size(self) -> int:
+        """Get the full size of this shard.
+
+        "Full" in this case means both the raw (decompressed) and zip (compressed) versions are
+        resident (assuming it has a zip form). This is the maximum disk usage the shard can reach.
+        When compressed was used, even if keep_zip is ``False``, the zip form must still be
+        resident at the same time as the raw form during shard decompression.
+
+        Returns:
+            int: Size in bytes.
+        """
+        raw_size = self.get_raw_size()
+        zip_size = self.get_zip_size() or 0
+        return raw_size + zip_size
+
+    def get_persistent_size(self, keep_zip: bool) -> int:
+        """Get the persistent size of this shard.
+
+        "Persistent" in this case means whether both raw and zip are present is subject to
+        keep_zip. If we are not keeping zip files after decompression, they don't count to the
+        shard's persistent size on disk.
+
+        Returns:
+            int: Size in bytes.
+        """
+        if self.compression:
+            if keep_zip:
+                size = self.get_full_size()
             else:
-                raw_size += raw_info.bytes
-            if zip_info is None:
-                zip_size = -1
-            else:
-                zip_size += zip_info.bytes
-        return raw_size, zip_size
+                size = self.get_raw_size()
+        else:
+            size = self.get_raw_size()
+        return size
 
     @abstractmethod
     def decode_sample(self, data: bytes) -> Dict[str, Any]:

@@ -26,7 +26,7 @@ class SharedArray:
         self.shape = np.empty(shape).shape
         self.dtype = dtype
 
-    def array(self) -> NDArray:
+    def numpy(self) -> NDArray:
         """Get as a numpy array.
 
         We can't just internally store and use this numpy array shared memory wrapper because it's
@@ -43,7 +43,7 @@ class SharedArray:
         Returns:
             The scalar(s) at the given location(s).
         """
-        arr = np.ndarray(self.shape, buffer=self.shm.buf, dtype=self.dtype)
+        arr = self.numpy()
         return arr[index]
 
     def __setitem__(self, index: Any, value: Any) -> Any:
@@ -53,5 +53,5 @@ class SharedArray:
             index (Any): The index, slice, or array of indices.
             value (Any): The scalar(s) at the given location(s).
         """
-        arr = np.ndarray(self.shape, buffer=self.shm.buf, dtype=self.dtype)
+        arr = self.numpy()
         arr[index] = value
