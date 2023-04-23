@@ -17,7 +17,8 @@ from torch.utils.data import IterableDataset
 
 from streaming.base.index import Index
 from streaming.base.partition import get_partitions
-from streaming.base.shared import SharedArray, SharedBarrier, SharedMemory, get_shm_prefix
+from streaming.base.shared import (SharedArray, SharedBarrier, SharedMemory, SharedScalar,
+                                   get_shm_prefix)
 from streaming.base.shuffle import get_shuffle
 from streaming.base.stream import Stream
 from streaming.base.util import TICK
@@ -330,24 +331,24 @@ class StreamingDataset(IterableDataset):
         # Note: we do not assume that the end of __iter__() will ever be reached, so we need to
         # increment the epoch counter at the start of __iter__() instead of at the end, so we need
         # to track what the next epoch is, not the current epoch.
-        self._next_epoch = SharedArray(f'{self._shm_prefix}_next_epoch', 1, np.int64)
+        self._next_epoch = SharedScalar(np.int64, f'{self._shm_prefix}_next_epoch')
 
         # Cache filelock. Proects downloading and evicting shards.
         self._cache_filelock_path = os.path.join(self._filelock_root, '_cache_filelock')
         self._cache_filelock: FileLock
 
         # Cache usage.
-        self._cache_usage = SharedArray(f'{self._shm_prefix}_cache_usage', 1, np.int64)
+        self._cache_usage = SharedScalar(np.int64, f'{self._shm_prefix}_cache_usage')
 
         # Shard states array. Tells if a shard is missing, downloading, or present (eviction
         # happens under the lock).
-        self._shard_states = SharedArray(f'{self._shm_prefix}_shard_states', self.num_shards,
-                                         np.uint8)
+        self._shard_states = SharedArray(self.num_shards, np.uint8,
+                                         f'{self._shm_prefix}_shard_states')
 
         # Time of last access per shard. This is used to decide which shard(s) to evict when we run
         # out of space.
-        self._shard_access_times = SharedArray(f'{self._shm_prefix}_shard_access_times',
-                                               self.num_shards, np.float32)
+        self._shard_access_times = SharedArray(self.num_shards, np.float32,
+                                               f'{self._shm_prefix}_shard_access_times')
 
         # Initialize shared memory objects.
         if world.is_local_leader:
@@ -395,7 +396,7 @@ class StreamingDataset(IterableDataset):
         Returns:
             int: Next epoch.
         """
-        return int(self._next_epoch[0])
+        return int(self._next_epoch.get())
 
     @next_epoch.setter
     def next_epoch(self, next_epoch: int) -> None:
@@ -404,7 +405,7 @@ class StreamingDataset(IterableDataset):
         Args:
             next_epoch (int): Next epoch.
         """
-        self._next_epoch[0] = next_epoch
+        self._next_epoch.set(next_epoch)
 
     @property
     def cache_usage(self) -> int:
@@ -413,7 +414,7 @@ class StreamingDataset(IterableDataset):
         Returns:
             int: Cache usage.
         """
-        return int(self._cache_usage[0])
+        return int(self._cache_usage.get())
 
     @cache_usage.setter
     def cache_usage(self, cache_usage: int) -> None:
@@ -422,7 +423,7 @@ class StreamingDataset(IterableDataset):
         Args:
             cache_usage (int): Cache usage.
         """
-        self._cache_usage[0] = cache_usage
+        self._cache_usage.set(cache_usage)
 
     def __len__(self) -> int:
         """Get the length as an IterableDataset.
@@ -793,7 +794,9 @@ class StreamingDataset(IterableDataset):
         """
         # Lock the cache. FileLocks contain threading Locks, which are not pickleable, which is
         # incompatible with spawn, so must be created lazily.
-        lock = FileLock(self._cache_filelock_path)
+        if not hasattr(self, '_cache_filelock'):
+            self._cache_filelock = FileLock(self._cache_filelock_path)
+        lock = self._cache_filelock
         lock.acquire()
 
         # Get the state of the shard to download.

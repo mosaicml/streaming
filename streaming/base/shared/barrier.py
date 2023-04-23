@@ -39,7 +39,7 @@ class SharedBarrier:
         self.filelock_path = filelock_path
 
         # Create three int32 fields in shared memory: num_enter, num_exit, flag.
-        self._arr = SharedArray(shm_path, 3, np.int32)
+        self._arr = SharedArray(3, np.int32, shm_path)
         self.num_enter = 0
         self.num_exit = -1
         self.flag = True

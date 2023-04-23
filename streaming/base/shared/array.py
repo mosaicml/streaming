@@ -1,7 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""A numpy array of predetermined shape that lives in shared memory."""
+"""A numpy array of predetermined shape and dtype that lives in shared memory."""
 
 from typing import Any, Tuple, Union
 
@@ -12,19 +12,20 @@ from streaming.base.shared.memory import SharedMemory
 
 
 class SharedArray:
-    """A numpy array of predetermined shape that lives in shared memory.
+    """A numpy array of predetermined shape and dtype that lives in shared memory.
 
     Args:
-        name (str): Its name in shared memory.
         shape (Union[int, Tuple[int]]): Shape of the array.
-        dtype (np.dtype): Dtype of the array.
+        dtype (type): Dtype of the array.
+        name (str): Its name in shared memory.
     """
 
-    def __init__(self, name: str, shape: Union[int, Tuple[int]], dtype: type) -> None:
-        size = np.prod(shape) * dtype(0).nbytes
-        self.shm = SharedMemory(name=name, size=size)
+    def __init__(self, shape: Union[int, Tuple[int]], dtype: type, name: str) -> None:
         self.shape = np.empty(shape).shape
         self.dtype = dtype
+        self.name = name
+        size = np.prod(shape) * dtype(0).nbytes
+        self.shm = SharedMemory(name=name, size=size)
 
     def numpy(self) -> NDArray:
         """Get as a numpy array.
