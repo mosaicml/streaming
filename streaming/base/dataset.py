@@ -576,8 +576,7 @@ class StreamingDataset(IterableDataset):
         sample_ids = np.concatenate(sample_ids)
         return shuffle_units, sample_ids
 
-    def _generate_sample_ids(self, world: World, epoch: int,
-                             sample_in_epoch: int) -> NDArray[np.int64]:
+    def _generate_work(self, world: World, epoch: int, sample_in_epoch: int) -> NDArray[np.int64]:
         """Generate this epoch's arrangement of samples.
 
         This is only called in local rank zero.
@@ -617,8 +616,7 @@ class StreamingDataset(IterableDataset):
         # need them anymore, and can convert back to underlying "small" sample IDs.
         return np.where(big_ids != -1, small_per_big[big_ids], -1)
 
-    def _share_sample_ids(self, sample_ids: NDArray[np.int64]) -> \
-            Tuple[SharedMemory, SharedMemory]:
+    def _share_work(self, sample_ids: NDArray[np.int64]) -> Tuple[SharedMemory, SharedMemory]:
         """Put an epoch's sample ordering into shared memory.
 
         Args:
@@ -648,7 +646,7 @@ class StreamingDataset(IterableDataset):
 
         return shape_shm, data_shm
 
-    def _attach_sample_ids(self) -> Tuple[NDArray[np.int64], SharedMemory, SharedMemory]:
+    def _attach_work(self) -> Tuple[NDArray[np.int64], SharedMemory, SharedMemory]:
         """Get an epoch's sample ordering from shared memory.
 
         Returns:
@@ -683,12 +681,12 @@ class StreamingDataset(IterableDataset):
         """
         # Do expensive work that may use a lot of cores/memory just once, in the local leader.
         if world.is_local_leader:
-            epoch_sample_ids = self._generate_sample_ids(world, epoch, sample_in_epoch)
-            shape_shm, data_shm = self._share_sample_ids(epoch_sample_ids)
+            epoch_sample_ids = self._generate_work(world, epoch, sample_in_epoch)
+            shape_shm, data_shm = self._share_work(epoch_sample_ids)
             self._shared_barrier(world.workers_per_node)
         else:
             self._shared_barrier(world.workers_per_node)
-            epoch_sample_ids, shape_shm, data_shm = self._attach_sample_ids()
+            epoch_sample_ids, shape_shm, data_shm = self._attach_work()
 
         # Each worker gets their portion of the work.
         worker_sample_ids = epoch_sample_ids[world.node, world.rank_of_node,
