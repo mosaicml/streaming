@@ -84,12 +84,13 @@ class Reader(ABC):
         self._evict_raw()
         self._evict_zip()
 
-    def init_local_dir(self, ls: Set[str], keep_zip: bool) -> bool:
+    def init_local_dir(self, filenames_present: Set[str], keep_zip: bool) -> bool:
         """Bring what shard files are present to a consistent state, returning whether present.
 
         Args:
-            ls (Set[str]): The listing of all files under dirname/[split/]. This is listed once
-                and then saved because there could potentially be very many shard files.
+            filenames_present (Set[str]): The listing of all files under dirname/[split/]. This is
+                listed once and then saved because there could potentially be very many shard
+                files.
             keep_zip (bool): Whether to keep zip files when decompressing. Possible when
                 compression was used. Necessary when local is the remote or there is no remote.
 
@@ -102,11 +103,11 @@ class Reader(ABC):
         for raw_info, zip_info in self.file_pairs:
             if raw_info:
                 filename = os.path.join(self.dirname, self.split, raw_info.basename)
-                if filename in ls:
+                if filename in filenames_present:
                     raw_files_present += 1
             if zip_info:
                 filename = os.path.join(self.dirname, self.split, zip_info.basename)
-                if filename in ls:
+                if filename in filenames_present:
                     zip_files_present += 1
 
         # If the shard raw files are partially present, garbage collect the present ones and mark
