@@ -26,8 +26,8 @@ class Spanner:
         self.shard_starts = self.shard_stops - shard_sizes
 
         overflow = size % span_size
-        if overflow:
-            self.shard_sizes[-1] += span_size - overflow
+        underflow = span_size - overflow if overflow else 0
+        self.shard_sizes[-1] += underflow
 
         sample_shards = np.repeat(np.arange(len(shard_sizes)), self.shard_sizes)
         sample_shards = sample_shards.reshape(-1, span_size)
@@ -38,6 +38,8 @@ class Spanner:
         for low, high in zip(span_lowest_shards, span_highest_shards):
             shards = np.arange(low, high + 1)
             self.spans.append(shards)
+
+        self.shard_sizes[-1] -= underflow
 
     def __getitem__(self, index: int) -> Tuple[int, int]:
         """Map global index to shard and relative index.
