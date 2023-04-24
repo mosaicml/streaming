@@ -1,7 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Mapping of global index to shard and relative index."""
+"""Mapping of global sample index to shard and relative sample index."""
 
 from typing import Tuple
 
@@ -20,12 +20,10 @@ class Spanner:
     def __init__(self, shard_sizes: NDArray[np.int64], span_size: int = 1 << 10) -> None:
         self.shard_sizes = shard_sizes
         self.span_size = span_size
+        self.size = sum(shard_sizes)
+        self.shard_bounds = np.concatenate([np.zeros(1, np.int64), shard_sizes.cumsum()])
 
-        self.size = size = sum(shard_sizes)
-        self.shard_stops = shard_sizes.cumsum()
-        self.shard_starts = self.shard_stops - shard_sizes
-
-        overflow = size % span_size
+        overflow = self.size % span_size
         underflow = span_size - overflow if overflow else 0
         self.shard_sizes[-1] += underflow
 
@@ -42,21 +40,21 @@ class Spanner:
         self.shard_sizes[-1] -= underflow
 
     def __getitem__(self, index: int) -> Tuple[int, int]:
-        """Map global index to shard and relative index.
+        """Map global sample index to shard and relative sample index.
 
         Args:
-            index (int): Global index.
+            index (int): Global sample index.
 
         Returns:
-            Tuple[int, int]: Span and relative index.
+            Tuple[int, int]: Shard and relative sample index.
         """
         if not (0 <= index < self.size):
             raise ValueError(f'Invalid index: 0 <= {index} < {self.size}')
 
         span = index // self.span_size
         for shard in self.spans[span]:
-            shard_start = self.shard_starts[shard]
-            shard_stop = self.shard_stops[shard]
+            shard_start = self.shard_bounds[shard]
+            shard_stop = self.shard_bounds[shard + 1]
             if shard_start <= index < shard_stop:
                 return shard, int(index - shard_start)
 
