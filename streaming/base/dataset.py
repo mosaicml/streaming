@@ -720,12 +720,12 @@ class StreamingDataset(IterableDataset):
         self._shard_states[shard_id] = _ShardState.MISSING
 
         # Perform the eviction.
-        stream_id = self.stream_per_shard[shard_id]
-        stream = self.streams[stream_id]
         shard = self.shards[shard_id]
-        stream.evict_shard(shard)
+        shard.evict()
 
         # Lastly, update cache usage to account for the removal.
+        stream_id = self.stream_per_shard[shard_id]
+        stream = self.streams[stream_id]
         self.cache_usage -= shard.get_persistent_size(stream.safe_keep_zip)
 
     def _evict_coldest_shard(self) -> None:
