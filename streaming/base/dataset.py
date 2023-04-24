@@ -277,7 +277,7 @@ class StreamingDataset(IterableDataset):
 
         # Now that we have the true size of each sub-dataset, derive the proportions/repeats/picks.
         if are_weights_relative:
-            # Relative.
+            # Relative weighting.
             if not samples_per_epoch:
                 samples_per_epoch = self.index.total_samples
             self.proportion_per_stream = np.array([stream.proportion for stream in self.streams],
@@ -292,7 +292,7 @@ class StreamingDataset(IterableDataset):
             self.repeat_per_stream = self.pick_per_stream / self.samples_per_stream
             self.samples_per_epoch = samples_per_epoch
         else:
-            # Absolute.
+            # Absolute weighting.
             if samples_per_epoch:
                 raise ValueError('Only provide samples_per_epoch when proportionally weighting ' +
                                  'sub-datasets.')
@@ -352,11 +352,16 @@ class StreamingDataset(IterableDataset):
 
         # Initialize shared memory objects.
         if world.is_local_leader:
+            # Set initial epoch (before any resumption).
             self.next_epoch = 0
+
+            # Init each stream's local dir, discovering which shards are present.
             are_shards_present = []
             for stream in self.streams:
                 stream_shards = stream.get_shards(world)
                 are_shards_present += stream.init_local_dir(stream_shards)
+
+            # Use that to init shard states, shard access times, and cache usage.
             self.cache_usage = 0
             for shard_id, is_shard_present in enumerate(are_shards_present):
                 if is_shard_present:
