@@ -65,7 +65,7 @@ class Reader(ABC):
         return self.samples
 
     def init_local_dir(self, ls: Set[str], keep_zip: bool) -> bool:
-        """Bring what shard files are present to a consistent state, returning whether prsent.
+        """Bring what shard files are present to a consistent state, returning whether present.
 
         Args:
             ls (Set[str]): The listing of all files under dirname/[split/]. This is listed once
