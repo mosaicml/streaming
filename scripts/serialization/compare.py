@@ -199,7 +199,7 @@ def mds_read_rand(dirname: str) -> Iterator[Dict[str, Any]]:
         Iterator[Dict[str, Any]]: Iterator over samples.
     """
     dataset = StreamingDataset(local=dirname)
-    indices = np.random.permutation(dataset.index.total_samples)
+    indices = np.random.permutation(dataset.num_samples)
     for idx in indices:
         yield dataset[idx]
 

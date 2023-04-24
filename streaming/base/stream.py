@@ -11,10 +11,8 @@ from typing import List, Optional
 from typing_extensions import Self
 
 from streaming.base.compression import decompress
-from streaming.base.format import Reader, reader_from_json
-from streaming.base.format.base.reader import FileInfo
+from streaming.base.format import FileInfo, Reader, get_index_basename, reader_from_json
 from streaming.base.hashing import get_hash
-from streaming.base.index import get_index_basename
 from streaming.base.storage import download_file
 from streaming.base.util import TICK, wait_for_file_to_exist
 from streaming.base.world import World
