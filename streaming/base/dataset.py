@@ -302,7 +302,7 @@ class StreamingDataset(IterableDataset):
         self._cache_filelock_path = os.path.join(self._filelock_root, '_cache_filelock')
         self._cache_filelock: FileLock
 
-        # Cache usage.
+        # Cache usage in bytes.
         self._cache_usage = SharedScalar(np.int64, f'{self._shm_prefix}_cache_usage')
 
         # Shard states array. Tells if a shard is missing, downloading, or present (eviction
@@ -382,7 +382,7 @@ class StreamingDataset(IterableDataset):
         """Get the cache usage.
 
         Returns:
-            int: Cache usage.
+            int: Cache usage in bytes.
         """
         return int(self._cache_usage.get())
 
@@ -391,7 +391,7 @@ class StreamingDataset(IterableDataset):
         """Set the cache usage.
 
         Args:
-            cache_usage (int): Cache usage.
+            cache_usage (int): Cache usage in bytes.
         """
         self._cache_usage.set(cache_usage)
 
