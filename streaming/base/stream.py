@@ -8,6 +8,8 @@ import os
 from tempfile import mkdtemp
 from typing import List, Optional, Sequence
 
+import numpy as np
+from numpy.typing import NDArray
 from typing_extensions import Self
 
 from streaming.base.compression import decompress
@@ -191,6 +193,64 @@ class Stream:
                                  f'none) sub-dataset weights are incompatible with each other ' +
                                  f'(error in stream {stream_id})')
         return is_relative
+
+    @classmethod
+    def apply_weights(cls, streams: Sequence[Self], samples_per_stream: NDArray[np.int64],
+                      samples_per_epoch: Optional[int], seed: int) -> int:
+        """Given samples per stream, derive each stream's proportion/repeat/samples.
+
+        Args:
+            streams (Sequence[Stream]): The list of streams which comprise the dataset.
+            samples_per_stream (NDArray[np.int64]): Underlying samples of each stream.
+            samples_per_epoch (int, optional): The resampled size of the epoch after weighting, if
+                desired to be different from the underlying size and relative weights are used.
+            seed (int): Random number generator seed used to sample evenly.
+
+        Returns:
+            int: Derived samples_per_epoch which is always valid.
+        """
+        # Validate provided weights, determining whether they are relative or absolute.
+        are_weights_relative = cls.validate_weights(streams)
+
+        # Derive weights.
+        if are_weights_relative:
+            # Relative weighting.
+            if not samples_per_epoch:
+                samples_per_epoch = sum(samples_per_stream)
+            proportion_per_stream = np.array([stream.proportion for stream in streams], np.float64)
+            proportion_per_stream /= proportion_per_stream.sum()
+            pick_per_stream = (samples_per_epoch * proportion_per_stream).astype(np.int64)
+            short = samples_per_epoch - pick_per_stream.sum()
+            rng = np.random.default_rng(seed)
+            indices = rng.choice(len(streams), short, False)
+            pick_per_stream[indices] += 1
+            repeat_per_stream = pick_per_stream / samples_per_stream
+        else:
+            # Absolute weighting.
+            if samples_per_epoch:
+                raise ValueError('Only provide samples_per_epoch when proportionally weighting ' +
+                                 'sub-datasets.')
+            pick_per_stream = np.zeros(len(streams), np.int64)
+            for stream_id, stream in enumerate(streams):
+                if hasattr(stream, 'repeat'):
+                    samples = int(stream.repeat * samples_per_stream[stream_id])
+                elif hasattr(stream, 'samples'):
+                    samples = stream.samples
+                else:
+                    samples = samples_per_stream[stream_id]
+                pick_per_stream[stream_id] = samples
+            repeat_per_stream = pick_per_stream / samples_per_stream
+            proportion_per_stream = pick_per_stream / pick_per_stream.sum()
+            samples_per_epoch = sum(pick_per_stream)
+
+        # Now that we know the true props/repeats/picks, inject those back into the streams.
+        for stream, proportion, repeat, pick in zip(streams, proportion_per_stream,
+                                                    repeat_per_stream, pick_per_stream):
+            stream.proportion = proportion
+            stream.repeat = repeat
+            stream.samples = pick
+
+        return samples_per_epoch
 
     def evict_shard(self, shard: Reader) -> None:
         """Evict the given shard.

@@ -236,8 +236,9 @@ class StreamingDataset(IterableDataset):
         else:
             streams = [default]
 
-        # Validate sub-dataset weight scheme ("proportion", "repeat", "samples", or none).
-        are_weights_relative = Stream.validate_weights(streams)
+        # Validate the stream weighting scheme (relative or absolute) to catch errors before we go
+        # to the trouble of loading them.
+        Stream.validate_weights(streams)
 
         # Set streams.
         self.streams = streams
@@ -275,46 +276,10 @@ class StreamingDataset(IterableDataset):
         self.samples_per_shard = np.array([x.samples for x in self.shards])
         self.index = Index(self.samples_per_shard)
 
-        # Now that we have the true size of each sub-dataset, derive the proportions/repeats/picks.
-        if are_weights_relative:
-            # Relative weighting.
-            if not samples_per_epoch:
-                samples_per_epoch = self.index.total_samples
-            self.proportion_per_stream = np.array([stream.proportion for stream in self.streams],
-                                                  np.float64)
-            self.proportion_per_stream /= self.proportion_per_stream.sum()
-            self.pick_per_stream = (samples_per_epoch * self.proportion_per_stream).astype(
-                np.int64)
-            short = samples_per_epoch - self.pick_per_stream.sum()
-            rng = np.random.default_rng(shuffle_seed)
-            indices = rng.choice(self.num_streams, short, False)
-            self.pick_per_stream[indices] += 1
-            self.repeat_per_stream = self.pick_per_stream / self.samples_per_stream
-            self.samples_per_epoch = samples_per_epoch
-        else:
-            # Absolute weighting.
-            if samples_per_epoch:
-                raise ValueError('Only provide samples_per_epoch when proportionally weighting ' +
-                                 'sub-datasets.')
-            self.pick_per_stream = np.zeros(self.num_streams, np.int64)
-            for stream_id, stream in enumerate(self.streams):
-                if hasattr(stream, 'repeat'):
-                    samples = int(stream.repeat * self.samples_per_stream[stream_id])
-                elif hasattr(stream, 'samples'):
-                    samples = stream.samples
-                else:
-                    samples = self.samples_per_stream[stream_id]
-                self.pick_per_stream[stream_id] = samples
-            self.repeat_per_stream = self.pick_per_stream / self.samples_per_stream
-            self.proportion_per_stream = self.pick_per_stream / self.pick_per_stream.sum()
-            self.samples_per_epoch = sum(self.pick_per_stream)
-
-        # Now that we know the true props/reps/picks, inject those back into the Streams,
-        for stream, proportion, repeat, pick in zip(self.streams, self.proportion_per_stream,
-                                                    self.repeat_per_stream, self.pick_per_stream):
-            stream.proportion = proportion
-            stream.repeat = repeat
-            stream.samples = pick
+        # Now that we know the number of underlying samples of each stream, derive each stream's
+        # true proportion/repeat/samples, as well as the total epoch size.
+        self.samples_per_epoch = Stream.apply_weights(self.streams, self.samples_per_stream,
+                                                      samples_per_epoch, self.shuffle_seed)
 
         # Register/lookup our shared memory prefix and filelock root directory.
         my_locals = [os.path.abspath(stream.local) for stream in streams]
@@ -573,7 +538,7 @@ class StreamingDataset(IterableDataset):
             # Calculate pick per stream shard.
             samples_per_stream_shard = self.samples_per_shard[stream_shard_ids]
             stream_samples = sum(samples_per_stream_shard)
-            stream_picks = self.pick_per_stream[stream_id]
+            stream_picks = self.streams[stream_id].samples
             if stream_picks == stream_samples:
                 pick_per_stream_shard = samples_per_stream_shard
             else:
