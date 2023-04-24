@@ -837,14 +837,15 @@ class StreamingDataset(IterableDataset):
         shard_id, shard_sample_id = self.index.find_sample(sample_id)
         shard = self.shards[shard_id]
         try:
-            # Shortcut path: just assume the shard is present. Manually update last access time
-            # afterward. Using exceptions as control flow is actually faster than doing it
-            # properly because python.
+            # Shortcut path: just assume the shard is present. Using exceptions as control flow is
+            # actually faster than doing it properly because python.
             sample = shard[shard_sample_id]
+
+            # Manually update the last access time afterward. Normally this would have happened at
+            # the end of _download_shard (see proper path below).
             self._shard_access_times[shard_id] = time()
         except:
-            # Proper path: shard wasn't present. Download the shard or wait for its download to
-            # complete, then access the sample.
+            # Proper path: First ensure the shard is downloaded, then access the sample.
             self._download_shard(shard_id)
             sample = shard[shard_sample_id]
         return sample
