@@ -199,6 +199,8 @@ class Stream:
                       samples_per_epoch: Optional[int], seed: int) -> int:
         """Given samples per stream, derive each stream's proportion/repeat/samples.
 
+        Modifies streams to save the derived weights.
+
         Args:
             streams (Sequence[Stream]): The list of streams which comprise the dataset.
             samples_per_stream (NDArray[np.int64]): Underlying samples of each stream.
