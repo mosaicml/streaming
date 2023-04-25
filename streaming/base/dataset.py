@@ -886,8 +886,8 @@ class StreamingDataset(IterableDataset):
         """Download the relevant shards in the background while we are being iterated.
 
         This thread is started at the beginning of each epoch, and exits either when out of samples
-        or when a new epoch is started, calling exit_threads() on its state (only one epoch is
-        valid at a time).
+        or when a new epoch is started, calling exit() on its state (only one epoch is valid at a
+        time).
 
         Each worker has its own download thread, which iterates ahead of the ready thread and yield
         loop.
