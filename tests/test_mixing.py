@@ -46,14 +46,14 @@ def test_mix_none(root: str):
     for stream in streams:
         assert float_eq(stream.proportion, 0.25)
         assert stream.repeat == 1
-        assert stream.samples == 2
+        assert stream.choose == 2
 
 
-def test_mix_samples_same(root: str):
+def test_mix_choose_same(root: str):
     streams = []
     for i in range(4):
         subroot = os.path.join(root, str(i))
-        stream = Stream(local=subroot, samples=2)
+        stream = Stream(local=subroot, choose=2)
         streams.append(stream)
     dataset = StreamingDataset(streams=streams)
     assert dataset.num_samples == 8
@@ -61,14 +61,14 @@ def test_mix_samples_same(root: str):
     for stream in streams:
         assert float_eq(stream.proportion, 0.25)
         assert stream.repeat == 1
-        assert stream.samples == 2
+        assert stream.choose == 2
 
 
-def test_mix_samples_mul(root: str):
+def test_mix_choose_mul(root: str):
     streams = []
     for i in range(4):
         subroot = os.path.join(root, str(i))
-        stream = Stream(local=subroot, samples=4)
+        stream = Stream(local=subroot, choose=4)
         streams.append(stream)
     dataset = StreamingDataset(streams=streams)
     assert dataset.num_samples == 8
@@ -76,15 +76,15 @@ def test_mix_samples_mul(root: str):
     for stream in streams:
         assert float_eq(stream.proportion, 0.25)
         assert stream.repeat == 2
-        assert stream.samples == 4
+        assert stream.choose == 4
 
 
-def test_mix_samples_range(root: str):
-    samples = [0, 2, 4, 6]
+def test_mix_choose_range(root: str):
+    choices = [0, 2, 4, 6]
     streams = []
     for i in range(4):
         subroot = os.path.join(root, str(i))
-        stream = Stream(local=subroot, samples=samples[i])
+        stream = Stream(local=subroot, choose=choices[i])
         streams.append(stream)
     dataset = StreamingDataset(streams=streams)
     assert dataset.num_samples == 8
@@ -92,7 +92,7 @@ def test_mix_samples_range(root: str):
     for i, stream in enumerate(streams):
         assert float_eq(stream.proportion, i / 6)
         assert stream.repeat == i
-        assert stream.samples == i * 2
+        assert stream.choose == i * 2
 
 
 def test_mix_repeat(root: str):
@@ -108,10 +108,10 @@ def test_mix_repeat(root: str):
     for i, stream in enumerate(streams):
         assert float_eq(stream.proportion, i / 6)
         assert stream.repeat == i
-        assert stream.samples == i * 2
+        assert stream.choose == i * 2
 
 
-def test_mix_repeat_and_samples(root: str):
+def test_mix_repeat_and_choose(root: str):
     weights = [
         (0, None),
         (None, 2),
@@ -121,8 +121,8 @@ def test_mix_repeat_and_samples(root: str):
     streams = []
     for i in range(4):
         subroot = os.path.join(root, str(i))
-        repeat, samples = weights[i]
-        stream = Stream(local=subroot, repeat=repeat, samples=samples)
+        repeat, choose = weights[i]
+        stream = Stream(local=subroot, repeat=repeat, choose=choose)
         streams.append(stream)
     dataset = StreamingDataset(streams=streams)
     assert dataset.num_samples == 8
@@ -130,10 +130,10 @@ def test_mix_repeat_and_samples(root: str):
     for i, stream in enumerate(streams):
         assert float_eq(stream.proportion, i / 6)
         assert stream.repeat == i
-        assert stream.samples == i * 2
+        assert stream.choose == i * 2
 
 
-def test_mix_repeat_samples_none(root: str):
+def test_mix_repeat_choose_none(root: str):
     weights = [
         (0, None),
         (None, None),
@@ -143,8 +143,8 @@ def test_mix_repeat_samples_none(root: str):
     streams = []
     for i in range(4):
         subroot = os.path.join(root, str(i))
-        repeat, samples = weights[i]
-        stream = Stream(local=subroot, repeat=repeat, samples=samples)
+        repeat, choose = weights[i]
+        stream = Stream(local=subroot, repeat=repeat, choose=choose)
         streams.append(stream)
     dataset = StreamingDataset(streams=streams)
     assert dataset.num_samples == 8
@@ -152,7 +152,7 @@ def test_mix_repeat_samples_none(root: str):
     for i, stream in enumerate(streams):
         assert float_eq(stream.proportion, i / 6)
         assert stream.repeat == i
-        assert stream.samples == i * 2
+        assert stream.choose == i * 2
 
 
 def test_mix_proportion_equal(root: str):
@@ -168,7 +168,7 @@ def test_mix_proportion_equal(root: str):
     for i, stream in enumerate(streams):
         assert float_eq(stream.proportion, 0.25)
         assert stream.repeat == 1
-        assert stream.samples == 2
+        assert stream.choose == 2
 
 
 def test_mix_proportion_range(root: str):
@@ -184,14 +184,14 @@ def test_mix_proportion_range(root: str):
     for i, stream in enumerate(streams):
         assert float_eq(stream.proportion, i / 6)
         assert stream.repeat == i
-        assert stream.samples == i * 2
+        assert stream.choose == i * 2
 
 
 def test_mix_balance(root: str):
     streams = []
     for i in range(4):
         subroot = os.path.join(root, str(i))
-        stream = Stream(local=subroot, samples=3)
+        stream = Stream(local=subroot, choose=3)
         streams.append(stream)
     dataset = StreamingDataset(streams=streams)
     counts = np.zeros(8, np.int64)
