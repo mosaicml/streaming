@@ -49,7 +49,7 @@ class Spanner:
             Tuple[int, int]: Shard and relative sample index.
         """
         if not (0 <= index < self.size):
-            raise ValueError(f'Invalid index: 0 <= {index} < {self.size}')
+            raise ValueError(f'Invalid sample index: 0 <= {index} < {self.size}')
 
         span = index // self.span_size
         for shard in self.spans[span]:
