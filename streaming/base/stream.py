@@ -64,8 +64,8 @@ class Stream:
             proportion of the total combined dataset that consists of this sub-dataset. If
             using proportions, all sub-datasets provided together to the StreamingDataset init must
             define their proportions. The total combined number of samples is either the
-            StreamingDataset argument "samples_per_epoch" if provided, or kept the same total size
-            as the underlying data if not. If provided, must be non-negative. Defaults to ``None``.
+            StreamingDataset argument "choose" if provided, or kept the same total size as the
+            underlying data if not. If provided, must be non-negative. Defaults to ``None``.
         repeat (float, optional): How much to upsample or downsample this sub-dataset, as a
             multipler on the number of samples. If provided, must be non-negative. Defaults to
             ``None``.
