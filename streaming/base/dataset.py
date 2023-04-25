@@ -6,7 +6,7 @@
 import json
 import os
 from enum import IntEnum
-from threading import Thread
+from threading import Lock, Thread
 from time import sleep, time
 from typing import Any, Dict, Iterator, Optional, Sequence, Tuple
 
@@ -42,48 +42,72 @@ class _ShardState(IntEnum):
 
 
 class _IterState:
-    """The download status of a partition of samples.
+    """State of StreamingDataset __iter__, used to track and coordinate its threads.
 
-    0 <= yield <= ready <= download <= total
+    Has methods to implement early exit when a new epoch is started before the last one is done.
 
-    Cursors
-    * The yield cursor points to the (downloaded) sample we are yielding.
-    * The ready cursor points to the last contiguously downloaded sample.
-    * The download cursor points to the sample we are downloading (skipping other workers'
-      downloads in progress).
+    Order of threads: 0 <= yield loop <= ready thread <= download thread <= total.
+
+    Three indices:
+    * Download index: points to the sample we are presently downloading, skipping other workers'
+      downloads in progress.
+    * Ready index: points to the farthest contiguously downloaded sample by any worker on this
+      node.
+    * Yield index: points to the (downloaded) sample that we are currently yielding.
 
     Args:
-        sample_ids (NDArray[np.int64]): This worker's partition of the sample space.
+        sample_ids (NDArray[np.int64]): This worker's samples to download and yield.
     """
+
+    # The number of threads to wait on the exits of before returning (download, ready, yield).
+    _num_threads_to_exit = 3
 
     def __init__(self, sample_ids: NDArray[np.int64]) -> None:
         self.sample_ids = sample_ids
+
         self.total = len(sample_ids)
-        self.yield_index = 0
-        self.ready_index = 0
         self.download_index = 0
-        self.is_stopped = False
+        self.ready_index = 0
+        self.yield_index = 0
+        self.eviction_index = 0
 
-    def stop(self) -> None:
-        """Stop the thread and exit."""
-        self.is_stopped = True
+        self._lock = Lock()
+        self._is_exiting = False
+        self._num_exited = 0
 
-    def __iter__(self) -> Iterator[int]:
-        """Iterate over our samples while waiting for them to download first.
+    def exit(self) -> None:
+        """Signal threads to exit, wait until they have all exited, then return.
+
+        This is called when the user starts a new epoch without the threads from the previous epoch
+        having exited yet.
+        """
+        # Signal threads to exit.
+        with self._lock:
+            if self._is_exiting:
+                raise ValueError('Called exit() on an _IterState that is already exiting.')
+            self._is_exiting = True
+
+        # Block until they have all exited, returning _is_exiting to False.
+        while True:
+            with self._lock:
+                if self._num_exited == self._num_threads_to_exit:
+                    self._is_exiting = False
+                    break
+            sleep(TICK)
+
+    def is_exiting(self) -> bool:
+        """Check if the calling thread should exit.
 
         Returns:
-            Iterator[int]: Each sample, having been downloaded.
+            bool: Whether to exit.
         """
-        while self.yield_index < self.total:
-            if self.yield_index < self.ready_index:
-                sample_id = self.sample_ids[self.yield_index]
-                if sample_id != -1:  # If -1, we skip.
-                    yield sample_id
-                self.yield_index += 1
-                continue
-            if self.is_stopped:
-                break
-            sleep(TICK)
+        with self._lock:
+            return self._is_exiting
+
+    def on_exit(self) -> None:
+        """Note that a thread has exited."""
+        with self._lock:
+            self._num_exited += 1
 
 
 class StreamingDataset(IterableDataset):
@@ -119,17 +143,14 @@ class StreamingDataset(IterableDataset):
       * ``validate_hash``
       * ``keep_zip``
 
-    * How to iterate (controlling shard downloading, shard eviction, partitioning, and shuffling):
+    * How to iterate (controlling shard lifecycle, determinism, and shuffling):
 
-      * Shard downloading:
+      * Shard lifecycle:
 
         * ``predownload``
-
-      * Shard eviction:
-
         * ``cache_limit``
 
-      * Partitioning:
+      * Determinism:
 
         * ``partition_algo``
         * ``num_canonical_nodes``
@@ -355,10 +376,10 @@ class StreamingDataset(IterableDataset):
 
         # Placeholder for a shared memory object where load_state_dict() saves its data to be
         # picked up by __iter__().
-        self._resume_shm = None
+        self._resume_shm: SharedMemory
 
         # Placeholder for an _IterState which tracks state during __iter__().
-        self._iter_state = None
+        self._iter_state: _IterState
 
         del self._shared_barrier.lock  # Remove the lock that makes it unpickleable.
 
@@ -861,104 +882,143 @@ class StreamingDataset(IterableDataset):
             sample = shard[shard_sample_id]
         return sample
 
-    def _download_thread(self, state: _IterState) -> None:
+    def _download_thread(self, it: _IterState) -> None:
         """Download the relevant shards in the background while we are being iterated.
 
         This thread is started at the beginning of each epoch, and exits either when out of samples
-        or when a new epoch is started, calling stop() on its state (only one epoch is valid at a
-        time).
+        or when a new epoch is started, calling exit_threads() on its state (only one epoch is
+        valid at a time).
 
-        Each worker has its own download thread, which iterates ahead of the main thread.
+        Each worker has its own download thread, which iterates ahead of the ready thread and yield
+        loop.
 
         Args:
-            state (_IterState): The partition state.
+            it (_IterState): State of __iter__.
         """
         # Download loop.
         while True:
             # If we've started a new epoch early (__iter__ was called again), exit this thread
             # because there can only be one epoch at once.
-            if state.is_stopped:
+            if it.is_exiting():
                 break
 
             # If we're out of samples this epoch, exit this thread because we are done downloading.
-            if state.download_index == state.total:
+            if it.download_index == it.total:
                 break
 
             # If we are requested to only pre-download so many samples, if we have as many or more
             # downloaded already, we wait and check again later.
             if self.predownload is not None:
-                samples_ahead = state.download_index - state.yield_index
+                samples_ahead = it.download_index - it.yield_index
                 if self.predownload <= samples_ahead:
                     sleep(TICK)
                     continue
 
             # If we hit -1, we skip.
-            sample_id = state.sample_ids[state.download_index]
+            sample_id = it.sample_ids[it.download_index]
             if sample_id == -1:
-                state.download_index += 1
+                it.download_index += 1
                 continue
 
             # Download and decompress the shard for this sample, if not already done.
             shard_id, _ = self.index.find_sample(sample_id)
             self._download_shard(shard_id, False)
-            state.download_index += 1
 
-    def _ready_thread(self, state: _IterState) -> None:
-        """Download the relevant shards in the background while we are being iterated.
+            # Step forward one sample.
+            it.download_index += 1
+
+        # Note that we exited.
+        it.on_exit()
+
+    def _ready_thread(self, it: _IterState) -> None:
+        """Wait for the relevant shards to become downloaded while we are being iterated.
 
         This thread is started at the beginning of each epoch, and exits either when out of samples
-        or when a new epoch is started, calling stop() on its state (only one epoch is valid at a
+        or when a new epoch is started, calling exit() on its state (only one epoch is valid at a
         time).
 
-        Each worker has its own ready thread, which iterates ahead of the main thread.
+        Each worker has its own ready thread, which iterates behind the download thread and ahead
+        of the yield loop.
 
         Args:
-            state (_IterState): The partition state.
+            it (_IterState): State of __iter__.
         """
         # Ready loop.
         while True:
             # If we've started a new epoch early (__iter__ was called again), exit this thread
             # because there can only be one epoch at once.
-            if state.is_stopped:
+            if it.is_exiting():
                 break
 
             # If we're out of samples this epoch, exit this thread because we are done downloading.
-            if state.ready_index == state.total:
+            if it.ready_index == it.total:
                 break
 
             # If we are requested to only pre-download so many samples, if we have as many or more
             # downloaded already, we wait and check again later.
             if self.predownload is not None:
-                samples_ahead = state.ready_index - state.yield_index
+                samples_ahead = it.ready_index - it.yield_index
                 if self.predownload <= samples_ahead:
                     sleep(TICK)
                     continue
 
             # If we hit -1, we skip.
-            sample_id = state.sample_ids[state.ready_index]
+            sample_id = it.sample_ids[it.ready_index]
             if sample_id == -1:
-                state.ready_index += 1
+                it.ready_index += 1
                 continue
 
-            # Wait for this shard to become downloaded and decompressed, if not already.
+            # Wait for the shard for this sample to be downloaded and decompressed, if not already.
             shard_id, _ = self.index.find_sample(sample_id)
             while self._shard_states[shard_id] != _ShardState.PRESENT:
                 sleep(TICK)
-            state.ready_index += 1
 
-    def _each_sample(self, sample_ids: NDArray[np.int64]) -> Iterator[int]:
-        """Iterate over each sample ID, while downloading ahead in the background.
+            # Step forward one sample.
+            it.ready_index += 1
+
+        # Note that we exited.
+        it.on_exit()
+
+    def _each_sample_id(self, it: _IterState) -> Iterator[int]:
+        """Iterate over our samples while waiting for them to download first.
+
+        This method is entered at the beginning of each epoch, and exits either when out of samples
+        or when a new epoch is started, calling exit() on its state (only one epoch is valid at a
+        time).
+
+        Each worker has its own yield loop, which iterates behind the download and ready threads.
 
         Args:
-            sample_ids (NDArray[np.int64]): The sample IDs to download and iterate.
+            it (_IterState): State of __iter__.
 
         Returns:
-            Iterator[int]: Each sample ID, having been downloaded.
+            Iterator[int]: Each sample, having been downloaded.
         """
-        self._iter_state = _IterState(sample_ids)
-        Thread(target=self._download_thread, args=(self._iter_state,), daemon=True).start()
-        Thread(target=self._ready_thread, args=(self._iter_state,), daemon=True).start()
-        yield from self._iter_state
+        # Yield loop.
+        while True:
+            # If we've started a new epoch before this one is finished, exit this thread.
+            if it.is_exiting():
+                break
+
+            # Have we yielded all our samples?
+            if it.yield_index == it.total:
+                break
+
+            # Is there a sample ready to yield?
+            if it.ready_index <= it.yield_index:
+                sleep(TICK)
+                continue
+
+            # Yield sample ID if not -1.
+            sample_id = it.sample_ids[it.yield_index]
+            if sample_id != -1:
+                yield sample_id
+
+            # Step forward one sample.
+            it.yield_index += 1
+
+        # Note that we exited.
+        it.on_exit()
 
     def __iter__(self) -> Iterator[Dict[str, Any]]:
         """Iterate over all the samples in our partition.
@@ -971,9 +1031,10 @@ class StreamingDataset(IterableDataset):
         if not hasattr(self._shared_barrier, 'lock'):
             self._shared_barrier.lock = FileLock(self._shared_barrier.filelock_path)
 
-        # Exit the thread that is downloading the shards for last epoch, if it exists.
-        if self._iter_state:
-            self._iter_state.stop()
+        # Exit the threads that are pre-downloading and iterating the shards for previous epoch, if
+        # it exists.
+        if hasattr(self, '_iter_state'):
+            self._iter_state.exit()
 
         # Discover where we left off, if there is a checkpoint, or start at the next epoch.
         # Also pre-increment the epoch counter.
@@ -986,5 +1047,7 @@ class StreamingDataset(IterableDataset):
             return
 
         # Iterate over the samples while downloading ahead.
-        for sample_id in self._each_sample(sample_ids):
-            yield self[sample_id]
+        self._iter_state = it = _IterState(sample_ids)
+        Thread(target=self._download_thread, args=(it,), daemon=True).start()
+        Thread(target=self._ready_thread, args=(it,), daemon=True).start()
+        yield from map(self.__getitem__, self._each_sample_id(it))

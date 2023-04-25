@@ -300,41 +300,42 @@ class StreamingOutsideDTWebVid(StreamingDataset):
 
         return obj
 
-    def _download_thread(self, state: _IterState) -> None:
+    def _download_thread(self, it: _IterState) -> None:
         """Download the relevant shards in the background while we are being iterated.
 
         This thread is started at the beginning of each epoch, and exits either when out of samples
-        or when a new epoch is started, calling stop() on its state (only one epoch is valid at a
-        time).
+        or when a new epoch is started, calling exit_threads() on its state (only one epoch is
+        valid at a time).
 
-        Each worker has its own download thread, which iterates ahead of the main thread.
+        Each worker has its own download thread, which iterates ahead of the ready thread and yield
+        loop.
 
         Args:
-            state (_IterState): The partition state.
+            it (_IterState): State of __iter__.
         """
         # Download loop.
         while True:
             # If we've started a new epoch early (__iter__ was called again), exit this thread
             # because there can only be one epoch at once.
-            if state.is_stopped:
+            if it.is_exiting():
                 break
 
             # If we're out of samples this epoch, exit this thread because we are done downloading.
-            if state.download_index == state.total:
+            if it.download_index == it.total:
                 break
 
             # If we are requested to only pre-download so many samples, if we have as many or more
             # downloaded already, we wait and check again later.
             if self.predownload is not None:
-                samples_ahead = state.download_index - state.yield_index
+                samples_ahead = it.download_index - it.yield_index
                 if self.predownload <= samples_ahead:
                     sleep(TICK)
                     continue
 
             # If we hit -1, we skip.
-            sample_id = state.sample_ids[state.download_index]
+            sample_id = it.sample_ids[it.download_index]
             if sample_id == -1:
-                state.download_index += 1
+                it.download_index += 1
                 continue
 
             # Download and decompress the shard for this sample, if not already done.
@@ -350,4 +351,8 @@ class StreamingOutsideDTWebVid(StreamingDataset):
                 if not os.path.exists(local):
                     download_file(remote, local, self.download_timeout)
 
-            state.download_index += 1
+            # Step forward one sample.
+            it.download_index += 1
+
+        # Note that we exited.
+        it.on_exit()
