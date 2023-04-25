@@ -1,3 +1,6 @@
+# Copyright 2023 MosaicML Streaming authors
+# SPDX-License-Identifier: Apache-2.0
+
 import numpy as np
 
 from streaming.base.spanner import Spanner
@@ -21,4 +24,3 @@ def test_spanner():
         assert False
     except ValueError:
         pass
-
