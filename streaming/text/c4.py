@@ -38,6 +38,10 @@ class StreamingC4(StreamingDataset):
             ``False``.
         samples_per_epoch (int, optional): Provide this field iff you are weighting sub-datasets
             proportionally. Defaults to ``None``.
+        choose (int, optional): Number of samples to draw per epoch balanced across all streams.
+            If ``None``, takes its value from the total number of underlying samples. Provide this
+            field if you are weighting streams relatively to target a larger or smaller epoch size.
+            Defaults to ``None``.
         predownload (int, optional): Target number of samples ahead to download the shards of while
             iterating. Defaults to ``100_000``.
         cache_limit (int, optional): Maximum size in bytes of this StreamingDataset's shard cache.
@@ -70,7 +74,7 @@ class StreamingC4(StreamingDataset):
                  download_timeout: float = 60,
                  validate_hash: Optional[str] = None,
                  keep_zip: bool = False,
-                 samples_per_epoch: Optional[int] = None,
+                 choose: Optional[int] = None,
                  predownload: Optional[int] = 100_000,
                  cache_limit: Optional[int] = None,
                  partition_algo: str = 'orig',
@@ -93,7 +97,7 @@ class StreamingC4(StreamingDataset):
                          download_timeout=download_timeout,
                          validate_hash=validate_hash,
                          keep_zip=keep_zip,
-                         samples_per_epoch=samples_per_epoch,
+                         choose=choose,
                          predownload=predownload,
                          cache_limit=cache_limit,
                          partition_algo=partition_algo,

@@ -128,24 +128,30 @@ class StreamingDataset(IterableDataset):
             "num_canonical_nodes": "int"
         }
 
-    StreamingDataset init takes three kinds of arguments:
+    StreamingDataset init takes two kinds of arguments:
 
-    * One or more Streams (you must provide either ``streams`` or ``remote``/``local``):
+    * What to iterate:
 
-      * ``streams``
-      * ``remote``
-      * ``local``
+      * One or more streams (you must provide either ``streams`` or ``remote``/``local``):
 
-    * Knobs to control streaming behavior, which, if multiple Streams are provided, become defaults
-      applied to them:
+        * ``streams``
+        * ``remote``
+        * ``local``
 
-      * ``split``
-      * ``download_retry``
-      * ``download_timeout``
-      * ``validate_hash``
-      * ``keep_zip``
+      * Knobs to control streaming behavior, which, if multiple streams are provided, become defaults
+        applied to each of them:
 
-    * How to iterate (controlling shard lifecycle, determinism, and shuffling):
+        * ``split``
+        * ``download_retry``
+        * ``download_timeout``
+        * ``validate_hash``
+        * ``keep_zip``
+
+      * Absolute dataset size, if streams were weighted relatively:
+
+        * ``choose``
+
+    * How to iterate:
 
       * Shard lifecycle:
 
@@ -166,7 +172,7 @@ class StreamingDataset(IterableDataset):
         * ``shuffle_block_size``
 
     Args:
-        streams (Sequence[Stream], optional): One or more Streams to stream/cache samples from,
+        streams (Sequence[Stream], optional): One or more streams to stream/cache samples from,
             which may be upsampled or downsampled. StreamingDataset uses either ``streams`` or
             ``remote``/``local``. Defaults to ``None``.
         remote (str, optional): Remote path or directory to download the dataset from. If ``None``,
@@ -185,8 +191,10 @@ class StreamingDataset(IterableDataset):
         keep_zip (bool): Whether to keep or delete the compressed form when decompressing
             downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
             ``False``.
-        samples_per_epoch (int, optional): Provide this field iff you are weighting sub-datasets
-            proportionally. Defaults to ``None``.
+        choose (int, optional): Number of samples to draw per epoch balanced across all streams.
+            If ``None``, takes its value from the total number of underlying samples. Provide this
+            field if you are weighting streams relatively to target a larger or smaller epoch size.
+            Defaults to ``None``.
         predownload (int, optional): Target number of samples ahead to download the shards of while
             iterating. Defaults to ``100_000``.
         cache_limit (int, optional): Maximum size in bytes of this StreamingDataset's shard cache.
@@ -216,7 +224,7 @@ class StreamingDataset(IterableDataset):
                  download_timeout: float = 60,
                  validate_hash: Optional[str] = None,
                  keep_zip: bool = False,
-                 samples_per_epoch: Optional[int] = None,
+                 choose: Optional[int] = None,
                  predownload: Optional[int] = 100_000,
                  cache_limit: Optional[int] = None,
                  partition_algo: str = 'orig',
@@ -263,6 +271,23 @@ class StreamingDataset(IterableDataset):
         # to the trouble of loading them.
         Stream.validate_weights(streams)
 
+        """
+        TODO
+        # Validate stream weights ("proportion", "repeat", "choose", or none).
+        is_proportional = hasattr(streams[0], 'proportion')
+        for stream_id, stream in enumerate(streams):
+            has_proportion = hasattr(stream, 'proportion')
+            has_repeat = hasattr(stream, 'repeat')
+            has_choose = hasattr(stream, 'choose')
+            if not (0 <= has_proportion + has_repeat + has_choose <= 1):
+                raise ValueError(f'Streams must provide at most one of "proportion", "repeat", ' +
+                                 f'or "choose" (error in stream {stream_id})')
+            if is_proportional != has_proportion:
+                raise ValueError(f'Relative ("proportion") and absolute ("repeat", "choose", ' +
+                                 f'none) stream weights are incompatible with each other (error ' +
+                                 f'in stream {stream_id})')
+        """
+
         # Set streams.
         self.streams = streams
         self.num_streams = len(streams)
@@ -304,9 +329,53 @@ class StreamingDataset(IterableDataset):
         self.spanner = Spanner(self.samples_per_shard)
 
         # Now that we know the number of underlying samples of each stream, derive each stream's
-        # true proportion/repeat/samples, as well as the total epoch size.
-        self.samples_per_epoch = Stream.apply_weights(self.streams, self.samples_per_stream,
-                                                      samples_per_epoch, self.shuffle_seed)
+        # true proportion/repeat/choose, as well as the total epoch size.
+        self.choose = Stream.apply_weights(self.streams, self.samples_per_stream, choose,
+                                           self.shuffle_seed)
+
+        """
+        TODO
+        # Now that we have the true size of each stream, derive the proportions, repeats, and
+        # choices.
+        if is_proportional:
+            # Relative.
+            if not choose:
+                choose = self.num_samples
+            self.proportion_per_stream = np.array([stream.proportion for stream in self.streams],
+                                                  np.float64)
+            self.proportion_per_stream /= self.proportion_per_stream.sum()
+            self.choose_per_stream = (choose * self.proportion_per_stream).astype(np.int64)
+            shortfall = choose - self.choose_per_stream.sum()
+            rng = np.random.default_rng(shuffle_seed)
+            indices = rng.choice(self.num_streams, shortfall, False)
+            self.choose_per_stream[indices] += 1
+            self.repeat_per_stream = self.choose_per_stream / self.samples_per_stream
+            self.choose = choose
+        else:
+            # Absolute.
+            if choose:
+                raise ValueError('Only provide "choose" when weighting streams relatively')
+            self.choose_per_stream = np.zeros(self.num_streams, np.int64)
+            for stream_id, stream in enumerate(self.streams):
+                if hasattr(stream, 'repeat'):
+                    choose = int(stream.repeat * self.samples_per_stream[stream_id])
+                elif hasattr(stream, 'choose'):
+                    choose = stream.choose
+                else:
+                    choose = self.samples_per_stream[stream_id]
+                self.choose_per_stream[stream_id] = choose
+            self.repeat_per_stream = self.choose_per_stream / self.samples_per_stream
+            self.proportion_per_stream = self.choose_per_stream / self.choose_per_stream.sum()
+            self.choose = sum(self.choose_per_stream)
+
+        # Now that we know the true props/reps/choices, inject those back into the streams.
+        for stream, stream_proportion, stream_repeat, stream_choose in zip(
+                self.streams, self.proportion_per_stream, self.repeat_per_stream,
+                self.choose_per_stream):
+            stream.proportion = stream_proportion
+            stream.repeat = stream_repeat
+            stream.choose = stream_choose
+        """
 
         # Register/lookup our shared memory prefix and filelock root directory.
         my_locals = [
@@ -573,40 +642,42 @@ class StreamingDataset(IterableDataset):
             num_stream_shards = self.shards_per_stream[stream_id]
             stream_shard_ids = stream_shard_offset + np.arange(num_stream_shards)
 
-            # Calculate pick per stream shard.
+            # Calculate choose per stream shard.
             samples_per_stream_shard = self.samples_per_shard[stream_shard_ids]
             stream_samples = sum(samples_per_stream_shard)
-            stream_picks = self.streams[stream_id].samples
-            if stream_picks == stream_samples:
-                pick_per_stream_shard = samples_per_stream_shard
+            stream_choose = self.choose_per_stream[stream_id]
+            if stream_choose == stream_samples:
+                choose_per_stream_shard = samples_per_stream_shard
             else:
-                pick_per_stream_shard = samples_per_stream_shard * stream_picks // stream_samples
-                short = stream_picks - pick_per_stream_shard.sum()
-                indices = rng.choice(num_stream_shards, short, False)
-                pick_per_stream_shard[indices] += 1
+                choose_per_stream_shard = \
+                    samples_per_stream_shard * stream_choose // stream_samples
+                shortfall = stream_choose - choose_per_stream_shard.sum()
+                indices = rng.choice(num_stream_shards, shortfall, False)
+                choose_per_stream_shard[indices] += 1
 
             # Iterate over each shard of this stream.
-            for shard_id, shard_samples, shard_picks in zip(stream_shard_ids,
-                                                            samples_per_stream_shard,
-                                                            pick_per_stream_shard):
+            for shard_id, shard_samples, shard_choose in zip(stream_shard_ids,
+                                                             samples_per_stream_shard,
+                                                             choose_per_stream_shard):
                 # Calculate shuffle units.
-                shard_shuffle_units = [shard_samples] * (shard_picks // shard_samples)
-                remainder = shard_picks % shard_samples
+                shard_shuffle_units = [shard_samples] * (shard_choose // shard_samples)
+                remainder = shard_choose % shard_samples
                 if remainder:
                     shard_shuffle_units.append(remainder)
                 shuffle_units.append(shard_shuffle_units)
 
                 # Calculate sample IDs of any full repeats.
                 shard_sample_offset = self.sample_offset_per_shard[shard_id]
-                num_full_repeats = shard_picks // shard_samples
+                num_full_repeats = shard_choose // shard_samples
                 if num_full_repeats:
                     full_repeat = shard_sample_offset + np.arange(shard_samples)
                     sample_ids += [full_repeat] * num_full_repeats
 
                 # Calculate sample IDs of a possible partial repeat.
-                short = shard_picks % shard_samples
-                if short:
-                    partial_repeat = shard_sample_offset + rng.choice(shard_samples, short, False)
+                shortfall = shard_choose % shard_samples
+                if shortfall:
+                    partial_repeat = shard_sample_offset + rng.choice(
+                        shard_samples, shortfall, False)
                     partial_repeat.sort()
                     sample_ids.append(partial_repeat)
 
@@ -640,9 +711,9 @@ class StreamingDataset(IterableDataset):
         # Partition the global sample space (of resampled "big" sample IDs) into a tensor of shape
         # (num physical nodes, ranks per node, workers per rank, batches per worker, samples per
         # batch) such that we have an elastically deterministic sample order.
-        big_ids = get_partitions(self.partition_algo, self.samples_per_epoch,
-                                 self.num_canonical_nodes, world.num_nodes, world.ranks_per_node,
-                                 world.workers_per_rank, self.batch_size, sample_in_epoch)
+        big_ids = get_partitions(self.partition_algo, self.choose, self.num_canonical_nodes,
+                                 world.num_nodes, world.ranks_per_node, world.workers_per_rank,
+                                 self.batch_size, sample_in_epoch)
 
         # If we need to shuffle, shuffle in a node-aware and *underlying* shard-aware way.
         if self.shuffle:
