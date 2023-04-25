@@ -12,6 +12,7 @@ import pytest
 
 from streaming.base import StreamingDataset
 from tests.common.datasets import SequenceDataset, write_mds_dataset
+from tests.common.utils import copy_all_files
 
 logger = logging.getLogger(__name__)
 
@@ -204,3 +205,16 @@ def test_reader_getitem(mds_dataset_dir: Any, share_remote_local: bool, index: i
     sample = dataset[index]
     assert sample['id'] == f'{index:06}'
     assert sample['sample'] == 3 * index
+
+
+@pytest.mark.usefixtures('mds_dataset_dir')
+def test_dataset_split_instantiation(mds_dataset_dir: Any):
+
+    splits = ['train', 'val']
+    remote_dir, local_dir = mds_dataset_dir
+
+    # Build StreamingDataset for each split
+    for split in splits:
+        remote_split_dir = os.path.join(remote_dir, split)
+        copy_all_files(remote_dir, remote_split_dir)
+        _ = StreamingDataset(local=local_dir, remote=remote_dir, split=split)
