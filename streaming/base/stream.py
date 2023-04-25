@@ -306,7 +306,11 @@ class Stream:
         wait_for_file_to_exist(filename, TICK, self.download_timeout,
                                f'{filename} file took too long to download')
 
-        obj = json.load(open(filename))
+        try:
+            obj = json.load(open(filename))
+        except json.decoder.JSONDecodeError as error:
+            error.args = (f'Index file at {filename} is empty or corrupted. ' + error.args[0],)
+            raise error
         if obj['version'] != 2:
             raise ValueError(f'Unsupported version: {obj["version"]}')
 
