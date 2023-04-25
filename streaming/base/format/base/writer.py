@@ -271,7 +271,6 @@ class Writer(ABC):
         Raises:
             exception: re-raise an exception
         """
-        # print(f'{type(future)=}')
         exception = future.exception()
         if exception:
             # Set the event to let other pool thread know about the exception
