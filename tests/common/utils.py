@@ -3,6 +3,7 @@
 
 import json
 import os
+import shutil
 import socket
 import tempfile
 from typing import Any, List, Optional
@@ -63,3 +64,23 @@ def get_free_tcp_port() -> int:
     _, port = tcp.getsockname()
     tcp.close()
     return port
+
+
+def copy_all_files(source: str, destination: str) -> None:
+    """Copy all the files from source directory to destination directory.
+
+    Args:
+        source (str): Source directory path.
+        destination (str): Destination directory path.
+    """
+    files = os.listdir(source)
+    if not os.path.exists(destination):
+        os.mkdir(destination)
+
+    # iterating over all the files in the source directory
+    for filename in files:
+        # copying the files to the destination directory
+        source_filename = os.path.join(source, filename)
+        destination_filename = os.path.join(destination, filename)
+        if os.path.isfile(source_filename):
+            shutil.copy2(source_filename, destination_filename)

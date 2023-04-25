@@ -321,7 +321,9 @@ class StreamingDataset(IterableDataset):
             stream.samples = pick
 
         # Register/lookup our shared memory prefix and filelock root directory.
-        my_locals = [os.path.abspath(stream.local) for stream in streams]
+        my_locals = [
+            os.path.abspath(os.path.join(stream.local, stream.split)) for stream in streams
+        ]
         self._shm_prefix, self._locals_shm = get_shm_prefix(my_locals, world)
         self._filelock_root = os.path.join(os.path.sep, 'tmp', 'streaming', self._shm_prefix)
 
