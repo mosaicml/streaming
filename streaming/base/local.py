@@ -10,8 +10,8 @@ from typing import Any, Dict, Optional
 import numpy as np
 from torch.utils.data import Dataset
 
-from streaming.base.format import reader_from_json
-from streaming.base.index import Index, get_index_basename
+from streaming.base.format import get_index_basename, reader_from_json
+from streaming.base.spanner import Spanner
 
 __all__ = ['LocalDataset']
 
@@ -39,9 +39,10 @@ class LocalDataset(Dataset):
         for info in obj['shards']:
             shard = reader_from_json(local, split, info)
             self.shards.append(shard)
+        self.num_samples = sum([shard.samples for shard in self.shards])
 
         shard_sizes = np.array([x.samples for x in self.shards])
-        self.index = Index(shard_sizes)
+        self.spanner = Spanner(shard_sizes)
 
     def __len__(self) -> int:
         """Get the length as an IterableDataset.
@@ -49,7 +50,7 @@ class LocalDataset(Dataset):
         Returns:
             int: Dataset length.
         """
-        return self.index.total_samples
+        return self.num_samples
 
     def __getitem__(self, sample_id: int) -> Dict[str, Any]:
         """Get sample by global sample ID.
@@ -60,6 +61,6 @@ class LocalDataset(Dataset):
         Returns:
             Dict[str, Any]: Column name with sample data.
         """
-        shard_id, index_in_shard = self.index.find_sample(sample_id)
+        shard_id, index_in_shard = self.spanner[sample_id]
         shard = self.shards[shard_id]
         return shard[index_in_shard]
