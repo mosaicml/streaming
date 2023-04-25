@@ -6,6 +6,7 @@
 import json
 import os
 from enum import IntEnum
+from math import ceil
 from threading import Lock, Thread
 from time import sleep, time
 from typing import Any, Dict, Iterator, Optional, Sequence, Tuple
@@ -15,11 +16,11 @@ from filelock import FileLock
 from numpy.typing import NDArray
 from torch.utils.data import IterableDataset
 
-from streaming.base.index import Index
 from streaming.base.partition import get_partitions
 from streaming.base.shared import (SharedArray, SharedBarrier, SharedMemory, SharedScalar,
                                    get_shm_prefix)
 from streaming.base.shuffle import get_shuffle
+from streaming.base.spanner import Spanner
 from streaming.base.stream import Stream
 from streaming.base.util import TICK
 from streaming.base.world import World
@@ -293,9 +294,10 @@ class StreamingDataset(IterableDataset):
         self.stream_per_shard = np.array(stream_per_shard, np.int64)
         self.num_shards = len(self.shards)
 
-        # Build the Index (for partitioning and mapping samples to shards).
-        self.samples_per_shard = np.array([x.samples for x in self.shards])
-        self.index = Index(self.samples_per_shard)
+        # Build the shard index (for partitioning and mapping samples to shards).
+        self.samples_per_shard = np.array([shard.samples for shard in self.shards], np.int64)
+        self.sample_offset_per_shard = self.samples_per_shard.cumsum() - self.samples_per_shard
+        self.spanner = Spanner(self.samples_per_shard)
 
         # Now that we know the number of underlying samples of each stream, derive each stream's
         # true proportion/repeat/samples, as well as the total epoch size.
@@ -433,7 +435,7 @@ class StreamingDataset(IterableDataset):
         Returns:
             int: Dataset length.
         """
-        return self.index.get_samples_per_device()
+        return ceil(self.num_samples / World().num_ranks)
 
     def _resume(self, world: World, epoch: int) -> Tuple[int, int]:
         """Either resume from checkpoint or start at the beginning.
@@ -591,7 +593,7 @@ class StreamingDataset(IterableDataset):
                 shuffle_units.append(shard_shuffle_units)
 
                 # Calculate sample IDs of any full repeats.
-                shard_sample_offset = self.index.shard_offsets[shard_id]
+                shard_sample_offset = self.sample_offset_per_shard[shard_id]
                 num_full_repeats = shard_picks // shard_samples
                 if num_full_repeats:
                     full_repeat = shard_sample_offset + np.arange(shard_samples)
@@ -866,8 +868,10 @@ class StreamingDataset(IterableDataset):
         Returns:
             Dict[str, Any]: Mapping of column name to column data.
         """
-        shard_id, shard_sample_id = self.index.find_sample(sample_id)
+        # Locate the shard and sample offset within that shard where the sample lives.
+        shard_id, shard_sample_id = self.spanner[sample_id]
         shard = self.shards[shard_id]
+
         try:
             # Shortcut path: just assume the shard is present. Using exceptions as control flow is
             # actually faster than doing it properly because python.
@@ -880,6 +884,7 @@ class StreamingDataset(IterableDataset):
             # Proper path: First ensure the shard is downloaded, then access the sample.
             self._download_shard(shard_id)
             sample = shard[shard_sample_id]
+
         return sample
 
     def _download_thread(self, it: _IterState) -> None:
@@ -921,7 +926,7 @@ class StreamingDataset(IterableDataset):
                 continue
 
             # Download and decompress the shard for this sample, if not already done.
-            shard_id, _ = self.index.find_sample(sample_id)
+            shard_id, _ = self.spanner[sample_id]
             self._download_shard(shard_id, False)
 
             # Step forward one sample.
@@ -969,7 +974,7 @@ class StreamingDataset(IterableDataset):
                 continue
 
             # Wait for the shard for this sample to be downloaded and decompressed, if not already.
-            shard_id, _ = self.index.find_sample(sample_id)
+            shard_id, _ = self.spanner[sample_id]
             while self._shard_states[shard_id] != _ShardState.PRESENT:
                 sleep(TICK)
 

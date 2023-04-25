@@ -80,7 +80,7 @@ def main(args: Namespace) -> None:
                    compression=args.compression,
                    hashes=hashes,
                    size_limit=args.size_limit) as out:
-        for i, sample in tqdm(enumerate(dataset), total=dataset.index.total_samples):
+        for i, sample in tqdm(enumerate(dataset), total=dataset.num_samples):
             content_path = f'{i // 1000:03}/{i % 1000:03}.mp4'
             filename = os.path.join(args.out_mp4, content_path)
             dirname = os.path.dirname(filename)

@@ -208,9 +208,9 @@ For example, from [streaming/base/dataset.py](streaming/base/dataset.py)
 from torch.utils.data import IterableDataset
 
 from streaming.base.format import reader_from_json
-from streaming.base.index import Index
+from streaming.base.spanner import Spanner
 
-__all__ = ["Dataset"]  # export only the Dataset, not other imports like `Index` or `reader_from_json`
+__all__ = ["Dataset"]  # export only the Dataset, not other imports like `Spanner` or `reader_from_json`
 
 
 class Dataset(IterableDataset):
