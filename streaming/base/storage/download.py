@@ -11,7 +11,7 @@ from typing import Any, Dict, Optional
 
 __all__ = ['download_or_wait']
 
-S3_NOT_FOUND_CODES = {'403', '404', 'NoSuchKey'}
+BOTOCORE_CLIENT_ERROR_CODES = {'403', '404', 'NoSuchKey'}
 
 
 def download_from_s3(remote: str, local: str, timeout: float) -> None:
@@ -68,7 +68,7 @@ def download_from_s3(remote: str, local: str, timeout: float) -> None:
         # Public S3 buckets without credentials
         _download_file(unsigned=True, extra_args=extra_args)
     except ClientError as e:
-        if e.response['Error']['Code'] in S3_NOT_FOUND_CODES:
+        if e.response['Error']['Code'] in BOTOCORE_CLIENT_ERROR_CODES:
             e.args = (f'Object {remote} not found! Either check the bucket path or the bucket ' +
                       f'permission. If the bucket is a requester pays bucket, then provide the ' +
                       f'bucket name to the environment variable ' +
@@ -158,7 +158,7 @@ def download_from_gcs(remote: str, local: str) -> None:
     try:
         gcs_client.download_file(obj.netloc, obj.path.lstrip('/'), local)
     except ClientError as e:
-        if e.response['Error']['Code'] in S3_NOT_FOUND_CODES:
+        if e.response['Error']['Code'] in BOTOCORE_CLIENT_ERROR_CODES:
             raise FileNotFoundError(f'Object {remote} not found.') from e
     except Exception:
         raise
