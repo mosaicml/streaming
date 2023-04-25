@@ -13,6 +13,8 @@ from typing import Any, Tuple, Union
 
 import tqdm
 
+from streaming.base.storage.download import BOTOCORE_CLIENT_ERROR_CODES
+
 __all__ = ['CloudUploader', 'S3Uploader', 'GCSUploader', 'OCIUploader', 'LocalUploader']
 
 logger = logging.getLogger(__name__)
@@ -177,7 +179,10 @@ class S3Uploader(CloudUploader):
         import boto3
         from botocore.config import Config
         config = Config()
-        self.s3 = boto3.client('s3', config=config)
+        # Create a session and use it to make our client. Unlike Resources and Sessions,
+        # clients are generally thread-safe.
+        session = boto3.session.Session()
+        self.s3 = session.client('s3', config=config)
         self.check_bucket_exists(self.remote)  # pyright: ignore
 
     def upload_file(self, filename: str):
@@ -219,9 +224,9 @@ class S3Uploader(CloudUploader):
         try:
             self.s3.head_bucket(Bucket=bucket_name)
         except ClientError as error:
-            if error.response['Error']['Code'] == '404':
-                error.args = (f'Bucket `{bucket_name}` does not exist! ' +
-                              f'Check the bucket permission or create the bucket.',)
+            if error.response['Error']['Code'] == BOTOCORE_CLIENT_ERROR_CODES:
+                error.args = (f'Either bucket `{bucket_name}` does not exist! ' +
+                              f'or check the bucket permission.',)
             raise error
 
 
@@ -251,11 +256,14 @@ class GCSUploader(CloudUploader):
 
         import boto3
 
-        self.gcs_client = boto3.client('s3',
-                                       region_name='auto',
-                                       endpoint_url='https://storage.googleapis.com',
-                                       aws_access_key_id=os.environ['GCS_KEY'],
-                                       aws_secret_access_key=os.environ['GCS_SECRET'])
+        # Create a session and use it to make our client. Unlike Resources and Sessions,
+        # clients are generally thread-safe.
+        session = boto3.session.Session()
+        self.gcs_client = session.client('s3',
+                                         region_name='auto',
+                                         endpoint_url='https://storage.googleapis.com',
+                                         aws_access_key_id=os.environ['GCS_KEY'],
+                                         aws_secret_access_key=os.environ['GCS_SECRET'])
         self.check_bucket_exists(self.remote)  # pyright: ignore
 
     def upload_file(self, filename: str):
@@ -297,9 +305,9 @@ class GCSUploader(CloudUploader):
         try:
             self.gcs_client.head_bucket(Bucket=bucket_name)
         except ClientError as error:
-            if error.response['Error']['Code'] == '404':
-                error.args = (f'Bucket `{bucket_name}` does not exist! ' +
-                              f'Check the bucket permission or create the bucket.',)
+            if error.response['Error']['Code'] == BOTOCORE_CLIENT_ERROR_CODES:
+                error.args = (f'Either bucket `{bucket_name}` does not exist! ' +
+                              f'or check the bucket permission.',)
             raise error
 
 
