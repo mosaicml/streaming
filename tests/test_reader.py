@@ -232,7 +232,8 @@ def test_invalid_index_json_exception(local_remote_dir: Tuple[str, str]):
     with open(os.path.join(local_dir, filename), 'w') as _:
         pass
 
-    with pytest.raises(json.decoder.JSONDecodeError, match=f'Either.*is empty or corrupted'):
+    with pytest.raises(json.decoder.JSONDecodeError,
+                       match=f'Index file at.*is empty or corrupted'):
         _ = StreamingDataset(local=local_dir)
 
 

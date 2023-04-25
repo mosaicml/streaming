@@ -266,9 +266,8 @@ class StreamingDataset(IterableDataset):
             stream_shards = stream.get_shards(world)
             samples = sum(map(len, stream_shards))
             if samples == 0:
-                index_json_filepath = os.path.join(stream.local, stream.split,
-                                                   get_index_basename())
-                raise RuntimeError(f'Empty `shards` in {index_json_filepath} file.')
+                index_path = os.path.join(stream.local, stream.split, get_index_basename())
+                raise RuntimeError(f'Empty `shards` in {index_path} file.')
             stream_per_shard += [stream_id] * len(stream_shards)
             self.shard_offset_per_stream[stream_id] = len(self.shards)
             self.shards_per_stream[stream_id] = len(stream_shards)
