@@ -35,8 +35,10 @@ class StreamingImageNet(StreamingVisionDataset):
         keep_raw (bool): Whether to keep or delete the decompressed form (or only form)
             of shards after all their samples have been yielded this epoch. If ``False``, keep iff
             remote is local or no remote and no compression. Defaults to ``True``.
-        samples_per_epoch (int, optional): Provide this field iff you are weighting sub-datasets
-            proportionally. Defaults to ``None``.
+        choose (int, optional): Number of samples to draw per epoch balanced across all streams.
+            If ``None``, takes its value from the total number of underlying samples. Provide this
+            field if you are weighting streams relatively to target a larger or smaller epoch size.
+            Defaults to ``None``.
         predownload (int, optional): Target number of samples ahead to download the shards of while
             iterating. Defaults to ``100_000``.
         partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.

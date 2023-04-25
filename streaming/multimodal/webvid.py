@@ -37,8 +37,10 @@ class StreamingInsideWebVid(StreamingDataset):
         keep_raw (bool): Whether to keep or delete the decompressed form (or only form)
             of shards after all their samples have been yielded this epoch. If ``False``, keep iff
             remote is local or no remote and no compression. Defaults to ``True``.
-        samples_per_epoch (int, optional): Provide this field iff you are weighting sub-datasets
-            proportionally. Defaults to ``None``.
+        choose (int, optional): Number of samples to draw per epoch balanced across all streams.
+            If ``None``, takes its value from the total number of underlying samples. Provide this
+            field if you are weighting streams relatively to target a larger or smaller epoch size.
+            Defaults to ``None``.
         predownload (int, optional): Target number of samples ahead to download the shards of while
             iterating. Defaults to ``100_000``.
         partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
@@ -94,8 +96,10 @@ class StreamingOutsideGIWebVid(StreamingDataset):
         keep_raw (bool): Whether to keep or delete the decompressed form (or only form)
             of shards after all their samples have been yielded this epoch. If ``False``, keep iff
             remote is local or no remote and no compression. Defaults to ``True``.
-        samples_per_epoch (int, optional): Provide this field iff you are weighting sub-datasets
-            proportionally. Defaults to ``None``.
+        choose (int, optional): Number of samples to draw per epoch balanced across all streams.
+            If ``None``, takes its value from the total number of underlying samples. Provide this
+            field if you are weighting streams relatively to target a larger or smaller epoch size.
+            Defaults to ``None``.
         predownload (int, optional): Target number of samples ahead to download the shards of while
             iterating. Defaults to ``100_000``.
         partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
@@ -123,7 +127,7 @@ class StreamingOutsideGIWebVid(StreamingDataset):
                  validate_hash: Optional[str] = None,
                  keep_zip: bool = False,
                  keep_raw: bool = True,
-                 samples_per_epoch: Optional[int] = None,
+                 choose: Optional[int] = None,
                  predownload: Optional[int] = 100_000,
                  partition_algo: str = 'orig',
                  num_canonical_nodes: Optional[int] = None,
@@ -142,7 +146,7 @@ class StreamingOutsideGIWebVid(StreamingDataset):
                          validate_hash=validate_hash,
                          keep_zip=keep_zip,
                          keep_raw=keep_raw,
-                         samples_per_epoch=samples_per_epoch,
+                         choose=choose,
                          predownload=predownload,
                          partition_algo=partition_algo,
                          num_canonical_nodes=num_canonical_nodes,
@@ -209,8 +213,10 @@ class StreamingOutsideDTWebVid(StreamingDataset):
         keep_raw (bool): Whether to keep or delete the decompressed form (or only form)
             of shards after all their samples have been yielded this epoch. If ``False``, keep iff
             remote is local or no remote and no compression. Defaults to ``True``.
-        samples_per_epoch (int, optional): Provide this field iff you are weighting sub-datasets
-            proportionally. Defaults to ``None``.
+        choose (int, optional): Number of samples to draw per epoch balanced across all streams.
+            If ``None``, takes its value from the total number of underlying samples. Provide this
+            field if you are weighting streams relatively to target a larger or smaller epoch size.
+            Defaults to ``None``.
         predownload (int, optional): Target number of samples ahead to download the shards of while
             iterating. Defaults to ``100_000``.
         partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
@@ -238,7 +244,7 @@ class StreamingOutsideDTWebVid(StreamingDataset):
                  validate_hash: Optional[str] = None,
                  keep_zip: bool = False,
                  keep_raw: bool = True,
-                 samples_per_epoch: Optional[int] = None,
+                 choose: Optional[int] = None,
                  predownload: Optional[int] = 100_000,
                  partition_algo: str = 'orig',
                  num_canonical_nodes: Optional[int] = None,
@@ -257,7 +263,7 @@ class StreamingOutsideDTWebVid(StreamingDataset):
                          validate_hash=validate_hash,
                          keep_zip=keep_zip,
                          keep_raw=keep_raw,
-                         samples_per_epoch=samples_per_epoch,
+                         choose=choose,
                          predownload=predownload,
                          partition_algo=partition_algo,
                          num_canonical_nodes=num_canonical_nodes,

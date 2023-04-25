@@ -32,14 +32,14 @@ class Stream:
       * ``remote``
       * ``local``
 
-    * At most one of ``proportion``, ``repeat``, or ``samples`` may exist. If none are provided,
+    * At most one of ``proportion``, ``repeat``, or ``choose`` may exist. If none are provided,
       each sample is seen once per epoch. If provided one of these, we derive the others.
-      Note that ``proportion`` (relative) and ``repeat``/``samples`` (absolute) are mutually
+      Note that ``proportion`` (relative) and ``repeat``/``choose`` (absolute) are mutually
       incompatible -- you must entirely use one or the other (or neither) for all sub-datasets.
 
       * ``proportion``
       * ``repeat``
-      * ``samples``
+      * ``choose``
 
     * The remaining arguments are optional knobs for controlling downloading behavior and default
       to ``None``. If ``None``, they take a default value provided to or by the StreamingDataset
@@ -64,13 +64,13 @@ class Stream:
             proportion of the total combined dataset that consists of this sub-dataset. If
             using proportions, all sub-datasets provided together to the StreamingDataset init must
             define their proportions. The total combined number of samples is either the
-            StreamingDataset argument "samples_per_epoch" if provided, or kept the same total size
-            as the underlying data if not. If provided, must be positive. Defaults to ``None``.
+            StreamingDataset argument "choose" if provided, or kept the same total size as the
+            underlying data if not. If provided, must be non-negative. Defaults to ``None``.
         repeat (float, optional): How much to upsample or downsample this sub-dataset, as a
-            multipler on the number of samples. If provided, must be positive. Defaults to
+            multipler on the number of samples. If provided, must be non-negative. Defaults to
             ``None``.
-        samples (int, optional): How much to upsample or downsample this sub-dataset, as the exact
-            number of samples. If provided, must be positive. Defaults to ``None``.
+        choose (int, optional): How much to upsample or downsample this sub-dataset, as the exact
+            number of resulting samples. If provided, must be non-negative. Defaults to ``None``.
         download_retry (int, optional): Number of download re-attempts before giving up. Defaults
             to ``None``.
         download_timeout (float, optional): Number of seconds to wait for a shard to download
@@ -92,7 +92,7 @@ class Stream:
                  split: Optional[str] = None,
                  proportion: Optional[float] = None,
                  repeat: Optional[float] = None,
-                 samples: Optional[int] = None,
+                 choose: Optional[int] = None,
                  download_retry: Optional[int] = None,
                  download_timeout: Optional[float] = None,
                  validate_hash: Optional[str] = None,
@@ -105,9 +105,9 @@ class Stream:
 
         has_proportion = proportion is not None
         has_repeat = repeat is not None
-        has_samples = samples is not None
-        if not (0 <= has_proportion + has_repeat + has_samples <= 1):
-            raise ValueError('At most one of "proportion", "repeat", and "samples" may be ' +
+        has_choose = choose is not None
+        if not (0 <= has_proportion + has_repeat + has_choose <= 1):
+            raise ValueError('At most one of "proportion", "repeat", and "choose" may be ' +
                              'specified; the others are derived')
 
         self._proportion = proportion
@@ -122,11 +122,11 @@ class Stream:
                 raise ValueError('Repeat must be non-negative')
             self.repeat = repeat
 
-        self._samples = samples
-        if samples is not None:
-            if samples < 0:
-                raise ValueError('Samples must be non-negative')
-            self.samples = samples
+        self._choose = choose
+        if choose is not None:
+            if choose < 0:
+                raise ValueError('Choose must be non-negative')
+            self.choose = choose
 
         self._download_retry = download_retry
         if download_retry is not None:
