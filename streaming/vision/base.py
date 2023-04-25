@@ -71,8 +71,8 @@ class StreamingVisionDataset(StreamingDataset, VisionDataset):
             remote is local or no remote and no compression. Defaults to ``True``.
         choose (int, optional): Number of samples to draw per epoch balanced across all streams.
             If ``None``, takes its value from the total number of underlying samples. Provide this
-            field if you are weighting streams relatively to targeut a larger or smaller epoch
-            size. Defaults to ``None``.
+            field if you are weighting streams relatively to target a larger or smaller epoch size.
+            Defaults to ``None``.
         predownload (int, optional): Target number of samples ahead to download the shards of while
             iterating. Defaults to ``100_000``.
         partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
