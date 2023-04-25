@@ -515,8 +515,8 @@ class StreamingDataset(IterableDataset):
                 # Calculate sample IDs of a possible partial repeat.
                 shortfall = shard_choose % shard_samples
                 if shortfall:
-                    partial_repeat = shard_sample_offset + rng.choice(shard_samples, shortfall,
-                                                                      False)
+                    partial_repeat = shard_sample_offset + rng.choice(
+                        shard_samples, shortfall, False)
                     partial_repeat.sort()
                     sample_ids.append(partial_repeat)
 
