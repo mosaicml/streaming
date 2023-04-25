@@ -16,6 +16,7 @@ from filelock import FileLock
 from numpy.typing import NDArray
 from torch.utils.data import IterableDataset
 
+from streaming.base.format import get_index_basename
 from streaming.base.partition import get_partitions
 from streaming.base.shared import CreateSharedMemory, SharedBarrier, get_shm_prefix
 from streaming.base.shuffle import get_shuffle
@@ -272,6 +273,9 @@ class StreamingDataset(IterableDataset):
         for stream_id, stream in enumerate(self.streams):
             stream_shards = stream.get_shards(world)
             samples = sum(map(len, stream_shards))
+            if samples == 0:
+                index_path = os.path.join(stream.local, stream.split, get_index_basename())
+                raise RuntimeError(f'Empty `shards` in {index_path} file.')
             stream_per_shard += [stream_id] * len(stream_shards)
             self.shard_offset_per_stream[stream_id] = len(self.shards)
             self.shards_per_stream[stream_id] = len(stream_shards)
