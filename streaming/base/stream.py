@@ -420,3 +420,12 @@ class Stream:
             is_shard_present = shard.init_local_dir(ls, self.safe_keep_zip)
             are_shards_present.append(is_shard_present)
         return are_shards_present
+
+    def get_index_size(self) -> int:
+        """Get the size of the index file in bytes.
+
+        Returns:
+            int: Size in bytes.
+        """
+        filename = os.path.join(self.local, self.split, get_index_basename())
+        return os.stat(filename).st_size

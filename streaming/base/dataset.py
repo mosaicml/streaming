@@ -320,22 +320,31 @@ class StreamingDataset(IterableDataset):
             # Set initial epoch (before any resumption).
             self.next_epoch = 0
 
-            # Init each stream's local dir, discovering which shards are present.
+            # Normalize each stream's local dir, discovering which shards are present.
             are_shards_present = []
             for stream in self.streams:
                 stream_shards = stream.get_shards(world)
                 are_shards_present += stream.init_local_dir(stream_shards)
 
-            # Use that to init shard states, shard access times, and cache usage.
+            # Calculate the initial cache usage using shard presence info.
+            #
+            # If we are above cache_limit, do nothing about it until the first download (which will
+            # evict until happy).
             self.cache_usage = 0
+            for stream in self.streams:
+                self.cache_usage += stream.get_index_size()
             for shard_id, is_shard_present in enumerate(are_shards_present):
                 if is_shard_present:
-                    self._shard_states[shard_id] = _ShardState.PRESENT
-                    self._shard_access_times[shard_id] = time()
                     stream_id = self.stream_per_shard[shard_id]
                     stream = self.streams[stream_id]
                     shard = self.shards[shard_id]
                     self.cache_usage += shard.get_persistent_size(stream.safe_keep_zip)
+
+            # Also use shard presence to initialize the shard states array and last access times.
+            for shard_id, is_shard_present in enumerate(are_shards_present):
+                if is_shard_present:
+                    self._shard_states[shard_id] = _ShardState.PRESENT
+                    self._shard_access_times[shard_id] = time()
                 else:
                     self._shard_states[shard_id] = _ShardState.MISSING
                     self._shard_access_times[shard_id] = NEVER
