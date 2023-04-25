@@ -20,10 +20,10 @@ class Spanner:
     def __init__(self, shard_sizes: NDArray[np.int64], span_size: int = 1 << 10) -> None:
         self.shard_sizes = shard_sizes
         self.span_size = span_size
-        self.size = sum(shard_sizes)
+        self.num_samples = sum(shard_sizes)
         self.shard_bounds = np.concatenate([np.zeros(1, np.int64), shard_sizes.cumsum()])
 
-        overflow = self.size % span_size
+        overflow = self.num_samples % span_size
         underflow = span_size - overflow if overflow else 0
         self.shard_sizes[-1] += underflow
 
@@ -48,8 +48,8 @@ class Spanner:
         Returns:
             Tuple[int, int]: Shard and relative sample index.
         """
-        if not (0 <= index < self.size):
-            raise ValueError(f'Invalid sample index: 0 <= {index} < {self.size}')
+        if not (0 <= index < self.num_samples):
+            raise ValueError(f'Invalid sample index: 0 <= {index} < {self.num_samples}')
 
         span = index // self.span_size
         for shard in self.spans[span]:
