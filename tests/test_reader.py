@@ -1,12 +1,13 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+import json
 import logging
 import os
 import shutil
 import tempfile
 import time
-from typing import Any
+from typing import Any, Tuple
 
 import pytest
 
@@ -218,3 +219,36 @@ def test_dataset_split_instantiation(mds_dataset_dir: Any):
         remote_split_dir = os.path.join(remote_dir, split)
         copy_all_files(remote_dir, remote_split_dir)
         _ = StreamingDataset(local=local_dir, remote=remote_dir, split=split)
+
+
+@pytest.mark.usefixtures('mds_dataset_dir')
+def test_invalid_index_json_exception(local_remote_dir: Tuple[str, str]):
+    local_dir, _ = local_remote_dir
+    filename = 'index.json'
+    if not os.path.exists(local_dir):
+        os.mkdir(local_dir)
+
+    # Creates an empty file
+    with open(os.path.join(local_dir, filename), 'w') as _:
+        pass
+
+    with pytest.raises(json.decoder.JSONDecodeError,
+                       match=f'Index file at.*is empty or corrupted'):
+        _ = StreamingDataset(local=local_dir)
+
+
+@pytest.mark.usefixtures('mds_dataset_dir')
+def test_empty_shards_index_json_exception(local_remote_dir: Tuple[str, str]):
+    local_dir, _ = local_remote_dir
+    filename = 'index.json'
+    content = {'shards': [], 'version': 2}
+
+    if not os.path.exists(local_dir):
+        os.mkdir(local_dir)
+
+    # Creates a `index.json` file and write the content to it
+    with open(os.path.join(local_dir, filename), 'w') as outfile:
+        json.dump(content, outfile)
+
+    with pytest.raises(RuntimeError, match=f'Empty `shards` in.*file.'):
+        _ = StreamingDataset(local=local_dir)
