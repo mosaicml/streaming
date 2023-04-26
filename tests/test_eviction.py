@@ -44,7 +44,6 @@ def test_eviction_nozip(local_remote_dir: Tuple[str, str]):
             pass
     del dataset
     rmtree(local)
-
     """
     # With shard evictions.
     dataset = StreamingDataset(remote=remote, local=local, cache_limit=500_000)
