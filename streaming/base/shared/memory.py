@@ -47,7 +47,7 @@ class SharedMemory:
                 # responsible for destroying the shared memory block.
                 resource_tracker.register = self.fix_register
                 # Attaches to an existing shared memory block
-                shm = BuiltinSharedMemory(name, create, size)
+                shm = BuiltinSharedMemory(name, create, size
                 self.opened_shms.append(shm)
             else:
                 try:

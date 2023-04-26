@@ -250,6 +250,89 @@ class Stream:
 
         return choose_per_epoch
 
+    @classmethod
+    def validate_weights(cls, streams: Sequence[Self]) -> bool:
+        """Validate stream weights, returning whether relative or absolute weighting was used.
+
+        Args:
+            streams (Sequence[Stream]): Every stream comprising the dataset.
+
+        Returns:
+            bool: Whether streams are weighted relatively (proportionally).
+        """
+        # Validate stream weights ("proportion", "repeat", "choose", or none).
+        is_proportional = hasattr(streams[0], 'proportion')
+        for stream_id, stream in enumerate(streams):
+            has_proportion = hasattr(stream, 'proportion')
+            has_repeat = hasattr(stream, 'repeat')
+            has_choose = hasattr(stream, 'choose')
+            if not (0 <= has_proportion + has_repeat + has_choose <= 1):
+                raise ValueError(f'Streams must provide at most one of "proportion", "repeat", ' +
+                                 f'or "choose" (error in stream {stream_id})')
+            if is_proportional != has_proportion:
+                raise ValueError(f'Relative ("proportion") and absolute ("repeat", "choose", ' +
+                                 f'none) stream weights are incompatible with each other (error ' +
+                                 f'in stream {stream_id})')
+        return is_proportional
+
+    @classmethod
+    def apply_weights(cls, streams: Sequence[Self], samples_per_stream: NDArray[np.int64],
+                      choose_per_epoch: Optional[int], seed: int) -> int:
+        """Given samples per stream, derive each stream's proportion/repeat/samples.
+
+        Modifies streams to save the derived weights.
+
+        Args:
+            streams (Sequence[Stream]): The list of streams which comprise the dataset.
+            samples_per_stream (NDArray[np.int64]): Underlying samples of each stream.
+            choose_per_epoch (int, optional): Absolute epoch size if weighting relatively.
+            seed (int): Random number generator seed used to sample evenly.
+
+        Returns:
+            int: Number of samples to draw per epoch.
+        """
+        # Validate provided weights, determining whether they are relative or absolute.
+        are_weights_relative = cls.validate_weights(streams)
+
+        # Derive weights.
+        if are_weights_relative:
+            # Relative.
+            if not choose_per_epoch:
+                choose_per_epoch = sum(samples_per_stream)
+            proportion_per_stream = np.array([stream.proportion for stream in streams], np.float64)
+            proportion_per_stream /= proportion_per_stream.sum()
+            choose_per_stream = (choose_per_epoch * proportion_per_stream).astype(np.int64)
+            shortfall = choose_per_epoch - choose_per_stream.sum()
+            rng = np.random.default_rng(seed)
+            indices = rng.choice(len(streams), shortfall, False)
+            choose_per_stream[indices] += 1
+            repeat_per_stream = choose_per_stream / samples_per_stream
+        else:
+            # Absolute.
+            if choose_per_epoch:
+                raise ValueError('Only provide "choose" when weighting streams relatively')
+            choose_per_stream = np.zeros(len(streams), np.int64)
+            for stream_id, stream in enumerate(streams):
+                if hasattr(stream, 'repeat'):
+                    choose = int(stream.repeat * samples_per_stream[stream_id])
+                elif hasattr(stream, 'choose'):
+                    choose = stream.choose
+                else:
+                    choose = samples_per_stream[stream_id]
+                choose_per_stream[stream_id] = choose
+            repeat_per_stream = choose_per_stream / samples_per_stream
+            proportion_per_stream = choose_per_stream / choose_per_stream.sum()
+            choose_per_epoch = sum(choose_per_stream)
+
+        # Now that we know the true props/reps/choices, inject those back into the streams.
+        for stream, proportion, repeat, choose in zip(streams, proportion_per_stream,
+                                                      repeat_per_stream, choose_per_stream):
+            stream.proportion = proportion
+            stream.repeat = repeat
+            stream.choose = choose
+
+        return choose_per_epoch
+
     def _download_file(self, basename: str) -> str:
         """Safely download a file from remote to local cache.
 
