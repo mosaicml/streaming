@@ -482,6 +482,57 @@ class StreamingDataset(Array, IterableDataset):
 
         return epoch, sample_in_epoch
 
+    def state_dict(self, num_samples: int, from_beginning: bool) -> Dict[str, Any]:
+        """Get a dict containing training state (called from non-worker process).
+
+        This is called on rank zero.
+
+        Our stock StreamingDataLoader counts samples from start of training (from_beginning=false).
+        However, if you are always counting from the start of the epoch, set from_beginning=true.
+
+        Args:
+            num_samples (int): The number of samples processed so far in the current epoch.
+            from_beginning (int): Whether we are counting samples from the start of this epoch, or
+                the start of just this potentially resumed training run this epoch.
+
+        Returns:
+            Dict[str, Any]: The state.
+        """
+        world = World()
+        epoch = self._get_next_epoch() - 1
+        epoch, offset = self._resume(world, epoch)
+        if from_beginning:
+            sample_in_epoch = num_samples
+        else:
+            sample_in_epoch = offset + num_samples
+        return {
+            'epoch': epoch,
+            'sample_in_epoch': sample_in_epoch,
+            'num_canonical_nodes': self.num_canonical_nodes,
+            'shuffle_seed': self.shuffle_seed
+        }
+
+    def load_state_dict(self, obj: Dict[str, Any]) -> None:
+        """Load a dict containing training state (called from non-worker process).
+
+        This is called on each copy of the dataset when resuming.
+
+        We just save the state to shared memory for workers to pick up when __iter__ is next
+        called. We use shm because changes to this copy of the dataset wouldn't be picked up by
+        persistent workers.
+
+        Args:
+            obj (Dict[str, Any]): The state.
+        """
+        name = f'{self._shm_prefix}_resume'
+        data = json.dumps(obj, sort_keys=True).encode('utf-8')
+        # some platforms choose to allocate chunks of memory based upon that platform’s memory
+        # page size, hence, the exact size of the shared memory block may be larger or
+        # equal to the size requested.
+        resume_shm = CreateSharedMemory(name=name, size=len(data))
+        self._resume_shm = resume_shm.shm
+        self._resume_shm.buf[:len(data)] = data
+
     def _resample_streams(self, epoch: int) -> Tuple[NDArray[np.int64], NDArray[np.int64]]:
         """Perform the up/down-sampling needed to generate the weighted epoch.
 
@@ -888,54 +939,3 @@ class StreamingDataset(Array, IterableDataset):
         # Iterate over the samples while downloading ahead.
         for sample_id in self._each_sample(sample_ids):
             yield self[sample_id]
-
-    def state_dict(self, num_samples: int, from_beginning: bool) -> Dict[str, Any]:
-        """Get a dict containing training state (called from non-worker process).
-
-        This is called on rank zero.
-
-        Our stock StreamingDataLoader counts samples from start of training (from_beginning=false).
-        However, if you are always counting from the start of the epoch, set from_beginning=true.
-
-        Args:
-            num_samples (int): The number of samples processed so far in the current epoch.
-            from_beginning (int): Whether we are counting samples from the start of this epoch, or
-                the start of just this potentially resumed training run this epoch.
-
-        Returns:
-            Dict[str, Any]: The state.
-        """
-        world = World()
-        epoch = self._get_next_epoch() - 1
-        epoch, offset = self._resume(world, epoch)
-        if from_beginning:
-            sample_in_epoch = num_samples
-        else:
-            sample_in_epoch = offset + num_samples
-        return {
-            'epoch': epoch,
-            'sample_in_epoch': sample_in_epoch,
-            'num_canonical_nodes': self.num_canonical_nodes,
-            'shuffle_seed': self.shuffle_seed
-        }
-
-    def load_state_dict(self, obj: Dict[str, Any]) -> None:
-        """Load a dict containing training state (called from non-worker process).
-
-        This is called on each copy of the dataset when resuming.
-
-        We just save the state to shared memory for workers to pick up when __iter__ is next
-        called. We use shm because changes to this copy of the dataset wouldn't be picked up by
-        persistent workers.
-
-        Args:
-            obj (Dict[str, Any]): The state.
-        """
-        name = f'{self._shm_prefix}_resume'
-        data = json.dumps(obj, sort_keys=True).encode('utf-8')
-        # some platforms choose to allocate chunks of memory based upon that platform’s memory
-        # page size, hence, the exact size of the shared memory block may be larger or
-        # equal to the size requested.
-        resume_shm = CreateSharedMemory(name=name, size=len(data))
-        self._resume_shm = resume_shm.shm
-        self._resume_shm.buf[:len(data)] = data
