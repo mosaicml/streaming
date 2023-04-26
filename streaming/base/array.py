@@ -12,7 +12,7 @@ from numpy.typing import NDArray
 class Array:
     """A read-only list of items that can be fancy indexed like a numpy array.
 
-    You can index into instances of this class using ints, slices, numpy arrays, lists of ints,
+    It can index into instances of this class using ints, slices, numpy arrays, lists of ints,
     list of lists of ints, etc.
 
     We provide `__getitem__`. Subclasses must provide `size` and `get_item(0 <= idx < size)`.

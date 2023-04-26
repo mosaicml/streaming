@@ -7,9 +7,11 @@ import os
 import shutil
 import tempfile
 import time
-from typing import Any, Tuple
+from typing import Any, Dict, List, Tuple, Union
 
+import numpy as np
 import pytest
+from numpy.typing import NDArray
 
 from streaming.base import StreamingDataset
 from tests.common.datasets import SequenceDataset, write_mds_dataset
@@ -181,6 +183,34 @@ def test_reader_after_crash(mds_dataset_dir: Any, created_ago: float, download_t
         pass
 
 
+def _validate_sample(index: Union[int, slice, List[int], NDArray[np.int64]],
+                    output_sample: Union[Dict, List], total_samples: int):
+    """Validate the generated sample with the expected sample."""
+
+    def validate_single_sample(index: int, output_sample: Dict, total_samples: int):
+        if index < 0:
+            sample_index = total_samples + index
+            assert output_sample['id'] == f'{sample_index:06}'
+            assert output_sample['sample'] == 3 * sample_index
+        else:
+            assert output_sample['id'] == f'{index:06}'
+            assert output_sample['sample'] == 3 * index
+
+    if isinstance(index, int):
+        assert isinstance(output_sample, Dict)
+        validate_single_sample(index, output_sample, total_samples)
+    elif isinstance(index, List):
+        for i, sample_idx in enumerate(index):
+            validate_single_sample(sample_idx, output_sample[i], total_samples)
+    elif isinstance(index, slice):
+        indices = range(index.start, index.stop, index.step)
+        for i, sample_idx in enumerate(indices):
+            validate_single_sample(sample_idx, output_sample[i], total_samples)
+    else:  # NDArray
+        for i, sample_idx in enumerate(index):
+            validate_single_sample(sample_idx, output_sample[i], total_samples)
+
+
 @pytest.mark.parametrize(
     'share_remote_local',
     [
@@ -189,9 +219,16 @@ def test_reader_after_crash(mds_dataset_dir: Any, created_ago: float, download_t
     ],
 )
 @pytest.mark.usefixtures('mds_dataset_dir')
-@pytest.mark.parametrize('index', [17])
+@pytest.mark.parametrize('index', [
+    -1, 0, [17], [44, 98], [-14, -87, -55],
+    slice(0, 29, 3),
+    slice(-27, -99, -5),
+    np.arange(10),
+    np.array([3, 19, -70, -32])
+])
 @pytest.mark.parametrize('seed', [5566])
-def test_reader_getitem(mds_dataset_dir: Any, share_remote_local: bool, index: int, seed: int):
+def test_reader_getitem(mds_dataset_dir: Any, share_remote_local: bool,
+                        index: Union[int, slice, List[int], NDArray[np.int64]], seed: int):
     remote_dir, local_dir = mds_dataset_dir
     if share_remote_local:
         local_dir = remote_dir
@@ -204,8 +241,7 @@ def test_reader_getitem(mds_dataset_dir: Any, share_remote_local: bool, index: i
 
     # Test retrieving random sample
     sample = dataset[index]
-    assert sample['id'] == f'{index:06}'
-    assert sample['sample'] == 3 * index
+    _validate_sample(index, sample, len(dataset))
 
 
 @pytest.mark.usefixtures('mds_dataset_dir')

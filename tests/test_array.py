@@ -11,7 +11,7 @@ from streaming.base.array import Array
 
 
 class Range(Array):
-    """A minimum viable instantation of an Array."""
+    """A minimum viable instantiation of an Array."""
 
     def __init__(self, num_items: int) -> None:
         self.num_items = num_items
@@ -25,21 +25,25 @@ class Range(Array):
         return idx
 
 
-def check(np_arr: NDArray[np.int64], my_arr: Range, i: Union[int, slice, List[int],
-                                                             NDArray[np.int64]]):
+def validate(
+    np_arr: NDArray[np.int64],
+    strmg_arr: Range,
+    i: Union[int, slice, List[int], NDArray[np.int64]],
+):
     try:
-        t = np_arr[i]
+        x = np_arr[i]
     except:
-        t = None
-    if isinstance(t, np.ndarray):
-        t = t.tolist()
+        x = None
+    if isinstance(x, np.ndarray):
+        x = x.tolist()
 
     try:
-        m = my_arr[i]
+        y = strmg_arr[i]
     except:
-        m = None
+        y = None
 
-    assert t == m
+    print(f'{x=}, {y=}')
+    assert x == y
 
 
 @pytest.fixture
@@ -48,31 +52,32 @@ def np_arange():
 
 
 @pytest.fixture
-def my_arange():
+def strmg_arange():
     return Range(100)
 
 
-def test_int_from_front(np_arange: NDArray[np.int64], my_arange: Range):
+def test_int_from_front(np_arange: NDArray[np.int64], strmg_arange: Range):
     for i in range(100):
-        check(np_arange, my_arange, i)
+        validate(np_arange, strmg_arange, i)
 
 
-def test_int_from_back(np_arange: NDArray[np.int64], my_arange: Range):
+def test_int_from_back(np_arange: NDArray[np.int64], strmg_arange: Range):
     for i in range(-100, 0):
-        check(np_arange, my_arange, i)
+        validate(np_arange, strmg_arange, i)
 
 
-def test_int_out_of_range(np_arange: NDArray[np.int64], my_arange: Range):
+def test_int_out_of_range(np_arange: NDArray[np.int64], strmg_arange: Range):
     for i in range(-100 * 4, 100 * 4, 10):
-        check(np_arange, my_arange, i)
+        validate(np_arange, strmg_arange, i)
 
 
 @pytest.mark.parametrize('start', [-142, -100, -99, -42, -1, 0, 42, 99, 100, 142])
 @pytest.mark.parametrize('stop', [-142, -100, -99, -42, -1, 0, 42, 99, 100, 142])
 @pytest.mark.parametrize('step', [-3, -1, 1, 3])
-def test_slice(start: int, stop: int, step: int, np_arange: NDArray[np.int64], my_arange: Range):
+def test_slice(start: int, stop: int, step: int, np_arange: NDArray[np.int64],
+               strmg_arange: Range):
     i = slice(start, stop, step)
-    check(np_arange, my_arange, i)
+    validate(np_arange, strmg_arange, i)
 
 
 @pytest.fixture
@@ -101,49 +106,49 @@ def slices():
     ]
 
 
-def test_specific_slice(np_arange: NDArray[np.int64], my_arange: Range, slices: List[slice]):
+def test_specific_slice(np_arange: NDArray[np.int64], strmg_arange: Range, slices: List[slice]):
     for i in slices:
-        check(np_arange, my_arange, i)
+        validate(np_arange, strmg_arange, i)
 
 
-def test_list(np_arange: NDArray[np.int64], my_arange: Range, slices: List[slice]):
+def test_list_1d(np_arange: NDArray[np.int64], strmg_arange: Range, slices: List[slice]):
     for i in slices:
-        i = my_arange._each_slice_index(i)
+        i = strmg_arange._each_slice_index(i)
         i = list(i)
-        check(np_arange, my_arange, i)
+        validate(np_arange, strmg_arange, i)
 
 
-def test_array(np_arange: NDArray[np.int64], my_arange: Range, slices: List[slice]):
+def test_list_2d(np_arange: NDArray[np.int64], strmg_arange: Range):
+    i = np.arange(20)
+    i = i * 2 + 7
+    i = i.reshape(5, 4)
+    assert strmg_arange[i.tolist()] == np_arange[i].tolist()
+
+
+def test_list_3d(np_arange: NDArray[np.int64], strmg_arange: Range):
+    i = np.arange(36)
+    i = i * 2 + 7
+    i = i.reshape(3, 3, 4)
+    assert strmg_arange[i.tolist()] == np_arange[i].tolist()
+
+
+def test_array_1d(np_arange: NDArray[np.int64], strmg_arange: Range, slices: List[slice]):
     for i in slices:
-        i = my_arange._each_slice_index(i)
+        i = strmg_arange._each_slice_index(i)
         i = list(i)
         i = np.array(i, dtype=np.int64)
-        check(np_arange, my_arange, i)
+        validate(np_arange, strmg_arange, i)
 
 
-def test_array_2d(np_arange: NDArray[np.int64], my_arange: Range):
-    i = np.arange(4)
+def test_array_2d(np_arange: NDArray[np.int64], strmg_arange: Range):
+    i = np.arange(12)
     i = i * 3 + 7
-    i = i.reshape(2, 2)
-    check(np_arange, my_arange, i)
+    i = i.reshape(3, 4)
+    validate(np_arange, strmg_arange, i)
 
 
-def test_array_3d(np_arange: NDArray[np.int64], my_arange: Range):
-    i = np.arange(8)
+def test_array_3d(np_arange: NDArray[np.int64], strmg_arange: Range):
+    i = np.arange(18)
     i = i * 3 + 7
-    i = i.reshape(2, 2, 2)
-    check(np_arange, my_arange, i)
-
-
-def test_list_2d(np_arange: NDArray[np.int64], my_arange: Range):
-    i = np.arange(4)
-    i = i * 3 + 7
-    i = i.reshape(2, 2)
-    assert my_arange[i.tolist()] == np_arange[i].tolist()
-
-
-def test_list_3d(np_arange: NDArray[np.int64], my_arange: Range):
-    i = np.arange(8)
-    i = i * 3 + 7
-    i = i.reshape(2, 2, 2)
-    assert my_arange[i.tolist()] == np_arange[i].tolist()
+    i = i.reshape(3, 2, 3)
+    validate(np_arange, strmg_arange, i)

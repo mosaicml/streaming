@@ -728,7 +728,6 @@ class StreamingDataset(Array, IterableDataset):
 
         return lock, shard_states
 
-
     def get_item(self, sample_id: int) -> Any:
         """Get sample by global index, blocking to download its shard if not present.
 
