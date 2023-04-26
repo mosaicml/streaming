@@ -24,6 +24,7 @@ dataloader = DataLoader(dataset=StreamingDataset(remote='s3://...'))
 - **High throughput**: Our MDS format cuts extraneous work to the bone, resulting in ultra-low sample latency and higher throughput compared to alternatives for workloads bottlenecked by the dataloader.
 - **Equal Convergence**: Model convergence from using StreamingDataset is just as good as using local disk, thanks to our shuffling algorithm. StreamingDataset shuffles across all samples assigned to a node, whereas alternative solutions only shuffle samples in a smaller pool (within a single process).
 - **Random access**: Access the data you need when you need it. Even if a sample isn’t downloaded yet, you can access `dataset[i]` to get sample `i`.
+- **Numpy style indexing**: Fetch data on the fly by providing a NumPy style indexing to `StreamingDataset`.
 
 To get started, please checkout our [Quick Start](getting_started/quick_start.md) and [User Guide](getting_started/user_guide.md).
 
