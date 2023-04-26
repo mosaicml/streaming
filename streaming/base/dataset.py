@@ -271,23 +271,6 @@ class StreamingDataset(IterableDataset):
         # to the trouble of loading them.
         Stream.validate_weights(streams)
 
-        """
-        TODO
-        # Validate stream weights ("proportion", "repeat", "choose", or none).
-        is_proportional = hasattr(streams[0], 'proportion')
-        for stream_id, stream in enumerate(streams):
-            has_proportion = hasattr(stream, 'proportion')
-            has_repeat = hasattr(stream, 'repeat')
-            has_choose = hasattr(stream, 'choose')
-            if not (0 <= has_proportion + has_repeat + has_choose <= 1):
-                raise ValueError(f'Streams must provide at most one of "proportion", "repeat", ' +
-                                 f'or "choose" (error in stream {stream_id})')
-            if is_proportional != has_proportion:
-                raise ValueError(f'Relative ("proportion") and absolute ("repeat", "choose", ' +
-                                 f'none) stream weights are incompatible with each other (error ' +
-                                 f'in stream {stream_id})')
-        """
-
         # Set streams.
         self.streams = streams
         self.num_streams = len(streams)
@@ -332,50 +315,6 @@ class StreamingDataset(IterableDataset):
         # true proportion/repeat/choose, as well as the total epoch size.
         self.choose = Stream.apply_weights(self.streams, self.samples_per_stream, choose,
                                            self.shuffle_seed)
-
-        """
-        TODO
-        # Now that we have the true size of each stream, derive the proportions, repeats, and
-        # choices.
-        if is_proportional:
-            # Relative.
-            if not choose:
-                choose = self.num_samples
-            self.proportion_per_stream = np.array([stream.proportion for stream in self.streams],
-                                                  np.float64)
-            self.proportion_per_stream /= self.proportion_per_stream.sum()
-            self.choose_per_stream = (choose * self.proportion_per_stream).astype(np.int64)
-            shortfall = choose - self.choose_per_stream.sum()
-            rng = np.random.default_rng(shuffle_seed)
-            indices = rng.choice(self.num_streams, shortfall, False)
-            self.choose_per_stream[indices] += 1
-            self.repeat_per_stream = self.choose_per_stream / self.samples_per_stream
-            self.choose = choose
-        else:
-            # Absolute.
-            if choose:
-                raise ValueError('Only provide "choose" when weighting streams relatively')
-            self.choose_per_stream = np.zeros(self.num_streams, np.int64)
-            for stream_id, stream in enumerate(self.streams):
-                if hasattr(stream, 'repeat'):
-                    choose = int(stream.repeat * self.samples_per_stream[stream_id])
-                elif hasattr(stream, 'choose'):
-                    choose = stream.choose
-                else:
-                    choose = self.samples_per_stream[stream_id]
-                self.choose_per_stream[stream_id] = choose
-            self.repeat_per_stream = self.choose_per_stream / self.samples_per_stream
-            self.proportion_per_stream = self.choose_per_stream / self.choose_per_stream.sum()
-            self.choose = sum(self.choose_per_stream)
-
-        # Now that we know the true props/reps/choices, inject those back into the streams.
-        for stream, stream_proportion, stream_repeat, stream_choose in zip(
-                self.streams, self.proportion_per_stream, self.repeat_per_stream,
-                self.choose_per_stream):
-            stream.proportion = stream_proportion
-            stream.repeat = stream_repeat
-            stream.choose = stream_choose
-        """
 
         # Register/lookup our shared memory prefix and filelock root directory.
         my_locals = [
@@ -645,7 +584,7 @@ class StreamingDataset(IterableDataset):
             # Calculate choose per stream shard.
             samples_per_stream_shard = self.samples_per_shard[stream_shard_ids]
             stream_samples = sum(samples_per_stream_shard)
-            stream_choose = self.choose_per_stream[stream_id]
+            stream_choose = self.streams[stream_id].choose
             if stream_choose == stream_samples:
                 choose_per_stream_shard = samples_per_stream_shard
             else:

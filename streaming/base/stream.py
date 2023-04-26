@@ -177,24 +177,24 @@ class Stream:
         Returns:
             bool: Whether streams are weighted relatively (proportionally).
         """
-        # Validate sub-dataset weights ("proportion", "repeat", "samples", or none).
-        is_relative = hasattr(streams[0], 'proportion')
+        # Validate stream weights ("proportion", "repeat", "choose", or none).
+        is_proportional = hasattr(streams[0], 'proportion')
         for stream_id, stream in enumerate(streams):
             has_proportion = hasattr(stream, 'proportion')
             has_repeat = hasattr(stream, 'repeat')
-            has_samples = hasattr(stream, 'samples')
-            if not (0 <= has_proportion + has_repeat + has_samples <= 1):
+            has_choose = hasattr(stream, 'choose')
+            if not (0 <= has_proportion + has_repeat + has_choose <= 1):
                 raise ValueError(f'Streams must provide at most one of "proportion", "repeat", ' +
-                                 f'or "samples" (error in stream {stream_id})')
-            if is_relative != has_proportion:
-                raise ValueError(f'Relative ("proportion") and absolute ("repeat", "samples", ' +
-                                 f'none) sub-dataset weights are incompatible with each other ' +
-                                 f'(error in stream {stream_id})')
-        return is_relative
+                                 f'or "choose" (error in stream {stream_id})')
+            if is_proportional != has_proportion:
+                raise ValueError(f'Relative ("proportion") and absolute ("repeat", "choose", ' +
+                                 f'none) stream weights are incompatible with each other (error ' +
+                                 f'in stream {stream_id})')
+        return is_proportional
 
     @classmethod
     def apply_weights(cls, streams: Sequence[Self], samples_per_stream: NDArray[np.int64],
-                      samples_per_epoch: Optional[int], seed: int) -> int:
+                      choose_per_epoch: Optional[int], seed: int) -> int:
         """Given samples per stream, derive each stream's proportion/repeat/samples.
 
         Modifies streams to save the derived weights.
@@ -202,55 +202,53 @@ class Stream:
         Args:
             streams (Sequence[Stream]): The list of streams which comprise the dataset.
             samples_per_stream (NDArray[np.int64]): Underlying samples of each stream.
-            samples_per_epoch (int, optional): The resampled size of the epoch after weighting, if
-                desired to be different from the underlying size and relative weights are used.
+            choose_per_epoch (int, optional): Absolute epoch size if weighting relatively.
             seed (int): Random number generator seed used to sample evenly.
 
         Returns:
-            int: Derived samples_per_epoch which is always valid.
+            int: Number of samples to draw per epoch.
         """
         # Validate provided weights, determining whether they are relative or absolute.
         are_weights_relative = cls.validate_weights(streams)
 
         # Derive weights.
         if are_weights_relative:
-            # Relative weighting.
-            if not samples_per_epoch:
-                samples_per_epoch = sum(samples_per_stream)
+            # Relative.
+            if not choose_per_epoch:
+                choose_per_epoch = sum(samples_per_stream)
             proportion_per_stream = np.array([stream.proportion for stream in streams], np.float64)
             proportion_per_stream /= proportion_per_stream.sum()
-            pick_per_stream = (samples_per_epoch * proportion_per_stream).astype(np.int64)
-            short = samples_per_epoch - pick_per_stream.sum()
+            choose_per_stream = (choose_per_epoch * proportion_per_stream).astype(np.int64)
+            shortfall = choose_per_epoch - choose_per_stream.sum()
             rng = np.random.default_rng(seed)
-            indices = rng.choice(len(streams), short, False)
-            pick_per_stream[indices] += 1
-            repeat_per_stream = pick_per_stream / samples_per_stream
+            indices = rng.choice(len(streams), shortfall, False)
+            choose_per_stream[indices] += 1
+            repeat_per_stream = choose_per_stream / samples_per_stream
         else:
-            # Absolute weighting.
-            if samples_per_epoch:
-                raise ValueError('Only provide samples_per_epoch when proportionally weighting ' +
-                                 'sub-datasets.')
-            pick_per_stream = np.zeros(len(streams), np.int64)
+            # Absolute.
+            if choose_per_epoch:
+                raise ValueError('Only provide "choose" when weighting streams relatively')
+            choose_per_stream = np.zeros(len(streams), np.int64)
             for stream_id, stream in enumerate(streams):
                 if hasattr(stream, 'repeat'):
-                    samples = int(stream.repeat * samples_per_stream[stream_id])
-                elif hasattr(stream, 'samples'):
-                    samples = stream.samples
+                    choose = int(stream.repeat * samples_per_stream[stream_id])
+                elif hasattr(stream, 'choose'):
+                    choose = stream.choose
                 else:
-                    samples = samples_per_stream[stream_id]
-                pick_per_stream[stream_id] = samples
-            repeat_per_stream = pick_per_stream / samples_per_stream
-            proportion_per_stream = pick_per_stream / pick_per_stream.sum()
-            samples_per_epoch = sum(pick_per_stream)
+                    choose = samples_per_stream[stream_id]
+                choose_per_stream[stream_id] = choose
+            repeat_per_stream = choose_per_stream / samples_per_stream
+            proportion_per_stream = choose_per_stream / choose_per_stream.sum()
+            choose_per_epoch = sum(choose_per_stream)
 
-        # Now that we know the true props/repeats/picks, inject those back into the streams.
-        for stream, proportion, repeat, pick in zip(streams, proportion_per_stream,
-                                                    repeat_per_stream, pick_per_stream):
+        # Now that we know the true props/reps/choices, inject those back into the streams.
+        for stream, proportion, repeat, choose in zip(streams, proportion_per_stream,
+                                                      repeat_per_stream, choose_per_stream):
             stream.proportion = proportion
             stream.repeat = repeat
-            stream.samples = pick
+            stream.choose = choose
 
-        return samples_per_epoch
+        return choose_per_epoch
 
     def _download_file(self, basename: str) -> str:
         """Safely download a file from remote to local cache.

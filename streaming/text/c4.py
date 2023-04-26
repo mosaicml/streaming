@@ -36,8 +36,6 @@ class StreamingC4(StreamingDataset):
         keep_zip (bool): Whether to keep or delete the compressed form when decompressing
             downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
             ``False``.
-        samples_per_epoch (int, optional): Provide this field iff you are weighting sub-datasets
-            proportionally. Defaults to ``None``.
         choose (int, optional): Number of samples to draw per epoch balanced across all streams.
             If ``None``, takes its value from the total number of underlying samples. Provide this
             field if you are weighting streams relatively to target a larger or smaller epoch size.
