@@ -238,19 +238,9 @@ class StreamingDataset(Array, IterableDataset):
         else:
             streams = [default]
 
-        # Validate stream weights ("proportion", "repeat", "choose", or none).
-        is_proportional = hasattr(streams[0], 'proportion')
-        for stream_id, stream in enumerate(streams):
-            has_proportion = hasattr(stream, 'proportion')
-            has_repeat = hasattr(stream, 'repeat')
-            has_choose = hasattr(stream, 'choose')
-            if not (0 <= has_proportion + has_repeat + has_choose <= 1):
-                raise ValueError(f'Streams must provide at most one of "proportion", "repeat", ' +
-                                 f'or "choose" (error in stream {stream_id})')
-            if is_proportional != has_proportion:
-                raise ValueError(f'Relative ("proportion") and absolute ("repeat", "choose", ' +
-                                 f'none) stream weights are incompatible with each other (error ' +
-                                 f'in stream {stream_id})')
+        # Validate the stream weighting scheme (relative or absolute) to catch errors before we go
+        # to the trouble of loading them.
+        Stream.validate_weights(streams)
 
         # Set streams.
         self.streams = streams
@@ -292,46 +282,10 @@ class StreamingDataset(Array, IterableDataset):
         self.sample_offset_per_shard = self.samples_per_shard.cumsum() - self.samples_per_shard
         self.spanner = Spanner(self.samples_per_shard)
 
-        # Now that we have the true size of each stream, derive the proportions, repeats, and
-        # choices.
-        if is_proportional:
-            # Relative.
-            if not choose:
-                choose = self.num_samples
-            self.proportion_per_stream = np.array([stream.proportion for stream in self.streams],
-                                                  np.float64)
-            self.proportion_per_stream /= self.proportion_per_stream.sum()
-            self.choose_per_stream = (choose * self.proportion_per_stream).astype(np.int64)
-            shortfall = choose - self.choose_per_stream.sum()
-            rng = np.random.default_rng(shuffle_seed)
-            indices = rng.choice(self.num_streams, shortfall, False)
-            self.choose_per_stream[indices] += 1
-            self.repeat_per_stream = self.choose_per_stream / self.samples_per_stream
-            self.choose = choose
-        else:
-            # Absolute.
-            if choose:
-                raise ValueError('Only provide "choose" when weighting streams relatively')
-            self.choose_per_stream = np.zeros(self.num_streams, np.int64)
-            for stream_id, stream in enumerate(self.streams):
-                if hasattr(stream, 'repeat'):
-                    choose = int(stream.repeat * self.samples_per_stream[stream_id])
-                elif hasattr(stream, 'choose'):
-                    choose = stream.choose
-                else:
-                    choose = self.samples_per_stream[stream_id]
-                self.choose_per_stream[stream_id] = choose
-            self.repeat_per_stream = self.choose_per_stream / self.samples_per_stream
-            self.proportion_per_stream = self.choose_per_stream / self.choose_per_stream.sum()
-            self.choose = sum(self.choose_per_stream)
-
-        # Now that we know the true props/reps/choices, inject those back into the streams.
-        for stream, stream_proportion, stream_repeat, stream_choose in zip(
-                self.streams, self.proportion_per_stream, self.repeat_per_stream,
-                self.choose_per_stream):
-            stream.proportion = stream_proportion
-            stream.repeat = stream_repeat
-            stream.choose = stream_choose
+        # Now that we know the number of underlying samples of each stream, derive each stream's
+        # true proportion/repeat/choose, as well as the total epoch size.
+        self.choose = Stream.apply_weights(self.streams, self.samples_per_stream, choose,
+                                           self.shuffle_seed)
 
         # Register/lookup our shared memory prefix and filelock root directory.
         my_locals = [
@@ -482,6 +436,57 @@ class StreamingDataset(Array, IterableDataset):
 
         return epoch, sample_in_epoch
 
+    def state_dict(self, num_samples: int, from_beginning: bool) -> Dict[str, Any]:
+        """Get a dict containing training state (called from non-worker process).
+
+        This is called on rank zero.
+
+        Our stock StreamingDataLoader counts samples from start of training (from_beginning=false).
+        However, if you are always counting from the start of the epoch, set from_beginning=true.
+
+        Args:
+            num_samples (int): The number of samples processed so far in the current epoch.
+            from_beginning (int): Whether we are counting samples from the start of this epoch, or
+                the start of just this potentially resumed training run this epoch.
+
+        Returns:
+            Dict[str, Any]: The state.
+        """
+        world = World()
+        epoch = self._get_next_epoch() - 1
+        epoch, offset = self._resume(world, epoch)
+        if from_beginning:
+            sample_in_epoch = num_samples
+        else:
+            sample_in_epoch = offset + num_samples
+        return {
+            'epoch': epoch,
+            'sample_in_epoch': sample_in_epoch,
+            'num_canonical_nodes': self.num_canonical_nodes,
+            'shuffle_seed': self.shuffle_seed
+        }
+
+    def load_state_dict(self, obj: Dict[str, Any]) -> None:
+        """Load a dict containing training state (called from non-worker process).
+
+        This is called on each copy of the dataset when resuming.
+
+        We just save the state to shared memory for workers to pick up when __iter__ is next
+        called. We use shm because changes to this copy of the dataset wouldn't be picked up by
+        persistent workers.
+
+        Args:
+            obj (Dict[str, Any]): The state.
+        """
+        name = f'{self._shm_prefix}_resume'
+        data = json.dumps(obj, sort_keys=True).encode('utf-8')
+        # some platforms choose to allocate chunks of memory based upon that platform’s memory
+        # page size, hence, the exact size of the shared memory block may be larger or
+        # equal to the size requested.
+        resume_shm = CreateSharedMemory(name=name, size=len(data))
+        self._resume_shm = resume_shm.shm
+        self._resume_shm.buf[:len(data)] = data
+
     def _resample_streams(self, epoch: int) -> Tuple[NDArray[np.int64], NDArray[np.int64]]:
         """Perform the up/down-sampling needed to generate the weighted epoch.
 
@@ -505,7 +510,7 @@ class StreamingDataset(Array, IterableDataset):
             # Calculate choose per stream shard.
             samples_per_stream_shard = self.samples_per_shard[stream_shard_ids]
             stream_samples = sum(samples_per_stream_shard)
-            stream_choose = self.choose_per_stream[stream_id]
+            stream_choose = self.streams[stream_id].choose
             if stream_choose == stream_samples:
                 choose_per_stream_shard = samples_per_stream_shard
             else:
@@ -888,54 +893,3 @@ class StreamingDataset(Array, IterableDataset):
         # Iterate over the samples while downloading ahead.
         for sample_id in self._each_sample(sample_ids):
             yield self[sample_id]
-
-    def state_dict(self, num_samples: int, from_beginning: bool) -> Dict[str, Any]:
-        """Get a dict containing training state (called from non-worker process).
-
-        This is called on rank zero.
-
-        Our stock StreamingDataLoader counts samples from start of training (from_beginning=false).
-        However, if you are always counting from the start of the epoch, set from_beginning=true.
-
-        Args:
-            num_samples (int): The number of samples processed so far in the current epoch.
-            from_beginning (int): Whether we are counting samples from the start of this epoch, or
-                the start of just this potentially resumed training run this epoch.
-
-        Returns:
-            Dict[str, Any]: The state.
-        """
-        world = World()
-        epoch = self._get_next_epoch() - 1
-        epoch, offset = self._resume(world, epoch)
-        if from_beginning:
-            sample_in_epoch = num_samples
-        else:
-            sample_in_epoch = offset + num_samples
-        return {
-            'epoch': epoch,
-            'sample_in_epoch': sample_in_epoch,
-            'num_canonical_nodes': self.num_canonical_nodes,
-            'shuffle_seed': self.shuffle_seed
-        }
-
-    def load_state_dict(self, obj: Dict[str, Any]) -> None:
-        """Load a dict containing training state (called from non-worker process).
-
-        This is called on each copy of the dataset when resuming.
-
-        We just save the state to shared memory for workers to pick up when __iter__ is next
-        called. We use shm because changes to this copy of the dataset wouldn't be picked up by
-        persistent workers.
-
-        Args:
-            obj (Dict[str, Any]): The state.
-        """
-        name = f'{self._shm_prefix}_resume'
-        data = json.dumps(obj, sort_keys=True).encode('utf-8')
-        # some platforms choose to allocate chunks of memory based upon that platform’s memory
-        # page size, hence, the exact size of the shared memory block may be larger or
-        # equal to the size requested.
-        resume_shm = CreateSharedMemory(name=name, size=len(data))
-        self._resume_shm = resume_shm.shm
-        self._resume_shm.buf[:len(data)] = data
