@@ -184,7 +184,7 @@ def test_reader_after_crash(mds_dataset_dir: Any, created_ago: float, download_t
 
 
 def _validate_sample(index: Union[int, slice, List[int], NDArray[np.int64]],
-                    output_sample: Union[Dict, List], total_samples: int):
+                     output_sample: Union[Dict, List], total_samples: int):
     """Validate the generated sample with the expected sample."""
 
     def validate_single_sample(index: int, output_sample: Dict, total_samples: int):
