@@ -811,7 +811,7 @@ class StreamingDataset(Array, IterableDataset):
     def evict_shard(self, shard_id: int) -> None:
         """Evict the given shard.
 
-        This method is thread/process-safe.
+        This method is multithread/multiprocess-safe.
 
         Args:
             shard_id (int): Shard to evict.
@@ -828,7 +828,7 @@ class StreamingDataset(Array, IterableDataset):
     def evict_coldest_shard(self) -> None:
         """Evict the coldest (i.e., least recently accessed) shard.
 
-        This method is thread/process-safe.
+        This method is multithread/multiprocess-safe.
         """
         # Lock the cache. FileLocks contain threading Locks, which are not pickleable, which is
         # incompatible with spawn, so must be created lazily.
@@ -842,7 +842,7 @@ class StreamingDataset(Array, IterableDataset):
     def download_shard(self, shard_id: int, blocking: bool = True) -> None:
         """Download a shard, either waiting or skipping if in progress by another worker.
 
-        This method is thread/process-safe.
+        This method is multithread/multiprocess-safe.
 
         If cache limit is enabled, this method may delete one or more other shards to make space
         for this download.
