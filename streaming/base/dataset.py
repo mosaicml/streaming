@@ -750,12 +750,12 @@ class StreamingDataset(IterableDataset):
         return worker_sample_ids
 
     def _evict_shard(self, shard_id: int) -> None:
-        """Evict a shard.
+        """Evict the given shard.
 
         Assumes you hold ``_cache_filelock``, preventing anyone else from modifying the cache. We
         expect that shard deletions are very fast.
 
-        This method is called internally by ``_download_shard`` to clear space for more downloads.
+        This method is called internally by ``download_shard`` to clear space for more downloads.
 
         Args:
             shard_id (int): Shard to evict.
@@ -782,7 +782,7 @@ class StreamingDataset(IterableDataset):
         Assumes you hold ``_cache_filelock``, preventing anyone else from modifying the cache. We
         expect that shard deletions are very fast.
 
-        This method is called internally by ``_download_shard`` to clear space for more downloads.
+        This method is called internally by ``download_shard`` to clear space for more downloads.
         """
         # Get the shard with the oldest last access time.
         shard_id = int(self._shard_access_times.numpy().argmin())
@@ -791,14 +791,48 @@ class StreamingDataset(IterableDataset):
         # Verify the access time is valid (the shard has not been evicted). This will only pose a
         # problem if there are no shards left to evict but you are trying to anyway.
         if np.allclose(last_accessed, NEVER):
-            raise RuntimeError('Internal error: need to evict a shard to free up space, but ' +
-                               'no shards are present to evict')
+            raise ValueError(f'Internal error: need to evict a shard to free up space, but no ' +
+                             f'shards are present to evict (cache usage {self.cache_usage} of ' +
+                             f'{self.cache_limit})')
 
         # Evict that shard.
         self._evict_shard(shard_id)
 
-    def _download_shard(self, shard_id: int, blocking: bool = True) -> None:
+    def evict_shard(self, shard_id: int) -> None:
+        """Evict the given shard.
+
+        This method is thread/process-safe.
+
+        Args:
+            shard_id (int): Shard to evict.
+        """
+        # Lock the cache. FileLocks contain threading Locks, which are not pickleable, which is
+        # incompatible with spawn, so must be created lazily.
+        if not hasattr(self, '_cache_filelock'):
+            self._cache_filelock = FileLock(self._cache_filelock_path)
+
+        # Do the eviction behind the lock.
+        with self._cache_filelock:
+            self._evict_shard(shard_id)
+
+    def evict_coldest_shard(self) -> None:
+        """Evict the coldest (i.e., least recently accessed) shard.
+
+        This method is thread/process-safe.
+        """
+        # Lock the cache. FileLocks contain threading Locks, which are not pickleable, which is
+        # incompatible with spawn, so must be created lazily.
+        if not hasattr(self, '_cache_filelock'):
+            self._cache_filelock = FileLock(self._cache_filelock_path)
+
+        # Do the eviction behind the lock.
+        with self._cache_filelock:
+            self._evict_coldest_shard()
+
+    def download_shard(self, shard_id: int, blocking: bool = True) -> None:
         """Download a shard, either waiting or skipping if in progress by another worker.
+
+        This method is thread/process-safe.
 
         If cache limit is enabled, this method may delete one or more other shards to make space
         for this download.
@@ -892,11 +926,11 @@ class StreamingDataset(IterableDataset):
             sample = shard[shard_sample_id]
 
             # Manually update the last access time afterward. Normally this would have happened at
-            # the end of _download_shard (see proper path below).
+            # the end of download_shard() (see proper path below).
             self._shard_access_times[shard_id] = time()
         except:
             # Proper path: First ensure the shard is downloaded, then access the sample.
-            self._download_shard(shard_id)
+            self.download_shard(shard_id)
             sample = shard[shard_sample_id]
 
         return sample
@@ -941,7 +975,7 @@ class StreamingDataset(IterableDataset):
 
             # Download and decompress the shard for this sample, if not already done.
             shard_id, _ = self.spanner[sample_id]
-            self._download_shard(shard_id, False)
+            self.download_shard(shard_id, False)
 
             # Step forward one sample.
             it.download_index += 1

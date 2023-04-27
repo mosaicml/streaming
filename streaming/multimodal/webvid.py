@@ -346,7 +346,7 @@ class StreamingOutsideDTWebVid(StreamingDataset):
 
             # Download and decompress the shard for this sample, if not already done.
             shard_id, _ = self.spanner[sample_id]
-            self._download_shard(shard_id, False)
+            self.download_shard(shard_id, False)
 
             # Predownload the sample's extra data.
             obj = super().__getitem__(sample_id)
