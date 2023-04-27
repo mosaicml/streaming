@@ -8,6 +8,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Dict, Iterator, List, Optional, Set
 
+from streaming.base.array import Array
+
 __all__ = ['FileInfo', 'Reader', 'JointReader', 'SplitReader']
 
 
@@ -25,7 +27,7 @@ class FileInfo(object):
     hashes: Dict[str, str]
 
 
-class Reader(ABC):
+class Reader(Array, ABC):
     """Provides random access to the samples of a shard.
 
     Args:
@@ -55,6 +57,15 @@ class Reader(ABC):
         self.size_limit = size_limit
 
         self.file_pairs = []
+
+    @property
+    def size(self):
+        """Get the number of samples in this shard.
+
+        Returns:
+            int: Sample count.
+        """
+        return self.samples
 
     def __len__(self) -> int:
         """Get the number of samples in this shard.
@@ -234,7 +245,7 @@ class Reader(ABC):
         """
         raise NotImplementedError
 
-    def __getitem__(self, idx: int) -> Dict[str, Any]:
+    def get_item(self, idx: int) -> Dict[str, Any]:
         """Get the sample at the index.
 
         Args:
