@@ -567,9 +567,9 @@ class StreamingDataset(Array, IterableDataset):
         """
         name = f'{self._shm_prefix}_resume'
         data = json.dumps(obj, sort_keys=True).encode('utf-8')
-        # some platforms choose to allocate chunks of memory based upon that platform’s memory
-        # page size, hence, the exact size of the shared memory block may be larger or
-        # equal to the size requested.
+        # Some platforms choose to allocate chunks of memory based upon that platform's memory page
+        # size, hence the exact size of the shared memory block that was returned may be larger
+        # than what was requested.
         self._resume_shm = SharedMemory(name=name, size=len(data))
         self._resume_shm.buf[:len(data)] = data
 
