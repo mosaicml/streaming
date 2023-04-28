@@ -92,7 +92,7 @@ def _check_and_find(my_locals_set: Set[str]) -> int:
         name = f'{prefix}_locals'
         try:
             shm = SharedMemory(name, False)
-        except:
+        except FileNotFoundError:
             break
         their_locals_set = _unpack_locals(bytes(shm.buf))
         both = my_locals_set & their_locals_set
@@ -161,7 +161,7 @@ def get_shm_prefix(my_locals: List[str], world: World, retry: int = 7) -> Tuple[
             name = f'{prefix}_locals'
             try:
                 shm = SharedMemory(name, False)
-            except:
+            except FileNotFoundError:
                 raise RuntimeError('Internal error: shm prefix was not registered by local leader')
             their_locals_set = _unpack_locals(bytes(shm.buf))
             if my_locals_set == their_locals_set:
