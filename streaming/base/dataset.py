@@ -323,6 +323,14 @@ class StreamingDataset(Array, IterableDataset):
         self.stream_per_shard = np.array(stream_per_shard, np.int64)
         self.num_shards = len(self.shards)
 
+        # Check that cache limit is possible.
+        if self.cache_limit:
+            min_cache_usage = sum(map(lambda stream: stream.get_index_size(), streams))
+            if self.cache_limit <= min_cache_usage:
+                raise ValueError(f'Minimum cache usage ({min_cache_usage} bytes) is larger than ' +
+                                 f'the cache limit ({self.cache_limit} bytes). Please raise ' +
+                                 f'cache_limit.')
+
         # Build the shard index (for partitioning and mapping samples to shards).
         self.samples_per_shard = np.array([shard.samples for shard in self.shards], np.int64)
         self.sample_offset_per_shard = self.samples_per_shard.cumsum() - self.samples_per_shard
