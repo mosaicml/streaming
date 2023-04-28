@@ -80,11 +80,17 @@ def _check_self(my_locals: List[str]) -> Set[str]:
 
 
 def _check_and_find(my_locals_set: Set[str]) -> int:
-    """Find the next available prefix while checking existing dirs for overlap.
+    """Find the next available prefix while checking existing local dirs for overlap.
 
     Local leader walks the existing shm prefixes starting from zero, verifying that there is no
     local working directory overlap. When attaching to an existing shm fails, we have reached the
     end of the existing shms. We will register the next one.
+
+    Args:
+        my_locals_set (Set[str]): Our local working directories.
+
+    Returns:
+        int: Next available prefix int.
     """
     prefix_int = 0
     for prefix_int in _each_prefix_int():
@@ -108,6 +114,13 @@ def _check_and_find_retrying(my_locals_set: Set[str], retry: int) -> int:
     If an overlap is found, sleeps for a tick and then tries again, up to "retry" times. We allow
     this grace period because modifying python shared memory in a destructor intermediated through
     a numpy array appears to be racy.
+
+    Args:
+        my_locals_set (Set[str]): Our local working directories.
+        retry (int): Number of retries upon failure.
+
+    Returns:
+        int: Next available prefix int.
     """
     if retry < 0:
         raise ValueError(f'Specify at least zero retries (provided {retry}).')
