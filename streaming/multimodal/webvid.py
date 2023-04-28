@@ -8,7 +8,7 @@ from time import sleep
 from typing import Any, Optional
 
 from streaming.base import StreamingDataset
-from streaming.base.dataset import TICK, _IterState
+from streaming.base.dataset import TICK, _Iterator
 from streaming.base.storage import download_file
 
 
@@ -306,7 +306,7 @@ class StreamingOutsideDTWebVid(StreamingDataset):
 
         return obj
 
-    def _download_thread(self, it: _IterState) -> None:
+    def _download_thread(self, it: _Iterator) -> None:
         """Download the relevant shards in the background while we are being iterated.
 
         This thread is started at the beginning of each epoch, and exits either when out of samples
@@ -317,13 +317,13 @@ class StreamingOutsideDTWebVid(StreamingDataset):
         loop.
 
         Args:
-            it (_IterState): State of __iter__.
+            it (_Iterator): State of __iter__.
         """
         # Download loop.
         while True:
             # If we've started a new epoch early (__iter__ was called again), exit this thread
             # because there can only be one epoch at once.
-            if it.is_exiting():
+            if it.should_exit():
                 break
 
             # If we're out of samples this epoch, exit this thread because we are done downloading.
