@@ -11,27 +11,25 @@ from tqdm import tqdm
 from streaming import MDSWriter, StreamingDataset
 
 
-def one(remote, local):
+def one(remote: str, local: str):
     """
     With shard eviction disabled.
     """
     dataset = StreamingDataset(remote=remote, local=local)
-    for sample in dataset:
+    for _ in dataset:
         pass
-    del dataset
     assert os.listdir(remote) == os.listdir(local)
     rmtree(local)
 
 
-def two(remote, local):
+def two(remote: str, local: str):
     """
     With no shard evictions because cache_limit is bigger than the dataset.
     """
     dataset = StreamingDataset(remote=remote, local=local, cache_limit=500_000_000)
     for _ in range(3):
-        for sample in tqdm(dataset):
+        for sample in tqdm(dataset):  # pyright: ignore
             pass
-    del dataset
     rmtree(local)
 
 
@@ -55,7 +53,6 @@ def test_eviction_nozip(local_remote_dir: Tuple[str, str]):
 
     for func in [one, two]:
         func(remote, local)
-
     """
     # With shard evictions.
     dataset = StreamingDataset(remote=remote, local=local, cache_limit=500_000)

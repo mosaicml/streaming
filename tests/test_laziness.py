@@ -9,7 +9,7 @@ import pytest
 from streaming import MDSWriter, StreamingDataset
 
 
-def one(remote, local):
+def one(remote: str, local: str):
     """
     Verify __getitem__ accesses.
     """
@@ -19,7 +19,7 @@ def one(remote, local):
         assert sample['value'] == i
 
 
-def two(remote, local):
+def two(remote: str, local: str):
     """
     Verify __iter__ -> __getitem__ accesses.
     """
@@ -28,7 +28,7 @@ def two(remote, local):
         assert sample['value'] == i
 
 
-def three(remote, local):
+def three(remote: str, local: str):
     """
     Verify __getitem__ downloads/accesses.
     """
@@ -39,7 +39,7 @@ def three(remote, local):
     rmtree(local)
 
 
-def four(remote, local):
+def four(remote: str, local: str):
     """
     Verify __iter__ -> __getitem__ downloads/accesses.
     """
@@ -49,7 +49,7 @@ def four(remote, local):
     del dataset
 
 
-def five(remote, local):
+def five(remote: str, local: str):
     """
     Re-verify __getitem__ downloads/accesses.
     """
