@@ -13,7 +13,7 @@ from streaming.base.world import World
 __all__ = ['get_list_arg']
 
 # Time to wait, in seconds.
-TICK = 0.007
+TICK = 0.07
 
 
 def get_list_arg(text: str) -> List[str]:
