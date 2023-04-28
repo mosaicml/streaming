@@ -22,8 +22,9 @@ def one(remote: str, local: str, keep_zip: bool):
     if keep_zip:
         if dataset.shards[0].compression:
             # Local has raw + zip, remote has zip.
-            assert set(filter(lambda f: f == 'index.json' or f.endswith('.zstd'),
-                              os.listdir(local))) == set(os.listdir(remote))
+            assert set(
+                filter(lambda f: f == 'index.json' or f.endswith('.zstd'),
+                       os.listdir(local))) == set(os.listdir(remote))
         else:
             # Local has raw + zip, remote has raw.
             assert set(filter(lambda f: not f.endswith('.zstd'), os.listdir(local))) == \
@@ -31,8 +32,8 @@ def one(remote: str, local: str, keep_zip: bool):
     else:
         if dataset.shards[0].compression:
             # Local has raw, remote has zip.
-            assert set(os.listdir(local)) == set(map(lambda f: f.replace('.zstd', ''),
-                                                     os.listdir(remote)))
+            assert set(os.listdir(local)) == set(
+                map(lambda f: f.replace('.zstd', ''), os.listdir(remote)))
         else:
             # Local has raw, remote has raw.
             assert set(os.listdir(local)) == set(os.listdir(remote))
@@ -104,7 +105,7 @@ def six(remote: str, local: str, keep_zip: bool):
     """
     with pytest.raises(ValueError):
         dataset = StreamingDataset(remote=remote, local=local, cache_limit=1_000)
-        for sample in dataset:
+        for _ in dataset:
             pass
 
 
