@@ -11,6 +11,30 @@ from tqdm import tqdm
 from streaming import MDSWriter, StreamingDataset
 
 
+def one(remote, local):
+    """
+    With shard eviction disabled.
+    """
+    dataset = StreamingDataset(remote=remote, local=local)
+    for sample in dataset:
+        pass
+    del dataset
+    assert os.listdir(remote) == os.listdir(local)
+    rmtree(local)
+
+
+def two(remote, local):
+    """
+    With no shard evictions because cache_limit is bigger than the dataset.
+    """
+    dataset = StreamingDataset(remote=remote, local=local, cache_limit=500_000_000)
+    for _ in range(3):
+        for sample in tqdm(dataset):
+            pass
+    del dataset
+    rmtree(local)
+
+
 @pytest.mark.usefixtures('local_remote_dir')
 def test_eviction_nozip(local_remote_dir: Tuple[str, str]):
     num_samples = 50_000
@@ -29,21 +53,9 @@ def test_eviction_nozip(local_remote_dir: Tuple[str, str]):
             sample = {'data': b'\0' * 50}
             out.write(sample)
 
-    # With shard eviction disabled.
-    dataset = StreamingDataset(remote=remote, local=local)
-    for sample in dataset:
-        pass
-    del dataset
-    assert os.listdir(remote) == os.listdir(local)
-    rmtree(local)
+    for func in [one, two]:
+        func(remote, local)
 
-    # With no shard evictions because cache_limit is bigger than the dataset.
-    dataset = StreamingDataset(remote=remote, local=local, cache_limit=500_000_000)
-    for _ in range(3):
-        for sample in tqdm(dataset):
-            pass
-    del dataset
-    rmtree(local)
     """
     # With shard evictions.
     dataset = StreamingDataset(remote=remote, local=local, cache_limit=500_000)

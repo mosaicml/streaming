@@ -407,7 +407,6 @@ class StreamingDataset(Array, IterableDataset):
                 self._locals_shm.buf[:4] = np.int32(0).tobytes()
             except:
                 pass
-        sleep(10 * TICK)
 
     @property
     def size(self) -> int:
