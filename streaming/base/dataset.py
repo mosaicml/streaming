@@ -98,6 +98,8 @@ class _IterState:
                     break
             sleep(TICK)
 
+        self._is_exiting = False
+
     def is_exiting(self) -> bool:
         """Check if the calling thread should exit.
 
@@ -350,7 +352,7 @@ class StreamingDataset(Array, IterableDataset):
 
         # Time of last access per shard. This is used to decide which shard(s) to evict when we run
         # out of space.
-        self._shard_access_times = SharedArray(self.num_shards, np.float32,
+        self._shard_access_times = SharedArray(self.num_shards, np.float64,
                                                f'{self._shm_prefix}_shard_access_times')
 
         # Initialize shared memory objects.
@@ -883,9 +885,9 @@ class StreamingDataset(Array, IterableDataset):
                 while self.cache_limit < self.cache_usage + shard_full_size:
                     self._evict_coldest_shard()
 
-                # Calculate and apply the persistent change in cache usage, which depends on
-                # whether compression was used and keep_zip.
-                self.cache_usage += shard.get_persistent_size(stream.safe_keep_zip)
+            # Calculate and apply the persistent change in cache usage, which depends on
+            # whether compression was used and keep_zip.
+            self.cache_usage += shard.get_persistent_size(stream.safe_keep_zip)
 
             # With the above preamble done, we can release the cache lock.
             lock.release()
@@ -1033,8 +1035,7 @@ class StreamingDataset(Array, IterableDataset):
 
             # Wait for the shard for this sample to be downloaded and decompressed, if not already.
             shard_id, _ = self.spanner[sample_id]
-            while self._shard_states[shard_id] != _ShardState.PRESENT:
-                sleep(TICK)
+            self.download_shard(shard_id, True)
 
             # Step forward one sample.
             it.ready_index += 1
