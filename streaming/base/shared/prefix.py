@@ -63,6 +63,14 @@ def _unpack_locals(data: bytes) -> Set[str]:
 
 
 def _check_self(my_locals: List[str]) -> Set[str]:
+    """Check our local working directories for overlap.
+
+    Args:
+        my_locals (List[str]): Local dirs.
+
+    Returns:
+        Set[str]: Local dirs as a set.
+    """
     my_locals_set = set()
     for dirname in my_locals:
         if dirname in my_locals_set:

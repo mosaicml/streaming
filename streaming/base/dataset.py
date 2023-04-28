@@ -87,7 +87,7 @@ class _IterState:
         # Signal threads to exit.
         with self._lock:
             if self._is_exiting:
-                raise ValueError('Called exit() on an _IterState that is already exiting.')
+                raise RuntimeError('Called exit() on an _IterState that is already exiting.')
             self._is_exiting = True
 
         # Block until they have all exited, returning _is_exiting to False.
