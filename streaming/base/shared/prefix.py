@@ -117,7 +117,7 @@ def _check_and_find_retrying(my_locals_set: Set[str], retry: int) -> int:
 
     Args:
         my_locals_set (Set[str]): Our local working directories.
-        retry (int): Number of retries upon failure.
+        retry (int): Number of retries upon failure before raising an exception.
 
     Returns:
         int: Next available prefix int.
@@ -141,6 +141,7 @@ def get_shm_prefix(my_locals: List[str], world: World, retry: int = 7) -> Tuple[
         my_locals (List[str]): Local working dir of each stream, relative to /. We need to verify
             that there is no overlap with any other currently running StreamingDataset.
         world (World): Information about nodes, ranks, and workers.
+        retry (int): Number of retries upon failure before raising an excpetion. Defaults to ``7``.
 
     Returns:
         Tuple[str, SharedMemory]: Shared memory prefix and object. The name is required to be very
