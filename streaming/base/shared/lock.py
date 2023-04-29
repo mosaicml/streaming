@@ -54,5 +54,9 @@ class SharedLock:
 
     def __del__(self) -> None:
         """Destructor."""
-        locking.destroy(self.shm.buf)
+        try:
+            locking.destroy(self.shm.buf)
+        except:
+            pass
         # self.shm.cleanup()
+
