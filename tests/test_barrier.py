@@ -15,11 +15,11 @@ from streaming.base.shared import SharedArray, SharedBarrier
 
 class TestSharedBarrier:
 
-    @pytest.mark.parametrize('filelock_path', ['/tmp/dir/file_path'])
+    @pytest.mark.parametrize('lock_name', ['lock_shm_path'])
     @pytest.mark.parametrize('shm_path', ['barrier_shm_path'])
-    def test_params(self, filelock_path: str, shm_path: str):
-        barrier = SharedBarrier(filelock_path, shm_path)
-        assert barrier.filelock_path == filelock_path
+    def test_params(self, lock_name: str, shm_path: str):
+        barrier = SharedBarrier(lock_name, shm_path)
+        assert barrier.lock.name == lock_name
         assert isinstance(barrier._arr, SharedArray)
         assert barrier._arr.shape == (3,)
         assert barrier.num_enter == 0

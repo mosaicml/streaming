@@ -6,7 +6,7 @@
 import os
 
 import setuptools
-from setuptools import setup
+from setuptools import Extension, setup
 
 # Read the streaming version
 # Cannot import from `streaming.__version__` since that will not be available when building or installing the package
@@ -101,6 +101,9 @@ package_name = os.environ.get('MOSAIC_PACKAGE_NAME', 'mosaicml-streaming')
 if package_name != 'mosaicml-streaming':
     print(f'Building mosaicml-streaming as {package_name}')
 
+sources = ['src/shared/locking/bind.c', 'src/shared/locking/sharedlock.c']
+shared_locking = Extension('streaming.cpp.shared.locking', sources)
+
 setup(
     name=package_name,
     version=streaming_version,
@@ -120,4 +123,4 @@ setup(
     install_requires=install_requires,
     extras_require=extra_deps,
     python_requires='>=3.7',
-)
+    ext_modules=[shared_locking])
