@@ -7,8 +7,6 @@ The prefix is used by all workers using this StreamingDataset of this training j
 prevent shared resources like shared memory and filelocks from colliding.
 """
 
-from multiprocessing import resource_tracker  # pyright: ignore
-from multiprocessing.shared_memory import SharedMemory
 from time import sleep
 from typing import Iterator, List, Set, Tuple
 
