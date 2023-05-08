@@ -773,13 +773,12 @@ class StreamingDataset(Array, IterableDataset):
         # Each worker gets their portion of the work.
         worker_sample_ids = epoch_sample_ids[world.node, world.rank_of_node,
                                              world.worker_of_rank].flatten()
+
         self._shared_barrier(world.workers_per_node)
 
         # Now clean up after ourselves.
         shape_shm.cleanup()
         data_shm.cleanup()
-
-        self._shared_barrier(world.workers_per_node)
 
         return worker_sample_ids
 
@@ -897,12 +896,8 @@ class StreamingDataset(Array, IterableDataset):
 
             # If cache_limit is enabled, we first may have to make space for the new shard.
             if self.cache_limit:
-                # Here, we give the shard a provisional access time so it doesn't get inadvertently
-                # evicted if we need to evict shard(s).
-                self._shard_access_times[shard_id] = time()
-
-                # Then, we evict one shard at a time until our download will stay under the cache
-                # limit. This means both the raw and zip forms of the shard due to decompressing.
+                # Evict one shard at a time until our download will stay under the cache limit.
+                # This means both the raw and zip forms of the shard due to decompressing.
                 shard_full_size = shard.get_full_size()
                 while self.cache_limit < self.cache_usage + shard_full_size:
                     self._evict_coldest_shard()
@@ -918,8 +913,7 @@ class StreamingDataset(Array, IterableDataset):
             stream.download_shard(shard)
 
             # Download completed, so transition shard state to present.
-            with lock:
-                self._shard_states[shard_id] = _ShardState.PRESENT
+            self._shard_states[shard_id] = _ShardState.PRESENT
         elif state == _ShardState.DOWNLOADING:
             # Someone else is currently downloading the shard. Release the lock for them to make
             # progress.
@@ -954,18 +948,21 @@ class StreamingDataset(Array, IterableDataset):
         shard_id, shard_sample_id = self.spanner[sample_id]
         shard = self.shards[shard_id]
 
-        try:
-            # Shortcut path: just assume the shard is present. Using exceptions as control flow is
-            # actually faster than doing it properly because python.
-            sample = shard[shard_sample_id]
+        while True:
+            try:
+                # Shortcut path: just assume the shard is present. Using exceptions as control flow is
+                # actually faster than checking that the shard is present because python.
+                sample = shard[shard_sample_id]
 
-            # Manually update the last access time afterward. Normally this would have happened at
-            # the end of download_shard() (see proper path below).
-            self._shard_access_times[shard_id] = time()
-        except:
-            # Proper path: First ensure the shard is downloaded, then access the sample.
-            self.download_shard(shard_id)
-            sample = shard[shard_sample_id]
+                # Manually update the last access time afterward. This also happens at the end of
+                # download_shard().
+                self._shard_access_times[shard_id] = time()
+
+                break
+            except:
+                # Fallback: ensure the shard is downloaded, then try to access the sample again.
+                # Loops because it may become evicted in the meantime.
+                self.download_shard(shard_id)
 
         return sample
 
