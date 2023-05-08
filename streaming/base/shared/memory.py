@@ -18,7 +18,7 @@ class SharedMemory:
 
     Args:
         name (str, optional): A unique shared memory block name. Defaults to ``None``.
-        create (bool, optional): Creates a new shared memory block or attaches to an existin
+        create (bool, optional): Creates a new shared memory block or attaches to an existing
             shared memory block. Defaults to ``None``.
         size (int, optional): A size of a shared memory block. Defaults to ``0``.
         auto_cleanup (bool, optional): Register atexit handler for cleanup or not. Defaults to
