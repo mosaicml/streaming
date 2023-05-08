@@ -40,7 +40,11 @@ def download_from_s3(remote: str, local: str, timeout: float) -> None:
 
         if extra_args is None:
             extra_args = {}
-        s3 = boto3.client('s3', config=config)
+
+        # Create a new session per thread
+        session = boto3.session.Session()
+        # Create a resource client using a thread's session object
+        s3 = session.client('s3', config=config)
         s3.download_file(obj.netloc, obj.path.lstrip('/'), local, ExtraArgs=extra_args)
 
     import boto3
@@ -150,11 +154,14 @@ def download_from_gcs(remote: str, local: str) -> None:
     if obj.scheme != 'gs':
         raise ValueError(f'Expected obj.scheme to be "gs", got {obj.scheme} for remote={remote}')
 
-    gcs_client = boto3.client('s3',
-                              region_name='auto',
-                              endpoint_url='https://storage.googleapis.com',
-                              aws_access_key_id=os.environ['GCS_KEY'],
-                              aws_secret_access_key=os.environ['GCS_SECRET'])
+    # Create a new session per thread
+    session = boto3.session.Session()
+    # Create a resource client using a thread's session object
+    gcs_client = session.client('s3',
+                                region_name='auto',
+                                endpoint_url='https://storage.googleapis.com',
+                                aws_access_key_id=os.environ['GCS_KEY'],
+                                aws_secret_access_key=os.environ['GCS_SECRET'])
     try:
         gcs_client.download_file(obj.netloc, obj.path.lstrip('/'), local)
     except ClientError as e:
