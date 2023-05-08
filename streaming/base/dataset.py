@@ -8,7 +8,7 @@ import os
 from enum import IntEnum
 from math import ceil
 from threading import Lock, Thread
-from time import sleep, time
+from time import sleep, time_ns
 from typing import Any, Dict, Iterator, Optional, Sequence, Tuple
 
 import numpy as np
@@ -28,7 +28,7 @@ from streaming.base.util import TICK
 from streaming.base.world import World
 
 # An arbitrary time in the future, used for cold shard eviction.
-NEVER = float(np.iinfo(np.uint64).max)
+NEVER = np.iinfo(np.uint64).max
 
 
 class _ShardState(IntEnum):
@@ -374,7 +374,7 @@ class StreamingDataset(Array, IterableDataset):
 
         # Time of last access per shard. This is used to decide which shard(s) to evict when we run
         # out of space.
-        self._shard_access_times = SharedArray(self.num_shards, np.float64,
+        self._shard_access_times = SharedArray(self.num_shards, np.uint64,
                                                f'{self._shm_prefix}_shard_access_times')
 
         # Initialize shared memory objects.
@@ -406,7 +406,7 @@ class StreamingDataset(Array, IterableDataset):
             for shard_id, is_shard_present in enumerate(are_shards_present):
                 if is_shard_present:
                     self._shard_states[shard_id] = _ShardState.PRESENT
-                    self._shard_access_times[shard_id] = time()
+                    self._shard_access_times[shard_id] = time_ns()
                 else:
                     self._shard_states[shard_id] = _ShardState.MISSING
                     self._shard_access_times[shard_id] = NEVER
@@ -933,7 +933,7 @@ class StreamingDataset(Array, IterableDataset):
             raise RuntimeError(f'Invalid shard state: {state}')
 
         # Finally, update the shard's last access time to now.
-        self._shard_access_times[shard_id] = time()
+        self._shard_access_times[shard_id] = time_ns()
 
     def get_item(self, sample_id: int) -> Any:
         """Get sample by global index, blocking to download its shard if not present.
@@ -956,7 +956,7 @@ class StreamingDataset(Array, IterableDataset):
 
                 # Manually update the last access time afterward. This also happens at the end of
                 # download_shard().
-                self._shard_access_times[shard_id] = time()
+                self._shard_access_times[shard_id] = time_ns()
 
                 break
             except:

@@ -134,7 +134,8 @@ def _check_and_find_retrying(my_locals_set: Set[str], retry: int) -> int:
     raise errs[-1]
 
 
-def get_shm_prefix(my_locals: List[str], world: World, retry: int = 7) -> Tuple[str, SharedMemory]:
+def get_shm_prefix(my_locals: List[str], world: World,
+                   retry: int = 100) -> Tuple[str, SharedMemory]:
     """Register or lookup our shared memory prefix.
 
     Args:
