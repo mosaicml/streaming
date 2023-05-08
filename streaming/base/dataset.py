@@ -935,11 +935,14 @@ class StreamingDataset(Array, IterableDataset):
         # Finally, update the shard's last access time to now.
         self._shard_access_times[shard_id] = time_ns()
 
-    def get_item(self, sample_id: int) -> Any:
+    def get_item(self, sample_id: int, retry: int = 7) -> Any:
         """Get sample by global index, blocking to download its shard if not present.
 
         Args:
             sample_id (int): Sample index.
+            retry (int): Maximum number of times to download its shard before giving up. In the
+                edge case of a shard being evicted before sample access, you will have to
+                redownload it.
 
         Returns:
             Dict[str, Any]: Mapping of column name to column data.
@@ -948,7 +951,8 @@ class StreamingDataset(Array, IterableDataset):
         shard_id, shard_sample_id = self.spanner[sample_id]
         shard = self.shards[shard_id]
 
-        while True:
+        sample = None
+        for _ in range(1 + retry):
             try:
                 # Shortcut path: just assume the shard is present. Using exceptions as control flow is
                 # actually faster than checking that the shard is present because python.
@@ -963,6 +967,8 @@ class StreamingDataset(Array, IterableDataset):
                 # Fallback: ensure the shard is downloaded, then try to access the sample again.
                 # Loops because it may become evicted in the meantime.
                 self.download_shard(shard_id)
+        else:
+            raise RuntimeError('StreamingDataset is thrashing. Raise cache_limit.')
 
         return sample
 
