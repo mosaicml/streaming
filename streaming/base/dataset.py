@@ -942,7 +942,7 @@ class StreamingDataset(Array, IterableDataset):
             sample_id (int): Sample index.
             retry (int): Maximum number of times to download its shard before giving up. In the
                 edge case of a shard being evicted before sample access, you will have to
-                redownload it.
+                redownload it. Defaults to ``7``.
 
         Returns:
             Dict[str, Any]: Mapping of column name to column data.
