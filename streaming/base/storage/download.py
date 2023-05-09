@@ -254,6 +254,10 @@ def download_file(remote: Optional[str], local: str, timeout: float):
     if os.path.exists(local):
         return
 
+    local = local.replace('\\', '/')
+    if remote:
+        remote = remote.replace('\\', '/')
+
     local_dir = os.path.dirname(local)
     os.makedirs(local_dir, exist_ok=True)
 

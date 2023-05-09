@@ -439,7 +439,9 @@ class R2Uploader(CloudUploader):
             filename (str): File to upload.
         """
         local_filename = os.path.join(self.local, filename)
+        local_filename = local_filename.replace('\\', '/')
         remote_filename = os.path.join(self.remote, filename)  # pyright: ignore
+        remote_filename = remote_filename.replace('\\', '/')
         obj = urllib.parse.urlparse(remote_filename)
         logger.debug(f'Uploading to {remote_filename}')
         file_size = os.stat(local_filename).st_size
