@@ -7,8 +7,6 @@ The prefix is used by all workers using this StreamingDataset of this training j
 prevent shared shared resources like shmem from colliding.
 """
 
-from multiprocessing import resource_tracker  # pyright: ignore
-from multiprocessing.shared_memory import SharedMemory
 from time import sleep
 from typing import Iterator, List, Set, Tuple
 
@@ -134,7 +132,9 @@ def _check_and_find_retrying(my_locals_set: Set[str], retry: int) -> int:
     raise errs[-1]
 
 
-def get_shm_prefix(my_locals: List[str], world: World, retry: int = 7) -> Tuple[str, SharedMemory]:
+def get_shm_prefix(my_locals: List[str],
+                   world: World,
+                   retry: int = 100) -> Tuple[str, SharedMemory]:
     """Register or lookup our shared memory prefix.
 
     Args:

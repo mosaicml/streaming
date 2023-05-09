@@ -8,7 +8,7 @@ import os
 from enum import IntEnum
 from math import ceil
 from threading import Lock, Thread
-from time import sleep, time
+from time import sleep, time_ns
 from typing import Any, Dict, Iterator, Optional, Sequence, Tuple
 
 import numpy as np
@@ -27,7 +27,7 @@ from streaming.base.util import TICK
 from streaming.base.world import World
 
 # An arbitrary time in the future, used for cold shard eviction.
-NEVER = float(np.iinfo(np.uint64).max)
+NEVER = np.iinfo(np.uint64).max
 
 
 class _ShardState(IntEnum):
@@ -370,7 +370,7 @@ class StreamingDataset(Array, IterableDataset):
 
         # Time of last access per shard. This is used to decide which shard(s) to evict when we run
         # out of space.
-        self._shard_access_times = SharedArray(self.num_shards, np.float64,
+        self._shard_access_times = SharedArray(self.num_shards, np.uint64,
                                                f'{self._shm_prefix}_shard_access_times')
 
         # Initialize shared memory objects.
@@ -402,7 +402,7 @@ class StreamingDataset(Array, IterableDataset):
             for shard_id, is_shard_present in enumerate(are_shards_present):
                 if is_shard_present:
                     self._shard_states[shard_id] = _ShardState.PRESENT
-                    self._shard_access_times[shard_id] = time()
+                    self._shard_access_times[shard_id] = time_ns()
                 else:
                     self._shard_states[shard_id] = _ShardState.MISSING
                     self._shard_access_times[shard_id] = NEVER
@@ -767,13 +767,12 @@ class StreamingDataset(Array, IterableDataset):
         # Each worker gets their portion of the work.
         worker_sample_ids = epoch_sample_ids[world.node, world.rank_of_node,
                                              world.worker_of_rank].flatten()
+
         self._shared_barrier(world.workers_per_node)
 
         # Now clean up after ourselves.
         shape_shm.cleanup()
         data_shm.cleanup()
-
-        self._shared_barrier(world.workers_per_node)
 
         return worker_sample_ids
 
@@ -875,12 +874,8 @@ class StreamingDataset(Array, IterableDataset):
 
             # If cache_limit is enabled, we first may have to make space for the new shard.
             if self.cache_limit:
-                # Here, we give the shard a provisional access time so it doesn't get inadvertently
-                # evicted if we need to evict shard(s).
-                self._shard_access_times[shard_id] = time()
-
-                # Then, we evict one shard at a time until our download will stay under the cache
-                # limit. This means both the raw and zip forms of the shard due to decompressing.
+                # Evict one shard at a time until our download will stay under the cache limit.
+                # This means both the raw and zip forms of the shard due to decompressing.
                 shard_full_size = shard.get_full_size()
                 while self.cache_limit < self.cache_usage + shard_full_size:
                     self._evict_coldest_shard()
@@ -896,8 +891,7 @@ class StreamingDataset(Array, IterableDataset):
             stream.download_shard(shard)
 
             # Download completed, so transition shard state to present.
-            with lock:
-                self._shard_states[shard_id] = _ShardState.PRESENT
+            self._shard_states[shard_id] = _ShardState.PRESENT
         elif state == _ShardState.DOWNLOADING:
             # Someone else is currently downloading the shard. Release the lock for them to make
             # progress.
@@ -917,13 +911,16 @@ class StreamingDataset(Array, IterableDataset):
             raise RuntimeError(f'Invalid shard state: {state}')
 
         # Finally, update the shard's last access time to now.
-        self._shard_access_times[shard_id] = time()
+        self._shard_access_times[shard_id] = time_ns()
 
-    def get_item(self, sample_id: int) -> Any:
+    def get_item(self, sample_id: int, retry: int = 7) -> Any:
         """Get sample by global index, blocking to download its shard if not present.
 
         Args:
             sample_id (int): Sample index.
+            retry (int): Maximum number of times to download its shard before giving up. In the
+                edge case of a shard being evicted before sample access, you will have to
+                redownload it. Defaults to ``7``.
 
         Returns:
             Dict[str, Any]: Mapping of column name to column data.
@@ -932,18 +929,24 @@ class StreamingDataset(Array, IterableDataset):
         shard_id, shard_sample_id = self.spanner[sample_id]
         shard = self.shards[shard_id]
 
-        try:
-            # Shortcut path: just assume the shard is present. Using exceptions as control flow is
-            # actually faster than doing it properly because python.
-            sample = shard[shard_sample_id]
+        sample = None
+        for _ in range(1 + retry):
+            try:
+                # Shortcut path: just assume the shard is present. Using exceptions as control flow is
+                # actually faster than checking that the shard is present because python.
+                sample = shard[shard_sample_id]
 
-            # Manually update the last access time afterward. Normally this would have happened at
-            # the end of download_shard() (see proper path below).
-            self._shard_access_times[shard_id] = time()
-        except:
-            # Proper path: First ensure the shard is downloaded, then access the sample.
-            self.download_shard(shard_id)
-            sample = shard[shard_sample_id]
+                # Manually update the last access time afterward. This also happens at the end of
+                # download_shard().
+                self._shard_access_times[shard_id] = time_ns()
+
+                break
+            except:
+                # Fallback: ensure the shard is downloaded, then try to access the sample again.
+                # Loops because it may become evicted in the meantime.
+                self.download_shard(shard_id)
+        else:
+            raise RuntimeError('StreamingDataset is thrashing. Raise cache_limit.')
 
         return sample
 
