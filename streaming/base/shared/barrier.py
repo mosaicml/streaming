@@ -6,15 +6,12 @@
 Implemented with shared array and a filelock.
 """
 
-import atexit
-import os
-import shutil
 from time import sleep
 
 import numpy as np
-from filelock import FileLock
 
 from streaming.base.shared.array import SharedArray
+from streaming.base.shared.lock import SharedLock
 
 # Time to wait, in seconds.
 TICK = 0.07
@@ -31,32 +28,16 @@ class SharedBarrier:
     processes.
 
     Args:
-        filelock_path (str): Path to lock file on local filesystem.
-        shm_path (str): Shared memory object name in /dev/shm.
+        lock_name (str): The internal lock's shared memory object name.
+        array_name (str): The internal array's shared memory object name.
     """
 
-    def __init__(self, filelock_path: str, shm_path: str) -> None:
-        self.filelock_path = filelock_path
-
-        # Create three int32 fields in shared memory: num_enter, num_exit, flag.
-        self._arr = SharedArray(3, np.int32, shm_path)
+    def __init__(self, lock_name: str, array_name: str) -> None:
+        self.lock = SharedLock(lock_name)
+        self._arr = SharedArray(3, np.int32, array_name)
         self.num_enter = 0
         self.num_exit = -1
         self.flag = True
-
-        # Create filelock.
-        dirname = os.path.dirname(filelock_path)
-        if dirname:
-            os.makedirs(dirname, exist_ok=True)
-        self.lock = FileLock(filelock_path)
-
-        def cleanup():
-            """Directory clean up."""
-            if os.path.islink(dirname):
-                os.unlink(dirname)
-            shutil.rmtree(dirname, ignore_errors=True)
-
-        atexit.register(cleanup)
 
     @property
     def num_enter(self) -> int:
