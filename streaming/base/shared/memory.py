@@ -18,7 +18,7 @@ class SharedMemory:
 
     Args:
         name (str, optional): A unique shared memory block name. Defaults to ``None``.
-        create (bool, optional): Creates a new shared memory block or attaches to an existin
+        create (bool, optional): Creates a new shared memory block or attaches to an existing
             shared memory block. Defaults to ``None``.
         size (int, optional): A size of a shared memory block. Defaults to ``0``.
         auto_cleanup (bool, optional): Register atexit handler for cleanup or not. Defaults to
@@ -61,7 +61,6 @@ class SharedMemory:
                     shm = BuiltinSharedMemory(name, False, size)
                     self.opened_shms.append(shm)
             self.shm = shm
-            self.buf = shm.buf
         finally:
             resource_tracker.register = original_rtracker_reg
 
@@ -69,6 +68,15 @@ class SharedMemory:
             # atexit handler doesn't get called if the program is killed by a signal not
             # handled by python or when os.exit() is called or for any python internal fatal error.
             atexit.register(self.cleanup)
+
+    @property
+    def buf(self) -> memoryview:
+        """Internal buffer accessor.
+
+        Returns:
+            memoryview: Internal buffer.
+        """
+        return self.shm.buf
 
     # Monkey-patched "multiprocessing.resource_tracker" to avoid unwanted resource tracker warnings.
     # PR to remove resource tracker unlinking: https://github.com/python/cpython/pull/15989
