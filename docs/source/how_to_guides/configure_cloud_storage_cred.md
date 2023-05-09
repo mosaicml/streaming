@@ -124,3 +124,28 @@ region=us-ashburn-1
 ```
 
 The key file (`~/.oci/oci_api_key.pem`) is a PEM file that would look like a typical RSA private key file. The streaming dataset authenticates the credentials by reading the `~/.oci/config` and `~/.oci/oci_api_key.pem`.
+
+## Cloudflare R2
+
+Users must set their R2 `endpoint url`, R2 `user access key` and R2 `user access secret` in the run environment.
+
+From the Cloudflare R2 console, navigate to `Manage R2 API Tokens` > `Create API token`.
+
+Your `endpoint url` is `https://<accountid>.r2.cloudflarestorage.com`. Account ID can be found on the Cloudflare R2 console.
+
+````{tabs}
+```{code-tab} py
+import os
+os.environ['R2_ENDPOINT_URL'] = 'https://<accountid>.r2.cloudflarestorage.com'
+os.environ['R2_ACCESS_KEY_ID'] = 'AKIAIOSFODNN7EXAMPLE'
+os.environ['R2_SECRET_ACCESS_KEY'] = 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
+```
+
+```{code-tab} sh
+export R2_ENDPOINT_URL='https://<accountid>.r2.cloudflarestorage.com'
+export R2_ACCESS_KEY_ID='AKIAIOSFODNN7EXAMPLE'
+export R2_SECRET_ACCESS_KEY='wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
+```
+````
+
+The above step will add three environment variables `R2_ENDPOINT_URL`, `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` to your runs and the streaming dataset fetches those environment variables for authentication and stream data into your instance.

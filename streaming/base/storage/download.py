@@ -198,6 +198,37 @@ def download_from_oci(remote: str, local: str) -> None:
     os.rename(local_tmp, local)
 
 
+def download_from_r2(remote: str, local: str) -> None:
+    """Download a file from remote Cloudflare R2 to local.
+
+    Args:
+        remote (str): Remote path (S3).
+        local (str): Local path (local filesystem).
+    """
+    import boto3
+    from botocore.exceptions import ClientError
+
+    obj = urllib.parse.urlparse(remote)
+    if obj.scheme != 'r2':
+        raise ValueError(f'Expected obj.scheme to be "r2", got {obj.scheme} for remote={remote}')
+
+    # Create a new session per thread
+    session = boto3.session.Session()
+    # Create a resource client using a thread's session object
+    r2_client = session.client('s3',
+                               region_name='auto',
+                               endpoint_url=os.environ['R2_ENDPOINT_URL'],
+                               aws_access_key_id=os.environ['R2_ACCESS_KEY_ID'],
+                               aws_secret_access_key=os.environ['R2_SECRET_ACCESS_KEY'])
+    try:
+        r2_client.download_file(obj.netloc, obj.path.lstrip('/'), local)
+    except ClientError as e:
+        if e.response['Error']['Code'] in BOTOCORE_CLIENT_ERROR_CODES:
+            raise FileNotFoundError(f'Object {remote} not found.') from e
+    except Exception:
+        raise
+
+
 def download_from_local(remote: str, local: str) -> None:
     """Download a file from remote to local.
 
@@ -237,6 +268,8 @@ def download_file(remote: Optional[str], local: str, timeout: float):
         download_from_gcs(remote, local)
     elif remote.startswith('oci://'):
         download_from_oci(remote, local)
+    elif remote.startswith('r2://'):
+        download_from_r2(remote, local)
     else:
         download_from_local(remote, local)
 
