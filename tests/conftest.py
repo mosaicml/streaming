@@ -17,7 +17,7 @@ from tests.test_reader import mds_dataset_dir  # pyright: ignore
 MY_BUCKET = 'streaming-test-bucket'
 MY_PREFIX = 'train'
 GCS_URL = 'https://storage.googleapis.com'
-R2_URL = 'https://00000000000000000000000000000000.r2.cloudflarestorage.com'
+R2_URL = 'https://c4c9097c86eeef198b16fd088f5f99d6.r2.cloudflarestorage.com'
 
 
 @pytest.fixture(scope='function')
