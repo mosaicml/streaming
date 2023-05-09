@@ -297,7 +297,7 @@ class GCSUploader(CloudUploader):
         """Raise an exception if the bucket does not exist.
 
         Args:
-            remote (str): S3 bucket path.
+            remote (str): GCS bucket path.
 
         Raises:
             error: Bucket does not exist.
@@ -378,7 +378,7 @@ class OCIUploader(CloudUploader):
         """Raise an exception if the bucket does not exist.
 
         Args:
-            remote (str): S3 bucket path.
+            remote (str): OCI bucket path.
 
         Raises:
             error: Bucket does not exist.
@@ -427,9 +427,7 @@ class R2Uploader(CloudUploader):
         session = boto3.session.Session()
         self.r2_client = session.client('s3',
                                         region_name='auto',
-                                        endpoint_url=os.environ['R2_ENDPOINT_URL'],
-                                        aws_access_key_id=os.environ['R2_ACCESS_KEY_ID'],
-                                        aws_secret_access_key=os.environ['R2_SECRET_ACCESS_KEY'])
+                                        endpoint_url=os.environ['S3_ENDPOINT_URL'])
         self.check_bucket_exists(self.remote)  # pyright: ignore
 
     def upload_file(self, filename: str):
@@ -439,8 +437,9 @@ class R2Uploader(CloudUploader):
             filename (str): File to upload.
         """
         local_filename = os.path.join(self.local, filename)
-        local_filename = local_filename.replace('\\', '/')
         remote_filename = os.path.join(self.remote, filename)  # pyright: ignore
+        # fix paths for windows
+        local_filename = local_filename.replace('\\', '/')
         remote_filename = remote_filename.replace('\\', '/')
         obj = urllib.parse.urlparse(remote_filename)
         logger.debug(f'Uploading to {remote_filename}')
@@ -462,7 +461,7 @@ class R2Uploader(CloudUploader):
         """Raise an exception if the bucket does not exist.
 
         Args:
-            remote (str): S3 bucket path.
+            remote (str): R2 bucket path.
 
         Raises:
             error: Bucket does not exist.

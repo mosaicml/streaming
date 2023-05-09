@@ -17,7 +17,7 @@ from tests.test_reader import mds_dataset_dir  # pyright: ignore
 MY_BUCKET = 'streaming-test-bucket'
 MY_PREFIX = 'train'
 GCS_URL = 'https://storage.googleapis.com'
-R2_URL = 'https://c4c9097c86eeef198b16fd088f5f99d6.r2.cloudflarestorage.com'
+R2_URL = 'https://r2.cloudflarestorage.com'
 
 
 @pytest.fixture(scope='function')
@@ -106,9 +106,7 @@ def test_list_gcs_buckets():
 @pytest.fixture(scope='session', autouse=True)
 def r2_credentials():
     """Mocked R2 Credentials for moto."""
-    os.environ['R2_ENDPOINT_URL'] = R2_URL
-    os.environ['R2_ACCESS_KEY_ID'] = 'testing'
-    os.environ['R2_SECRET_ACCESS_KEY'] = 'testing'
+    os.environ['S3_ENDPOINT_URL'] = R2_URL
 
 
 @pytest.fixture()
@@ -117,11 +115,7 @@ def r2_client(r2_credentials: Any):
     with patch.dict(os.environ, {'MOTO_S3_CUSTOM_ENDPOINTS': R2_URL}):
         # Mock needs to be started after the environment variable is patched in
         with mock_s3():
-            conn = boto3.client('s3',
-                                region_name='us-east-1',
-                                endpoint_url=R2_URL,
-                                aws_access_key_id=os.environ['R2_ACCESS_KEY_ID'],
-                                aws_secret_access_key=os.environ['R2_SECRET_ACCESS_KEY'])
+            conn = boto3.client('s3', region_name='us-east-1', endpoint_url=R2_URL)
             yield conn
 
 
@@ -133,10 +127,6 @@ def r2_test(r2_client: Any, bucket_name: str):
 
 @pytest.mark.usefixtures('r2_client', 'r2_test')
 def test_list_r2_buckets():
-    client = boto3.client('s3',
-                          region_name='us-east-1',
-                          endpoint_url=R2_URL,
-                          aws_access_key_id=os.environ['R2_ACCESS_KEY_ID'],
-                          aws_secret_access_key=os.environ['R2_SECRET_ACCESS_KEY'])
+    client = boto3.client('s3', region_name='us-east-1', endpoint_url=R2_URL)
     buckets = client.list_buckets()
     assert buckets['Buckets'][0]['Name'] == MY_BUCKET

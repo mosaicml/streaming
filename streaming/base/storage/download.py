@@ -144,7 +144,7 @@ def download_from_gcs(remote: str, local: str) -> None:
     """Download a file from remote GCS to local.
 
     Args:
-        remote (str): Remote path (S3).
+        remote (str): Remote path (GCS).
         local (str): Local path (local filesystem).
     """
     import boto3
@@ -202,7 +202,7 @@ def download_from_r2(remote: str, local: str) -> None:
     """Download a file from remote Cloudflare R2 to local.
 
     Args:
-        remote (str): Remote path (S3).
+        remote (str): Remote path (R2).
         local (str): Local path (local filesystem).
     """
     import boto3
@@ -217,9 +217,7 @@ def download_from_r2(remote: str, local: str) -> None:
     # Create a resource client using a thread's session object
     r2_client = session.client('s3',
                                region_name='auto',
-                               endpoint_url=os.environ['R2_ENDPOINT_URL'],
-                               aws_access_key_id=os.environ['R2_ACCESS_KEY_ID'],
-                               aws_secret_access_key=os.environ['R2_SECRET_ACCESS_KEY'])
+                               endpoint_url=os.environ['S3_ENDPOINT_URL'])
     try:
         r2_client.download_file(obj.netloc, obj.path.lstrip('/'), local)
     except ClientError as e:
@@ -254,6 +252,7 @@ def download_file(remote: Optional[str], local: str, timeout: float):
     if os.path.exists(local):
         return
 
+    # fix paths for windows
     local = local.replace('\\', '/')
     if remote:
         remote = remote.replace('\\', '/')

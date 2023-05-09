@@ -94,11 +94,7 @@ class TestR2Client:
         with tempfile.NamedTemporaryFile(delete=True, suffix='.txt') as tmp:
             file_name = tmp.name.split(os.sep)[-1]
             mock_remote_filepath, _ = remote_local_file(cloud_prefix='r2://', filename=file_name)
-            client = boto3.client('s3',
-                                  region_name='us-east-1',
-                                  endpoint_url=R2_URL,
-                                  aws_access_key_id=os.environ['R2_ACCESS_KEY_ID'],
-                                  aws_secret_access_key=os.environ['R2_SECRET_ACCESS_KEY'])
+            client = boto3.client('s3', region_name='us-east-1', endpoint_url=R2_URL)
             client.put_object(Bucket=MY_BUCKET, Key=os.path.join(MY_PREFIX, file_name), Body='')
             download_from_r2(mock_remote_filepath, tmp.name)
             assert os.path.isfile(tmp.name)
