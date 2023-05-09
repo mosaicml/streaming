@@ -817,16 +817,24 @@ class StreamingDataset(Array, IterableDataset):
 
         This method is called internally by ``download_shard`` to clear space for more downloads.
         """
-        # Get the shard with the oldest last access time.
-        shard_id = int(self._shard_access_times.numpy().argmin())
-        last_accessed = self._shard_access_times[shard_id]
+        while True:
+            # Find the shard with the oldest last access time.
+            shard_id = int(self._shard_access_times.numpy().argmin())
 
-        # Verify the access time is valid (the shard has not been evicted). This will only pose a
-        # problem if there are no shards left to evict but you are trying to anyway.
-        if np.allclose(last_accessed, NEVER):
-            raise ValueError(f'Internal error: need to evict a shard to free up space, but no ' +
-                             f'shards are present to evict (cache usage {self.cache_usage} of ' +
-                             f'{self.cache_limit})')
+            # Check the shard's last access time. If it is NEVER, we are out of shards to evict.
+            if self._shard_access_times[shard_id] == NEVER:
+                raise ValueError(f'Tried to evict a shard, but no shards are present to evict ' +
+                                 f'(cache usage {self.cache_usage} of {self.cache_limit})')
+
+            # The shard has a valid timestamp. Now, verify that it is actually present. There is an
+            # edge case where it may not be present (see the note in get_item()). If not present,
+            # pick the next lowest shard.
+            if self._shard_states[shard_id] != _ShardState.PRESENT:
+                self._shard_access_times[shard_id] = NEVER
+                continue
+
+            # Break on success.
+            break
 
         # Evict that shard.
         self._evict_shard(shard_id)
@@ -909,31 +917,34 @@ class StreamingDataset(Array, IterableDataset):
             # With the above preamble done, we can release the cache lock.
             lock.release()
 
-            # Perform the download.
+            # Perform the download (shard will not be modified in DOWNLOADING state).
             stream.download_shard(shard)
 
-            # Download completed, so transition shard state to present.
+            # Download completed, so note the time and transition shard state to PRESENT.
+            self._shard_access_times[shard_id] = time_ns()
             self._shard_states[shard_id] = _ShardState.PRESENT
         elif state == _ShardState.DOWNLOADING:
-            # Someone else is currently downloading the shard. Release the lock for them to make
+            # Someone else is currently downloading the shard. Release the lock for others to make
             # progress.
             lock.release()
 
             # Do we wait on them?
             if blocking:
-                # Wait for the shard to transition out of downloading state (to present).
+                # Wait for the shard to transition out of DOWNLOADING state (to PRESENT, although
+                # it would be possible for it to become evicted again before a TICK has elapsed).
                 while self._shard_states[shard_id] == _ShardState.DOWNLOADING:
                     sleep(TICK)
+
+            # There is no need to update the last access time, because that will be set by the
+            # process that downloaded the shard.
         elif state == _ShardState.PRESENT:
-            # Shard is already downloaded. There is nothing to do.
+            # Shard is already downloaded. There is nothing to do, except touch the shard.
+            self._shard_access_times[shard_id] = time_ns()
             lock.release()
         else:
             # Unknown state.
             lock.release()
             raise RuntimeError(f'Invalid shard state: {state}')
-
-        # Finally, update the shard's last access time to now.
-        self._shard_access_times[shard_id] = time_ns()
 
     def get_item(self, sample_id: int, retry: int = 7) -> Any:
         """Get sample by global index, blocking to download its shard if not present.
@@ -954,14 +965,19 @@ class StreamingDataset(Array, IterableDataset):
         sample = None
         for _ in range(1 + retry):
             try:
-                # Shortcut path: just assume the shard is present. Using exceptions as control flow is
-                # actually faster than checking that the shard is present because python.
+                # Shortcut path: just assume the shard is present. Using exceptions as control flow
+                # is actually faster than checking that the shard is present because python.
                 sample = shard[shard_sample_id]
 
                 # Manually update the last access time afterward. This also happens at the end of
                 # download_shard().
+                #
+                # Note: for performance reasons, we have not taken the lock here. This results in
+                # an edge case where a shard has a last access time but is actually not PRESENT.
+                # This impacts _evict_coldest_shard(), which we modify to handle this case.
                 self._shard_access_times[shard_id] = time_ns()
 
+                # On success, break out.
                 break
             except:
                 # Fallback: ensure the shard is downloaded, then try to access the sample again.
