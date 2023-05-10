@@ -61,7 +61,7 @@ Check out steps below for information on converting common NLP datasets to MDS f
     └── val.jsonl.zst
     ```
 
-2. Run the [pile.py](https://github.com/mosaicml/stireaming/blob/main/streaming/text/convert/pile.py) script. The script converts the `train`, `test`, and `val` dataset splits into their own split directories. For more advanced use cases, please see the supported arguments for [pile.py](https://github.com/mosaicml/streaming/blob/main/streaming/text/convert/pile.py) and modify as necessary.
+2. Run the [pile.py](https://github.com/mosaicml/streaming/blob/main/streaming/text/convert/pile.py) script. The script converts the `train`, `test`, and `val` dataset splits into their own split directories. For more advanced use cases, please see the supported arguments for [pile.py](https://github.com/mosaicml/streaming/blob/main/streaming/text/convert/pile.py) and modify as necessary.
 
     <!--pytest.mark.skip-->
     ```bash
