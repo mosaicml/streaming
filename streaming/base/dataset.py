@@ -12,8 +12,10 @@ from time import sleep, time_ns
 from typing import Any, Dict, Iterator, Optional, Sequence, Tuple
 
 import numpy as np
+import torch
 from filelock import FileLock
 from numpy.typing import NDArray
+from torch import distributed as dist
 from torch.utils.data import IterableDataset
 
 from streaming.base.array import Array
@@ -127,6 +129,25 @@ class _Iterator:
         """Note that a thread has exited."""
         with self._lock:
             self._num_exited += 1
+
+
+def _maybe_init_dist(world: World) -> bool:
+    """Initialize torch.distributed ourselves, if necessary.
+
+    Args:
+        world (World): Distributed environment.
+
+    Returns:
+        bool: Whether we initialized dist ourselves.
+    """
+    if world.num_ranks == 1 or not dist.is_available() or dist.is_initialized():
+        return False
+    if torch.cuda.is_available() and dist.is_nccl_available():
+        backend = 'nccl'
+    else:
+        backend = 'gloo'
+    dist.init_process_group(backend=backend, rank=world.rank, world_size=world.num_ranks)
+    return True
 
 
 class StreamingDataset(Array, IterableDataset):
@@ -299,6 +320,9 @@ class StreamingDataset(Array, IterableDataset):
         # instantiate a World inside the StreamingDataset destructor.
         self._rank_world = world = World()
 
+        # Initialize torch dist ourselves, if necessary.
+        destroy_dist = _maybe_init_dist(world)
+
         # Download each stream's index, load their shards, and map streams <-> shards.
         self.num_samples = 0
         self.shards = []
@@ -309,17 +333,17 @@ class StreamingDataset(Array, IterableDataset):
         self.samples_per_stream = np.zeros(self.num_streams, np.int64)
         for stream_id, stream in enumerate(self.streams):
             stream_shards = stream.get_shards(world)
-            samples = sum(map(len, stream_shards))
-            if samples == 0:
-                index_path = os.path.join(stream.local, stream.split, get_index_basename())
-                raise RuntimeError(f'Empty `shards` in {index_path} file.')
+            num_stream_samples = sum(map(len, stream_shards))
+            if not num_stream_samples:
+                index_filename = os.path.join(stream.local, stream.split, get_index_basename())
+                raise RuntimeError(f'Stream contains no samples: {index_filename}.')
             stream_per_shard += [stream_id] * len(stream_shards)
             self.shard_offset_per_stream[stream_id] = len(self.shards)
             self.shards_per_stream[stream_id] = len(stream_shards)
             self.sample_offset_per_stream[stream_id] = self.num_samples
-            self.samples_per_stream[stream_id] = samples
+            self.samples_per_stream[stream_id] = num_stream_samples
             self.shards += stream_shards
-            self.num_samples += samples
+            self.num_samples += num_stream_samples
         self.stream_per_shard = np.array(stream_per_shard, np.int64)
         self.num_shards = len(self.shards)
 
@@ -342,9 +366,7 @@ class StreamingDataset(Array, IterableDataset):
                                            self.shuffle_seed)
 
         # Register/lookup our shared memory prefix and filelock root directory.
-        my_locals = [
-            os.path.abspath(os.path.join(stream.local, stream.split)) for stream in streams
-        ]
+        my_locals = [os.path.abspath(os.path.join(x.local, x.split)) for x in streams]
         self._shm_prefix, self._locals_shm = get_shm_prefix(my_locals, world)
         self._filelock_root = os.path.join(os.path.sep, 'tmp', 'streaming', self._shm_prefix)
 
@@ -411,7 +433,11 @@ class StreamingDataset(Array, IterableDataset):
                     self._shard_states[shard_id] = _ShardState.MISSING
                     self._shard_access_times[shard_id] = NEVER
 
-        self._shared_barrier(world.workers_per_node)
+        if dist.is_available() and dist.is_initialized():
+            dist.barrier()
+
+        if destroy_dist:
+            dist.destroy_process_group()
 
         # Placeholder for a shared memory object where load_state_dict() saves its data to be
         # picked up by __iter__().
