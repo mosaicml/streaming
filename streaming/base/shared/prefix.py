@@ -4,7 +4,7 @@
 """Register or look up the prefix to use for all shared resources.
 
 The prefix is used by all workers using this StreamingDataset of this training job. This is used to
-prevent shared resources like shared memory and filelocks from colliding.
+prevent shared resources like shared memory from colliding.
 """
 
 from time import sleep

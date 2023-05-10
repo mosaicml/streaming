@@ -13,7 +13,6 @@ from typing import Any, Dict, Iterator, Optional, Sequence, Tuple
 
 import numpy as np
 import torch
-from filelock import FileLock
 from numpy.typing import NDArray
 from torch import distributed as dist
 from torch.multiprocessing import Manager
@@ -366,15 +365,12 @@ class StreamingDataset(Array, IterableDataset):
         self.choose = Stream.apply_weights(self.streams, self.samples_per_stream, choose,
                                            self.shuffle_seed)
 
-        # Register/lookup our shared memory prefix and filelock root directory.
+        # Register/lookup our shared memory prefix.
         my_locals = [os.path.abspath(os.path.join(x.local, x.split)) for x in streams]
         self._shm_prefix, self._locals_shm = get_shm_prefix(my_locals, world)
-        self._filelock_root = os.path.join(os.path.sep, 'tmp', 'streaming', self._shm_prefix)
 
         # Create the shared memory-backed barrier, without its lock, which is unpickleable.
-        shared_barrier_filelock_path = os.path.join(self._filelock_root, 'barrier_filelock')
-        shared_barrier_shm_path = f'{self._shm_prefix}_barrier'
-        self._shared_barrier = SharedBarrier(shared_barrier_filelock_path, shared_barrier_shm_path)
+        self._shared_barrier = SharedBarrier(f'{self._shm_prefix}_barrier')
 
         # Epoch counter.
         #
@@ -445,8 +441,6 @@ class StreamingDataset(Array, IterableDataset):
 
         # Placeholder for an _Iterator which tracks state during __iter__().
         self._iterator: _Iterator
-
-        del self._shared_barrier.lock  # Remove the lock that makes it unpickleable.
 
     def __del__(self) -> None:
         """Destructor, which releases its local working directories."""
@@ -1140,11 +1134,6 @@ class StreamingDataset(Array, IterableDataset):
         Returns:
             Iterator[Dict[str, Any]]: Each sample.
         """
-        # Lazily create the shared barrier's FileLock, which contains a threading Lock, which is
-        # unpickleable.
-        if not hasattr(self._shared_barrier, 'lock'):
-            self._shared_barrier.lock = FileLock(self._shared_barrier.filelock_path)
-
         # Exit the threads that are pre-downloading and iterating the shards for previous epoch, if
         # it exists.
         if hasattr(self, '_iterator'):
