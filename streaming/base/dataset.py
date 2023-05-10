@@ -16,6 +16,7 @@ import torch
 from filelock import FileLock
 from numpy.typing import NDArray
 from torch import distributed as dist
+from torch.multiprocessing import Manager
 from torch.utils.data import IterableDataset
 
 from streaming.base.array import Array
@@ -382,9 +383,8 @@ class StreamingDataset(Array, IterableDataset):
         # to track what the next epoch is, not the current epoch.
         self._next_epoch = SharedScalar(np.int64, f'{self._shm_prefix}_next_epoch')
 
-        # Cache filelock. Proects downloading and evicting shards.
-        self._cache_filelock_path = os.path.join(self._filelock_root, '_cache_filelock')
-        self._cache_filelock: FileLock
+        # Cache torch multiprocessing lock. Proects downloading and evicting shards.
+        self._cache_lock = Manager().Lock()
 
         # Cache usage in bytes.
         self._cache_usage = SharedScalar(np.int64, f'{self._shm_prefix}_cache_usage')
@@ -811,7 +811,7 @@ class StreamingDataset(Array, IterableDataset):
     def _evict_shard(self, shard_id: int) -> None:
         """Evict the given shard.
 
-        Assumes you hold ``_cache_filelock``, preventing anyone else from modifying the cache. We
+        Assumes you hold ``_cache_lock``, preventing anyone else from modifying the cache. We
         expect that shard deletions are very fast.
 
         This method is called internally by ``download_shard`` to clear space for more downloads.
@@ -838,7 +838,7 @@ class StreamingDataset(Array, IterableDataset):
     def _evict_coldest_shard(self) -> None:
         """Evict the coldeset (i.e., least recently accessed) shard.
 
-        Assumes you hold ``_cache_filelock``, preventing anyone else from modifying the cache. We
+        Assumes you hold ``__cache_lock``, preventing anyone else from modifying the cache. We
         expect that shard deletions are very fast.
 
         This method is called internally by ``download_shard`` to clear space for more downloads.
@@ -873,13 +873,7 @@ class StreamingDataset(Array, IterableDataset):
         Args:
             shard_id (int): Shard to evict.
         """
-        # Lock the cache. FileLocks contain threading Locks, which are not pickleable, which is
-        # incompatible with spawn, so must be created lazily.
-        if not hasattr(self, '_cache_filelock'):
-            self._cache_filelock = FileLock(self._cache_filelock_path)
-
-        # Do the eviction behind the lock.
-        with self._cache_filelock:
+        with self._cache_lock:
             self._evict_shard(shard_id)
 
     def evict_coldest_shard(self) -> None:
@@ -887,13 +881,7 @@ class StreamingDataset(Array, IterableDataset):
 
         This method is multithread/multiprocess-safe.
         """
-        # Lock the cache. FileLocks contain threading Locks, which are not pickleable, which is
-        # incompatible with spawn, so must be created lazily.
-        if not hasattr(self, '_cache_filelock'):
-            self._cache_filelock = FileLock(self._cache_filelock_path)
-
-        # Do the eviction behind the lock.
-        with self._cache_filelock:
+        with self._cache_lock:
             self._evict_coldest_shard()
 
     def download_shard(self, shard_id: int, blocking: bool = True) -> None:
@@ -909,16 +897,11 @@ class StreamingDataset(Array, IterableDataset):
             blocking (bool): Whether to wait or skip if the shard is currently being downloaded by
                 someone else.
         """
-        # Lock the cache. FileLocks contain threading Locks, which are not pickleable, which is
-        # incompatible with spawn, so must be created lazily.
-        if not hasattr(self, '_cache_filelock'):
-            self._cache_filelock = FileLock(self._cache_filelock_path)
-        lock = self._cache_filelock
-        lock.acquire()
-
         # Get the state of the shard to download.
+        self._cache_lock.acquire()
         state = self._shard_states[shard_id]
 
+        # Which state is it in?
         if state == _ShardState.MISSING:
             # If missing, transition state to downloading.
             self._shard_states[shard_id] = _ShardState.DOWNLOADING
@@ -941,7 +924,7 @@ class StreamingDataset(Array, IterableDataset):
             self.cache_usage += shard.get_persistent_size(stream.safe_keep_zip)
 
             # With the above preamble done, we can release the cache lock.
-            lock.release()
+            self._cache_lock.release()
 
             # Perform the download (shard will not be modified in DOWNLOADING state).
             stream.download_shard(shard)
@@ -952,7 +935,7 @@ class StreamingDataset(Array, IterableDataset):
         elif state == _ShardState.DOWNLOADING:
             # Someone else is currently downloading the shard. Release the lock for others to make
             # progress.
-            lock.release()
+            self._cache_lock.release()
 
             # Do we wait on them?
             if blocking:
@@ -966,10 +949,10 @@ class StreamingDataset(Array, IterableDataset):
         elif state == _ShardState.PRESENT:
             # Shard is already downloaded. There is nothing to do, except touch the shard.
             self._shard_access_times[shard_id] = time_ns()
-            lock.release()
+            self._cache_lock.release()
         else:
             # Unknown state.
-            lock.release()
+            self._cache_lock.release()
             raise RuntimeError(f'Invalid shard state: {state}')
 
     def get_item(self, sample_id: int, retry: int = 7) -> Any:
