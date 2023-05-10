@@ -16,7 +16,8 @@ import tqdm
 from streaming.base.storage.download import BOTOCORE_CLIENT_ERROR_CODES
 
 __all__ = [
-    'CloudUploader', 'S3Uploader', 'GCSUploader', 'OCIUploader', 'R2Uploader', 'LocalUploader'
+    'CloudUploader', 'S3Uploader', 'GCSUploader', 'OCIUploader', 'R2Uploader', 'AzureUploader',
+    'LocalUploader'
 ]
 
 logger = logging.getLogger(__name__)
@@ -26,6 +27,7 @@ UPLOADERS = {
     'gs': 'GCSUploader',
     'oci': 'OCIUploader',
     'r2': 'R2Uploader',
+    'azure': 'AzureUploader',
     '': 'LocalUploader',
 }
 
@@ -476,6 +478,83 @@ class R2Uploader(CloudUploader):
                 error.args = (f'Either bucket `{bucket_name}` does not exist! ' +
                               f'or check the bucket permission.',)
             raise error
+
+
+class AzureUploader(CloudUploader):
+    """Upload file from local machine to Microsoft Azure bucket.
+
+    Args:
+        out (str | Tuple[str, str]): Output dataset directory to save shard files.
+
+            1. If ``out`` is a local directory, shard files are saved locally.
+            2. If ``out`` is a remote directory, a local temporary directory is created to
+               cache the shard files and then the shard files are uploaded to a remote
+               location. At the end, the temp directory is deleted once shards are uploaded.
+            3. If ``out`` is a tuple of ``(local_dir, remote_dir)``, shard files are saved in
+               the `local_dir` and also uploaded to a remote location.
+        keep_local (bool): If the dataset is uploaded, whether to keep the local dataset
+            shard file or remove it after uploading. Defaults to ``False``.
+        progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
+            a remote location. Default to ``False``.
+    """
+
+    def __init__(self,
+                 out: Union[str, Tuple[str, str]],
+                 keep_local: bool = False,
+                 progress_bar: bool = False) -> None:
+        super().__init__(out, keep_local, progress_bar)
+
+        from azure.storage.blob import BlobServiceClient
+
+        # Create a session and use it to make our client. Unlike Resources and Sessions,
+        # clients are generally thread-safe.
+        self.azure_service = BlobServiceClient(
+            account_url=f"https://{os.environ['AZURE_ACCOUNT_NAME']}.blob.core.windows.net",
+            credential=os.environ['AZURE_ACCOUNT_ACCESS_KEY'])
+        self.check_bucket_exists(self.remote)  # pyright: ignore
+
+    def upload_file(self, filename: str):
+        """Upload file from local instance to Cloudflare R2 bucket.
+
+        Args:
+            filename (str): File to upload.
+        """
+        local_filename = os.path.join(self.local, filename)
+        local_filename = local_filename.replace('\\', '/')
+        remote_filename = os.path.join(self.remote, filename)  # pyright: ignore
+        remote_filename = remote_filename.replace('\\', '/')
+        obj = urllib.parse.urlparse(remote_filename)
+        logger.debug(f'Uploading to {remote_filename}')
+        file_size = os.stat(local_filename).st_size
+        container_client = self.azure_service.get_container_client(container=obj.netloc)
+
+        with tqdm.tqdm(total=file_size,
+                       unit='B',
+                       unit_scale=True,
+                       desc=f'Uploading to {remote_filename}',
+                       disable=(not self.progress_bar)) as pbar:
+            with open(local_filename, 'rb') as data:
+                container_client.upload_blob(
+                    name=obj.path.lstrip('/'),
+                    data=data,
+                    progress_hook=lambda bytes_transferred, _: pbar.update(bytes_transferred),
+                    overwrite=True)
+        self.clear_local(local=local_filename)
+
+    def check_bucket_exists(self, remote: str):
+        """Raise an exception if the bucket does not exist.
+
+        Args:
+            remote (str): azure bucket path.
+
+        Raises:
+            error: Bucket does not exist.
+        """
+        bucket_name = urllib.parse.urlparse(remote).netloc
+        if self.azure_service.get_container_client(container=bucket_name).exists() is False:
+            raise FileNotFoundError(
+                f'Either bucket `{bucket_name}` does not exist! ' +
+                f'or check the bucket permission.',)
 
 
 class LocalUploader(CloudUploader):

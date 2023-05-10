@@ -176,3 +176,38 @@ export S3_ENDPOINT_URL='https://<accountid>.r2.cloudflarestorage.com'
 ````
 
 The above step will add an environment variable `S3_ENDPOINT_URL` to your runs and the streaming dataset fetches those environment variables for authentication and stream data into your instance.
+
+## Azure
+
+If you wish to create a new storage account, you can use the [Azure Portal](https://docs.microsoft.com/azure/storage/common/storage-quickstart-create-account?tabs=azure-portal), [Azure PowerShell](https://docs.microsoft.com/azure/storage/common/storage-quickstart-create-account?tabs=azure-powershell), or [Azure CLI](https://docs.microsoft.com/azure/storage/common/storage-quickstart-create-account?tabs=azure-cli):
+
+```
+# Create a new resource group to hold the storage account -
+# if using an existing resource group, skip this step
+az group create --name my-resource-group --location westus2
+
+# Create the storage account
+az storage account create -n my-storage-account-name -g my-resource-group
+```
+
+Users must set their Azure `account name` and Azure `account access key` in the run environment.
+
+The `account access key` can be found in the Azure Portal under the `"Access Keys"` section or by running the following Azure CLI command:
+
+```
+az storage account keys list -g MyResourceGroup -n MyStorageAccount
+```
+
+````{tabs}
+```{code-tab} py
+os.environ['AZURE_ACCOUNT_NAME'] = 'test'
+os.environ['AZURE_ACCOUNT_ACCESS_KEY'] = 'NN1KHxKKkj20ZO92EMiDQjx3wp2kZG4UUvfAGlgGWRn6sPRmGY/TEST/Dri+ExAmPlEExAmPlExA+ExAmPlExA=='
+```
+
+```{code-tab} sh
+export AZURE_ACCOUNT_NAME='test'
+export AZURE_ACCOUNT_ACCESS_KEY='NN1KHxKKkj20ZO92EMiDQjx3wp2kZG4UUvfAGlgGWRn6sPRmGY/TEST/Dri+ExAmPlEExAmPlExA+ExAmPlExA=='
+```
+````
+
+The above step will add two environment variables `AZURE_ACCOUNT_NAME` and `AZURE_ACCOUNT_ACCESS_KEY` to your runs and the streaming dataset fetches those environment variables for authentication and stream data into your instance.

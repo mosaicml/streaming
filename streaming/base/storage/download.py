@@ -227,6 +227,36 @@ def download_from_r2(remote: str, local: str) -> None:
         raise
 
 
+def download_from_azure(remote: str, local: str) -> None:
+    """Download a file from remote Microsoft Azure to local.
+
+    Args:
+        remote (str): Remote path (azure).
+        local (str): Local path (local filesystem).
+    """
+    from azure.core.exceptions import ResourceNotFoundError
+    from azure.storage.blob import BlobServiceClient
+
+    obj = urllib.parse.urlparse(remote)
+    if obj.scheme != 'azure':
+        raise ValueError(
+            f'Expected obj.scheme to be "azure", got {obj.scheme} for remote={remote}')
+
+    # Create a new session per thread
+    service = BlobServiceClient(
+        account_url=f"https://{os.environ['AZURE_ACCOUNT_NAME']}.blob.core.windows.net",
+        credential=os.environ['AZURE_ACCOUNT_ACCESS_KEY'])
+    try:
+        blob_client = service.get_blob_client(container=obj.netloc, blob=obj.path.lstrip('/'))
+        with open(local, 'wb') as my_blob:
+            blob_data = blob_client.download_blob()
+            blob_data.readinto(my_blob)
+    except ResourceNotFoundError:
+        raise FileNotFoundError(f'Object {remote} not found.')
+    except Exception:
+        raise
+
+
 def download_from_local(remote: str, local: str) -> None:
     """Download a file from remote to local.
 
@@ -273,6 +303,8 @@ def download_file(remote: Optional[str], local: str, timeout: float):
         download_from_oci(remote, local)
     elif remote.startswith('r2://'):
         download_from_r2(remote, local)
+    elif remote.startswith('azure://'):
+        download_from_azure(remote, local)
     else:
         download_from_local(remote, local)
 
