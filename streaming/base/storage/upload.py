@@ -550,7 +550,7 @@ class AzureUploader(CloudUploader):
             error: Bucket does not exist.
         """
         bucket_name = urllib.parse.urlparse(remote).netloc
-        if self.azure_service.get_container_client(container=bucket_name).exists() == False:
+        if self.azure_service.get_container_client(container=bucket_name).exists() is False:
             raise FileNotFoundError(
                 f'Either bucket `{bucket_name}` does not exist! ' +
                 f'or check the bucket permission.',)
