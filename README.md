@@ -37,7 +37,7 @@
     <a href="https://streaming.docs.mosaicml.com">
         <img alt="Documentation" src="https://readthedocs.org/projects/streaming/badge/?version=stable">
     </a>
-    <a href="https://join.slack.com/t/mosaicml-community/shared_invite/zt-w0tiddn9-WGTlRpfjcO9J5jyrMub1dg">
+    <a href="https://join.slack.com/t/mosaicml-community/shared_invite/zt-1btms90mc-GipE2ufuPkKY0QBrmF3LSA">
         <img alt="Chat @ Slack" src="https://img.shields.io/badge/slack-chat-2eb67d.svg?logo=slack">
     </a>
     <a href="https://github.com/mosaicml/streaming/blob/main/LICENSE">
