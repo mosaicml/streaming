@@ -404,8 +404,10 @@ class StreamingDataset(Array, IterableDataset):
 
             # Normalize each stream's local dir, discovering which shards are present.
             are_shards_present = []
-            for stream in self.streams:
-                stream_shards = stream.get_shards(world)
+            for stream_id, stream in enumerate(self.streams):
+                start = self.shard_offset_per_stream[stream_id]
+                stop = start + self.shards_per_stream[stream_id]
+                stream_shards = self.shards[start:stop]
                 are_shards_present += stream.init_local_dir(stream_shards)
 
             # Calculate the initial cache usage using shard presence info.
