@@ -5,15 +5,19 @@
 
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures._base import Future
 from enum import IntEnum
 from math import ceil
-from threading import Lock, Thread
+from threading import Event, Lock
 from time import sleep, time_ns
 from typing import Any, Dict, Iterator, Optional, Sequence, Tuple
 
 import numpy as np
-from filelock import FileLock
+import torch
 from numpy.typing import NDArray
+from torch import distributed as dist
+from torch.multiprocessing import Manager
 from torch.utils.data import IterableDataset
 
 from streaming.base.array import Array
@@ -127,6 +131,25 @@ class _Iterator:
         """Note that a thread has exited."""
         with self._lock:
             self._num_exited += 1
+
+
+def _maybe_init_dist(world: World) -> bool:
+    """Initialize torch.distributed ourselves, if necessary.
+
+    Args:
+        world (World): Distributed environment.
+
+    Returns:
+        bool: Whether we initialized dist ourselves.
+    """
+    if world.num_ranks == 1 or not dist.is_available() or dist.is_initialized():
+        return False
+    if torch.cuda.is_available() and dist.is_nccl_available():
+        backend = 'nccl'
+    else:
+        backend = 'gloo'
+    dist.init_process_group(backend=backend, rank=world.rank, world_size=world.num_ranks)
+    return True
 
 
 class StreamingDataset(Array, IterableDataset):
@@ -299,6 +322,9 @@ class StreamingDataset(Array, IterableDataset):
         # instantiate a World inside the StreamingDataset destructor.
         self._rank_world = world = World()
 
+        # Initialize torch dist ourselves, if necessary.
+        destroy_dist = _maybe_init_dist(world)
+
         # Download each stream's index, load their shards, and map streams <-> shards.
         self.num_samples = 0
         self.shards = []
@@ -309,17 +335,17 @@ class StreamingDataset(Array, IterableDataset):
         self.samples_per_stream = np.zeros(self.num_streams, np.int64)
         for stream_id, stream in enumerate(self.streams):
             stream_shards = stream.get_shards(world)
-            samples = sum(map(len, stream_shards))
-            if samples == 0:
-                index_path = os.path.join(stream.local, stream.split, get_index_basename())
-                raise RuntimeError(f'Empty `shards` in {index_path} file.')
+            num_stream_samples = sum(map(len, stream_shards))
+            if not num_stream_samples:
+                index_filename = os.path.join(stream.local, stream.split, get_index_basename())
+                raise RuntimeError(f'Stream contains no samples: {index_filename}.')
             stream_per_shard += [stream_id] * len(stream_shards)
             self.shard_offset_per_stream[stream_id] = len(self.shards)
             self.shards_per_stream[stream_id] = len(stream_shards)
             self.sample_offset_per_stream[stream_id] = self.num_samples
-            self.samples_per_stream[stream_id] = samples
+            self.samples_per_stream[stream_id] = num_stream_samples
             self.shards += stream_shards
-            self.num_samples += samples
+            self.num_samples += num_stream_samples
         self.stream_per_shard = np.array(stream_per_shard, np.int64)
         self.num_shards = len(self.shards)
 
@@ -341,17 +367,12 @@ class StreamingDataset(Array, IterableDataset):
         self.choose = Stream.apply_weights(self.streams, self.samples_per_stream, choose,
                                            self.shuffle_seed)
 
-        # Register/lookup our shared memory prefix and filelock root directory.
-        my_locals = [
-            os.path.abspath(os.path.join(stream.local, stream.split)) for stream in streams
-        ]
+        # Register/lookup our shared memory prefix.
+        my_locals = [os.path.abspath(os.path.join(x.local, x.split)) for x in streams]
         self._shm_prefix, self._locals_shm = get_shm_prefix(my_locals, world)
-        self._filelock_root = os.path.join(os.path.sep, 'tmp', 'streaming', self._shm_prefix)
 
         # Create the shared memory-backed barrier, without its lock, which is unpickleable.
-        shared_barrier_filelock_path = os.path.join(self._filelock_root, 'barrier_filelock')
-        shared_barrier_shm_path = f'{self._shm_prefix}_barrier'
-        self._shared_barrier = SharedBarrier(shared_barrier_filelock_path, shared_barrier_shm_path)
+        self._shared_barrier = SharedBarrier(f'{self._shm_prefix}_barrier')
 
         # Epoch counter.
         #
@@ -360,9 +381,8 @@ class StreamingDataset(Array, IterableDataset):
         # to track what the next epoch is, not the current epoch.
         self._next_epoch = SharedScalar(np.int64, f'{self._shm_prefix}_next_epoch')
 
-        # Cache filelock. Proects downloading and evicting shards.
-        self._cache_filelock_path = os.path.join(self._filelock_root, '_cache_filelock')
-        self._cache_filelock: FileLock
+        # Cache torch multiprocessing lock. Proects downloading and evicting shards.
+        self._cache_lock = Manager().Lock()
 
         # Cache usage in bytes.
         self._cache_usage = SharedScalar(np.int64, f'{self._shm_prefix}_cache_usage')
@@ -384,8 +404,10 @@ class StreamingDataset(Array, IterableDataset):
 
             # Normalize each stream's local dir, discovering which shards are present.
             are_shards_present = []
-            for stream in self.streams:
-                stream_shards = stream.get_shards(world)
+            for stream_id, stream in enumerate(self.streams):
+                start = self.shard_offset_per_stream[stream_id]
+                stop = start + self.shards_per_stream[stream_id]
+                stream_shards = self.shards[start:stop]
                 are_shards_present += stream.init_local_dir(stream_shards)
 
             # Calculate the initial cache usage using shard presence info.
@@ -411,7 +433,11 @@ class StreamingDataset(Array, IterableDataset):
                     self._shard_states[shard_id] = _ShardState.MISSING
                     self._shard_access_times[shard_id] = NEVER
 
-        self._shared_barrier(world.workers_per_node)
+        if dist.is_available() and dist.is_initialized():
+            dist.barrier()
+
+        if destroy_dist:
+            dist.destroy_process_group()
 
         # Placeholder for a shared memory object where load_state_dict() saves its data to be
         # picked up by __iter__().
@@ -420,7 +446,9 @@ class StreamingDataset(Array, IterableDataset):
         # Placeholder for an _Iterator which tracks state during __iter__().
         self._iterator: _Iterator
 
-        del self._shared_barrier.lock  # Remove the lock that makes it unpickleable.
+        # For exception handling in __iter__ threads.
+        self._executor: ThreadPoolExecutor
+        self._event: Event
 
     def __del__(self) -> None:
         """Destructor, which releases its local working directories."""
@@ -785,7 +813,7 @@ class StreamingDataset(Array, IterableDataset):
     def _evict_shard(self, shard_id: int) -> None:
         """Evict the given shard.
 
-        Assumes you hold ``_cache_filelock``, preventing anyone else from modifying the cache. We
+        Assumes you hold ``_cache_lock``, preventing anyone else from modifying the cache. We
         expect that shard deletions are very fast.
 
         This method is called internally by ``download_shard`` to clear space for more downloads.
@@ -812,21 +840,29 @@ class StreamingDataset(Array, IterableDataset):
     def _evict_coldest_shard(self) -> None:
         """Evict the coldeset (i.e., least recently accessed) shard.
 
-        Assumes you hold ``_cache_filelock``, preventing anyone else from modifying the cache. We
+        Assumes you hold ``__cache_lock``, preventing anyone else from modifying the cache. We
         expect that shard deletions are very fast.
 
         This method is called internally by ``download_shard`` to clear space for more downloads.
         """
-        # Get the shard with the oldest last access time.
-        shard_id = int(self._shard_access_times.numpy().argmin())
-        last_accessed = self._shard_access_times[shard_id]
+        while True:
+            # Find the shard with the oldest last access time.
+            shard_id = int(self._shard_access_times.numpy().argmin())
 
-        # Verify the access time is valid (the shard has not been evicted). This will only pose a
-        # problem if there are no shards left to evict but you are trying to anyway.
-        if np.allclose(last_accessed, NEVER):
-            raise ValueError(f'Internal error: need to evict a shard to free up space, but no ' +
-                             f'shards are present to evict (cache usage {self.cache_usage} of ' +
-                             f'{self.cache_limit})')
+            # Check the shard's last access time. If it is NEVER, we are out of shards to evict.
+            if self._shard_access_times[shard_id] == NEVER:
+                raise ValueError(f'Tried to evict a shard, but no shards are present to evict ' +
+                                 f'(cache usage {self.cache_usage} of {self.cache_limit})')
+
+            # The shard has a valid timestamp. Now, verify that it is actually present. There is an
+            # edge case where it may not be present (see the note in get_item()). If not present,
+            # pick the next lowest shard.
+            if self._shard_states[shard_id] != _ShardState.PRESENT:
+                self._shard_access_times[shard_id] = NEVER
+                continue
+
+            # Break on success.
+            break
 
         # Evict that shard.
         self._evict_shard(shard_id)
@@ -839,13 +875,7 @@ class StreamingDataset(Array, IterableDataset):
         Args:
             shard_id (int): Shard to evict.
         """
-        # Lock the cache. FileLocks contain threading Locks, which are not pickleable, which is
-        # incompatible with spawn, so must be created lazily.
-        if not hasattr(self, '_cache_filelock'):
-            self._cache_filelock = FileLock(self._cache_filelock_path)
-
-        # Do the eviction behind the lock.
-        with self._cache_filelock:
+        with self._cache_lock:
             self._evict_shard(shard_id)
 
     def evict_coldest_shard(self) -> None:
@@ -853,13 +883,7 @@ class StreamingDataset(Array, IterableDataset):
 
         This method is multithread/multiprocess-safe.
         """
-        # Lock the cache. FileLocks contain threading Locks, which are not pickleable, which is
-        # incompatible with spawn, so must be created lazily.
-        if not hasattr(self, '_cache_filelock'):
-            self._cache_filelock = FileLock(self._cache_filelock_path)
-
-        # Do the eviction behind the lock.
-        with self._cache_filelock:
+        with self._cache_lock:
             self._evict_coldest_shard()
 
     def download_shard(self, shard_id: int, blocking: bool = True) -> None:
@@ -875,16 +899,11 @@ class StreamingDataset(Array, IterableDataset):
             blocking (bool): Whether to wait or skip if the shard is currently being downloaded by
                 someone else.
         """
-        # Lock the cache. FileLocks contain threading Locks, which are not pickleable, which is
-        # incompatible with spawn, so must be created lazily.
-        if not hasattr(self, '_cache_filelock'):
-            self._cache_filelock = FileLock(self._cache_filelock_path)
-        lock = self._cache_filelock
-        lock.acquire()
-
         # Get the state of the shard to download.
+        self._cache_lock.acquire()
         state = self._shard_states[shard_id]
 
+        # Which state is it in?
         if state == _ShardState.MISSING:
             # If missing, transition state to downloading.
             self._shard_states[shard_id] = _ShardState.DOWNLOADING
@@ -907,33 +926,36 @@ class StreamingDataset(Array, IterableDataset):
             self.cache_usage += shard.get_persistent_size(stream.safe_keep_zip)
 
             # With the above preamble done, we can release the cache lock.
-            lock.release()
+            self._cache_lock.release()
 
-            # Perform the download.
+            # Perform the download (shard will not be modified in DOWNLOADING state).
             stream.download_shard(shard)
 
-            # Download completed, so transition shard state to present.
+            # Download completed, so note the time and transition shard state to PRESENT.
+            self._shard_access_times[shard_id] = time_ns()
             self._shard_states[shard_id] = _ShardState.PRESENT
         elif state == _ShardState.DOWNLOADING:
-            # Someone else is currently downloading the shard. Release the lock for them to make
+            # Someone else is currently downloading the shard. Release the lock for others to make
             # progress.
-            lock.release()
+            self._cache_lock.release()
 
             # Do we wait on them?
             if blocking:
-                # Wait for the shard to transition out of downloading state (to present).
+                # Wait for the shard to transition out of DOWNLOADING state (to PRESENT, although
+                # it would be possible for it to become evicted again before a TICK has elapsed).
                 while self._shard_states[shard_id] == _ShardState.DOWNLOADING:
                     sleep(TICK)
+
+            # There is no need to update the last access time, because that will be set by the
+            # process that downloaded the shard.
         elif state == _ShardState.PRESENT:
-            # Shard is already downloaded. There is nothing to do.
-            lock.release()
+            # Shard is already downloaded. There is nothing to do, except touch the shard.
+            self._shard_access_times[shard_id] = time_ns()
+            self._cache_lock.release()
         else:
             # Unknown state.
-            lock.release()
+            self._cache_lock.release()
             raise RuntimeError(f'Invalid shard state: {state}')
-
-        # Finally, update the shard's last access time to now.
-        self._shard_access_times[shard_id] = time_ns()
 
     def get_item(self, sample_id: int, retry: int = 7) -> Any:
         """Get sample by global index, blocking to download its shard if not present.
@@ -954,14 +976,19 @@ class StreamingDataset(Array, IterableDataset):
         sample = None
         for _ in range(1 + retry):
             try:
-                # Shortcut path: just assume the shard is present. Using exceptions as control flow is
-                # actually faster than checking that the shard is present because python.
+                # Shortcut path: just assume the shard is present. Using exceptions as control flow
+                # is actually faster than checking that the shard is present because python.
                 sample = shard[shard_sample_id]
 
                 # Manually update the last access time afterward. This also happens at the end of
                 # download_shard().
+                #
+                # Note: for performance reasons, we have not taken the lock here. This results in
+                # an edge case where a shard has a last access time but is actually not PRESENT.
+                # This impacts _evict_coldest_shard(), which we modify to handle this case.
                 self._shard_access_times[shard_id] = time_ns()
 
+                # On success, break out.
                 break
             except:
                 # Fallback: ensure the shard is downloaded, then try to access the sample again.
@@ -971,6 +998,24 @@ class StreamingDataset(Array, IterableDataset):
             raise RuntimeError('StreamingDataset is thrashing. Raise cache_limit.')
 
         return sample
+
+    def on_exception(self, future: Future) -> None:
+        """Raise an exception to the caller if an exception was generated by a thread.
+
+        Also, set the thread event to let the other threads know about the exception.
+
+        Args:
+            future (Future): The status of the task.
+
+        Raises:
+            Exception: re-raises the exception.
+        """
+        exception = future.exception()
+        if exception:
+            # Set the event to let the other threadpool threads know about the exception.
+            self._event.set()
+            # Re-raise the exception.
+            raise exception
 
     def _download_thread(self, it: _Iterator) -> None:
         """Download the relevant shards in the background while we are being iterated.
@@ -1115,15 +1160,18 @@ class StreamingDataset(Array, IterableDataset):
         Returns:
             Iterator[Dict[str, Any]]: Each sample.
         """
-        # Lazily create the shared barrier's FileLock, which contains a threading Lock, which is
-        # unpickleable.
-        if not hasattr(self._shared_barrier, 'lock'):
-            self._shared_barrier.lock = FileLock(self._shared_barrier.filelock_path)
-
         # Exit the threads that are pre-downloading and iterating the shards for previous epoch, if
         # it exists.
         if hasattr(self, '_iterator'):
             self._iterator.exit()
+
+        # For exception handling.
+        if not hasattr(self, '_executor'):
+            self._executor = ThreadPoolExecutor()
+        if not hasattr(self, '_event'):
+            self._event = Event()
+        elif self._event.is_set():
+            raise RuntimeError('Thread failed. Check other traceback.')
 
         # Discover where we left off, if there is a checkpoint, or start at the next epoch.
         # Also pre-increment the epoch counter.
@@ -1137,7 +1185,9 @@ class StreamingDataset(Array, IterableDataset):
 
         # Iterate over the samples while downloading ahead.
         self._iterator = it = _Iterator(sample_ids)
-        Thread(target=self._download_thread, args=(it,), daemon=True).start()
-        Thread(target=self._ready_thread, args=(it,), daemon=True).start()
+        download_future = self._executor.submit(self._download_thread, it)
+        download_future.add_done_callback(self.on_exception)
+        ready_future = self._executor.submit(self._ready_thread, it)
+        ready_future.add_done_callback(self.on_exception)
         yield from map(self.__getitem__, self._each_sample_id(it))
         it.exit()

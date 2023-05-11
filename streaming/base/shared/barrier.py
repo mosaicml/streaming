@@ -3,16 +3,13 @@
 
 """Barrier that lives in shared memory.
 
-Implemented with shared array and a filelock.
+Implemented with shared array and a torch multiprocessing lock.
 """
 
-import atexit
-import os
-import shutil
 from time import sleep
 
 import numpy as np
-from filelock import FileLock
+from torch.multiprocessing import Manager
 
 from streaming.base.shared.array import SharedArray
 
@@ -24,39 +21,25 @@ TIMEOUT = 60
 
 
 class SharedBarrier:
-    """A barrier that works inter-process using a file lock and shared memory.
+    """A barrier that works inter-process using a torch multiprocessing lock and shared memory.
 
     We set the number of processes (and thereby initialize num_exit) on the first time this object
     is called. This is because the object is created in a per-rank process, and called by worker
     processes.
 
     Args:
-        filelock_path (str): Path to lock file on local filesystem.
-        shm_path (str): Shared memory object name in /dev/shm.
+        shm_name (str): Shared memory object name in /dev/shm.
     """
 
-    def __init__(self, filelock_path: str, shm_path: str) -> None:
-        self.filelock_path = filelock_path
-
+    def __init__(self, shm_name: str) -> None:
         # Create three int32 fields in shared memory: num_enter, num_exit, flag.
-        self._arr = SharedArray(3, np.int32, shm_path)
+        self._arr = SharedArray(3, np.int32, shm_name)
         self.num_enter = 0
         self.num_exit = -1
         self.flag = True
 
-        # Create filelock.
-        dirname = os.path.dirname(filelock_path)
-        if dirname:
-            os.makedirs(dirname, exist_ok=True)
-        self.lock = FileLock(filelock_path)
-
-        def cleanup():
-            """Directory clean up."""
-            if os.path.islink(dirname):
-                os.unlink(dirname)
-            shutil.rmtree(dirname, ignore_errors=True)
-
-        atexit.register(cleanup)
+        # Create lock.
+        self.lock = Manager().Lock()
 
     @property
     def num_enter(self) -> int:

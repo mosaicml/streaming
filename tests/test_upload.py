@@ -9,7 +9,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from streaming.base.storage.upload import CloudUploader, GCSUploader, LocalUploader, S3Uploader
+from streaming.base.storage.upload import (AzureUploader, CloudUploader, GCSUploader,
+                                           LocalUploader, R2Uploader, S3Uploader)
 
 
 class TestCloudUploader:
@@ -183,6 +184,94 @@ class TestGCSUploader:
         import botocore
         with pytest.raises(botocore.exceptions.ClientError):
             _ = GCSUploader(out=out)
+
+
+class TestR2Uploader:
+
+    @patch('streaming.base.storage.upload.R2Uploader.check_bucket_exists')
+    @pytest.mark.parametrize('out', ['r2://bucket/dir', ('./dir1', 'r2://bucket/dir/')])
+    def test_instantiation(self, mocked_requests: Mock, out: Any):
+        mocked_requests.side_effect = None
+        _ = R2Uploader(out=out)
+        if not isinstance(out, str):
+            shutil.rmtree(out[0])
+
+    @pytest.mark.parametrize('out', ['r3://bucket/dir'])
+    def test_invalid_remote_str(self, out: str):
+        with pytest.raises(ValueError) as exc_info:
+            _ = R2Uploader(out=out)
+        assert exc_info.match(r'Invalid Cloud provider prefix.*')
+
+    @pytest.mark.parametrize('out', ['r3://bucket/dir', ('./dir1', 'ocix://bucket/dir/')])
+    def test_invalid_remote_list(self, out: Any):
+        with pytest.raises(ValueError) as exc_info:
+            _ = R2Uploader(out=out)
+        assert exc_info.match(r'Invalid Cloud provider prefix.*')
+
+    def test_local_directory_is_empty(self, local_remote_dir: Tuple[str, str]):
+        with pytest.raises(FileExistsError) as exc_info:
+            local, _ = local_remote_dir
+            os.makedirs(local, exist_ok=True)
+            local_file_path = os.path.join(local, 'file.txt')
+            # Creating an empty file at specified location
+            with open(local_file_path, 'w') as _:
+                pass
+            _ = R2Uploader(out=local)
+        assert exc_info.match(r'Directory is not empty.*')
+
+    @pytest.mark.usefixtures('r2_client', 'r2_test')
+    def test_upload_file(self, local_remote_dir: Tuple[str, str]):
+        with tempfile.NamedTemporaryFile(delete=True, suffix='.txt') as tmp:
+            filename = tmp.name.split(os.sep)[-1]
+            local, _ = local_remote_dir
+            remote = 'r2://streaming-test-bucket/path'
+            local_file_path = os.path.join(local, filename)
+            r2w = R2Uploader(out=(local, remote))
+            with open(local_file_path, 'w') as _:
+                pass
+            r2w.upload_file(filename)
+            assert not os.path.exists(local_file_path)
+
+    @pytest.mark.parametrize('out', ['r2://bucket/dir'])
+    def test_check_bucket_exists_exception(self, out: str):
+        import botocore
+        with pytest.raises(botocore.exceptions.ClientError):
+            _ = R2Uploader(out=out)
+
+
+class TestAzureUploader:
+
+    @patch('streaming.base.storage.upload.AzureUploader.check_bucket_exists')
+    @pytest.mark.usefixtures('azure_credentials')
+    @pytest.mark.parametrize('out', ['azure://bucket/dir', ('./dir1', 'azure://bucket/dir/')])
+    def test_instantiation(self, mocked_requests: Mock, out: Any):
+        mocked_requests.side_effect = None
+        _ = AzureUploader(out=out)
+        if not isinstance(out, str):
+            shutil.rmtree(out[0])
+
+    @pytest.mark.parametrize('out', ['ss4://bucket/dir'])
+    def test_invalid_remote_str(self, out: str):
+        with pytest.raises(ValueError) as exc_info:
+            _ = AzureUploader(out=out)
+        assert exc_info.match(r'Invalid Cloud provider prefix.*')
+
+    @pytest.mark.parametrize('out', ['ss4://bucket/dir', ('./dir1', 'gcs://bucket/dir/')])
+    def test_invalid_remote_list(self, out: Any):
+        with pytest.raises(ValueError) as exc_info:
+            _ = AzureUploader(out=out)
+        assert exc_info.match(r'Invalid Cloud provider prefix.*')
+
+    def test_local_directory_is_empty(self, local_remote_dir: Tuple[str, str]):
+        with pytest.raises(FileExistsError) as exc_info:
+            local, _ = local_remote_dir
+            os.makedirs(local, exist_ok=True)
+            local_file_path = os.path.join(local, 'file.txt')
+            # Creating an empty file at specified location
+            with open(local_file_path, 'w') as _:
+                pass
+            _ = AzureUploader(out=local)
+        assert exc_info.match(r'Directory is not empty.*')
 
 
 class TestLocalUploader:

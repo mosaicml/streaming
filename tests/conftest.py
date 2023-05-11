@@ -17,6 +17,7 @@ from tests.test_reader import mds_dataset_dir  # pyright: ignore
 MY_BUCKET = 'streaming-test-bucket'
 MY_PREFIX = 'train'
 GCS_URL = 'https://storage.googleapis.com'
+R2_URL = 'https://r2.cloudflarestorage.com'
 
 
 @pytest.fixture(scope='function')
@@ -33,6 +34,13 @@ def pytest_runtest_call(item: Any):
         dist_test_class = item.cls()
         dist_test_class._run_test(item._request)
         item.runtest = lambda: True  # Dummy function so test is not run twice
+
+
+@pytest.fixture(scope='session', autouse=True)
+def azure_credentials():
+    """Mocked azure Credentials."""
+    os.environ['AZURE_ACCOUNT_NAME'] = 'testing'
+    os.environ['AZURE_ACCOUNT_ACCESS_KEY'] = 'testing'
 
 
 @pytest.fixture(scope='session', autouse=True)
@@ -98,5 +106,34 @@ def test_list_gcs_buckets():
                           endpoint_url=GCS_URL,
                           aws_access_key_id=os.environ['GCS_KEY'],
                           aws_secret_access_key=os.environ['GCS_SECRET'])
+    buckets = client.list_buckets()
+    assert buckets['Buckets'][0]['Name'] == MY_BUCKET
+
+
+@pytest.fixture(scope='session', autouse=True)
+def r2_credentials():
+    """Mocked R2 Credentials for moto."""
+    os.environ['S3_ENDPOINT_URL'] = R2_URL
+
+
+@pytest.fixture()
+def r2_client(r2_credentials: Any):
+    # Have to inline this, as the URL-param is not available as a context decorator
+    with patch.dict(os.environ, {'MOTO_S3_CUSTOM_ENDPOINTS': R2_URL}):
+        # Mock needs to be started after the environment variable is patched in
+        with mock_s3():
+            conn = boto3.client('s3', region_name='us-east-1', endpoint_url=R2_URL)
+            yield conn
+
+
+@pytest.fixture()
+def r2_test(r2_client: Any, bucket_name: str):
+    r2_client.create_bucket(Bucket=bucket_name)
+    yield
+
+
+@pytest.mark.usefixtures('r2_client', 'r2_test')
+def test_list_r2_buckets():
+    client = boto3.client('s3', region_name='us-east-1', endpoint_url=R2_URL)
     buckets = client.list_buckets()
     assert buckets['Buckets'][0]['Name'] == MY_BUCKET

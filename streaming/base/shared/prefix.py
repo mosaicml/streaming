@@ -4,14 +4,13 @@
 """Register or look up the prefix to use for all shared resources.
 
 The prefix is used by all workers using this StreamingDataset of this training job. This is used to
-prevent shared resources like shared memory and filelocks from colliding.
+prevent shared resources like shared memory from colliding.
 """
 
 from time import sleep
 from typing import Iterator, List, Set, Tuple
 
 import numpy as np
-import torch
 from torch import distributed as dist
 
 from streaming.base.shared import SharedMemory
@@ -159,13 +158,7 @@ def get_shm_prefix(my_locals: List[str],
         shm = SharedMemory(name, True, len(data))
         shm.buf[:len(data)] = data
 
-    # Distributed barrier over all ranks, possibly setting up dist to do so.
-    destroy_dist = False
-    if 1 < world.num_ranks:
-        if dist.is_available() and not dist.is_initialized():
-            backend = 'nccl' if torch.cuda.is_available() and dist.is_nccl_available() else 'gloo'
-            dist.init_process_group(backend=backend, rank=world.rank, world_size=world.num_ranks)
-            destroy_dist = True
+    if dist.is_available() and dist.is_initialized():
         dist.barrier()
 
     # Non-local leaders go next, searching for match.
@@ -180,11 +173,5 @@ def get_shm_prefix(my_locals: List[str],
             their_locals_set = _unpack_locals(bytes(shm.buf))
             if my_locals_set == their_locals_set:
                 break
-
-    # Distributed barrier, then tear down dist if we set it up.
-    if dist.is_available() and dist.is_initialized():
-        dist.barrier()
-    if destroy_dist:
-        dist.destroy_process_group()
 
     return prefix, shm  # pyright: ignore

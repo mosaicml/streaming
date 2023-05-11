@@ -286,5 +286,5 @@ def test_empty_shards_index_json_exception(local_remote_dir: Tuple[str, str]):
     with open(os.path.join(local_dir, filename), 'w') as outfile:
         json.dump(content, outfile)
 
-    with pytest.raises(RuntimeError, match=f'Empty `shards` in.*file.'):
+    with pytest.raises(RuntimeError, match=f'Stream contains no samples: .*'):
         _ = StreamingDataset(local=local_dir)

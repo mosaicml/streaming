@@ -10,13 +10,13 @@ from typing import List, Optional, Sequence
 
 import numpy as np
 from numpy.typing import NDArray
+from torch import distributed as dist
 from typing_extensions import Self
 
 from streaming.base.compression import decompress
 from streaming.base.format import FileInfo, Reader, get_index_basename, reader_from_json
 from streaming.base.hashing import get_hash
 from streaming.base.storage import download_file
-from streaming.base.util import TICK, wait_for_file_to_exist
 from streaming.base.world import World
 
 
@@ -377,15 +377,19 @@ class Stream:
             filename = self._download_file(basename)
         else:
             filename = os.path.join(self.local, self.split, basename)  # pyright: ignore
-            wait_for_file_to_exist(filename, TICK, self.download_timeout,
-                                   f'{filename} file took too long to download')
 
+        # Wait for the download to complete.
+        if dist.is_available() and dist.is_initialized():
+            dist.barrier()
+
+        # Load the index.
         try:
             obj = json.load(open(filename))
         except json.decoder.JSONDecodeError as error:
             error.args = (f'Index file at {filename} is empty or corrupted. ' + error.args[0],)
             raise error
 
+        # Version check.
         if obj['version'] != 2:
             raise ValueError(f'Unsupported version: {obj["version"]}')
 
@@ -408,16 +412,16 @@ class Stream:
         """
         # List the cache directory (so that we hit the filesystem once).
         local_dirname = os.path.join(self.local, self.split)
-        ls = set()
+        listing = set()
         for dirname, _, subfiles in os.walk(local_dirname):
             for subfile in subfiles:
                 filename = os.path.join(dirname, subfile)
-                ls.add(filename)
+                listing.add(filename)
 
         # Determine which shards are present, making local dir consistent.
         are_shards_present = []
         for shard in shards:
-            is_shard_present = shard.init_local_dir(ls, self.safe_keep_zip)
+            is_shard_present = shard.init_local_dir(listing, self.safe_keep_zip)
             are_shards_present.append(is_shard_present)
         return are_shards_present
 
