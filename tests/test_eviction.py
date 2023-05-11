@@ -114,12 +114,12 @@ funcs = one, two, three, four, five
 
 @pytest.mark.usefixtures('local_remote_dir')
 def test_eviction_nozip(local_remote_dir: Tuple[str, str]):
-    num_samples = 10_000
+    num_samples = 5_000
     local, remote = local_remote_dir
     columns = {'data': 'bytes'}
     compression = None
     hashes = None
-    size_limit = 5_000
+    size_limit = 500
 
     with MDSWriter(out=remote,
                    columns=columns,
@@ -127,7 +127,7 @@ def test_eviction_nozip(local_remote_dir: Tuple[str, str]):
                    hashes=hashes,
                    size_limit=size_limit) as out:
         for _ in range(num_samples):
-            sample = {'data': b'\0' * 10}
+            sample = {'data': b'\0'}}
             out.write(sample)
 
     for func in funcs:
@@ -136,12 +136,12 @@ def test_eviction_nozip(local_remote_dir: Tuple[str, str]):
 
 @pytest.mark.usefixtures('local_remote_dir')
 def test_eviction_zip_nokeep(local_remote_dir: Tuple[str, str]):
-    num_samples = 10_000
+    num_samples = 5_000
     local, remote = local_remote_dir
     columns = {'data': 'bytes'}
     compression = 'zstd'
     hashes = None
-    size_limit = 5_000
+    size_limit = 500
 
     with MDSWriter(out=remote,
                    columns=columns,
@@ -149,7 +149,7 @@ def test_eviction_zip_nokeep(local_remote_dir: Tuple[str, str]):
                    hashes=hashes,
                    size_limit=size_limit) as out:
         for _ in range(num_samples):
-            sample = {'data': b'\0' * 10}
+            sample = {'data': b'\0'}
             out.write(sample)
 
     for func in funcs:
@@ -159,12 +159,12 @@ def test_eviction_zip_nokeep(local_remote_dir: Tuple[str, str]):
 
 @pytest.mark.usefixtures('local_remote_dir')
 def test_eviction_zip_keep(local_remote_dir: Tuple[str, str]):
-    num_samples = 10_000
+    num_samples = 5_000
     local, remote = local_remote_dir
     columns = {'data': 'bytes'}
     compression = 'zstd'
     hashes = None
-    size_limit = 5_000
+    size_limit = 500
 
     with MDSWriter(out=remote,
                    columns=columns,
@@ -172,7 +172,7 @@ def test_eviction_zip_keep(local_remote_dir: Tuple[str, str]):
                    hashes=hashes,
                    size_limit=size_limit) as out:
         for _ in range(num_samples):
-            sample = {'data': b'\0' * 10}
+            sample = {'data': b'\0'}
             out.write(sample)
 
     for func in funcs:
