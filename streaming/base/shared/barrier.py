@@ -47,6 +47,7 @@ class SharedBarrier:
             if os.path.islink(dirname):
                 os.unlink(dirname)
             rmtree(dirname, ignore_errors=True)
+
         atexit.register(cleanup)
 
         # Create three int32 fields in shared memory: num_enter, num_exit, flag.
