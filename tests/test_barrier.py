@@ -15,9 +15,10 @@ from streaming.base.shared import SharedArray, SharedBarrier
 
 class TestSharedBarrier:
 
+    @pytest.mark.parametrize('filelock_path', ['barrier_filelock_path'])
     @pytest.mark.parametrize('shm_name', ['barrier_shm_name'])
-    def test_params(self, shm_name: str):
-        barrier = SharedBarrier(shm_name)
+    def test_params(self, filelock_path: str, shm_name: str):
+        barrier = SharedBarrier(filelock_path, shm_name)
         assert isinstance(barrier._arr, SharedArray)
         assert barrier._arr.shape == (3,)
         assert barrier.num_enter == 0
@@ -28,7 +29,7 @@ class TestSharedBarrier:
     @pytest.mark.parametrize('num_exit', [4, 9])
     @pytest.mark.parametrize('flag', [True, False])
     def test_setter_getter(self, num_enter: int, num_exit: int, flag: bool):
-        barrier = SharedBarrier('barrier_shm_name')
+        barrier = SharedBarrier('/tmp/dir/filelock_path', 'barrier_shm_name')
         barrier.num_enter = num_enter
         assert barrier.num_enter == num_enter
         barrier.num_exit = num_exit
@@ -49,7 +50,7 @@ class TestSharedBarrier:
         mp.set_start_method('fork', force=True)
         manager = mp.Manager()
         shared_list = manager.list()
-        barrier = SharedBarrier('barrier_shm_name')
+        barrier = SharedBarrier('/tmp/dir/filelock_path', 'barrier_shm_name')
         processes = [
             mp.Process(target=self.run, args=(num_process, barrier, shared_list))
             for _ in range(num_process)

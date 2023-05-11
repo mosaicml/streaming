@@ -15,9 +15,9 @@ from typing import Any, Dict, Iterator, Optional, Sequence, Tuple
 
 import numpy as np
 import torch
+from filelock import FileLock
 from numpy.typing import NDArray
 from torch import distributed as dist
-from torch.multiprocessing import Manager
 from torch.utils.data import IterableDataset
 
 from streaming.base.array import Array
@@ -367,12 +367,15 @@ class StreamingDataset(Array, IterableDataset):
         self.choose = Stream.apply_weights(self.streams, self.samples_per_stream, choose,
                                            self.shuffle_seed)
 
-        # Register/lookup our shared memory prefix.
+        # Register/lookup our shared memory prefix and filelock root directory.
         my_locals = [os.path.abspath(os.path.join(x.local, x.split)) for x in streams]
         self._shm_prefix, self._locals_shm = get_shm_prefix(my_locals, world)
+        self._filelock_root = os.path.join(os.path.sep, 'tmp', 'streaming', self._shm_prefix)
+        os.makedirs(self._filelock_root, exist_ok=True)
 
         # Create the shared memory-backed barrier, without its lock, which is unpickleable.
-        self._shared_barrier = SharedBarrier(f'{self._shm_prefix}_barrier')
+        self._shared_barrier = SharedBarrier(os.path.join(self._filelock_root, 'barrier_filelock'),
+                                             f'{self._shm_prefix}_barrier')
 
         # Epoch counter.
         #
@@ -381,8 +384,9 @@ class StreamingDataset(Array, IterableDataset):
         # to track what the next epoch is, not the current epoch.
         self._next_epoch = SharedScalar(np.int64, f'{self._shm_prefix}_next_epoch')
 
-        # Cache torch multiprocessing lock. Proects downloading and evicting shards.
-        self._cache_lock = Manager().Lock()
+        # Cache filelock. Protects downloading and evicting shards.
+        self._cache_filelock_path = os.path.join(self._filelock_root, '_cache_filelock')
+        self._cache_filelock: FileLock
 
         # Cache usage in bytes.
         self._cache_usage = SharedScalar(np.int64, f'{self._shm_prefix}_cache_usage')
@@ -449,6 +453,8 @@ class StreamingDataset(Array, IterableDataset):
         # For exception handling in __iter__ threads.
         self._executor: ThreadPoolExecutor
         self._event: Event
+
+        del self._shared_barrier.lock  # Remote the lock that makes it unpickleable.
 
     def __del__(self) -> None:
         """Destructor, which releases its local working directories."""
@@ -560,6 +566,11 @@ class StreamingDataset(Array, IterableDataset):
         Returns:
             Tuple[int, int]: What epoch this is, and sample offset in that epoch.
         """
+        # Lazily create the shared barrier's FileLock, which contains a threading Lock, which is
+        # unpickleable.
+        if not hasattr(self._shared_barrier, 'lock'):
+            self._shared_barrier.lock = FileLock(self._shared_barrier.filelock_path)
+
         # Either resume from checkpoint, or start from scratch.
         presumed_epoch = self.next_epoch
         epoch, sample_in_epoch = self._resume(world, presumed_epoch)
@@ -789,6 +800,11 @@ class StreamingDataset(Array, IterableDataset):
         Returns:
             Optional[NDArray[np.int64]]: Our partition of the epoch.
         """
+        # Lazily create the shared barrier's FileLock, which contains a threading Lock, which is
+        # unpickleable.
+        if not hasattr(self._shared_barrier, 'lock'):
+            self._shared_barrier.lock = FileLock(self._shared_barrier.filelock_path)
+
         # Do expensive work that may use a lot of cores/memory just once, in the local leader.
         if world.is_local_leader:
             epoch_sample_ids = self._generate_work(world, epoch, sample_in_epoch)
@@ -813,7 +829,7 @@ class StreamingDataset(Array, IterableDataset):
     def _evict_shard(self, shard_id: int) -> None:
         """Evict the given shard.
 
-        Assumes you hold ``_cache_lock``, preventing anyone else from modifying the cache. We
+        Assumes you hold ``_cache_filelock``, preventing anyone else from modifying the cache. We
         expect that shard deletions are very fast.
 
         This method is called internally by ``download_shard`` to clear space for more downloads.
@@ -840,7 +856,7 @@ class StreamingDataset(Array, IterableDataset):
     def _evict_coldest_shard(self) -> None:
         """Evict the coldeset (i.e., least recently accessed) shard.
 
-        Assumes you hold ``__cache_lock``, preventing anyone else from modifying the cache. We
+        Assumes you hold ``__cache_filelock``, preventing anyone else from modifying the cache. We
         expect that shard deletions are very fast.
 
         This method is called internally by ``download_shard`` to clear space for more downloads.
@@ -875,7 +891,12 @@ class StreamingDataset(Array, IterableDataset):
         Args:
             shard_id (int): Shard to evict.
         """
-        with self._cache_lock:
+        # Lock the cache. FileLocks contain threading Locks, which are not pickleable, which is
+        # incompatible with spawn, so must be created lazily.
+        if not hasattr(self, '_cache_filelock'):
+            self._cache_filelock = FileLock(self._cache_filelock_path)
+
+        with self._cache_filelock:
             self._evict_shard(shard_id)
 
     def evict_coldest_shard(self) -> None:
@@ -883,7 +904,12 @@ class StreamingDataset(Array, IterableDataset):
 
         This method is multithread/multiprocess-safe.
         """
-        with self._cache_lock:
+        # Lock the cache. FileLocks contain threading Locks, which are not pickleable, which is
+        # incompatible with spawn, so must be created lazily.
+        if not hasattr(self, '_cache_filelock'):
+            self._cache_filelock = FileLock(self._cache_filelock_path)
+
+        with self._cache_filelock:
             self._evict_coldest_shard()
 
     def download_shard(self, shard_id: int, blocking: bool = True) -> None:
@@ -899,8 +925,14 @@ class StreamingDataset(Array, IterableDataset):
             blocking (bool): Whether to wait or skip if the shard is currently being downloaded by
                 someone else.
         """
+        # Lock the cache. FileLocks contain threading Locks, which are not pickleable, which is
+        # incompatible with spawn, so must be created lazily.
+        if not hasattr(self, '_cache_filelock'):
+            self._cache_filelock = FileLock(self._cache_filelock_path)
+        lock = self._cache_filelock
+        lock.acquire()
+
         # Get the state of the shard to download.
-        self._cache_lock.acquire()
         state = self._shard_states[shard_id]
 
         # Which state is it in?
@@ -926,7 +958,7 @@ class StreamingDataset(Array, IterableDataset):
             self.cache_usage += shard.get_persistent_size(stream.safe_keep_zip)
 
             # With the above preamble done, we can release the cache lock.
-            self._cache_lock.release()
+            lock.release()
 
             # Perform the download (shard will not be modified in DOWNLOADING state).
             stream.download_shard(shard)
@@ -937,7 +969,7 @@ class StreamingDataset(Array, IterableDataset):
         elif state == _ShardState.DOWNLOADING:
             # Someone else is currently downloading the shard. Release the lock for others to make
             # progress.
-            self._cache_lock.release()
+            lock.release()
 
             # Do we wait on them?
             if blocking:
@@ -951,10 +983,10 @@ class StreamingDataset(Array, IterableDataset):
         elif state == _ShardState.PRESENT:
             # Shard is already downloaded. There is nothing to do, except touch the shard.
             self._shard_access_times[shard_id] = time_ns()
-            self._cache_lock.release()
+            lock.release()
         else:
             # Unknown state.
-            self._cache_lock.release()
+            lock.release()
             raise RuntimeError(f'Invalid shard state: {state}')
 
     def get_item(self, sample_id: int, retry: int = 7) -> Any:
