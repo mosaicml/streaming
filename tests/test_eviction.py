@@ -127,7 +127,7 @@ def test_eviction_nozip(local_remote_dir: Tuple[str, str]):
                    hashes=hashes,
                    size_limit=size_limit) as out:
         for _ in range(num_samples):
-            sample = {'data': b'\0'}}
+            sample = {'data': b'\0'}
             out.write(sample)
 
     for func in funcs:
