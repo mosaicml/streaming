@@ -37,6 +37,13 @@ def pytest_runtest_call(item: Any):
 
 
 @pytest.fixture(scope='session', autouse=True)
+def azure_credentials():
+    """Mocked azure Credentials."""
+    os.environ['AZURE_ACCOUNT_NAME'] = 'testing'
+    os.environ['AZURE_ACCOUNT_ACCESS_KEY'] = 'testing'
+
+
+@pytest.fixture(scope='session', autouse=True)
 def aws_credentials():
     """Mocked AWS Credentials for moto."""
     os.environ['AWS_ACCESS_KEY_ID'] = 'testing'

@@ -55,6 +55,7 @@ install_requires = [
     'xxhash>=3.0.0,<4',
     'zstd>=1.5.2.5,<2',
     'oci>=2.88,<3',
+    'azure-storage-blob>=12.0.0,<13',
 ]
 
 extra_deps = {}
