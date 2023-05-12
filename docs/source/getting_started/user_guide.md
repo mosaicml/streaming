@@ -142,7 +142,7 @@ from streaming import StreamingDataset
 
 class CustomDataset(StreamingDataset):
     def __init__(self, local, remote):
-        super().__init__(local, remote)
+        super().__init__(local=local, remote=remote)
 
     def __getitem__(self, idx: int) -> Any:
         obj = super().__getitem__(idx)
