@@ -10,13 +10,13 @@ from typing import List, Optional, Sequence
 
 import numpy as np
 from numpy.typing import NDArray
-from torch import distributed as dist
 from typing_extensions import Self
 
 from streaming.base.compression import decompress
 from streaming.base.format import FileInfo, Reader, get_index_basename, reader_from_json
 from streaming.base.hashing import get_hash
 from streaming.base.storage import download_file
+from streaming.base.util import TICK, wait_for_file_to_exist
 from streaming.base.world import World
 
 
@@ -250,11 +250,12 @@ class Stream:
 
         return choose_per_epoch
 
-    def _download_file(self, basename: str) -> str:
+    def _download_file(self, from_basename: str, to_basename: Optional[str] = None) -> str:
         """Safely download a file from remote to local cache.
 
         Args:
-            basename (str): Basename of file to download.
+            from_basename (str): Source basename.
+            to_basename (str, optional): Destination basename, if different.
 
         Returns:
             str: Local cache filename.
@@ -263,8 +264,8 @@ class Stream:
         if self.remote is None:
             remote = None
         else:
-            remote = os.path.join(self.remote, self.split, basename)
-        local = os.path.join(self.local, self.split, basename)
+            remote = os.path.join(self.remote, self.split, from_basename)
+        local = os.path.join(self.local, self.split, to_basename or from_basename)
 
         # Attempt to download, possibly repeating on failure.
         errors = []
@@ -373,14 +374,18 @@ class Stream:
         """
         # Download the index.
         basename = get_index_basename()
+        filename = os.path.join(self.local, self.split, basename)  # pyright: ignore
         if world.is_local_leader:
-            filename = self._download_file(basename)
+            if self.remote:
+                tmp_filename = self._download_file(basename, basename + '.tmp')
+                os.rename(tmp_filename, filename)
+            else:
+                if not os.path.exists(filename):
+                    raise RuntimeError(f'No remote provided, but local file {filename} does not ' +
+                                       'exist either')
         else:
-            filename = os.path.join(self.local, self.split, basename)  # pyright: ignore
-
-        # Wait for the download to complete.
-        if dist.is_available() and dist.is_initialized():
-            dist.barrier()
+            wait_for_file_to_exist(filename, TICK, 60,
+                                   f'Index file {filename} took too long to download')
 
         # Load the index.
         try:
