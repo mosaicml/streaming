@@ -190,7 +190,7 @@ dataset = StreamingInsideWebVid(local=local, remote=remote, shuffle=True)
 
 ## Seamless data mixing
 
-Easily experiment with dataset mixtures with `Stream`. Dataset sampling can be controlled in relative (proportion) or absolute (repeat or samples terms). During streaming, the different datasets are streamed, shuffled, and mixed seamlessly just-in-time. 
+Easily experiment with dataset mixtures with [`Stream`](https://docs.mosaicml.com/projects/streaming/en/latest/api_reference/generated/streaming.Stream.html#stream). Dataset sampling can be controlled in relative (proportion) or absolute (repeat or samples terms). During streaming, the different datasets are streamed, shuffled, and mixed seamlessly just-in-time.
 
 ```
 # mix C4, github code, and internal datasets
@@ -201,7 +201,7 @@ streams = [
 ]
 
 dataset = StreamingDataset(
-  streams=streams,  
+  streams=streams,
   proportion=[0.4, 0.1, 0.5],
   samples_per_epoch=1e8,
 )
