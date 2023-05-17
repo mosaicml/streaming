@@ -44,7 +44,7 @@ def download_from_s3(remote: str, local: str, timeout: float) -> None:
         # Create a new session per thread
         session = boto3.session.Session()
         # Create a resource client using a thread's session object
-        s3 = session.client('s3', config=config)
+        s3 = session.client('s3', config=config, endpoint_url=os.environ.get('S3_ENDPOINT_URL'))
         # Threads calling S3 operations return RuntimeError (cannot schedule new futures after
         # interpreter shutdown). Temporary solution is to have `use_threads` as `False`.
         # Issue: https://github.com/boto/boto3/issues/3113
@@ -213,42 +213,6 @@ def download_from_oci(remote: str, local: str) -> None:
     os.rename(local_tmp, local)
 
 
-def download_from_r2(remote: str, local: str) -> None:
-    """Download a file from remote Cloudflare R2 to local.
-
-    Args:
-        remote (str): Remote path (R2).
-        local (str): Local path (local filesystem).
-    """
-    import boto3
-    from boto3.s3.transfer import TransferConfig
-    from botocore.exceptions import ClientError
-
-    obj = urllib.parse.urlparse(remote)
-    if obj.scheme != 'r2':
-        raise ValueError(f'Expected obj.scheme to be "r2", got {obj.scheme} for remote={remote}')
-
-    # Create a new session per thread
-    session = boto3.session.Session()
-    # Create a resource client using a thread's session object
-    r2_client = session.client('s3',
-                               region_name='auto',
-                               endpoint_url=os.environ['S3_ENDPOINT_URL'])
-    try:
-        # Threads calling S3 operations return RuntimeError (cannot schedule new futures after
-        # interpreter shutdown). Temporary solution is to have `use_threads` as `False`.
-        # Issue: https://github.com/boto/boto3/issues/3113
-        r2_client.download_file(obj.netloc,
-                                obj.path.lstrip('/'),
-                                local,
-                                Config=TransferConfig(use_threads=False))
-    except ClientError as e:
-        if e.response['Error']['Code'] in BOTOCORE_CLIENT_ERROR_CODES:
-            raise FileNotFoundError(f'Object {remote} not found.') from e
-    except Exception:
-        raise
-
-
 def download_from_azure(remote: str, local: str) -> None:
     """Download a file from remote Microsoft Azure to local.
 
@@ -323,8 +287,6 @@ def download_file(remote: Optional[str], local: str, timeout: float):
         download_from_gcs(remote, local)
     elif remote.startswith('oci://'):
         download_from_oci(remote, local)
-    elif remote.startswith('r2://'):
-        download_from_r2(remote, local)
     elif remote.startswith('azure://'):
         download_from_azure(remote, local)
     else:

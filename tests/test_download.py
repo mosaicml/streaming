@@ -104,7 +104,7 @@ class TestR2Client:
     def test_download_from_r2(self, remote_local_file: Any):
         with tempfile.NamedTemporaryFile(delete=True, suffix='.txt') as tmp:
             file_name = tmp.name.split(os.sep)[-1]
-            mock_remote_filepath, _ = remote_local_file(cloud_prefix='r2://', filename=file_name)
+            mock_remote_filepath, _ = remote_local_file(cloud_prefix='s3://', filename=file_name)
             client = boto3.client('s3', region_name='us-east-1', endpoint_url=R2_URL)
             client.put_object(Bucket=MY_BUCKET, Key=os.path.join(MY_PREFIX, file_name), Body='')
             download_from_r2(mock_remote_filepath, tmp.name)
@@ -113,7 +113,7 @@ class TestR2Client:
     @pytest.mark.usefixtures('r2_client', 'r2_test', 'remote_local_file')
     def test_filenotfound_exception(self, remote_local_file: Any):
         with pytest.raises(FileNotFoundError):
-            mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='r2://')
+            mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='s3://')
             download_from_r2(mock_remote_filepath, mock_local_filepath)
 
     @pytest.mark.usefixtures('r2_client', 'r2_test', 'remote_local_file')
@@ -158,7 +158,7 @@ class TestDownload:
     @patch('streaming.base.storage.download.download_from_r2')
     @pytest.mark.usefixtures('remote_local_file')
     def test_download_from_r2_gets_called(self, mocked_requests: Mock, remote_local_file: Any):
-        mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='r2://')
+        mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='s3://')
         download_file(mock_remote_filepath, mock_local_filepath, 60)
         mocked_requests.assert_called_once()
         mocked_requests.assert_called_once_with(mock_remote_filepath, mock_local_filepath)

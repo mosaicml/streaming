@@ -189,7 +189,7 @@ class TestGCSUploader:
 class TestR2Uploader:
 
     @patch('streaming.base.storage.upload.R2Uploader.check_bucket_exists')
-    @pytest.mark.parametrize('out', ['r2://bucket/dir', ('./dir1', 'r2://bucket/dir/')])
+    @pytest.mark.parametrize('out', ['s3://bucket/dir', ('./dir1', 's3://bucket/dir/')])
     def test_instantiation(self, mocked_requests: Mock, out: Any):
         mocked_requests.side_effect = None
         _ = R2Uploader(out=out)
@@ -224,7 +224,7 @@ class TestR2Uploader:
         with tempfile.NamedTemporaryFile(delete=True, suffix='.txt') as tmp:
             filename = tmp.name.split(os.sep)[-1]
             local, _ = local_remote_dir
-            remote = 'r2://streaming-test-bucket/path'
+            remote = 's3://streaming-test-bucket/path'
             local_file_path = os.path.join(local, filename)
             r2w = R2Uploader(out=(local, remote))
             with open(local_file_path, 'w') as _:
@@ -232,7 +232,7 @@ class TestR2Uploader:
             r2w.upload_file(filename)
             assert not os.path.exists(local_file_path)
 
-    @pytest.mark.parametrize('out', ['r2://bucket/dir'])
+    @pytest.mark.parametrize('out', ['s3://bucket/dir'])
     def test_check_bucket_exists_exception(self, out: str):
         import botocore
         with pytest.raises(botocore.exceptions.ClientError):
