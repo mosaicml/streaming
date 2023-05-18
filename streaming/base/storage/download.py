@@ -45,9 +45,17 @@ def download_from_s3(remote: str, local: str, timeout: float) -> None:
         session = boto3.session.Session()
         # Create a resource client using a thread's session object
         s3 = session.client('s3', config=config)
-        s3.download_file(obj.netloc, obj.path.lstrip('/'), local, ExtraArgs=extra_args)
+        # Threads calling S3 operations return RuntimeError (cannot schedule new futures after
+        # interpreter shutdown). Temporary solution is to have `use_threads` as `False`.
+        # Issue: https://github.com/boto/boto3/issues/3113
+        s3.download_file(obj.netloc,
+                         obj.path.lstrip('/'),
+                         local,
+                         ExtraArgs=extra_args,
+                         Config=TransferConfig(use_threads=False))
 
     import boto3
+    from boto3.s3.transfer import TransferConfig
     from botocore import UNSIGNED
     from botocore.config import Config
     from botocore.exceptions import ClientError, NoCredentialsError
@@ -148,6 +156,7 @@ def download_from_gcs(remote: str, local: str) -> None:
         local (str): Local path (local filesystem).
     """
     import boto3
+    from boto3.s3.transfer import TransferConfig
     from botocore.exceptions import ClientError
 
     obj = urllib.parse.urlparse(remote)
@@ -163,7 +172,13 @@ def download_from_gcs(remote: str, local: str) -> None:
                                 aws_access_key_id=os.environ['GCS_KEY'],
                                 aws_secret_access_key=os.environ['GCS_SECRET'])
     try:
-        gcs_client.download_file(obj.netloc, obj.path.lstrip('/'), local)
+        # Threads calling S3 operations return RuntimeError (cannot schedule new futures after
+        # interpreter shutdown). Temporary solution is to have `use_threads` as `False`.
+        # Issue: https://github.com/boto/boto3/issues/3113
+        gcs_client.download_file(obj.netloc,
+                                 obj.path.lstrip('/'),
+                                 local,
+                                 Config=TransferConfig(use_threads=False))
     except ClientError as e:
         if e.response['Error']['Code'] in BOTOCORE_CLIENT_ERROR_CODES:
             raise FileNotFoundError(f'Object {remote} not found.') from e
@@ -206,6 +221,7 @@ def download_from_r2(remote: str, local: str) -> None:
         local (str): Local path (local filesystem).
     """
     import boto3
+    from boto3.s3.transfer import TransferConfig
     from botocore.exceptions import ClientError
 
     obj = urllib.parse.urlparse(remote)
@@ -219,7 +235,13 @@ def download_from_r2(remote: str, local: str) -> None:
                                region_name='auto',
                                endpoint_url=os.environ['S3_ENDPOINT_URL'])
     try:
-        r2_client.download_file(obj.netloc, obj.path.lstrip('/'), local)
+        # Threads calling S3 operations return RuntimeError (cannot schedule new futures after
+        # interpreter shutdown). Temporary solution is to have `use_threads` as `False`.
+        # Issue: https://github.com/boto/boto3/issues/3113
+        r2_client.download_file(obj.netloc,
+                                obj.path.lstrip('/'),
+                                local,
+                                Config=TransferConfig(use_threads=False))
     except ClientError as e:
         if e.response['Error']['Code'] in BOTOCORE_CLIENT_ERROR_CODES:
             raise FileNotFoundError(f'Object {remote} not found.') from e

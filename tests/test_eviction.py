@@ -1,16 +1,45 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+import operator
 import os
 from shutil import rmtree
 from typing import Tuple
 
 import pytest
+from torch.utils.data import DataLoader
 
 from streaming import MDSWriter, StreamingDataset
 
 
-def one(remote: str, local: str, keep_zip: bool):
+def validate(remote: str, local: str, dataset: StreamingDataset, keep_zip: bool,
+             is_shard_evicted: bool):
+    """Validate the number of files in a local directory in comparison to remote directory."""
+    if is_shard_evicted:
+        ops = operator.lt
+    else:
+        ops = operator.eq
+    if keep_zip:
+        if dataset.shards[0].compression:
+            # Local has raw + zip, remote has zip.
+            assert ops(
+                set(filter(lambda f: f == 'index.json' or f.endswith('.zstd'), os.listdir(local))),
+                set(os.listdir(remote)))
+        else:
+            # Local has raw + zip, remote has raw.
+            assert ops(set(filter(lambda f: not f.endswith('.zstd'), os.listdir(local))),  \
+                set(os.listdir(remote)))
+    else:
+        if dataset.shards[0].compression:
+            # Local has raw, remote has zip.
+            assert ops(set(os.listdir(local)),
+                       set(map(lambda f: f.replace('.zstd', ''), os.listdir(remote))))
+        else:
+            # Local has raw, remote has raw.
+            assert ops(set(os.listdir(local)), set(os.listdir(remote)))
+
+
+def shard_eviction_disabled(remote: str, local: str, keep_zip: bool):
     """
     With shard eviction disabled.
     """
@@ -19,29 +48,11 @@ def one(remote: str, local: str, keep_zip: bool):
         for sample in dataset:  # pyright: ignore
             pass
 
-    if keep_zip:
-        if dataset.shards[0].compression:
-            # Local has raw + zip, remote has zip.
-            assert set(
-                filter(lambda f: f == 'index.json' or f.endswith('.zstd'),
-                       os.listdir(local))) == set(os.listdir(remote))
-        else:
-            # Local has raw + zip, remote has raw.
-            assert set(filter(lambda f: not f.endswith('.zstd'), os.listdir(local))) == \
-                set(os.listdir(remote))
-    else:
-        if dataset.shards[0].compression:
-            # Local has raw, remote has zip.
-            assert set(os.listdir(local)) == set(
-                map(lambda f: f.replace('.zstd', ''), os.listdir(remote)))
-        else:
-            # Local has raw, remote has raw.
-            assert set(os.listdir(local)) == set(os.listdir(remote))
-
-    rmtree(local)
+    validate(remote, local, dataset, keep_zip, False)
+    rmtree(local, ignore_errors=False)
 
 
-def two(remote: str, local: str, keep_zip: bool):
+def shard_eviction_too_high(remote: str, local: str, keep_zip: bool):
     """
     With no shard evictions because cache_limit is bigger than the dataset.
     """
@@ -49,24 +60,28 @@ def two(remote: str, local: str, keep_zip: bool):
                                local=local,
                                keep_zip=keep_zip,
                                cache_limit=1_000_000)
+    dataloader = DataLoader(dataset=dataset, num_workers=8)
     for _ in range(3):
-        for sample in dataset:  # pyright: ignore
+        for _ in dataloader:
             pass
-    rmtree(local)
+    validate(remote, local, dataset, keep_zip, False)
+    rmtree(local, ignore_errors=False)
 
 
-def three(remote: str, local: str, keep_zip: bool):
+def shard_eviction(remote: str, local: str, keep_zip: bool):
     """
     With shard eviction because cache_limit is smaller than the whole dataset.
     """
     dataset = StreamingDataset(remote=remote, local=local, keep_zip=keep_zip, cache_limit=50_000)
+    dataloader = DataLoader(dataset=dataset, num_workers=8)
     for _ in range(3):
-        for sample in dataset:  # pyright: ignore
+        for _ in dataloader:
             pass
-    rmtree(local)
+    validate(remote, local, dataset, keep_zip, True)
+    rmtree(local, ignore_errors=False)
 
 
-def four(remote: str, local: str, keep_zip: bool):
+def manual_shard_eviction(remote: str, local: str, keep_zip: bool):
     """
     Manually downloading and evicting shards.
     """
@@ -86,20 +101,23 @@ def four(remote: str, local: str, keep_zip: bool):
         dataset[sample_id]
 
     assert set(os.listdir(local)) == full
+    rmtree(local, ignore_errors=False)
 
 
-def five(remote: str, local: str, keep_zip: bool):
+def excess_shard_eviction(remote: str, local: str, keep_zip: bool):
     """
     Shard eviction with an excess of shards already present.
     """
     dataset = StreamingDataset(remote=remote, local=local, keep_zip=keep_zip, cache_limit=50_000)
+    dataloader = DataLoader(dataset=dataset, num_workers=8)
     for _ in range(3):
-        for sample in dataset:  # pyright: ignore
+        for _ in dataloader:  # pyright: ignore
             pass
-    rmtree(local)
+    validate(remote, local, dataset, keep_zip, True)
+    rmtree(local, ignore_errors=False)
 
 
-def six(remote: str, local: str, keep_zip: bool):
+def cache_limit_too_low(remote: str, local: str, keep_zip: bool):
     """
     With impossible shard eviction settings because cache_limit is set too low.
     """
@@ -107,9 +125,11 @@ def six(remote: str, local: str, keep_zip: bool):
         dataset = StreamingDataset(remote=remote, local=local, cache_limit=1_000)
         for _ in dataset:
             pass
+    rmtree(local, ignore_errors=False)
 
 
-funcs = one, two, three, four, five
+funcs = shard_eviction_disabled, shard_eviction_too_high, shard_eviction, manual_shard_eviction,
+excess_shard_eviction, cache_limit_too_low,
 
 
 @pytest.mark.usefixtures('local_remote_dir')
@@ -154,7 +174,6 @@ def test_eviction_zip_nokeep(local_remote_dir: Tuple[str, str]):
 
     for func in funcs:
         func(remote, local, False)
-    assert True
 
 
 @pytest.mark.usefixtures('local_remote_dir')
