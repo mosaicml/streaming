@@ -195,14 +195,13 @@ Easily experiment with dataset mixtures with [`Stream`](https://docs.mosaicml.co
 ```
 # mix C4, github code, and internal datasets
 streams = [
-  Stream(remote='s3://datasets/c4'),
-  Stream(remote='s3://datasets/github'),
-  Stream(remote='gcs://datasets/my_internal'),
+  Stream(remote='s3://datasets/c4', proportion=0.4),
+  Stream(remote='s3://datasets/github', proportion=0.1),
+  Stream(remote='gcs://datasets/my_internal', proportion=0.5),
 ]
 
 dataset = StreamingDataset(
   streams=streams,
-  proportion=[0.4, 0.1, 0.5],
   samples_per_epoch=1e8,
 )
 ```
