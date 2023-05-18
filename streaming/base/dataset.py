@@ -77,8 +77,9 @@ class _Iterator:
         sample_ids (NDArray[np.int64]): This worker's samples to download and yield.
     """
 
-    # The number of threads to wait on the exits of before returning (download, ready, yield).
-    _num_threads_to_exit = 3
+    # The number of threads (`download`, `ready`, `yield``) to wait on the exits of before
+    # returning. The `yield` main thread exits at the end of epoch(s).
+    _num_threads_to_exit = 2
 
     def __init__(self, sample_ids: NDArray[np.int64]) -> None:
         self.sample_ids = sample_ids
@@ -113,7 +114,7 @@ class _Iterator:
         # Block until they have all exited, updating _state to done.
         while True:
             with self._lock:
-                if self._num_exited == self._num_threads_to_exit:
+                if self._num_exited >= self._num_threads_to_exit:
                     self._state = _IterState.EXITED
                     break
             sleep(TICK)
