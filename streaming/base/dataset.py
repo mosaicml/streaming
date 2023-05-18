@@ -11,7 +11,7 @@ from enum import IntEnum
 from math import ceil
 from threading import Event, Lock
 from time import sleep, time_ns
-from typing import Any, Dict, Iterator, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterator, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -28,7 +28,7 @@ from streaming.base.shared import (SharedArray, SharedBarrier, SharedMemory, Sha
 from streaming.base.shuffle import get_shuffle
 from streaming.base.spanner import Spanner
 from streaming.base.stream import Stream
-from streaming.base.util import TICK
+from streaming.base.util import TICK, bytes_to_int
 from streaming.base.world import World
 
 # An arbitrary time in the future, used for cold shard eviction.
@@ -237,10 +237,12 @@ class StreamingDataset(Array, IterableDataset):
             Defaults to ``None``.
         predownload (int, optional): Target number of samples ahead to download the shards of while
             iterating. Defaults to ``100_000``.
-        cache_limit (int, optional): Maximum size in bytes of this StreamingDataset's shard cache.
-            Before downloading a shard, the least recently used resident shard(s) may be evicted
-            (deleted from the local cache) in order to stay under the limit. Set to ``None`` to
-            disable shard eviction. Defaults to ``None``.
+        cache_limit (Union[int, str], optional): Maximum size in bytes of this StreamingDataset's
+            shard cache. Before downloading a shard, the least recently used resident shard(s)
+            may be evicted (deleted from the local cache) in order to stay under the limit.
+            Set to ``None`` to disable shard eviction. Supported value is integer or a human
+            readable byte size format, for example, ``100b``, ``64kb``, ``77mb``, upto yotta byte.
+            Defaults to ``None``.
         partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
         num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
             resumption. Defaults to ``None``, which is interpreted as the number of nodes of the
@@ -266,7 +268,7 @@ class StreamingDataset(Array, IterableDataset):
                  keep_zip: bool = False,
                  choose: Optional[int] = None,
                  predownload: Optional[int] = 100_000,
-                 cache_limit: Optional[int] = None,
+                 cache_limit: Optional[Union[int, str]] = None,
                  partition_algo: str = 'orig',
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
@@ -351,6 +353,8 @@ class StreamingDataset(Array, IterableDataset):
 
         # Check that cache limit is possible.
         if self.cache_limit:
+            if isinstance(self.cache_limit, str):
+                self.cache_limit = bytes_to_int(self.cache_limit)
             min_cache_usage = sum(map(lambda stream: stream.get_index_size(), streams))
             if self.cache_limit <= min_cache_usage:
                 raise ValueError(f'Minimum cache usage ({min_cache_usage} bytes) is larger than ' +

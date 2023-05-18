@@ -72,7 +72,7 @@ def shard_eviction(remote: str, local: str, keep_zip: bool):
     """
     With shard eviction because cache_limit is smaller than the whole dataset.
     """
-    dataset = StreamingDataset(remote=remote, local=local, keep_zip=keep_zip, cache_limit=50_000)
+    dataset = StreamingDataset(remote=remote, local=local, keep_zip=keep_zip, cache_limit='50kb')
     dataloader = DataLoader(dataset=dataset, num_workers=8)
     for _ in range(3):
         for _ in dataloader:
@@ -108,7 +108,7 @@ def excess_shard_eviction(remote: str, local: str, keep_zip: bool):
     """
     Shard eviction with an excess of shards already present.
     """
-    dataset = StreamingDataset(remote=remote, local=local, keep_zip=keep_zip, cache_limit=50_000)
+    dataset = StreamingDataset(remote=remote, local=local, keep_zip=keep_zip, cache_limit='50kb')
     dataloader = DataLoader(dataset=dataset, num_workers=8)
     for _ in range(3):
         for _ in dataloader:  # pyright: ignore
@@ -122,7 +122,7 @@ def cache_limit_too_low(remote: str, local: str, keep_zip: bool):
     With impossible shard eviction settings because cache_limit is set too low.
     """
     with pytest.raises(ValueError):
-        dataset = StreamingDataset(remote=remote, local=local, cache_limit=1_000)
+        dataset = StreamingDataset(remote=remote, local=local, cache_limit='1kb')
         for _ in dataset:
             pass
     rmtree(local, ignore_errors=False)

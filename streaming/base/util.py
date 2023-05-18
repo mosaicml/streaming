@@ -69,3 +69,44 @@ def wait_for_local_leader(world: World) -> None:
         if os.path.islink(dir_path):
             os.unlink(dir_path)
         shutil.rmtree(dir_path)
+
+
+def bytes_to_int(bytes_str: str) -> int:
+    """Convert human readable byte format to an integer.
+
+    Args:
+        bytes_str (str): Value to convert.
+
+    Raises:
+        ValueError: Invalid byte suffix.
+
+    Returns:
+        int: Integer value of bytes.
+    """
+    units = {
+        'kb': 1024,
+        'mb': 1024**2,
+        'gb': 1024**3,
+        'tb': 1024**4,
+        'pb': 1024**5,
+        'eb': 1024**6,
+        'zb': 1024**7,
+        'yb': 1024**8,
+    }
+    # Convert a various byte types to an integer
+    for suffix in units:
+        bytes_str = bytes_str.lower().strip()
+        if bytes_str.lower().endswith(suffix):
+            return int(float(bytes_str[0:-len(suffix)]) * units[suffix])
+    else:
+        # Convert bytes to an integer
+        if bytes_str.endswith('b') and bytes_str[0:-1].isdigit():
+            return int(bytes_str[0:-1])
+        # Convert string representation of a number to an integer
+        elif bytes_str.isdigit():
+            return int(bytes_str)
+        else:
+            raise ValueError(''.join([
+                f'Unsupported value/suffix {bytes_str}. Supported suffix are ',
+                f'{["b"] + list(units.keys())}.'
+            ]))
