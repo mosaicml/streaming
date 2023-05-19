@@ -188,6 +188,24 @@ dataset = StreamingInsideWebVid(local=local, remote=remote, shuffle=True)
 
 ---
 
+## Seamless data mixing
+
+Easily experiment with dataset mixtures with [`Stream`](https://docs.mosaicml.com/projects/streaming/en/latest/api_reference/generated/streaming.Stream.html#stream). Dataset sampling can be controlled in relative (proportion) or absolute (repeat or samples terms). During streaming, the different datasets are streamed, shuffled, and mixed seamlessly just-in-time.
+
+```
+# mix C4, github code, and internal datasets
+streams = [
+  Stream(remote='s3://datasets/c4', proportion=0.4),
+  Stream(remote='s3://datasets/github', proportion=0.1),
+  Stream(remote='gcs://datasets/my_internal', proportion=0.5),
+]
+
+dataset = StreamingDataset(
+  streams=streams,
+  samples_per_epoch=1e8,
+)
+```
+
 ## True Determinism
 
 A unique feature of our solution: samples are in the same order regardless of the number of GPUs, nodes, or CPU workers. This makes it easier to:
