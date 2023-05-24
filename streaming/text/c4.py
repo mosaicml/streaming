@@ -41,8 +41,7 @@ class StreamingC4(StreamingDataset):
             field if you are weighting streams relatively to target a larger or smaller epoch size.
             Defaults to ``None``.
         predownload (int, optional): Target number of samples ahead to download the shards per
-            number of workers provided in a dataloader while iterating. Defaults to
-            ``4 * batch_size`` if not provided or ``256`` if ``batch_size`` is also not provided.
+            number of workers provided in a dataloader while iterating. Defaults to ``512``.
         cache_limit (int, optional): Maximum size in bytes of this StreamingDataset's shard cache.
             Before downloading a shard, the least recently used resident shard(s) may be evicted
             (deleted from the local cache) in order to stay under the limit. Set to ``None`` to
@@ -74,7 +73,7 @@ class StreamingC4(StreamingDataset):
                  validate_hash: Optional[str] = None,
                  keep_zip: bool = False,
                  choose: Optional[int] = None,
-                 predownload: Optional[int] = None,
+                 predownload: Optional[int] = 512,
                  cache_limit: Optional[int] = None,
                  partition_algo: str = 'orig',
                  num_canonical_nodes: Optional[int] = None,

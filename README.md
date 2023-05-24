@@ -188,6 +188,18 @@ dataset = StreamingInsideWebVid(local=local, remote=remote, shuffle=True)
 
 ---
 
+## Cold shard eviction
+Dynamically evict coldest shards using least recently accessed policy to keep the disk space
+under the limit. Cold shard eviction can be enabled by providing a `cache_limit` value to StreamingDataset. Default behavior is not to evict a shard.
+
+```
+# Evict shards once a disk space goes beyond 100GB per node.
+dataset = StreamingDataset(
+  cache_limit=100gb,
+)
+```
+Rate of shard eviction can be affected by `predownload`, `shuffle_algo`, and `num_canonical_nodes` parameters. Checkout the [shuffling](./docs/source/fundamentals/shuffling.md) guide for more details.
+
 ## Seamless data mixing
 
 Easily experiment with dataset mixtures with [`Stream`](https://docs.mosaicml.com/projects/streaming/en/latest/api_reference/generated/streaming.Stream.html#stream). Dataset sampling can be controlled in relative (proportion) or absolute (repeat or samples terms). During streaming, the different datasets are streamed, shuffled, and mixed seamlessly just-in-time.
