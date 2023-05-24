@@ -89,4 +89,3 @@ The final shuffle quality technique is so important, it is always turned on. Whe
 Without this, StreamingDataset would have to up/down-sample by stretching shards larger or smaller. Heavily upsampling shards would cause the model to see the same samples many times in rapid succession (at scale), which we have found interacts disastrously with small shuffle units, modulo data augmentation. A potential landmine during training.
 
 Our general advice on shuffling is that there are different tradeoffs at play, and the best answer often depends. We endeavor to provide reasonable defaults. Shuffling choices 2-4 can and should be tested empirically on your own models and your own data.
-
