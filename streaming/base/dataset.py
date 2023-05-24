@@ -870,15 +870,13 @@ class StreamingDataset(Array, IterableDataset):
             # Find the shard with the oldest last access time.
             shard_id = int(self._shard_access_times.numpy().argmin())
 
-            # Check the shard's last access time. If it is NEVER and none of the shards are in
-            # DOWNLOADING state, then we are out of shards to evict.
+            # Check the shard's last access time. If it is NEVER, there are no downloaded shards to
+            # evict. If any shards are currently being downloaded, wait, else raise an error.
             if self._shard_access_times[shard_id] == NEVER:
-                is_shard_present = False
-                for id in range(self.num_shards):
-                    if self._shard_states[id] == _ShardState.DOWNLOADING:
-                        is_shard_present = True
-                        break
-                if is_shard_present is False:
+                if (self._shard_states.numpy() == _ShardState.DOWNLOADING).any():
+                    sleep(TICK)
+                    continue
+                else:
                     raise ValueError(
                         f'Tried to evict a shard {shard_id}, but no shards are present to evict ' +
                         f'(cache usage {self.cache_usage} of {self.cache_limit})')
