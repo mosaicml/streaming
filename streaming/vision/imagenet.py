@@ -36,8 +36,9 @@ class StreamingImageNet(StreamingVisionDataset):
             If ``None``, takes its value from the total number of underlying samples. Provide this
             field if you are weighting streams relatively to target a larger or smaller epoch size.
             Defaults to ``None``.
-        predownload (int, optional): Target number of samples ahead to download the shards of while
-            iterating. Defaults to ``100_000``.
+        predownload (int, optional): Target number of samples ahead to download the shards per
+            number of workers provided in a dataloader while iterating. Defaults to
+            ``4 * batch_size`` if not provided or ``256`` if ``batch_size`` is also not provided.
         cache_limit (int, optional): Maximum size in bytes of this StreamingDataset's shard cache.
             Before downloading a shard, the least recently used resident shard(s) may be evicted
             (deleted from the local cache) in order to stay under the limit. Set to ``None`` to
@@ -50,7 +51,7 @@ class StreamingImageNet(StreamingVisionDataset):
             partitioned over the workers. Defaults to ``None``.
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
             ``False``.
-        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1b``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1s``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
         shuffle_block_size (int): Unit of shuffle. Defaults to ``1 << 18``.
         transform (callable, optional): A function/transform that takes in an image and returns a

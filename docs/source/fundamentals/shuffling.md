@@ -9,7 +9,7 @@ StreamingDataset takes four arguments to directly control shuffling.
 | Parameter | Type | Description |
 | :-------- | :--- | :---------- |
 | `shuffle` | `bool = False` | turn shuffling on or off |
-| `shuffle_algo` | `str = 'py1b'` | which shuffling algorithm to use |
+| `shuffle_algo` | `str = 'py1s'` | which shuffling algorithm to use |
 | `shuffle_seed` | `int = 9176` | all randomness in StreamingDataset is derived from this argument |
 | `shuffle_block_size` | `int = 1 << 18` | shuffling unit used by py1b algorithm |
 
@@ -17,7 +17,7 @@ StreamingDataset also takes two other arguments that shuffling interacts with:
 
 | Parameter | Type | Description |
 | :-------- | :--- | :---------- |
-| `predownload` | `Optional[int] = 100_000` | tune together with shuffle block size to keep workers from ever starving of shard pre-downloads while iterating (none means no limit) |
+| `predownload` | `Optional[int] = None` | tune together with shuffle block size to keep workers from ever starving of shard pre-downloads while iterating (none means no limit) |
 | `num_canonical_nodes` | `Optional[int] = None` | number of divisions of the sample space, which are iterated from beginning to end concurrently (defaults to number of initial physical nodes) |
 
 ## Algorithms
