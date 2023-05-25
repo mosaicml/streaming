@@ -33,7 +33,7 @@ To get started, please checkout our [Quick Start](getting_started/quick_start.md
 Streaming is part of the broader Machine Learning community, and we welcome any contributions, pull requests, and issues.
 
 If you have any questions, please feel free to reach out to us on [Twitter](https://twitter.com/mosaicml), 
-[Email](mailto:community%40mosaicml.com), or [Slack](https://join.slack.com/t/mosaicml-community/shared_invite/zt-w0tiddn9-WGTlRpfjcO9J5jyrMub1dg)!
+[Email](mailto:community%40mosaicml.com), or [Slack](https://mosaicml.me/slack)!
 
 ```{eval-rst}
 .. toctree::
@@ -80,5 +80,5 @@ If you have any questions, please feel free to reach out to us on [Twitter](htt
 
 .. _Twitter: https://twitter.com/mosaicml
 .. _Email: mailto:community@mosaicml.com
-.. _Slack: https://join.slack.com/t/mosaicml-community/shared_invite/zt-w0tiddn9-WGTlRpfjcO9J5jyrMub1dg
+.. _Slack: https://mosaicml.me/slack
 ```

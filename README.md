@@ -286,7 +286,7 @@ dataset = StreamingDataset(
 
 # 🏆 Project Showcase
 
-Here are some projects and experiments that used StreamingDataset. Got something to add?  Email [community@mosaicml.com](mailto:community@mosaicml.com) or join our [Community Slack](https://join.slack.com/t/mosaicml-community/shared_invite/zt-1btms90mc-GipE2ufuPkKY0QBrmF3LSA).
+Here are some projects and experiments that used StreamingDataset. Got something to add?  Email [community@mosaicml.com](mailto:community@mosaicml.com) or join our [Community Slack](https://mosaicml.me/slack).
 
 - [BioMedLM](https://www.mosaicml.com/blog/introducing-pubmed-gpt): a Domain Specific Large Language Model for BioMedicine by MosaicML and Stanford CRFM
 - [Mosaic Diffusion Models](https://www.mosaicml.com/blog/training-stable-diffusion-from-scratch-costs-160k): Training Stable Diffusion from Scratch Costs <$160k
