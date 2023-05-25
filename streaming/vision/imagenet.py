@@ -44,8 +44,8 @@ class StreamingImageNet(StreamingVisionDataset):
             disable shard eviction. Defaults to ``None``.
         partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
         num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
-            resumption. Defaults to ``None``, which is interpreted as the number of nodes of the
-            initial run.
+            resumption. If ``None``, this is interpreted as the number of nodes of the initial run
+            multiplied by 64. Defaults to ``None``.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
