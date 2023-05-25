@@ -257,7 +257,23 @@ Access the data you need when you need it.
 
 Even if a sample isn’t downloaded yet, you can access `dataset[i]` to get sample `i`. The download will kick off immediately and the result will be returned when it’s done - similar to a map-style PyTorch dataset with samples numbered sequentially and accessible in any order.
 
-## Garbage collection
+<!--pytest.mark.skip-->
+```python
+dataset = StreamingDataset(...)
+sample = dataset[19543]
+```
+
+## No divisibility requirements
+
+StreamingDataset will happily iterate over any number of samples. You do not have to forever delete samples so that the dataset is divisible over a baked-in number of devices. Instead, each epoch a different selection of samples are repeated (none dropped) so that each device processes the same count.
+
+<!--pytest.mark.skip-->
+```python
+dataset = StreamingDataset(...)
+dl = DataLoader(dataset, num_workers=...)
+```
+
+## Disk usage limits
 
 Automatically delete least recently used shards in order to keep disk usage under a specified limit. This is enabled by setting the StreamingDataset argument `cache_limit`. See the [shuffling](./docs/source/fundamentals/shuffling.md) guide for more details.
 
@@ -266,22 +282,6 @@ dataset = StreamingDataset(
     cache_limit='100gb',
     ...
 )
-```
-
-<!--pytest.mark.skip-->
-```python
-dataset = StreamingDataset(...)
-sample = dataset[19543]
-```
-
-## **No divisibility requirements**
-
-StreamingDataset will happily iterate over any number of samples. You do not have to forever delete samples so that the dataset is divisible over a baked-in number of devices. Instead, each epoch a different selection of samples are repeated (none dropped) so that each device processes the same count.
-
-<!--pytest.mark.skip-->
-```python
-dataset = StreamingDataset(...)
-dl = DataLoader(dataset, num_workers=...)
 ```
 
 # 🏆 Project Showcase
