@@ -1,22 +1,20 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Synchronization primitives that live in shared memory.
+"""Barrier that lives in shared memory.
 
-For when using `threading` or `multiprocessing` from the python standard library won't do, because
-we are coordinating separately instantiated pytorch worker processes.
+Implemented with shared array and a filelock.
 """
 
 import atexit
 import os
-import shutil
-from multiprocessing import resource_tracker  # pyright: ignore
+from shutil import rmtree
 from time import sleep
 
 import numpy as np
 from filelock import FileLock
 
-from streaming.base.shared.memory import CreateSharedMemory
+from streaming.base.shared.array import SharedArray
 
 # Time to wait, in seconds.
 TICK = 0.07
@@ -26,7 +24,7 @@ TIMEOUT = 60
 
 
 class SharedBarrier:
-    """A barrier that works inter-process using a file lock and shared memory.
+    """A barrier that works inter-process using a filelock and shared memory.
 
     We set the number of processes (and thereby initialize num_exit) on the first time this object
     is called. This is because the object is created in a per-rank process, and called by worker
@@ -34,36 +32,29 @@ class SharedBarrier:
 
     Args:
         filelock_path (str): Path to lock file on local filesystem.
-        shm_path (str): Shared memory object name in /dev/shm.
+        shm_name (str): Shared memory object name in /dev/shm.
     """
 
-    def __init__(self, filelock_path: str, shm_path: str) -> None:
+    def __init__(self, filelock_path: str, shm_name: str) -> None:
+        # Create lock.
         self.filelock_path = filelock_path
-        self.created_shms = []
-        self.opened_shms = []
-
-        # Create three int32 fields in shared memory: num_enter, num_exit, flag.
-        size = 3 * np.int32(0).nbytes
-        shared_barrier_shm = CreateSharedMemory(name=shm_path, size=size)
-        self._shm = shared_barrier_shm.shm
-
-        # Create filelock.
         dirname = os.path.dirname(filelock_path)
-        os.makedirs(dirname, exist_ok=True)
+        if dirname:
+            os.makedirs(dirname, exist_ok=True)
         self.lock = FileLock(filelock_path)
 
-        self._arr = np.ndarray(3, buffer=self._shm.buf, dtype=np.int32)
-        self._arr[0] = 0
-        self._arr[1] = -1
-        self._arr[2] = True
-
         def cleanup():
-            """Directory clean up."""
             if os.path.islink(dirname):
                 os.unlink(dirname)
-            shutil.rmtree(dirname, ignore_errors=True)
+            rmtree(dirname, ignore_errors=True)
 
         atexit.register(cleanup)
+
+        # Create three int32 fields in shared memory: num_enter, num_exit, flag.
+        self._arr = SharedArray(3, np.int32, shm_name)
+        self.num_enter = 0
+        self.num_exit = -1
+        self.flag = True
 
     @property
     def num_enter(self) -> int:
@@ -125,10 +116,6 @@ class SharedBarrier:
         Args:
             num_procs (int): How many processes are sharing this barrier.
         """
-        # Re-init the numpy array pointing to shared memory. Necessary when spawn is the
-        # multiprocessing method used.
-        self._arr = np.ndarray(3, buffer=self._shm.buf, dtype=np.int32)
-
         # Initialize num_exit to the number of processes.
         with self.lock:
             if self.num_exit == -1:
@@ -160,3 +147,5 @@ class SharedBarrier:
         # Note that we exited.
         with self.lock:
             self.num_exit += 1
+            if self.num_exit == num_procs:
+                self.num_exit = -1

@@ -217,7 +217,7 @@ See the figure below — training a model on 1, 8, 16, 32, or 64 GPUs yields the
 
 ![Plot of elastic determinism](docs/source/_static/images/determinism.png)
 
-## Instant Mid-Epoch Resumption
+## Instant mid-epoch resumption
 
 It can be expensive — and annoying — to wait for your job to resume while your dataloader spins after a hardware failure or loss spike. Thanks to our deterministic sample ordering, StreamingDataset lets you resume training in seconds, not hours, in the middle of a long training run.
 
@@ -235,7 +235,7 @@ Our MDS format cuts extraneous work to the bone, resulting in ultra-low sample l
 
 *Results shown are from ImageNet + ResNet-50 training, collected over 5 repetitions after the data is cached after the first epoch.*
 
-## Equal Convergence
+## Equal convergence
 
 Model convergence from using StreamingDataset is just as good as using local disk, thanks to our shuffling algorithm.
 
@@ -263,7 +263,7 @@ dataset = StreamingDataset(...)
 sample = dataset[19543]
 ```
 
-## **No divisibility requirements**
+## No divisibility requirements
 
 StreamingDataset will happily iterate over any number of samples. You do not have to forever delete samples so that the dataset is divisible over a baked-in number of devices. Instead, each epoch a different selection of samples are repeated (none dropped) so that each device processes the same count.
 
@@ -271,6 +271,17 @@ StreamingDataset will happily iterate over any number of samples. You do not hav
 ```python
 dataset = StreamingDataset(...)
 dl = DataLoader(dataset, num_workers=...)
+```
+
+## Disk usage limits
+
+Dynamically delete least recently used shards in order to keep disk usage under a specified limit. This is enabled by setting the StreamingDataset argument `cache_limit`. See the [shuffling](./docs/source/fundamentals/shuffling.md) guide for more details.
+
+```
+dataset = StreamingDataset(
+    cache_limit='100gb',
+    ...
+)
 ```
 
 # 🏆 Project Showcase

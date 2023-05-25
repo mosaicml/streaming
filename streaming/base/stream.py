@@ -52,7 +52,6 @@ class Stream:
       * ``download_timeout``
       * ``validate_hash``
       * ``keep_zip``
-      * ``keep_raw``
 
     Args:
         remote (str, optional): Remote path or directory to download the dataset from. If ``None``,
@@ -82,9 +81,6 @@ class Stream:
         keep_zip (bool, optional): Whether to keep or delete the compressed form when decompressing
             downloaded shards. If ``False``, keep if and only if remote is local or no remote.
             Defaults to ``None``.
-        keep_raw (bool, optional): Whether to keep or delete the decompressed form (or only form)
-            of shards after all their samples have been yielded this epoch. If ``False``, keep if
-            and only if remote is local or no remote and no compression. Defaults to ``None``.
     """
 
     def __init__(self,
@@ -98,8 +94,7 @@ class Stream:
                  download_retry: Optional[int] = None,
                  download_timeout: Optional[float] = None,
                  validate_hash: Optional[str] = None,
-                 keep_zip: Optional[bool] = None,
-                 keep_raw: Optional[bool] = None) -> None:
+                 keep_zip: Optional[bool] = None) -> None:
         self.remote = remote
         self._local = local
         self.local = local or mkdtemp()
@@ -147,10 +142,7 @@ class Stream:
         self._keep_zip = keep_zip
         if keep_zip is not None:
             self.keep_zip = keep_zip
-
-        self._keep_raw = keep_raw
-        if keep_raw is not None:
-            self.keep_raw = keep_raw
+            self.safe_keep_zip = self.keep_zip or self.remote in {None, self.local}
 
     def apply_default(self, default: Self) -> None:
         """Apply defaults, setting any unset fields.
@@ -173,8 +165,7 @@ class Stream:
             self.validate_hash = default.validate_hash or None
         if self._keep_zip is None:
             self.keep_zip = default.keep_zip
-        if self._keep_raw is None:
-            self.keep_raw = default.keep_raw
+            self.safe_keep_zip = self.keep_zip or self.remote in {None, self.local}
 
     @classmethod
     def validate_weights(cls, streams: Sequence[Self]) -> bool:
@@ -259,11 +250,12 @@ class Stream:
 
         return choose_per_epoch
 
-    def _download_file(self, basename: str) -> str:
+    def _download_file(self, from_basename: str, to_basename: Optional[str] = None) -> str:
         """Safely download a file from remote to local cache.
 
         Args:
-            basename (str): Basename of file to download.
+            from_basename (str): Source basename.
+            to_basename (str, optional): Destination basename, if different.
 
         Returns:
             str: Local cache filename.
@@ -272,8 +264,8 @@ class Stream:
         if self.remote is None:
             remote = None
         else:
-            remote = os.path.join(self.remote, self.split, basename)
-        local = os.path.join(self.local, self.split, basename)
+            remote = os.path.join(self.remote, self.split, from_basename)
+        local = os.path.join(self.local, self.split, to_basename or from_basename)
 
         # Attempt to download, possibly repeating on failure.
         errors = []
@@ -380,22 +372,29 @@ class Stream:
         Returns:
             `List[Reader]: Shard readers.
         """
-        # Load the index.json file.
+        # Download the index.
         basename = get_index_basename()
+        filename = os.path.join(self.local, self.split, basename)  # pyright: ignore
         if world.is_local_leader:
-            filename = self._download_file(basename)
+            if self.remote:
+                tmp_filename = self._download_file(basename, basename + '.tmp')
+                os.rename(tmp_filename, filename)
+            else:
+                if not os.path.exists(filename):
+                    raise RuntimeError(f'No remote provided, but local file {filename} does not ' +
+                                       'exist either')
         else:
-            filename = os.path.join(self.local, self.split, basename)  # pyright: ignore
+            wait_for_file_to_exist(filename, TICK, 60,
+                                   f'Index file {filename} took too long to download')
 
-        # Everyone waits for the file to become populated.
-        wait_for_file_to_exist(filename, TICK, self.download_timeout,
-                               f'{filename} file took too long to download')
-
+        # Load the index.
         try:
             obj = json.load(open(filename))
         except json.decoder.JSONDecodeError as error:
             error.args = (f'Index file at {filename} is empty or corrupted. ' + error.args[0],)
             raise error
+
+        # Version check.
         if obj['version'] != 2:
             raise ValueError(f'Unsupported version: {obj["version"]}')
 
@@ -406,3 +405,36 @@ class Stream:
             shards.append(shard)
 
         return shards
+
+    def init_local_dir(self, shards: List[Reader]) -> List[bool]:
+        """Bring a local directory into a consistent state, getting which shards are present.
+
+        Args:
+            shards (List[Reader]): List of this stream's shards.
+
+        Returns:
+            List[bool]: List of whether each stream shard is present.
+        """
+        # List the cache directory (so that we hit the filesystem once).
+        local_dirname = os.path.join(self.local, self.split)
+        listing = set()
+        for dirname, _, subfiles in os.walk(local_dirname):
+            for subfile in subfiles:
+                filename = os.path.join(dirname, subfile)
+                listing.add(filename)
+
+        # Determine which shards are present, making local dir consistent.
+        are_shards_present = []
+        for shard in shards:
+            is_shard_present = shard.init_local_dir(listing, self.safe_keep_zip)
+            are_shards_present.append(is_shard_present)
+        return are_shards_present
+
+    def get_index_size(self) -> int:
+        """Get the size of the index file in bytes.
+
+        Returns:
+            int: Size in bytes.
+        """
+        filename = os.path.join(self.local, self.split, get_index_basename())
+        return os.stat(filename).st_size

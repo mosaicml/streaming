@@ -51,6 +51,7 @@ If you have any questions, please feel free to reach out to us on [Twitter](htt
    :caption: Fundamentals
 
    fundamentals/environments.md
+   fundamentals/shuffling.md
 
 .. toctree::
    :hidden:

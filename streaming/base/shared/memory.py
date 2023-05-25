@@ -1,35 +1,28 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Synchronization primitives that live in shared memory.
-
-For when using `threading` or `multiprocessing` from the python standard library won't do, because
-we are coordinating separately instantiated pytorch worker processes.
-"""
+"""Improved quiet implementation of shared memory in pure python."""
 
 import atexit
 from multiprocessing import resource_tracker  # pyright: ignore
-from multiprocessing.shared_memory import SharedMemory
+from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
 from time import sleep
 from typing import Any, Optional
 
 # Time to wait, in seconds.
 TICK = 0.07
 
-# Time out to wait before raising exception
-TIMEOUT = 60
 
-
-class CreateSharedMemory:
-    """Create a new Shared Memory block or attach to an existing shared memory block.
+class SharedMemory:
+    """Improved quiet implementation of shared memory.
 
     Args:
-        name (Optional[str], optional): A unique shared memory block name. Defaults to ``None``.
-        create (Optional[bool], optional): Creates a new shared memory block or attaches to an
-            existing shared memory block. Defaults to ``None``.
+        name (str, optional): A unique shared memory block name. Defaults to ``None``.
+        create (bool, optional): Creates a new shared memory block or attaches to an existing
+            shared memory block. Defaults to ``None``.
         size (int, optional): A size of a shared memory block. Defaults to ``0``.
-        auto_cleanup (bool, optional): Register atexit handler for cleanup or not.
-            Defaults to ``True``.
+        auto_cleanup (bool, optional): Register atexit handler for cleanup or not. Defaults to
+            ``True``.
     """
 
     def __init__(self,
@@ -37,7 +30,6 @@ class CreateSharedMemory:
                  create: Optional[bool] = None,
                  size: int = 0,
                  auto_cleanup: bool = True):
-
         self.created_shms = []
         self.opened_shms = []
         shm = None
@@ -47,7 +39,7 @@ class CreateSharedMemory:
         try:
             if create is True:
                 # Creates a new shared memory block
-                shm = SharedMemory(name, create, size)
+                shm = BuiltinSharedMemory(name, create, size)
                 self.created_shms.append(shm)
             elif create is False:
                 # Avoid tracking shared memory resources in a process who attaches to an existing
@@ -55,18 +47,18 @@ class CreateSharedMemory:
                 # responsible for destroying the shared memory block.
                 resource_tracker.register = self.fix_register
                 # Attaches to an existing shared memory block
-                shm = SharedMemory(name, create, size)
+                shm = BuiltinSharedMemory(name, create, size)
                 self.opened_shms.append(shm)
             else:
                 try:
                     # Creates a new shared memory block
-                    shm = SharedMemory(name, True, size)
+                    shm = BuiltinSharedMemory(name, True, size)
                     self.created_shms.append(shm)
                 except FileExistsError:
                     sleep(TICK)
                     resource_tracker.register = self.fix_register
                     # Attaches to an existing shared memory block
-                    shm = SharedMemory(name, False, size)
+                    shm = BuiltinSharedMemory(name, False, size)
                     self.opened_shms.append(shm)
             self.shm = shm
         finally:
@@ -76,6 +68,15 @@ class CreateSharedMemory:
             # atexit handler doesn't get called if the program is killed by a signal not
             # handled by python or when os.exit() is called or for any python internal fatal error.
             atexit.register(self.cleanup)
+
+    @property
+    def buf(self) -> memoryview:
+        """Internal buffer accessor.
+
+        Returns:
+            memoryview: Internal buffer.
+        """
+        return self.shm.buf
 
     # Monkey-patched "multiprocessing.resource_tracker" to avoid unwanted resource tracker warnings.
     # PR to remove resource tracker unlinking: https://github.com/python/cpython/pull/15989

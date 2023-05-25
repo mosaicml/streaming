@@ -8,7 +8,7 @@ from time import sleep
 from typing import Any, Optional
 
 from streaming.base import StreamingDataset
-from streaming.base.dataset import TICK, _PartitionState
+from streaming.base.dataset import TICK, _Iterator
 from streaming.base.storage import download_file
 
 
@@ -33,16 +33,17 @@ class StreamingInsideWebVid(StreamingDataset):
             shards. Defaults to ``None``.
         keep_zip (bool): Whether to keep or delete the compressed form when decompressing
             downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
-            `False``.
-        keep_raw (bool): Whether to keep or delete the decompressed form (or only form)
-            of shards after all their samples have been yielded this epoch. If ``False``, keep iff
-            remote is local or no remote and no compression. Defaults to ``True``.
+            ``False``.
         choose (int, optional): Number of samples to draw per epoch balanced across all streams.
             If ``None``, takes its value from the total number of underlying samples. Provide this
             field if you are weighting streams relatively to target a larger or smaller epoch size.
             Defaults to ``None``.
-        predownload (int, optional): Target number of samples ahead to download the shards of while
-            iterating. Defaults to ``100_000``.
+        predownload (int, optional): Target number of samples ahead to download the shards per
+            number of workers provided in a dataloader while iterating. Defaults to ``512``.
+        cache_limit (int, optional): Maximum size in bytes of this StreamingDataset's shard cache.
+            Before downloading a shard, the least recently used resident shard(s) may be evicted
+            (deleted from the local cache) in order to stay under the limit. Set to ``None`` to
+            disable shard eviction. Defaults to ``None``.
         partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
         num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
             resumption. Defaults to ``None``, which is interpreted as the number of nodes of the
@@ -51,7 +52,7 @@ class StreamingInsideWebVid(StreamingDataset):
             partitioned over the workers. Defaults to ``None``.
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
             ``False``.
-        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1b``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1s``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
         shuffle_block_size (int): Unit of shuffle. Defaults to ``1 << 18``.
     """
@@ -92,16 +93,17 @@ class StreamingOutsideGIWebVid(StreamingDataset):
             shards. Defaults to ``None``.
         keep_zip (bool): Whether to keep or delete the compressed form when decompressing
             downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
-            `False``.
-        keep_raw (bool): Whether to keep or delete the decompressed form (or only form)
-            of shards after all their samples have been yielded this epoch. If ``False``, keep iff
-            remote is local or no remote and no compression. Defaults to ``True``.
+            ``False``.
         choose (int, optional): Number of samples to draw per epoch balanced across all streams.
             If ``None``, takes its value from the total number of underlying samples. Provide this
             field if you are weighting streams relatively to target a larger or smaller epoch size.
             Defaults to ``None``.
-        predownload (int, optional): Target number of samples ahead to download the shards of while
-            iterating. Defaults to ``100_000``.
+        predownload (int, optional): Target number of samples ahead to download the shards per
+            number of workers provided in a dataloader while iterating. Defaults to ``512``.
+        cache_limit (int, optional): Maximum size in bytes of this StreamingDataset's shard cache.
+            Before downloading a shard, the least recently used resident shard(s) may be evicted
+            (deleted from the local cache) in order to stay under the limit. Set to ``None`` to
+            disable shard eviction. Defaults to ``None``.
         partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
         num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
             resumption. Defaults to ``None``, which is interpreted as the number of nodes of the
@@ -110,7 +112,7 @@ class StreamingOutsideGIWebVid(StreamingDataset):
             partitioned over the workers. Defaults to ``None``.
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
             ``False``.
-        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1b``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1s``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
         shuffle_block_size (int): Unit of shuffle. Defaults to ``1 << 18``.
         extra_local (str, optional): Base destination of extra local sample downloads.
@@ -126,14 +128,14 @@ class StreamingOutsideGIWebVid(StreamingDataset):
                  download_timeout: float = 60,
                  validate_hash: Optional[str] = None,
                  keep_zip: bool = False,
-                 keep_raw: bool = True,
                  choose: Optional[int] = None,
-                 predownload: Optional[int] = 100_000,
+                 predownload: Optional[int] = 512,
+                 cache_limit: Optional[int] = None,
                  partition_algo: str = 'orig',
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
                  shuffle: bool = False,
-                 shuffle_algo: str = 'py1b',
+                 shuffle_algo: str = 'py1s',
                  shuffle_seed: int = 9176,
                  shuffle_block_size: int = 1 << 18,
                  extra_local: Optional[str] = None,
@@ -145,9 +147,9 @@ class StreamingOutsideGIWebVid(StreamingDataset):
                          download_timeout=download_timeout,
                          validate_hash=validate_hash,
                          keep_zip=keep_zip,
-                         keep_raw=keep_raw,
                          choose=choose,
                          predownload=predownload,
+                         cache_limit=cache_limit,
                          partition_algo=partition_algo,
                          num_canonical_nodes=num_canonical_nodes,
                          batch_size=batch_size,
@@ -209,16 +211,17 @@ class StreamingOutsideDTWebVid(StreamingDataset):
             shards. Defaults to ``None``.
         keep_zip (bool): Whether to keep or delete the compressed form when decompressing
             downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
-            `False``.
-        keep_raw (bool): Whether to keep or delete the decompressed form (or only form)
-            of shards after all their samples have been yielded this epoch. If ``False``, keep iff
-            remote is local or no remote and no compression. Defaults to ``True``.
+            ``False``.
         choose (int, optional): Number of samples to draw per epoch balanced across all streams.
             If ``None``, takes its value from the total number of underlying samples. Provide this
             field if you are weighting streams relatively to target a larger or smaller epoch size.
             Defaults to ``None``.
-        predownload (int, optional): Target number of samples ahead to download the shards of while
-            iterating. Defaults to ``100_000``.
+        predownload (int, optional): Target number of samples ahead to download the shards per
+            number of workers provided in a dataloader while iterating. Defaults to ``512``.
+        cache_limit (int, optional): Maximum size in bytes of this StreamingDataset's shard cache.
+            Before downloading a shard, the least recently used resident shard(s) may be evicted
+            (deleted from the local cache) in order to stay under the limit. Set to ``None`` to
+            disable shard eviction. Defaults to ``None``.
         partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
         num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
             resumption. Defaults to ``None``, which is interpreted as the number of nodes of the
@@ -227,7 +230,7 @@ class StreamingOutsideDTWebVid(StreamingDataset):
             partitioned over the workers. Defaults to ``None``.
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
             ``False``.
-        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1b``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1s``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
         shuffle_block_size (int): Unit of shuffle. Defaults to ``1 << 18``.
         extra_local (str, optional): Base destination of extra local sample downloads.
@@ -243,14 +246,14 @@ class StreamingOutsideDTWebVid(StreamingDataset):
                  download_timeout: float = 60,
                  validate_hash: Optional[str] = None,
                  keep_zip: bool = False,
-                 keep_raw: bool = True,
                  choose: Optional[int] = None,
-                 predownload: Optional[int] = 100_000,
+                 predownload: Optional[int] = 512,
+                 cache_limit: Optional[int] = None,
                  partition_algo: str = 'orig',
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
                  shuffle: bool = False,
-                 shuffle_algo: str = 'py1b',
+                 shuffle_algo: str = 'py1s',
                  shuffle_seed: int = 9176,
                  shuffle_block_size: int = 1 << 18,
                  extra_local: Optional[str] = None,
@@ -262,9 +265,9 @@ class StreamingOutsideDTWebVid(StreamingDataset):
                          download_timeout=download_timeout,
                          validate_hash=validate_hash,
                          keep_zip=keep_zip,
-                         keep_raw=keep_raw,
                          choose=choose,
                          predownload=predownload,
+                         cache_limit=cache_limit,
                          partition_algo=partition_algo,
                          num_canonical_nodes=num_canonical_nodes,
                          batch_size=batch_size,
@@ -303,48 +306,47 @@ class StreamingOutsideDTWebVid(StreamingDataset):
 
         return obj
 
-    def _download_thread(self, state: _PartitionState) -> None:
+    def _download_thread(self, it: _Iterator) -> None:
         """Download the relevant shards in the background while we are being iterated.
 
         This thread is started at the beginning of each epoch, and exits either when out of samples
-        or when a new epoch is started, calling stop() on its state (only one epoch is valid at a
-        time).
+        or when a new epoch is started, calling exit_threads() on its state (only one epoch is
+        valid at a time).
 
-        Each worker has its own download thread, which iterates ahead of the main thread.
+        Each worker has its own download thread, which iterates ahead of the ready thread and yield
+        loop.
 
         Args:
-            state (_PartitionState): The partition state.
+            it (_Iterator): State of __iter__.
         """
-        shard_states_lock, shard_states = self._get_shard_states()
-
         # Download loop.
         while True:
             # If we've started a new epoch early (__iter__ was called again), exit this thread
             # because there can only be one epoch at once.
-            if state.is_stopped:
+            if it.should_exit():
                 break
 
             # If we're out of samples this epoch, exit this thread because we are done downloading.
-            if state.download_index == state.total:
+            if it.download_index == it.total:
                 break
 
             # If we are requested to only pre-download so many samples, if we have as many or more
             # downloaded already, we wait and check again later.
             if self.predownload is not None:
-                samples_ahead = state.download_index - state.yield_index
+                samples_ahead = it.download_index - it.yield_index
                 if self.predownload <= samples_ahead:
                     sleep(TICK)
                     continue
 
             # If we hit -1, we skip.
-            sample_id = state.sample_ids[state.download_index]
+            sample_id = it.sample_ids[it.download_index]
             if sample_id == -1:
-                state.download_index += 1
+                it.download_index += 1
                 continue
 
             # Download and decompress the shard for this sample, if not already done.
             shard_id, _ = self.spanner[sample_id]
-            self._download_or_skip_shard(shard_states_lock, shard_states, shard_id, False)
+            self.download_shard(shard_id, False)
 
             # Predownload the sample's extra data.
             obj = super().get_item(sample_id)
@@ -355,4 +357,8 @@ class StreamingOutsideDTWebVid(StreamingDataset):
                 if not os.path.exists(local):
                     download_file(remote, local, self.download_timeout)
 
-            state.download_index += 1
+            # Step forward one sample.
+            it.download_index += 1
+
+        # Note that we exited.
+        it.on_exit()

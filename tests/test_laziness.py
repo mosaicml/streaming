@@ -1,12 +1,62 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-import shutil
+from shutil import rmtree
 from typing import Tuple
 
 import pytest
 
 from streaming import MDSWriter, StreamingDataset
+
+
+def one(remote: str, local: str):
+    """
+    Verify __getitem__ accesses.
+    """
+    dataset = StreamingDataset(local=remote)
+    for i in range(dataset.num_samples):
+        sample = dataset[i]
+        assert sample['value'] == i
+
+
+def two(remote: str, local: str):
+    """
+    Verify __iter__ -> __getitem__ accesses.
+    """
+    dataset = StreamingDataset(local=remote)
+    for i, sample in zip(range(dataset.num_samples), dataset):
+        assert sample['value'] == i
+
+
+def three(remote: str, local: str):
+    """
+    Verify __getitem__ downloads/accesses.
+    """
+    dataset = StreamingDataset(local=local, remote=remote)
+    for i in range(dataset.num_samples):
+        sample = dataset[i]
+        assert sample['value'] == i
+    rmtree(local)
+
+
+def four(remote: str, local: str):
+    """
+    Verify __iter__ -> __getitem__ downloads/accesses.
+    """
+    dataset = StreamingDataset(local=local, remote=remote)
+    for i, sample in zip(range(dataset.num_samples), dataset):
+        assert sample['value'] == i
+    del dataset
+
+
+def five(remote: str, local: str):
+    """
+    Re-verify __getitem__ downloads/accesses.
+    """
+    dataset = StreamingDataset(local=local, remote=remote)
+    for i in range(dataset.num_samples):
+        sample = dataset[i]
+        assert sample['value'] == i
 
 
 @pytest.mark.usefixtures('local_remote_dir')
@@ -27,36 +77,5 @@ def test_laziness(local_remote_dir: Tuple[str, str]):
             sample = {'value': i}
             out.write(sample)
 
-    # Verify __getitem__ accesses.
-    dataset = StreamingDataset(local=remote)
-    for i in range(num_samples):
-        sample = dataset[i]
-        assert sample['value'] == i
-    del dataset
-
-    # Verify __iter__ -> __getitem__ accesses.
-    dataset = StreamingDataset(local=remote)
-    for i, sample in zip(range(num_samples), dataset):
-        assert sample['value'] == i
-    del dataset
-
-    # Verify __getitem__ downloads/accesses.
-    dataset = StreamingDataset(local=local, remote=remote)
-    for i in range(num_samples):
-        sample = dataset[i]
-        assert sample['value'] == i
-    del dataset
-
-    shutil.rmtree(local)
-
-    # Verify __iter__ -> __getitem__ downloads/accesses.
-    dataset = StreamingDataset(local=local, remote=remote)
-    for i, sample in zip(range(num_samples), dataset):
-        assert sample['value'] == i
-    del dataset
-
-    # Re-verify __getitem__ downloads/accesses.
-    dataset = StreamingDataset(local=local, remote=remote)
-    for i in range(num_samples):
-        sample = dataset[i]
-        assert sample['value'] == i
+    for func in [one, two, three, four, five]:
+        func(remote, local)

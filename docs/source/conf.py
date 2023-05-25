@@ -373,6 +373,8 @@ def _modules_to_rst() -> List[types.ModuleType]:
         streaming.base.compression,
         streaming.base.format,
         streaming.base.hashing,
+        streaming.base.partition,
+        streaming.base.shared,
         streaming.base.shuffle,
         streaming.base.storage,
         streaming.base.world,
