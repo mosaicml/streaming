@@ -241,9 +241,9 @@ class StreamingDataset(Array, IterableDataset):
         cache_limit (Union[int, str], optional): Maximum size in bytes of this StreamingDataset's
             shard cache. Before downloading a shard, the least recently used resident shard(s)
             may be evicted (deleted from the local cache) in order to stay under the limit.
-            Set to ``None`` to disable shard eviction. Supported value is integer or a human
-            readable byte size format, for example, ``100b``, ``64kb``, ``77mb``, upto yotta byte.
-            Defaults to ``None``.
+            Set to ``None`` to disable shard eviction. Supports integer bytes as well as string
+            human-readable bytes (e.g., ``100b``, ``64kb``, ``77mb``, and so on). Defaults to
+            ``None``.
         partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
         num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
             resumption. Defaults to ``None``, which is interpreted as the number of nodes of the
@@ -278,8 +278,8 @@ class StreamingDataset(Array, IterableDataset):
                  shuffle_seed: int = 9176,
                  shuffle_block_size: int = 1 << 18) -> None:
         # Global arguments (which do not live in Streams).
-        self.cache_limit = cache_limit
         self.predownload = predownload
+        self.cache_limit = cache_limit
         self.partition_algo = partition_algo
         self.num_canonical_nodes = num_canonical_nodes
         self.batch_size = batch_size

@@ -188,18 +188,6 @@ dataset = StreamingInsideWebVid(local=local, remote=remote, shuffle=True)
 
 ---
 
-## Cold shard eviction
-Dynamically evict coldest shards using least recently accessed policy to keep the disk space
-under the limit. Cold shard eviction can be enabled by providing a `cache_limit` value to StreamingDataset. Default behavior is not to evict a shard.
-
-```
-# Evict shards once a disk space goes beyond 100GB per node.
-dataset = StreamingDataset(
-  cache_limit=100gb,
-)
-```
-Rate of shard eviction can be affected by `predownload`, `shuffle_algo`, and `num_canonical_nodes` parameters. Checkout the [shuffling](./docs/source/fundamentals/shuffling.md) guide for more details.
-
 ## Seamless data mixing
 
 Easily experiment with dataset mixtures with [`Stream`](https://docs.mosaicml.com/projects/streaming/en/latest/api_reference/generated/streaming.Stream.html#stream). Dataset sampling can be controlled in relative (proportion) or absolute (repeat or samples terms). During streaming, the different datasets are streamed, shuffled, and mixed seamlessly just-in-time.
@@ -229,7 +217,7 @@ See the figure below — training a model on 1, 8, 16, 32, or 64 GPUs yields the
 
 ![Plot of elastic determinism](docs/source/_static/images/determinism.png)
 
-## Instant Mid-Epoch Resumption
+## Instant mid-epoch resumption
 
 It can be expensive — and annoying — to wait for your job to resume while your dataloader spins after a hardware failure or loss spike. Thanks to our deterministic sample ordering, StreamingDataset lets you resume training in seconds, not hours, in the middle of a long training run.
 
@@ -247,7 +235,7 @@ Our MDS format cuts extraneous work to the bone, resulting in ultra-low sample l
 
 *Results shown are from ImageNet + ResNet-50 training, collected over 5 repetitions after the data is cached after the first epoch.*
 
-## Equal Convergence
+## Equal convergence
 
 Model convergence from using StreamingDataset is just as good as using local disk, thanks to our shuffling algorithm.
 
@@ -268,6 +256,17 @@ StreamingDataset shuffles across all samples assigned to a node, whereas alterna
 Access the data you need when you need it.
 
 Even if a sample isn’t downloaded yet, you can access `dataset[i]` to get sample `i`. The download will kick off immediately and the result will be returned when it’s done - similar to a map-style PyTorch dataset with samples numbered sequentially and accessible in any order.
+
+## Garbage collection
+
+Automatically delete least recently used shards in order to keep disk usage under a specified limit. This is enabled by setting the StreamingDataset argument `cache_limit`. See the [shuffling](./docs/source/fundamentals/shuffling.md) guide for more details.
+
+```
+dataset = StreamingDataset(
+    cache_limit='100gb',
+    ...
+)
+```
 
 <!--pytest.mark.skip-->
 ```python
