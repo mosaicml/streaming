@@ -275,7 +275,7 @@ dl = DataLoader(dataset, num_workers=...)
 
 ## Disk usage limits
 
-Automatically delete least recently used shards in order to keep disk usage under a specified limit. This is enabled by setting the StreamingDataset argument `cache_limit`. See the [shuffling](./docs/source/fundamentals/shuffling.md) guide for more details.
+Dynamically delete least recently used shards in order to keep disk usage under a specified limit. This is enabled by setting the StreamingDataset argument `cache_limit`. See the [shuffling](./docs/source/fundamentals/shuffling.md) guide for more details.
 
 ```
 dataset = StreamingDataset(
