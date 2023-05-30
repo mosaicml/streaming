@@ -2,8 +2,11 @@
 
 Streaming dataset supports the following cloud storage providers to stream your data directly to your instance.
 - Amazon S3
+- S3 compatible object store
 - Google Cloud Storage
 - Oracle Cloud Storage
+- Azure Blob Storage
+
 
 ## Amazon S3
 
@@ -69,6 +72,29 @@ export MOSAICML_STREAMING_AWS_REQUESTER_PAYS='streaming-bucket,another-bucket'
 ```
 ````
 
+## S3 compatible object store
+For any S3 compatible object store such as [Cloudflare R2](https://www.cloudflare.com/products/r2/), [Coreweave](https://docs.coreweave.com/storage/object-storage), [Backblaze b2](https://www.backblaze.com/b2/cloud-storage.html), etc., setup your credentials as mentioned in the above `Amazon S3` section. The only difference is you must set your object store endpoint url. To do this, you need to set the ``S3_ENDPOINT_URL`` environment variable.
+
+Below is one of such example on setting a R2 `endpoint url` in your run environment.
+
+```{note}
+Your endpoint url is `https://<accountid>.r2.cloudflarestorage.com`. The account ID can be retrieved through your [Cloudflare console](https://dash.cloudflare.com/).
+```
+
+````{tabs}
+```{code-tab} py
+import os
+os.environ['S3_ENDPOINT_URL'] = 'https://<accountid>.r2.cloudflarestorage.com'
+```
+
+```{code-tab} sh
+export S3_ENDPOINT_URL='https://<accountid>.r2.cloudflarestorage.com'
+```
+````
+
+The above step will add an environment variable `S3_ENDPOINT_URL` to your runs and the streaming dataset fetches those environment variables for authentication and stream data into your instance.
+
+
 ## Google Cloud Storage
 
 ### MosaicML platform
@@ -125,59 +151,7 @@ region=us-ashburn-1
 
 The key file (`~/.oci/oci_api_key.pem`) is a PEM file that would look like a typical RSA private key file. The streaming dataset authenticates the credentials by reading the `~/.oci/config` and `~/.oci/oci_api_key.pem`.
 
-## Cloudflare R2
-
-First, make sure the `awscli` is installed, and then run `aws configure` to create the config and credential files:
-
-```
-python -m pip install awscli
-aws configure
-```
-
-```{note}
-The requested credentials can be retrieved through your [Cloudflare console](https://dash.cloudflare.com/), navigate to `Manage R2 API Tokens` > `Create API token`.
-```
-
-Your config and credentials files should follow the standard structure output by `aws configure`:
-
-`~/.aws/config`
-
-```
-[default]
-region=auto
-output=json
-
-```
-
-`~/.aws/credentials`
-
-```
-[default]
-aws_access_key_id=AKIAIOSFODNN7EXAMPLE
-aws_secret_access_key=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-
-```
-
-Users must set their R2 `endpoint url` in the run environment.
-
-```{note}
-Your endpoint url is `https://<accountid>.r2.cloudflarestorage.com`. The account ID can be retrieved through your [Cloudflare console](https://dash.cloudflare.com/).
-```
-
-````{tabs}
-```{code-tab} py
-import os
-os.environ['S3_ENDPOINT_URL'] = 'https://<accountid>.r2.cloudflarestorage.com'
-```
-
-```{code-tab} sh
-export S3_ENDPOINT_URL='https://<accountid>.r2.cloudflarestorage.com'
-```
-````
-
-The above step will add an environment variable `S3_ENDPOINT_URL` to your runs and the streaming dataset fetches those environment variables for authentication and stream data into your instance.
-
-## Azure
+## Azure Blob Storage
 
 If you wish to create a new storage account, you can use the [Azure Portal](https://docs.microsoft.com/azure/storage/common/storage-quickstart-create-account?tabs=azure-portal), [Azure PowerShell](https://docs.microsoft.com/azure/storage/common/storage-quickstart-create-account?tabs=azure-powershell), or [Azure CLI](https://docs.microsoft.com/azure/storage/common/storage-quickstart-create-account?tabs=azure-cli):
 

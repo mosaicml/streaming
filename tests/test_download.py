@@ -56,6 +56,17 @@ class TestS3Client:
             download_from_s3(mock_remote_filepath, tmp.name, 60)
             assert os.path.isfile(tmp.name)
 
+    @pytest.mark.usefixtures('s3_client', 's3_test', 'r2_credentials', 'remote_local_file')
+    def test_download_from_s3_with_endpoint_URL(self, remote_local_file: Any):
+        with tempfile.NamedTemporaryFile(delete=True, suffix='.txt') as tmp:
+            file_name = tmp.name.split(os.sep)[-1]
+            mock_remote_filepath, _ = remote_local_file(cloud_prefix='s3://', filename=file_name)
+            client = boto3.client('s3', region_name='us-east-1')
+            client.put_object(Bucket=MY_BUCKET, Key=os.path.join(MY_PREFIX, file_name), Body='')
+            download_from_s3(mock_remote_filepath, tmp.name, 60)
+            assert os.path.isfile(tmp.name)
+            assert os.environ['S3_ENDPOINT_URL'] == R2_URL
+
     @pytest.mark.usefixtures('s3_client', 's3_test', 'remote_local_file')
     def test_clienterror_exception(self, remote_local_file: Any):
         with pytest.raises(ClientError):
@@ -96,31 +107,6 @@ class TestGCSClient:
         with pytest.raises(ValueError):
             mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='s3://')
             download_from_gcs(mock_remote_filepath, mock_local_filepath)
-
-
-class TestR2Client:
-
-    @pytest.mark.usefixtures('r2_client', 'r2_test', 'remote_local_file')
-    def test_download_from_r2(self, remote_local_file: Any):
-        with tempfile.NamedTemporaryFile(delete=True, suffix='.txt') as tmp:
-            file_name = tmp.name.split(os.sep)[-1]
-            mock_remote_filepath, _ = remote_local_file(cloud_prefix='s3://', filename=file_name)
-            client = boto3.client('s3', region_name='us-east-1', endpoint_url=R2_URL)
-            client.put_object(Bucket=MY_BUCKET, Key=os.path.join(MY_PREFIX, file_name), Body='')
-            download_from_s3(mock_remote_filepath, tmp.name, 60)
-            assert os.path.isfile(tmp.name)
-
-    @pytest.mark.usefixtures('r2_client', 'r2_test', 'remote_local_file')
-    def test_filenotfound_exception(self, remote_local_file: Any):
-        with pytest.raises(FileNotFoundError):
-            mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='s3://')
-            download_from_s3(mock_remote_filepath, mock_local_filepath, 60)
-
-    @pytest.mark.usefixtures('r2_client', 'r2_test', 'remote_local_file')
-    def test_invalid_cloud_prefix(self, remote_local_file: Any):
-        with pytest.raises(ValueError):
-            mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='s3://')
-            download_from_s3(mock_remote_filepath, mock_local_filepath, 60)
 
 
 def test_download_from_local():

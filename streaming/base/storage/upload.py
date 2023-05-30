@@ -156,7 +156,7 @@ class CloudUploader:
 
 
 class S3Uploader(CloudUploader):
-    """Upload file from local machine to AWS S3 bucket.
+    """Upload file from local machine to AWS S3 bucket (or any S3 compatible object store).
 
     Args:
         out (str | Tuple[str, str]): Output dataset directory to save shard files.

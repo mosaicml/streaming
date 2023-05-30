@@ -15,7 +15,7 @@ BOTOCORE_CLIENT_ERROR_CODES = {'403', '404', 'NoSuchKey'}
 
 
 def download_from_s3(remote: str, local: str, timeout: float) -> None:
-    """Download a file from remote AWS S3 to local.
+    """Download a file from remote AWS S3 (or any S3 compatible object store) to local.
 
     Args:
         remote (str): Remote path (S3).
@@ -28,8 +28,10 @@ def download_from_s3(remote: str, local: str, timeout: float) -> None:
         """Download the file from AWS S3 bucket. The bucket can be either public or private.
 
         Args:
-            unsigned (bool, optional):  Set to True if it is a public bucket. Defaults to False.
-            extra_args (Dict[str, Any], optional): Extra arguments supported by boto3. Defaults to None.
+            unsigned (bool, optional):  Set to True if it is a public bucket.
+                Defaults to ``False``.
+            extra_args (Dict[str, Any], optional): Extra arguments supported by boto3.
+                Defaults to ``None``.
         """
         if unsigned:
             # Client will be using unsigned mode in which public
