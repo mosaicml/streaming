@@ -17,7 +17,7 @@ StreamingDataset also takes two other arguments that shuffling interacts with:
 
 | Parameter | Type | Description |
 | :-------- | :--- | :---------- |
-| `predownload` | `Optional[int] = 512` | tune together with shuffle block size to keep workers from ever starving of shard pre-downloads while iterating (none means no limit) |
+| `predownload` | `Optional[int] = None` | tune together with shuffle block size to keep workers from ever starving of shard pre-downloads while iterating (`None` means derive its value using batch size and number of canonical nodes `max(batch_size, 256 * batch_size // num_canonical_nodes)`) |
 | `num_canonical_nodes` | `Optional[int] = None` | number of divisions of the sample space, which are iterated from beginning to end concurrently (defaults to number of initial physical nodes) |
 
 ## Algorithms
