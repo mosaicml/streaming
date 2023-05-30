@@ -1151,7 +1151,7 @@ class StreamingDataset(Array, IterableDataset):
 
             # Wait for the shard for this sample to be downloaded and decompressed, if not already.
             shard_id, _ = self.spanner[sample_id]
-            # During cold shard eviction, shard state might go in a reverse direction. If a shard
+            # During cold shard eviction, shard state might go in the reverse direction. If a shard
             # is missing while fetching a sample, download it.
             if self._shard_states[shard_id] == _ShardState.MISSING:
                 self.download_shard(shard_id, False)
