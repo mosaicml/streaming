@@ -190,7 +190,7 @@ class StreamingDataset(Array, IterableDataset):
 
       * Absolute dataset size, if streams were weighted relatively:
 
-        * ``choose``
+        * ``epoch_size``
 
     * How to iterate:
 
@@ -232,10 +232,10 @@ class StreamingDataset(Array, IterableDataset):
         keep_zip (bool): Whether to keep or delete the compressed form when decompressing
             downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
             ``False``.
-        choose (int, optional): Number of samples to draw per epoch balanced across all streams.
-            If ``None``, takes its value from the total number of underlying samples. Provide this
-            field if you are weighting streams relatively to target a larger or smaller epoch size.
-            Defaults to ``None``.
+        epoch_size (int, optional): Number of samples to draw per epoch balanced across all
+            streams. If ``None``, takes its value from the total number of underlying samples.
+            Provide this field if you are weighting streams relatively to target a larger or
+            smaller epoch size. Defaults to ``None``.
         predownload (int, optional): Target number of samples ahead to download the shards per
             number of workers provided in a dataloader while iterating. Defaults to ``512``.
         cache_limit (Union[int, str], optional): Maximum size in bytes of this StreamingDataset's
@@ -267,7 +267,7 @@ class StreamingDataset(Array, IterableDataset):
                  download_timeout: float = 60,
                  validate_hash: Optional[str] = None,
                  keep_zip: bool = False,
-                 choose: Optional[int] = None,
+                 epoch_size: Optional[int] = None,
                  predownload: Optional[int] = 512,
                  cache_limit: Optional[Union[int, str]] = None,
                  partition_algo: str = 'orig',
@@ -369,8 +369,11 @@ class StreamingDataset(Array, IterableDataset):
 
         # Now that we know the number of underlying samples of each stream, derive each stream's
         # true proportion/repeat/choose, as well as the total epoch size.
-        self.choose = Stream.apply_weights(self.streams, self.samples_per_stream, choose,
-                                           self.shuffle_seed)
+        self.epoch_size = Stream.apply_weights(self.streams, self.samples_per_stream, epoch_size,
+                                               self.shuffle_seed)
+
+        # Length (__len__) is the resampled epoch size divided over the number of devices.
+        self.length = ceil(self.epoch_size / world.num_ranks)
 
         # Register/lookup our shared memory prefix and filelock root directory.
         my_locals = [os.path.abspath(os.path.join(x.local, x.split)) for x in streams]
@@ -520,7 +523,7 @@ class StreamingDataset(Array, IterableDataset):
         Returns:
             int: Dataset length.
         """
-        return ceil(self.num_samples / World().num_ranks)
+        return self.length
 
     def _resume(self, world: World, epoch: int) -> Tuple[int, int]:
         """Either resume from checkpoint or start at the beginning.
@@ -728,7 +731,7 @@ class StreamingDataset(Array, IterableDataset):
         # Partition the global sample space (of resampled "big" sample IDs) into a tensor of shape
         # (num physical nodes, ranks per node, workers per rank, batches per worker, samples per
         # batch) such that we have an elastically deterministic sample order.
-        big_ids = get_partitions(self.partition_algo, self.choose, self.num_canonical_nodes,
+        big_ids = get_partitions(self.partition_algo, self.epoch_size, self.num_canonical_nodes,
                                  world.num_nodes, world.ranks_per_node, world.workers_per_rank,
                                  self.batch_size, sample_in_epoch)
 
