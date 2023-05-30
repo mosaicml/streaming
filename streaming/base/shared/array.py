@@ -35,6 +35,14 @@ class SharedArray:
         """
         return np.ndarray(self.shape, buffer=self.shm.buf, dtype=self.dtype)
 
+    def __len__(self) -> int:
+        """Get the length (i.e., size along the first axis).
+
+        Returns:
+            int: The length.
+        """
+        return int(self.shape[0])
+
     def __getitem__(self, index: Any) -> Any:
         """Get the scalar(s) at the given index, slice, or array of indices.
 
