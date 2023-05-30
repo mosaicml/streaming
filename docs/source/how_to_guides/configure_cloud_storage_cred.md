@@ -2,11 +2,10 @@
 
 Streaming dataset supports the following cloud storage providers to stream your data directly to your instance.
 - Amazon S3
-- S3 compatible object store
+- Any S3 compatible object store
 - Google Cloud Storage
 - Oracle Cloud Storage
 - Azure Blob Storage
-
 
 ## Amazon S3
 
@@ -49,7 +48,7 @@ aws_secret_access_key=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
 
 ```
 
-More details on these files can be found [here](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html). The streaming dataset reads the `~/.aws/config` and `~/.aws/credentials` to authenticate your credentials and stream data into your instance.
+More details about the authentication can be found [here](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html).
 
 ### Requester Pays Bucket
 
@@ -72,10 +71,10 @@ export MOSAICML_STREAMING_AWS_REQUESTER_PAYS='streaming-bucket,another-bucket'
 ```
 ````
 
-## S3 compatible object store
+## Any S3 compatible object store
 For any S3 compatible object store such as [Cloudflare R2](https://www.cloudflare.com/products/r2/), [Coreweave](https://docs.coreweave.com/storage/object-storage), [Backblaze b2](https://www.backblaze.com/b2/cloud-storage.html), etc., setup your credentials as mentioned in the above `Amazon S3` section. The only difference is you must set your object store endpoint url. To do this, you need to set the ``S3_ENDPOINT_URL`` environment variable.
 
-Below is one of such example on setting a R2 `endpoint url` in your run environment.
+Below is one such example, which sets a R2 `endpoint url` in your run environment.
 
 ```{note}
 Your endpoint url is `https://<accountid>.r2.cloudflarestorage.com`. The account ID can be retrieved through your [Cloudflare console](https://dash.cloudflare.com/).
@@ -91,9 +90,6 @@ os.environ['S3_ENDPOINT_URL'] = 'https://<accountid>.r2.cloudflarestorage.com'
 export S3_ENDPOINT_URL='https://<accountid>.r2.cloudflarestorage.com'
 ```
 ````
-
-The above step will add an environment variable `S3_ENDPOINT_URL` to your runs and the streaming dataset fetches those environment variables for authentication and stream data into your instance.
-
 
 ## Google Cloud Storage
 
@@ -119,8 +115,6 @@ export GCS_KEY='AKIAIOSFODNN7EXAMPLE'
 export GCS_SECRET='wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
 ```
 ````
-
-The above step will add two environment variables `GCS_KEY` and `GCS_SECRET` to your runs and the streaming dataset fetches those environment variables for authentication and stream data into your instance.
 
 ## Oracle Cloud Storage
 
@@ -183,5 +177,3 @@ export AZURE_ACCOUNT_NAME='test'
 export AZURE_ACCOUNT_ACCESS_KEY='NN1KHxKKkj20ZO92EMiDQjx3wp2kZG4UUvfAGlgGWRn6sPRmGY/TEST/Dri+ExAmPlEExAmPlExA+ExAmPlExA=='
 ```
 ````
-
-The above step will add two environment variables `AZURE_ACCOUNT_NAME` and `AZURE_ACCOUNT_ACCESS_KEY` to your runs and the streaming dataset fetches those environment variables for authentication and stream data into your instance.

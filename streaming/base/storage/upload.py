@@ -88,7 +88,7 @@ class CloudUploader:
                 ]))
             obj = urllib.parse.urlparse(out[1])
         if obj.scheme not in UPLOADERS:
-            raise ValueError('Invalid Cloud provider prefix.')
+            raise ValueError(f'Invalid Cloud provider prefix: {obj.scheme}.')
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
