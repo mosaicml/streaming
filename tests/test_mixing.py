@@ -178,7 +178,7 @@ def test_mix_proportion_range(root: str):
         subroot = os.path.join(root, str(i))
         stream = Stream(local=subroot, proportion=proportion[i])
         streams.append(stream)
-    dataset = StreamingDataset(streams=streams, choose=12)
+    dataset = StreamingDataset(streams=streams, epoch_size=12)
     assert dataset.num_samples == 8
     assert walk(dataset) == [2, 3, 4, 5, 4, 5, 6, 7, 6, 7, 6, 7]
     for i, stream in enumerate(streams):
