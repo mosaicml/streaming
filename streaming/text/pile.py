@@ -36,10 +36,10 @@ class StreamingPile(StreamingDataset):
         keep_zip (bool): Whether to keep or delete the compressed form when decompressing
             downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
             ``False``.
-        choose (int, optional): Number of samples to draw per epoch balanced across all streams.
-            If ``None``, takes its value from the total number of underlying samples. Provide this
-            field if you are weighting streams relatively to target a larger or smaller epoch size.
-            Defaults to ``None``.
+        epoch_size (int, optional): Number of samples to draw per epoch balanced across all
+            streams. If ``None``, takes its value from the total number of underlying samples.
+            Provide this field if you are weighting streams relatively to target a larger or
+            smaller epoch size. Defaults to ``None``.
         predownload (int, optional): Target number of samples ahead to download the shards per
             number of workers provided in a dataloader while iterating. Defaults to ``512``.
         cache_limit (int, optional): Maximum size in bytes of this StreamingDataset's shard cache.
@@ -72,7 +72,7 @@ class StreamingPile(StreamingDataset):
                  download_timeout: float = 60,
                  validate_hash: Optional[str] = None,
                  keep_zip: bool = False,
-                 choose: Optional[int] = None,
+                 epoch_size: Optional[int] = None,
                  predownload: Optional[int] = 512,
                  cache_limit: Optional[int] = None,
                  partition_algo: str = 'orig',
@@ -95,7 +95,7 @@ class StreamingPile(StreamingDataset):
                          download_timeout=download_timeout,
                          validate_hash=validate_hash,
                          keep_zip=keep_zip,
-                         choose=choose,
+                         epoch_size=epoch_size,
                          predownload=predownload,
                          cache_limit=cache_limit,
                          partition_algo=partition_algo,
