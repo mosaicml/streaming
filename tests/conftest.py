@@ -110,10 +110,13 @@ def test_list_gcs_buckets():
     assert buckets['Buckets'][0]['Name'] == MY_BUCKET
 
 
-@pytest.fixture(scope='session', autouse=True)
+@pytest.fixture()
 def r2_credentials():
     """Mocked R2 Credentials for moto."""
     os.environ['S3_ENDPOINT_URL'] = R2_URL
+    yield
+    # Line after `yield` gets called at the end of test function.
+    del os.environ['S3_ENDPOINT_URL']
 
 
 @pytest.fixture()
