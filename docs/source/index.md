@@ -4,7 +4,7 @@
 
 StreamingDataset helps to make training on large datasets from cloud storage as fast, cheap, and scalable as possible. It’s specially designed for multi-node, distributed training for large models—maximizing correctness guarantees, performance, and ease of use. Now, you can efficiently train anywhere, independent of your training data location. Just stream in the data you need, when you need it.
 
-StreamingDataset is compatible with any data type, including **images, text, video, and multimodal data**. With support for major cloud storage providers ([AWS](https://aws.amazon.com/s3/), [OCI](https://www.oracle.com/cloud/storage/object-storage/), and [GCS](https://cloud.google.com/storage) are supported today; [Azure](https://azure.microsoft.com/en-us/products/storage/blobs) is coming soon), and designed as a drop-in replacement for your PyTorch [IterableDataset](https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset) class, StreamingDataset seamlessly integrates into your existing training workflows.
+StreamingDataset is compatible with any data type, including **images, text, video, and multimodal data**. With support for major cloud storage providers ([AWS](https://aws.amazon.com/s3/), [OCI](https://www.oracle.com/cloud/storage/object-storage/), [GCS](https://cloud.google.com/storage), [R2](https://www.cloudflare.com/products/r2/), and [Azure](https://azure.microsoft.com/en-us/products/storage/blobs) are supported today; and designed as a drop-in replacement for your PyTorch [IterableDataset](https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset) class, StreamingDataset seamlessly integrates into your existing training workflows.
 
 <!--pytest.mark.skip-->
 ```python
@@ -25,6 +25,8 @@ dataloader = DataLoader(dataset=StreamingDataset(remote='s3://...'))
 - **Equal Convergence**: Model convergence from using StreamingDataset is just as good as using local disk, thanks to our shuffling algorithm. StreamingDataset shuffles across all samples assigned to a node, whereas alternative solutions only shuffle samples in a smaller pool (within a single process).
 - **Random access**: Access the data you need when you need it. Even if a sample isn’t downloaded yet, you can access `dataset[i]` to get sample `i`.
 - **Numpy style indexing**: Fetch data on the fly by providing a NumPy style indexing to `StreamingDataset`.
+- **Seamless data mixing**: During streaming, the different datasets are streamed, shuffled, and mixed seamlessly just-in-time.
+- **Disk usage limits**: Dynamically delete least recently used shards in order to keep disk usage under a specified limit.
 
 To get started, please checkout our [Quick Start](getting_started/quick_start.md) and [User Guide](getting_started/user_guide.md).
 
