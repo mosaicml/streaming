@@ -248,8 +248,16 @@ class StreamingDataset(Array, IterableDataset):
             ``None``.
         partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
         num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
-            resumption. Defaults to ``None``, which is interpreted as the number of nodes of the
-            initial run.
+            resumption. The sample space is divided evenly according to the number of canonical
+            nodes. The higher the value, the more independent non-overlapping paths the
+            StreamingDataset replicas take through the shards per model replica (increasing data
+            source diversity). Defaults to ``None``, which is interpreted as 64 times the number
+            of nodes of the initial run.
+
+            .. note::
+
+                For sequential sample ordering, set ``shuffle`` to ``False`` and
+                ``num_canonical_nodes`` to the number of physical nodes of the initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
@@ -551,7 +559,7 @@ class StreamingDataset(Array, IterableDataset):
         except FileNotFoundError:
             # There is nothing to resume.
             if not self.num_canonical_nodes:
-                self.num_canonical_nodes = world.num_nodes
+                self.num_canonical_nodes = world.num_nodes * 64
                 self._set_predownload()
             return epoch, 0
 
@@ -564,7 +572,7 @@ class StreamingDataset(Array, IterableDataset):
         # Check if the resume state is stale.
         if obj['epoch'] < epoch:
             if not self.num_canonical_nodes:
-                self.num_canonical_nodes = world.num_nodes
+                self.num_canonical_nodes = world.num_nodes * 64
                 self._set_predownload()
             return epoch, 0
 

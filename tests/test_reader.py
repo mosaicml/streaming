@@ -44,9 +44,10 @@ def mds_dataset_dir():
 @pytest.mark.parametrize('remote_arg', ['none', 'same', 'different'])
 @pytest.mark.parametrize('shuffle', [False, True])
 @pytest.mark.parametrize('seed', [5151])
+@pytest.mark.parametrize('num_canonical_nodes', [1])
 @pytest.mark.usefixtures('mds_dataset_dir')
 def test_dataset_sample_order(mds_dataset_dir: Any, batch_size: int, remote_arg: str,
-                              shuffle: bool, seed: int):
+                              shuffle: bool, seed: int, num_canonical_nodes: int):
     num_samples = 117
     remote_dir, local_dir = mds_dataset_dir
     if remote_arg == 'none':
@@ -64,7 +65,8 @@ def test_dataset_sample_order(mds_dataset_dir: Any, batch_size: int, remote_arg:
                                remote=remote_dir,
                                shuffle=shuffle,
                                batch_size=batch_size,
-                               shuffle_seed=seed)
+                               shuffle_seed=seed,
+                               num_canonical_nodes=num_canonical_nodes)
 
     # Test basic sample order
     rcvd_samples = 0
