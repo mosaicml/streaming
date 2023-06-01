@@ -560,7 +560,7 @@ class StreamingDataset(Array, IterableDataset):
             # There is nothing to resume.
             if not self.num_canonical_nodes:
                 self.num_canonical_nodes = world.num_nodes * 64
-                self._set_predownload()
+            self._set_predownload()
             return epoch, 0
 
         # SharedMemory buffers may contain additional null bytes at the end.
@@ -573,7 +573,7 @@ class StreamingDataset(Array, IterableDataset):
         if obj['epoch'] < epoch:
             if not self.num_canonical_nodes:
                 self.num_canonical_nodes = world.num_nodes * 64
-                self._set_predownload()
+            self._set_predownload()
             return epoch, 0
 
         # Load the correct resumption meta data.
@@ -581,6 +581,7 @@ class StreamingDataset(Array, IterableDataset):
         sample_in_epoch = obj['sample_in_epoch']
         self.num_canonical_nodes = obj['num_canonical_nodes']
         self.shuffle_seed = obj['shuffle_seed']
+        self._set_predownload()
 
         return epoch, sample_in_epoch
 
