@@ -237,7 +237,9 @@ class StreamingDataset(Array, IterableDataset):
             Provide this field if you are weighting streams relatively to target a larger or
             smaller epoch size. Defaults to ``None``.
         predownload (int, optional): Target number of samples ahead to download the shards per
-            number of workers provided in a dataloader while iterating. Defaults to ``512``.
+            number of workers provided in a dataloader while iterating. If ``None``, its value
+            gets derived using batch size and number of canonical nodes
+            ``max(batch_size, 256 * batch_size // num_canonical_nodes)``. Defaults to ``None``.
         cache_limit (Union[int, str], optional): Maximum size in bytes of this StreamingDataset's
             shard cache. Before downloading a shard, the least recently used resident shard(s)
             may be evicted (deleted from the local cache) in order to stay under the limit.
@@ -246,8 +248,16 @@ class StreamingDataset(Array, IterableDataset):
             ``None``.
         partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
         num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
-            resumption. Defaults to ``None``, which is interpreted as the number of nodes of the
-            initial run.
+            resumption. The sample space is divided evenly according to the number of canonical
+            nodes. The higher the value, the more independent non-overlapping paths the
+            StreamingDataset replicas take through the shards per model replica (increasing data
+            source diversity). Defaults to ``None``, which is interpreted as 64 times the number
+            of nodes of the initial run.
+
+            .. note::
+
+                For sequential sample ordering, set ``shuffle`` to ``False`` and
+                ``num_canonical_nodes`` to the number of physical nodes of the initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
@@ -268,7 +278,7 @@ class StreamingDataset(Array, IterableDataset):
                  validate_hash: Optional[str] = None,
                  keep_zip: bool = False,
                  epoch_size: Optional[int] = None,
-                 predownload: Optional[int] = 512,
+                 predownload: Optional[int] = None,
                  cache_limit: Optional[Union[int, str]] = None,
                  partition_algo: str = 'orig',
                  num_canonical_nodes: Optional[int] = None,
@@ -525,6 +535,13 @@ class StreamingDataset(Array, IterableDataset):
         """
         return self.length
 
+    def _set_predownload(self) -> None:
+        """Set the predownload value which is per number of workers."""
+        if self.predownload is None:
+            self.predownload = max(
+                self.batch_size, 256 * self.batch_size // self.num_canonical_nodes
+            ) if self.batch_size is not None and self.num_canonical_nodes is not None else 512
+
     def _resume(self, world: World, epoch: int) -> Tuple[int, int]:
         """Either resume from checkpoint or start at the beginning.
 
@@ -542,7 +559,8 @@ class StreamingDataset(Array, IterableDataset):
         except FileNotFoundError:
             # There is nothing to resume.
             if not self.num_canonical_nodes:
-                self.num_canonical_nodes = world.num_nodes
+                self.num_canonical_nodes = world.num_nodes * 64
+            self._set_predownload()
             return epoch, 0
 
         # SharedMemory buffers may contain additional null bytes at the end.
@@ -554,7 +572,8 @@ class StreamingDataset(Array, IterableDataset):
         # Check if the resume state is stale.
         if obj['epoch'] < epoch:
             if not self.num_canonical_nodes:
-                self.num_canonical_nodes = world.num_nodes
+                self.num_canonical_nodes = world.num_nodes * 64
+            self._set_predownload()
             return epoch, 0
 
         # Load the correct resumption meta data.
@@ -562,6 +581,7 @@ class StreamingDataset(Array, IterableDataset):
         sample_in_epoch = obj['sample_in_epoch']
         self.num_canonical_nodes = obj['num_canonical_nodes']
         self.shuffle_seed = obj['shuffle_seed']
+        self._set_predownload()
 
         return epoch, sample_in_epoch
 

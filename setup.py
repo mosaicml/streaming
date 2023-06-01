@@ -78,21 +78,16 @@ extra_deps['dev'] = [
 
 extra_deps['docs'] = [
     'GitPython==3.1.31',
-    'docutils==0.17.1',
-    'furo==2022.9.29',
-    'myst-parser==0.18.1',
-    'nbsphinx==0.8.12',
+    'docutils==0.18.1',
+    'furo==2023.5.20',
+    'myst-parser==1.0.0',
+    'nbsphinx==0.9.2',
     'pandoc==2.3',
     'pypandoc==1.11',
     'sphinx-argparse==0.4.0',
     'sphinx-copybutton==0.5.2',
-    'sphinx==4.4.0',
-    'sphinx_panels==0.6.0',
-    'sphinxcontrib-images==0.9.4',
-    'sphinxcontrib.katex==0.9.4',
-    'sphinxemoji==0.2.0',
-    'sphinxext.opengraph==0.8.2',
-    'sphinx-tabs>=3,<4',
+    'sphinx==6.2.1',
+    'sphinx-tabs==3.4.1',
 ]
 
 extra_deps['all'] = sorted(set(dep for deps in extra_deps.values() for dep in deps))

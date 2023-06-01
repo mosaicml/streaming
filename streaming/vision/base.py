@@ -71,15 +71,25 @@ class StreamingVisionDataset(StreamingDataset, VisionDataset):
             Provide this field if you are weighting streams relatively to target a larger or
             smaller epoch size. Defaults to ``None``.
         predownload (int, optional): Target number of samples ahead to download the shards per
-            number of workers provided in a dataloader while iterating. Defaults to ``512``.
+            number of workers provided in a dataloader while iterating. If ``None``, its value
+            gets derived using batch size and number of canonical nodes
+            ``max(batch_size, 256 * batch_size // num_canonical_nodes)``. Defaults to ``None``.
         cache_limit (int, optional): Maximum size in bytes of this StreamingDataset's shard cache.
             Before downloading a shard, the least recently used resident shard(s) may be evicted
             (deleted from the local cache) in order to stay under the limit. Set to ``None`` to
             disable shard eviction. Defaults to ``None``.
         partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
         num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
-            resumption. Defaults to ``None``, which is interpreted as the number of nodes of the
-            initial run.
+            resumption. The sample space is divided evenly according to the number of canonical
+            nodes. The higher the value, the more independent non-overlapping paths the
+            StreamingDataset replicas take through the shards per model replica (increasing data
+            source diversity). Defaults to ``None``, which is interpreted as 64 times the number
+            of nodes of the initial run.
+
+            .. note::
+
+                For sequential sample ordering, set ``shuffle`` to ``False`` and
+                ``num_canonical_nodes`` to the number of physical nodes of the initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
@@ -105,7 +115,7 @@ class StreamingVisionDataset(StreamingDataset, VisionDataset):
                  validate_hash: Optional[str] = None,
                  keep_zip: bool = False,
                  epoch_size: Optional[int] = None,
-                 predownload: Optional[int] = 512,
+                 predownload: Optional[int] = None,
                  cache_limit: Optional[int] = None,
                  partition_algo: str = 'orig',
                  num_canonical_nodes: Optional[int] = None,

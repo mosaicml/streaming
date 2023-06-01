@@ -125,9 +125,10 @@ def test_dataloader_determinism(mds_dataset_dir: Any, batch_size: int, seed: int
 @pytest.mark.parametrize('shuffle', [False])
 @pytest.mark.parametrize('drop_last', [False, True])
 @pytest.mark.parametrize('num_workers', [0, 8])
+@pytest.mark.parametrize('num_canonical_nodes', [1])
 @pytest.mark.usefixtures('mds_dataset_dir')
 def test_dataloader_sample_order(mds_dataset_dir: Any, batch_size: int, seed: int, shuffle: bool,
-                                 drop_last: bool, num_workers: int):
+                                 drop_last: bool, num_workers: int, num_canonical_nodes: int):
     remote_dir, local_dir = mds_dataset_dir
 
     # Build StreamingDataset
@@ -135,7 +136,8 @@ def test_dataloader_sample_order(mds_dataset_dir: Any, batch_size: int, seed: in
                                remote=remote_dir,
                                shuffle=shuffle,
                                batch_size=batch_size,
-                               shuffle_seed=seed)
+                               shuffle_seed=seed,
+                               num_canonical_nodes=num_canonical_nodes)
 
     # Build DataLoader
     dataloader = StreamingDataLoader(dataset=dataset,
@@ -161,9 +163,11 @@ def test_dataloader_sample_order(mds_dataset_dir: Any, batch_size: int, seed: in
 @pytest.mark.parametrize('seed', [3456])
 @pytest.mark.parametrize('shuffle', [False, True])
 @pytest.mark.parametrize('num_workers', [0, 4])
+@pytest.mark.parametrize('num_canonical_nodes', [1])
 @pytest.mark.usefixtures('mds_dataset_dir')
 def test_streamingdataloader_mid_epoch_resumption(mds_dataset_dir: Any, batch_size: int, seed: int,
-                                                  shuffle: bool, num_workers: int):
+                                                  shuffle: bool, num_workers: int,
+                                                  num_canonical_nodes: int):
     remote_dir, local_dir = mds_dataset_dir
 
     # Build StreamingDataset
@@ -171,7 +175,8 @@ def test_streamingdataloader_mid_epoch_resumption(mds_dataset_dir: Any, batch_si
                                remote=remote_dir,
                                shuffle=shuffle,
                                batch_size=batch_size,
-                               shuffle_seed=seed)
+                               shuffle_seed=seed,
+                               num_canonical_nodes=num_canonical_nodes)
 
     # Build DataLoader
     dataloader = StreamingDataLoader(dataset=dataset,

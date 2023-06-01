@@ -140,7 +140,7 @@ def get_shm_prefix(my_locals: List[str],
         my_locals (List[str]): Local working dir of each stream, relative to /. We need to verify
             that there is no overlap with any other currently running StreamingDataset.
         world (World): Information about nodes, ranks, and workers.
-        retry (int): Number of retries upon failure before raising an excpetion. Defaults to ``7``.
+        retry (int): Number of retries upon failure before raising an exception. Defaults to ``7``.
 
     Returns:
         Tuple[str, SharedMemory]: Shared memory prefix and object. The name is required to be very
