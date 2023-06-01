@@ -23,7 +23,7 @@ def two(remote: str, local: str):
     """
     Verify __iter__ -> __getitem__ accesses.
     """
-    dataset = StreamingDataset(local=remote)
+    dataset = StreamingDataset(local=remote, num_canonical_nodes=1)
     for i, sample in zip(range(dataset.num_samples), dataset):
         assert sample['value'] == i
 
@@ -43,7 +43,7 @@ def four(remote: str, local: str):
     """
     Verify __iter__ -> __getitem__ downloads/accesses.
     """
-    dataset = StreamingDataset(local=local, remote=remote)
+    dataset = StreamingDataset(local=local, remote=remote, num_canonical_nodes=1)
     for i, sample in zip(range(dataset.num_samples), dataset):
         assert sample['value'] == i
     del dataset
