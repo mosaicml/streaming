@@ -44,4 +44,4 @@ Run the following command to ensure the proper installation of the StreamingData
 python -c "import streaming; print(streaming.__version__)"
 ```
 
-That's it! Check out our [Quick Start Guide](quick_start.md) on using the StreamingDataset.
+That's it! Check out our [Quick Start](quick_start.md) guide on using the StreamingDataset.

@@ -53,7 +53,7 @@ If you have any questions, please feel free to reach out to us on [Twitter](htt
    :caption: Fundamentals
 
    fundamentals/dataset_format.md
-   fundamentals/Introduction_to_writer.md
+   fundamentals/dataset_conversion_guide.md
    fundamentals/compression.md
    fundamentals/hashing.md
    fundamentals/environments.md
@@ -64,8 +64,8 @@ If you have any questions, please feel free to reach out to us on [Twitter](htt
    :maxdepth: 1
    :caption: How-to Guides
 
-   how_to_guides/configure_cloud_storage_cred.md
-   how_to_guides/dataset_conversion_to_mds.md
+   how_to_guides/configure_cloud_storage_credentials.md
+   how_to_guides/dataset_conversion_to_mds_format.md
 
 .. toctree::
    :hidden:

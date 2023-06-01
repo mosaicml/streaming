@@ -1,6 +1,6 @@
-# Dataset conversion guide
+# Dataset Conversion Guide
 
-If you haven't read the [Introduction to dataset format guide](dataset_format.md), then we highly recommend doing so before you read this. 
+If you haven't read the [Dataset Format](dataset_format.md) guide, then we highly recommend doing so before you read this. 
 
 ## MDSWriter
 
@@ -35,7 +35,7 @@ column = {
 }
 ```
 
-**Advance use-case:** If the data type you are interested in is not listed in the above table, then you can write your own data type class with `encode` and `decode` method in it and patch it inside streaming. For example, you want to write the same for `int32` data type.
+**Advanced use-case:** If the data type you are interested in is not listed in the above table, then you can write your own data type class with `encode` and `decode` method in it and patch it inside streaming. For example, let say, you would like to write the same for `int32` data type.
 
 <!--pytest.mark.skip-->
 ```python
@@ -55,7 +55,7 @@ _encodings['int32'] = Int32
 ```
 
 
-3. A `compression` algorithm name if you want to compress the shard files. Check out the [compression](compression.md) document for more details.
+3. A `compression` algorithm name if you would like to compress the shard files. Check out the [compression](compression.md) document for more details.
 
 4. A `hashes` algorithm name to verify data integrity. Check out the [hashing](hashing.md) document for additional details.
 
@@ -63,4 +63,4 @@ _encodings['int32'] = Int32
 
 6. A `keep_local` parameter if you would like to keep the shard files locally after it has been uploaded to a remote cloud location by MDSWriter.
 
-This gives you a good understanding of {class}`streaming.MDSWriter` parameters. If you want to convert your raw data into an MDS format, check out the [dataset conversion to MDS](../how_to_guides/dataset_conversion_to_mds.md) guide.
+This gives you a good understanding of {class}`streaming.MDSWriter` parameters. If you would like to convert your raw data into an MDS format, check out the [Dataset Conversion to MDS Format](../how_to_guides/dataset_conversion_to_mds_format.md) guide.
