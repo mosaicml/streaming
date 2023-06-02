@@ -721,8 +721,8 @@ class StreamingDataset(Array, IterableDataset):
                     partial_repeat.sort()
                     sample_ids.append(partial_repeat)
 
-        shuffle_units = np.concatenate(shuffle_units)
-        sample_ids = np.concatenate(sample_ids)
+        shuffle_units = np.concatenate(shuffle_units).astype(np.int64)
+        sample_ids = np.concatenate(sample_ids).astype(np.int64)
         return shuffle_units, sample_ids
 
     def _generate_work(self, world: World, epoch: int, sample_in_epoch: int) -> NDArray[np.int64]:
