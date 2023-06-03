@@ -388,12 +388,13 @@ class StreamingDataset(Array, IterableDataset):
         # Register/lookup our shared memory prefix and filelock root directory.
         my_locals = [os.path.abspath(os.path.join(x.local, x.split)) for x in streams]
         self._shm_prefix, self._locals_shm = get_shm_prefix(my_locals, world)
-        self._filelock_root = os.path.join(os.path.sep, 'tmp', 'streaming', self._shm_prefix)
+        self._filelock_root = os.path.join(os.path.sep, 'tmp', 'streaming')
         os.makedirs(self._filelock_root, exist_ok=True)
 
         # Create the shared memory-backed barrier, without its lock, which is unpickleable.
-        self._shared_barrier = SharedBarrier(os.path.join(self._filelock_root, 'barrier_filelock'),
-                                             f'{self._shm_prefix}_barrier')
+        self._shared_barrier = SharedBarrier(
+            os.path.join(self._filelock_root, f'{self._shm_prefix}_barrier_filelock'),
+            f'{self._shm_prefix}_barrier')
 
         # Epoch counter.
         #
@@ -403,7 +404,8 @@ class StreamingDataset(Array, IterableDataset):
         self._next_epoch = SharedScalar(np.int64, f'{self._shm_prefix}_next_epoch')
 
         # Cache filelock. Protects downloading and evicting shards.
-        self._cache_filelock_path = os.path.join(self._filelock_root, '_cache_filelock')
+        self._cache_filelock_path = os.path.join(self._filelock_root,
+                                                 f'{self._shm_prefix}_cache_filelock')
         self._cache_filelock: FileLock
 
         # Cache usage in bytes.
@@ -1262,4 +1264,5 @@ class StreamingDataset(Array, IterableDataset):
         ready_future = self._executor.submit(self._ready_thread, it)
         ready_future.add_done_callback(self.on_exception)
         yield from map(self.__getitem__, self._each_sample_id(it))
+        self._executor.shutdown(wait=True)
         it.exit()
