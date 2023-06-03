@@ -5,7 +5,7 @@
 
 import json
 import os
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, wait
 from concurrent.futures._base import Future
 from enum import IntEnum
 from math import ceil
@@ -1264,5 +1264,5 @@ class StreamingDataset(Array, IterableDataset):
         ready_future = self._executor.submit(self._ready_thread, it)
         ready_future.add_done_callback(self.on_exception)
         yield from map(self.__getitem__, self._each_sample_id(it))
-        self._executor.shutdown(wait=True)
+        wait([download_future, ready_future])
         it.exit()
