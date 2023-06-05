@@ -6,9 +6,6 @@
 Implemented with shared array and a filelock.
 """
 
-import atexit
-import os
-from shutil import rmtree
 from time import sleep
 
 import numpy as np
@@ -38,17 +35,7 @@ class SharedBarrier:
     def __init__(self, filelock_path: str, shm_name: str) -> None:
         # Create lock.
         self.filelock_path = filelock_path
-        dirname = os.path.dirname(filelock_path)
-        if dirname:
-            os.makedirs(dirname, exist_ok=True)
-        self.lock = FileLock(filelock_path)
-
-        def cleanup():
-            if os.path.islink(dirname):
-                os.unlink(dirname)
-            rmtree(dirname, ignore_errors=True)
-
-        atexit.register(cleanup)
+        self.lock = FileLock(self.filelock_path)
 
         # Create three int32 fields in shared memory: num_enter, num_exit, flag.
         self._arr = SharedArray(3, np.int32, shm_name)
