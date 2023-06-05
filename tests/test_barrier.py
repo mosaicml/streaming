@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import multiprocessing as mp
+import os
 import re
 from multiprocessing.managers import ListProxy
 from random import random
@@ -46,11 +47,13 @@ class TestSharedBarrier:
         shared_list.append(f'passed barrier again: {mp.current_process().name}')
 
     @pytest.mark.parametrize('num_process', [2, 3])
-    def test_barrier(self, num_process: int):
+    @pytest.mark.parametrize('filelock_root', ['/tmp/dir/'])
+    def test_barrier(self, num_process: int, filelock_root: str):
         mp.set_start_method('fork', force=True)
         manager = mp.Manager()
         shared_list = manager.list()
-        barrier = SharedBarrier('/tmp/dir/filelock_path', 'barrier_shm_name')
+        os.makedirs(filelock_root, exist_ok=True)
+        barrier = SharedBarrier(os.path.join(filelock_root, 'filelock_path'), 'barrier_shm_name')
         processes = [
             mp.Process(target=self.run, args=(num_process, barrier, shared_list))
             for _ in range(num_process)
