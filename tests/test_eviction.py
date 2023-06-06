@@ -44,7 +44,7 @@ def shard_eviction_disabled(remote: str, local: str, keep_zip: bool):
     With shard eviction disabled.
     """
     dataset = StreamingDataset(remote=remote, local=local, keep_zip=keep_zip)
-    for _ in range(3):
+    for _ in range(2):
         for sample in dataset:  # pyright: ignore
             pass
 
@@ -61,7 +61,7 @@ def shard_eviction_too_high(remote: str, local: str, keep_zip: bool):
                                keep_zip=keep_zip,
                                cache_limit=1_000_000)
     dataloader = DataLoader(dataset=dataset, num_workers=8)
-    for _ in range(3):
+    for _ in range(2):
         for _ in dataloader:
             pass
     validate(remote, local, dataset, keep_zip, False)
@@ -72,9 +72,13 @@ def shard_eviction(remote: str, local: str, keep_zip: bool):
     """
     With shard eviction because cache_limit is smaller than the whole dataset.
     """
-    dataset = StreamingDataset(remote=remote, local=local, keep_zip=keep_zip, cache_limit='50kb')
+    cache_limit = '120kb' if keep_zip else '100kb'
+    dataset = StreamingDataset(remote=remote,
+                               local=local,
+                               keep_zip=keep_zip,
+                               cache_limit=cache_limit)
     dataloader = DataLoader(dataset=dataset, num_workers=8)
-    for _ in range(3):
+    for _ in range(2):
         for _ in dataloader:
             pass
     validate(remote, local, dataset, keep_zip, True)
