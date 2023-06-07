@@ -101,6 +101,8 @@ def get_partitions_orig(num_samples: int,
     ids = ids.transpose()
     ids = ids.flatten()
     ids = ids[drop_first:]
+    round_up_ignore_samples = ids.shape[0] % num_physical_nodes
+    ids = ids[round_up_ignore_samples:]
     ids = ids.reshape(-1, num_physical_nodes)
     ids = ids.transpose()
 
