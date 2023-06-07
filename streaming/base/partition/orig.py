@@ -39,6 +39,15 @@ def get_partitions_orig(num_samples: int,
         NDArray[np.int64]: Partitions of shape (physical nodes, ranks per node, workers per rank,
             batches per worker, batch size).
     """
+    print(f'=================== Streaming Partition Args ===================')
+    print(f'{num_samples=}')
+    print(f'{num_canonical_nodes=}')
+    print(f'{num_physical_nodes=}')
+    print(f'{ranks_per_node=}')
+    print(f'{workers_per_rank=}')
+    print(f'{batch_size=}')
+    print(f'{drop_first=}')
+    print(f'================================================================')
     if num_canonical_nodes < num_physical_nodes:
         if num_physical_nodes % num_canonical_nodes:
             raise ValueError('Either canonical or physical nodes must be evenly divisible by ' +
