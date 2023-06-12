@@ -1037,6 +1037,10 @@ class StreamingDataset(Array, IterableDataset):
         Returns:
             Dict[str, Any]: Mapping of column name to column data.
         """
+        # Background thread crashed, terminate the main process
+        if hasattr(self, '_event') and self._event.is_set():
+            raise RuntimeError('Background thread failed. Check other traceback.')
+
         # Locate the shard and sample offset within that shard where the sample lives.
         shard_id, shard_sample_id = self.spanner[sample_id]
         shard = self.shards[shard_id]
@@ -1212,6 +1216,10 @@ class StreamingDataset(Array, IterableDataset):
             if it.yield_index == it.total:
                 break
 
+            # Background thread crashed, terminate the main process
+            if self._event.is_set():
+                raise RuntimeError('Background thread failed. Check other traceback.')
+
             # Is there a sample ready to yield?
             if it.ready_index <= it.yield_index:
                 sleep(TICK)
@@ -1245,7 +1253,7 @@ class StreamingDataset(Array, IterableDataset):
         if not hasattr(self, '_event'):
             self._event = Event()
         elif self._event.is_set():
-            raise RuntimeError('Thread failed. Check other traceback.')
+            raise RuntimeError('Background thread failed. Check other traceback.')
 
         # Discover where we left off, if there is a checkpoint, or start at the next epoch.
         # Also pre-increment the epoch counter.
