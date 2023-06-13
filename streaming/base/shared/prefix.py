@@ -105,8 +105,8 @@ def _check_and_find(my_locals_set: Set[str]) -> int:
                              f'{sorted(their_locals_set)}. Provide a different one. If using ' +
                              f'a unique local directory, try deleting the local directory and ' +
                              f'call `streaming.base.util.clean_stale_shared_memory()` only once ' +
-                             f'to clean up the stale shared memory before instantiation of ' +
-                             f'`StreamingDataset`.')
+                             f'in your script to clean up the stale shared memory before ' +
+                             f'instantiation of `StreamingDataset`.')
     return prefix_int
 
 
