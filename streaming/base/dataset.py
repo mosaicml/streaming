@@ -109,7 +109,7 @@ class _Iterator:
             elif self._state == _IterState.EXITED:
                 return
             else:
-                raise RuntimeError(f'Invalid Iterator state: {self._state}')
+                raise RuntimeError(f'Invalid _IterState: {self._state}')
 
         # Block until they have all exited, updating _state to done.
         while True:
@@ -743,7 +743,7 @@ class StreamingDataset(Array, IterableDataset):
         # Ensure that num_canonical_nodes has been set.
         if self.num_canonical_nodes is None:
             raise RuntimeError(f'`num_canonical_nodes` can never be None. ' +
-                               f'Provide a positive number.')
+                               f'Provide a positive integer.')
 
         # Sample each shard of each stream according to their proportions/repeats/samples. This
         # gives us the resampled size of each underlying shard, and a mapping from each fake "big"
@@ -1068,9 +1068,12 @@ class StreamingDataset(Array, IterableDataset):
                 # Loops because it may become evicted in the meantime.
                 self.download_shard(shard_id)
         else:
-            raise RuntimeError(f'StreamingDataset is thrashing. Either an issue with ' +
-                               f'downloading a shard file (e.g.: check your network connection) ' +
-                               f'or if you have provided a `cache_limit`, increase it.')
+            if self.cache_limit:
+                raise RuntimeError(f'StreamingDataset repeatedly failed to download a shard. ' +
+                                   f'This may be due to thrashing caused by `cache_limit` ' +
+                                   f'being set too low.')
+            else:
+                raise RuntimeError(f'StreamingDataset repeatedly failed to download a shard.')
 
         return sample
 
