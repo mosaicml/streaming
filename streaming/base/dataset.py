@@ -301,8 +301,7 @@ class StreamingDataset(Array, IterableDataset):
         # Check streams vs remote/local.
         if bool(streams) == (bool(remote) or bool(local)):
             raise ValueError(
-                'You must provide either "streams" or "remote"/"local", but not both -- ' +
-                'that would be confusing')
+                'You must provide either `streams` or `remote`/`local`, but not both.')
 
         # Initialize the Stream defaults.
         default = Stream(remote=remote,
@@ -370,7 +369,7 @@ class StreamingDataset(Array, IterableDataset):
             if self.cache_limit <= min_cache_usage:
                 raise ValueError(f'Minimum cache usage ({min_cache_usage} bytes) is larger than ' +
                                  f'the cache limit ({self.cache_limit} bytes). Please raise ' +
-                                 f'cache_limit.')
+                                 f'`cache_limit`.')
 
         # Build the shard index (for partitioning and mapping samples to shards).
         self.samples_per_shard = np.array([shard.samples for shard in self.shards], np.int64)
@@ -743,7 +742,8 @@ class StreamingDataset(Array, IterableDataset):
         """
         # Ensure that num_canonical_nodes has been set.
         if self.num_canonical_nodes is None:
-            raise RuntimeError('Number of canonical nodes can never be None')
+            raise RuntimeError(f'`num_canonical_nodes` can never be None. ' +
+                               f'Provide a positive integer.')
 
         # Sample each shard of each stream according to their proportions/repeats/samples. This
         # gives us the resampled size of each underlying shard, and a mapping from each fake "big"
@@ -780,8 +780,9 @@ class StreamingDataset(Array, IterableDataset):
 
         # Validate shape.
         if sample_ids.ndim != ndim:
-            raise ValueError('Sample IDs must be of shape (num physical nodes, ranks per node, ' +
-                             'workers per rank, batches per worker, batch size)')
+            raise ValueError(f'Sample IDs must be of {ndim}D shape (num physical nodes, ' +
+                             f'ranks per node, workers per rank, batches per worker, ' +
+                             f'batch size). Instead, found as {sample_ids.ndim}D shape.')
 
         # Save the generated epoch shape to shared memory.
         name = f'{self._shm_prefix}_epoch_shape'
@@ -1032,7 +1033,7 @@ class StreamingDataset(Array, IterableDataset):
             sample_id (int): Sample index.
             retry (int): Maximum number of times to download its shard before giving up. In the
                 edge case of a shard being evicted before sample access, you will have to
-                redownload it. Defaults to ``7``.
+                re-download it. Defaults to ``7``.
 
         Returns:
             Dict[str, Any]: Mapping of column name to column data.
@@ -1040,7 +1041,6 @@ class StreamingDataset(Array, IterableDataset):
         # Background thread crashed, terminate the main process
         if hasattr(self, '_event') and self._event.is_set():
             raise RuntimeError('Background thread failed. Check other traceback.')
-
         # Locate the shard and sample offset within that shard where the sample lives.
         shard_id, shard_sample_id = self.spanner[sample_id]
         shard = self.shards[shard_id]
@@ -1062,12 +1062,18 @@ class StreamingDataset(Array, IterableDataset):
 
                 # On success, break out.
                 break
-            except:
-                # Fallback: ensure the shard is downloaded, then try to access the sample again.
+            except FileNotFoundError:
+                # Fallback: shard file is missing (generates `FileNotFoundError` exception),
+                # ensure the shard file is downloaded, then try to access the sample again.
                 # Loops because it may become evicted in the meantime.
                 self.download_shard(shard_id)
         else:
-            raise RuntimeError('StreamingDataset is thrashing. Raise cache_limit.')
+            if self.cache_limit:
+                raise RuntimeError(f'StreamingDataset repeatedly failed to download a shard. ' +
+                                   f'This may be due to thrashing caused by `cache_limit` ' +
+                                   f'being set too low.')
+            else:
+                raise RuntimeError(f'StreamingDataset repeatedly failed to download a shard.')
 
         return sample
 

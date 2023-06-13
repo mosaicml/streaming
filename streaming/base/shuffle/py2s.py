@@ -17,7 +17,7 @@ class _Shard(object):
 
     Args:
         index (int): Shard ID.
-        smaples (NDArray[np.int64]): Sample IDs
+        samples (NDArray[np.int64]): Sample IDs
     """
 
     def __init__(self, index: int, samples: NDArray[np.int64]) -> None:

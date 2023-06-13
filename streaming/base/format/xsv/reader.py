@@ -74,9 +74,13 @@ class XSVReader(SplitReader):
             Self: Loaded XSVReader.
         """
         args = deepcopy(obj)
-        assert args['version'] == 2
+        if args['version'] != 2:
+            raise ValueError(f'Unsupported streaming data version: {args["version"]}. ' +
+                             f'Expected version 2.')
         del args['version']
-        assert args['format'] == 'xsv'
+        if args['format'] != 'xsv':
+            raise ValueError(f'Unsupported data format: {args["format"]}. ' +
+                             f'Expected to be `xsv`.')
         del args['format']
         args['dirname'] = dirname
         args['split'] = split
@@ -179,9 +183,13 @@ class CSVReader(XSVReader):
             Self: Loaded CSVReader.
         """
         args = deepcopy(obj)
-        assert args['version'] == 2
+        if args['version'] != 2:
+            raise ValueError(f'Unsupported streaming data version: {args["version"]}. ' +
+                             f'Expected version 2.')
         del args['version']
-        assert args['format'] == 'csv'
+        if args['format'] != 'csv':
+            raise ValueError(f'Unsupported data format: {args["format"]}. ' +
+                             f'Expected to be `csv`.')
         del args['format']
         args['dirname'] = dirname
         args['split'] = split
@@ -246,9 +254,13 @@ class TSVReader(XSVReader):
             Self: Loaded TSVReader.
         """
         args = deepcopy(obj)
-        assert args['version'] == 2
+        if args['version'] != 2:
+            raise ValueError(f'Unsupported streaming data version: {args["version"]}. ' +
+                             f'Expected version 2.')
         del args['version']
-        assert args['format'] == 'tsv'
+        if args['format'] != 'tsv':
+            raise ValueError(f'Unsupported data format: {args["format"]}. ' +
+                             f'Expected to be `tsv`.')
         del args['format']
         args['dirname'] = dirname
         args['split'] = split

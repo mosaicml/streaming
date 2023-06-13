@@ -140,7 +140,7 @@ def get_shm_prefix(my_locals: List[str],
         my_locals (List[str]): Local working dir of each stream, relative to /. We need to verify
             that there is no overlap with any other currently running StreamingDataset.
         world (World): Information about nodes, ranks, and workers.
-        retry (int): Number of retries upon failure before raising an exception. Defaults to ``7``.
+        retry (int): Number of retries upon failure before raising an exception. Defaults to ``100``.
 
     Returns:
         Tuple[str, SharedMemory]: Shared memory prefix and object. The name is required to be very
@@ -169,7 +169,8 @@ def get_shm_prefix(my_locals: List[str],
             try:
                 shm = SharedMemory(name, False)
             except FileNotFoundError:
-                raise RuntimeError('Internal error: shm prefix was not registered by local leader')
+                raise RuntimeError(f'Internal error: shared memory prefix was not registered by ' +
+                                   f'local leader')
             their_locals_set = _unpack_locals(bytes(shm.buf))
             if my_locals_set == their_locals_set:
                 break

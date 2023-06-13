@@ -75,18 +75,19 @@ class Writer(ABC):
         compression = compression or None
         if compression:
             if not is_compression(compression):
-                raise ValueError('Invalid compression: {compression}.')
+                raise ValueError(f'Invalid compression: {compression}.')
 
         hashes = hashes or []
         if list(hashes) != sorted(hashes):
             raise ValueError('Hashes must be unique and in sorted order.')
         for algo in hashes:
             if not is_hash(algo):
-                raise ValueError('Invalid hash: {algo}.')
+                raise ValueError(f'Invalid hash: {algo}.')
 
         if size_limit:
             if size_limit < 0:
-                raise ValueError('Size limit, if provided, must be greater than zero.')
+                raise ValueError(f'`size_limit` must be greater than zero, instead, ' +
+                                 f'found as {size_limit}.')
         else:
             size_limit = None
 

@@ -64,7 +64,8 @@ def download_from_s3(remote: str, local: str, timeout: float) -> None:
 
     obj = urllib.parse.urlparse(remote)
     if obj.scheme != 's3':
-        raise ValueError(f'Expected obj.scheme to be "s3", got {obj.scheme} for remote={remote}')
+        raise ValueError(
+            f'Expected obj.scheme to be `s3`, instead, got {obj.scheme} for remote={remote}')
 
     extra_args = {}
     # When enabled, the requester instead of the bucket owner pays the cost of the request
@@ -163,7 +164,8 @@ def download_from_gcs(remote: str, local: str) -> None:
 
     obj = urllib.parse.urlparse(remote)
     if obj.scheme != 'gs':
-        raise ValueError(f'Expected obj.scheme to be "gs", got {obj.scheme} for remote={remote}')
+        raise ValueError(
+            f'Expected obj.scheme to be `gs`, instead, got {obj.scheme} for remote={remote}')
 
     # Create a new session per thread
     session = boto3.session.Session()
@@ -202,7 +204,8 @@ def download_from_oci(remote: str, local: str) -> None:
     namespace = client.get_namespace().data
     obj = urllib.parse.urlparse(remote)
     if obj.scheme != 'oci':
-        raise ValueError(f'Expected obj.scheme to be "oci", got {obj.scheme} for remote={remote}')
+        raise ValueError(
+            f'Expected obj.scheme to be `oci`, instead, got {obj.scheme} for remote={remote}')
 
     bucket_name = obj.netloc.split('@' + namespace)[0]
     # Remove leading and trailing forward slash from string
@@ -228,7 +231,7 @@ def download_from_azure(remote: str, local: str) -> None:
     obj = urllib.parse.urlparse(remote)
     if obj.scheme != 'azure':
         raise ValueError(
-            f'Expected obj.scheme to be "azure", got {obj.scheme} for remote={remote}')
+            f'Expected obj.scheme to be `azure`, instead, got {obj.scheme} for remote={remote}')
 
     # Create a new session per thread
     service = BlobServiceClient(
