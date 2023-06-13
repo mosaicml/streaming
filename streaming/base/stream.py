@@ -279,11 +279,10 @@ class Stream:
                 continue
             break
 
-        # TODO
         if self.download_retry < len(errors):
             raise RuntimeError(
-                f'Failed to download {remote} -> {local}. Tried {self.download_retry} times, ' +
-                f'got errors:\n{errors}') from errors[-1]
+                f'Failed to download {remote} -> {local}. Tried {1 + self.download_retry} ' +
+                f'times, got errors:\n{errors}') from errors[-1]
 
         return local
 

@@ -1063,8 +1063,9 @@ class StreamingDataset(Array, IterableDataset):
                 # On success, break out.
                 break
             except FileNotFoundError:
-                # Fallback: shard file is missing, ensure the shard file is downloaded, then try
-                # to access the sample again. Loops because it may become evicted in the meantime.
+                # Fallback: shard file is missing (generates `FileNotFoundError` exception),
+                # ensure the shard file is downloaded, then try to access the sample again.
+                # Loops because it may become evicted in the meantime.
                 self.download_shard(shard_id)
         else:
             raise RuntimeError(f'StreamingDataset is thrashing. Either an issue with ' +
