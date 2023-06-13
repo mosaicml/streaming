@@ -14,6 +14,7 @@ import numpy as np
 from torch import distributed as dist
 
 from streaming.base.shared import SharedMemory
+from streaming.base.shared._constant import LOCALS
 from streaming.base.util import TICK
 from streaming.base.world import World
 
@@ -92,7 +93,7 @@ def _check_and_find(my_locals_set: Set[str]) -> int:
     prefix_int = 0
     for prefix_int in _each_prefix_int():
         prefix = f'{prefix_int:06}'
-        name = f'{prefix}_locals'
+        name = f'{prefix}{LOCALS}'
         try:
             shm = SharedMemory(name, False)
         except FileNotFoundError:
@@ -101,7 +102,11 @@ def _check_and_find(my_locals_set: Set[str]) -> int:
         both = my_locals_set & their_locals_set
         if both:
             raise ValueError(f'Reused local directory: {sorted(my_locals_set)} vs ' +
-                             f'{sorted(their_locals_set)}. Provide a different one.')
+                             f'{sorted(their_locals_set)}. Provide a different one. If using ' +
+                             f'a unique local directory, try deleting the local directory and ' +
+                             f'call `streaming.base.util.clean_stale_shared_memory()` only once ' +
+                             f'to clean up the stale shared memory before instantiation of ' +
+                             f'`StreamingDataset`.')
     return prefix_int
 
 
@@ -153,7 +158,7 @@ def get_shm_prefix(my_locals: List[str],
     if world.is_local_leader:
         prefix_int = _check_and_find_retrying(my_locals_set, retry)
         prefix = f'{prefix_int:06}'  # pyright: ignore
-        name = f'{prefix}_locals'
+        name = f'{prefix}{LOCALS}'
         data = _pack_locals(my_locals_set)
         shm = SharedMemory(name, True, len(data))
         shm.buf[:len(data)] = data
@@ -165,7 +170,7 @@ def get_shm_prefix(my_locals: List[str],
     if not world.is_local_leader:
         for prefix_int in _each_prefix_int():
             prefix = f'{prefix_int:06}'
-            name = f'{prefix}_locals'
+            name = f'{prefix}{LOCALS}'
             try:
                 shm = SharedMemory(name, False)
             except FileNotFoundError:

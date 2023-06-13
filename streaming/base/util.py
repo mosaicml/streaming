@@ -4,8 +4,13 @@
 """Utility and helper functions for datasets."""
 
 import os
+
+from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
 from time import sleep, time
 from typing import List
+
+from streaming.base.shared._constant import (BARRIER, CACHE_USAGE, EPOCH_DATA, EPOCH_SHAPE, LOCALS,
+                                             NEXT_EPOCH, RESUME, SHARD_ACCESS_TIMES, SHARD_STATES)
 
 __all__ = ['get_list_arg']
 
@@ -88,3 +93,27 @@ def bytes_to_int(bytes_str: str) -> int:
                 f'Unsupported value/suffix {bytes_str}. Supported suffix are ',
                 f'{["b"] + list(units.keys())}.'
             ]))
+
+
+def clean_stale_shared_memory() -> None:
+    """Clean up all the leaked shared memory."""
+    shm_names = [
+        BARRIER, CACHE_USAGE, EPOCH_DATA, EPOCH_SHAPE, LOCALS, NEXT_EPOCH, RESUME,
+        SHARD_ACCESS_TIMES, SHARD_STATES
+    ]
+    for prefix_int in range(1000000):
+        leaked_shm = False
+        prefix = f'{prefix_int:06}'
+        for shm_name in shm_names:
+            name = f'{prefix}{shm_name}'
+            try:
+                shm = BuiltinSharedMemory(name, True, 4)
+            except FileExistsError:
+                shm = BuiltinSharedMemory(name, False, 4)
+                leaked_shm = True
+            finally:
+                shm.close()  # pyright: ignore
+                shm.unlink()
+        # Break if no leaked shared memory
+        if not leaked_shm:
+            break
