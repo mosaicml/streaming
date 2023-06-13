@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, wait
 from concurrent.futures._base import Future
 from enum import IntEnum
 from math import ceil
-from threading import Event, Lock
+from threading import Event, Lock, Thread
 from time import sleep, time_ns
 from typing import Any, Dict, Iterator, Optional, Sequence, Tuple, Union
 
@@ -338,7 +338,28 @@ class StreamingDataset(Array, IterableDataset):
         # Initialize torch dist ourselves, if necessary.
         destroy_dist = _maybe_init_dist(world)
 
-        # Download each stream's index, load their shards, and map streams <-> shards.
+        # Download every stream's index in parallel.
+        if world.is_local_leader:
+            # Indirection for usage as Thread target.
+            def download_index(stream: Stream) -> None:
+                stream.download_index()
+
+            # Start the threads.
+            threads = []
+            for stream in streams:
+                thread = Thread(target=download_index, args=(stream,))
+                thread.start()
+                threads.append(thread)
+
+            # Join the threads.
+            for thread in threads:
+                thread.join()
+
+        # Wait for leader process to complete downloading all stream indexes.
+        if dist.is_available() and dist.is_initialized():
+            dist.barrier()
+
+        # Load each stream's index, initializing its shard readers.
         self.num_samples = 0
         self.shards = []
         stream_per_shard = []
@@ -347,7 +368,7 @@ class StreamingDataset(Array, IterableDataset):
         self.sample_offset_per_stream = np.zeros(self.num_streams, np.int64)
         self.samples_per_stream = np.zeros(self.num_streams, np.int64)
         for stream_id, stream in enumerate(self.streams):
-            stream_shards = stream.get_shards(world)
+            stream_shards = stream.load_index()
             num_stream_samples = sum(map(len, stream_shards))
             if not num_stream_samples:
                 index_filename = os.path.join(stream.local, stream.split, get_index_basename())

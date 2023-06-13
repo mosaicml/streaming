@@ -16,8 +16,6 @@ from streaming.base.compression import decompress
 from streaming.base.format import FileInfo, Reader, get_index_basename, reader_from_json
 from streaming.base.hashing import get_hash
 from streaming.base.storage import download_file
-from streaming.base.util import TICK, wait_for_file_to_exist
-from streaming.base.world import World
 
 
 class Stream:
@@ -363,29 +361,27 @@ class Stream:
         for raw_info, zip_info in shard.file_pairs:
             self._download_shard_part(raw_info, zip_info, shard.compression)
 
-    def get_shards(self, world: World) -> List[Reader]:
-        """Load this Stream's index, retrieving its shard readers.
-
-        Args:
-            world (World): Distributed context.
-
-        Returns:
-            `List[Reader]: Shard readers.
-        """
-        # Download the index.
+    def download_index(self) -> None:
+        """Download this stream's index file, if it is not already downloaded."""
         basename = get_index_basename()
         filename = os.path.join(self.local, self.split, basename)  # pyright: ignore
-        if world.is_local_leader:
-            if self.remote:
+        if self.remote:
+            if not os.path.exists(filename):
                 tmp_filename = self._download_file(basename, basename + '.tmp')
                 os.rename(tmp_filename, filename)
-            else:
-                if not os.path.exists(filename):
-                    raise RuntimeError(f'No remote provided, but local file {filename} does not ' +
-                                       'exist either')
         else:
-            wait_for_file_to_exist(filename, TICK, 60,
-                                   f'Index file {filename} took too long to download')
+            if not os.path.exists(filename):
+                raise RuntimeError(f'No remote provided, but local file {filename} does not ' +
+                                   f'exist either')
+
+    def load_index(self) -> List[Reader]:
+        """Load this Stream's index, retrieving its shard readers.
+
+        Returns:
+            List[Reader]: Shard readers.
+        """
+        # Get path to index.
+        filename = os.path.join(self.local, self.split, get_index_basename())  # pyright: ignore
 
         # Load the index.
         try:
