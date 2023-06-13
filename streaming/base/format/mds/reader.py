@@ -67,9 +67,13 @@ class MDSReader(JointReader):
             Self: Loaded MDSReader.
         """
         args = deepcopy(obj)
-        assert args['version'] == 2
+        if args['version'] != 2:
+            raise ValueError(f'Unsupported streaming data version: {args["version"]}. ' +
+                             f'Expected version 2.')
         del args['version']
-        assert args['format'] == 'mds'
+        if args['format'] != 'mds':
+            raise ValueError(f'Unsupported data format: {args["format"]}. ' +
+                             f'Expected to be `mds`.')
         del args['format']
         args['dirname'] = dirname
         args['split'] = split

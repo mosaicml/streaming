@@ -104,37 +104,37 @@ class Stream:
         has_repeat = repeat is not None
         has_choose = choose is not None
         if not (0 <= has_proportion + has_repeat + has_choose <= 1):
-            raise ValueError('At most one of "proportion", "repeat", and "choose" may be ' +
+            raise ValueError('At most one of `proportion`, `repeat`, and `choose` may be ' +
                              'specified; the others are derived')
 
         self._proportion = proportion
         if proportion is not None:
             if proportion < 0:
-                raise ValueError('Proportion must be non-negative')
+                raise ValueError('`proportion` must be non-negative')
             self.proportion = proportion
 
         self._repeat = repeat
         if repeat is not None:
             if repeat < 0:
-                raise ValueError('Repeat must be non-negative')
+                raise ValueError('`repeat` must be non-negative')
             self.repeat = repeat
 
         self._choose = choose
         if choose is not None:
             if choose < 0:
-                raise ValueError('Choose must be non-negative')
+                raise ValueError('`choose` must be non-negative')
             self.choose = choose
 
         self._download_retry = download_retry
         if download_retry is not None:
             if download_retry < 0:
-                raise ValueError('Download retry must be non-negative')
+                raise ValueError('`download_retry` must be non-negative')
             self.download_retry = download_retry
 
         self._download_timeout = download_timeout
         if download_timeout is not None:
             if download_timeout <= 0:
-                raise ValueError('Download timeout must be positive')
+                raise ValueError('`download_timeout` must be positive')
             self.download_timeout = download_timeout
 
         self.validate_hash = validate_hash
@@ -153,7 +153,7 @@ class Stream:
             default (Self): Stream containing default values for all optional fields.
         """
         if not (self.remote or self._local):
-            raise ValueError('Remote and/or local path must be provided')
+            raise ValueError('`remote` and/or `local` path must be provided')
 
         if not self.split:
             self.split = default.split or ''
@@ -184,10 +184,10 @@ class Stream:
             has_repeat = hasattr(stream, 'repeat')
             has_choose = hasattr(stream, 'choose')
             if not (0 <= has_proportion + has_repeat + has_choose <= 1):
-                raise ValueError(f'Streams must provide at most one of "proportion", "repeat", ' +
-                                 f'or "choose" (error in stream {stream_id})')
+                raise ValueError(f'Streams must provide at most one of `proportion`, `repeat`, ' +
+                                 f'or `choose` (error in stream {stream_id})')
             if is_proportional != has_proportion:
-                raise ValueError(f'Relative ("proportion") and absolute ("repeat", "choose", ' +
+                raise ValueError(f'Relative (`proportion`) and absolute (`repeat`, `choose`, ' +
                                  f'none) stream weights are incompatible with each other (error ' +
                                  f'in stream {stream_id})')
         return is_proportional
@@ -227,7 +227,7 @@ class Stream:
         else:
             # Absolute.
             if choose_per_epoch:
-                raise ValueError('Only provide "choose" when weighting streams relatively')
+                raise ValueError('Only provide `choose` when weighting streams relatively')
             choose_per_stream = np.zeros(len(streams), np.int64)
             for stream_id, stream in enumerate(streams):
                 if hasattr(stream, 'repeat'):
@@ -279,9 +279,11 @@ class Stream:
                 continue
             break
 
+        # TODO
         if self.download_retry < len(errors):
             raise RuntimeError(
-                f'Failed to download {remote} -> {local}. Got errors:\n{errors}') from errors[-1]
+                f'Failed to download {remote} -> {local}. Tried {self.download_retry} times, ' +
+                f'got errors:\n{errors}') from errors[-1]
 
         return local
 
@@ -381,11 +383,13 @@ class Stream:
                 os.rename(tmp_filename, filename)
             else:
                 if not os.path.exists(filename):
-                    raise RuntimeError(f'No remote provided, but local file {filename} does not ' +
-                                       'exist either')
+                    raise RuntimeError(f'No `remote` provided, but local file {filename} ' +
+                                       'does not exist either')
         else:
-            wait_for_file_to_exist(filename, TICK, 60,
-                                   f'Index file {filename} took too long to download')
+            wait_for_file_to_exist(
+                filename, TICK, self.download_timeout,
+                f'Index file {filename} took too long to download. Either ' +
+                f'increase the `download_timeout` value or check the other ' + f'traceback.')
 
         # Load the index.
         try:
@@ -396,7 +400,8 @@ class Stream:
 
         # Version check.
         if obj['version'] != 2:
-            raise ValueError(f'Unsupported version: {obj["version"]}')
+            raise ValueError(f'Unsupported streaming data version: {obj["version"]}. ' +
+                             f'Expected version 2.')
 
         # Initialize shard readers according to the loaded info.
         shards = []
