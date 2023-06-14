@@ -14,24 +14,24 @@ from time import sleep, time_ns
 from typing import Any, Dict, Iterator, Optional, Sequence, Tuple, Union
 
 import numpy as np
-import torch
 from filelock import FileLock
 from numpy.typing import NDArray
 from torch import distributed as dist
 from torch.utils.data import IterableDataset
 
 from streaming.base.array import Array
+from streaming.base.distributed import maybe_init_dist
 from streaming.base.format import get_index_basename
 from streaming.base.partition import get_partitions
 from streaming.base.shared import (SharedArray, SharedBarrier, SharedMemory, SharedScalar,
-                                   get_shm_prefix)
-from streaming.base.shared._constant import (BARRIER, BARRIER_FILELOCK, CACHE_FILELOCK,
+                                   _create_filename, get_shm_prefix)
+from streaming.base._constant import (BARRIER, BARRIER_FILELOCK, CACHE_FILELOCK,
                                              CACHE_USAGE, EPOCH_DATA, EPOCH_SHAPE, NEXT_EPOCH,
-                                             RESUME, SHARD_ACCESS_TIMES, SHARD_STATES)
+                                             RESUME, SHARD_ACCESS_TIMES, SHARD_STATES, TICK)
 from streaming.base.shuffle import get_shuffle
 from streaming.base.spanner import Spanner
 from streaming.base.stream import Stream
-from streaming.base.util import TICK, bytes_to_int
+from streaming.base.util import bytes_to_int
 from streaming.base.world import World
 
 # An arbitrary time in the future, used for cold shard eviction.
@@ -135,25 +135,6 @@ class _Iterator:
         """Note that a thread has exited."""
         with self._lock:
             self._num_exited += 1
-
-
-def _maybe_init_dist(world: World) -> bool:
-    """Initialize torch.distributed ourselves, if necessary.
-
-    Args:
-        world (World): Distributed environment.
-
-    Returns:
-        bool: Whether we initialized dist ourselves.
-    """
-    if world.num_ranks == 1 or not dist.is_available() or dist.is_initialized():
-        return False
-    if torch.cuda.is_available() and dist.is_nccl_available():
-        backend = 'nccl'
-    else:
-        backend = 'gloo'
-    dist.init_process_group(backend=backend, rank=world.rank, world_size=world.num_ranks)
-    return True
 
 
 class StreamingDataset(Array, IterableDataset):
@@ -338,7 +319,7 @@ class StreamingDataset(Array, IterableDataset):
         self._rank_world = world = World()
 
         # Initialize torch dist ourselves, if necessary.
-        destroy_dist = _maybe_init_dist(world)
+        destroy_dist = maybe_init_dist()
 
         # Download each stream's index, load their shards, and map streams <-> shards.
         self.num_samples = 0
@@ -395,33 +376,34 @@ class StreamingDataset(Array, IterableDataset):
 
         # Create the shared memory-backed barrier, without its lock, which is unpickleable.
         self._shared_barrier = SharedBarrier(
-            os.path.join(self._filelock_root, f'{self._shm_prefix}{BARRIER_FILELOCK}'),
-            f'{self._shm_prefix}{BARRIER}')
+            os.path.join(self._filelock_root, _create_filename(self._shm_prefix,
+                                                               BARRIER_FILELOCK)),
+            _create_filename(self._shm_prefix, BARRIER))
 
         # Epoch counter.
         #
         # Note: we do not assume that the end of __iter__() will ever be reached, so we need to
         # increment the epoch counter at the start of __iter__() instead of at the end, so we need
         # to track what the next epoch is, not the current epoch.
-        self._next_epoch = SharedScalar(np.int64, f'{self._shm_prefix}{NEXT_EPOCH}')
+        self._next_epoch = SharedScalar(np.int64, _create_filename(self._shm_prefix, NEXT_EPOCH))
 
         # Cache filelock. Protects downloading and evicting shards.
-        self._cache_filelock_path = os.path.join(self._filelock_root,
-                                                 f'{self._shm_prefix}{CACHE_FILELOCK}')
+        self._cache_filelock_path = os.path.join(
+            self._filelock_root, _create_filename(self._shm_prefix, CACHE_FILELOCK))
         self._cache_filelock: FileLock
 
         # Cache usage in bytes.
-        self._cache_usage = SharedScalar(np.int64, f'{self._shm_prefix}{CACHE_USAGE}')
+        self._cache_usage = SharedScalar(np.int64, _create_filename(self._shm_prefix, CACHE_USAGE))
 
         # Shard states array. Tells if a shard is missing, downloading, or present (eviction
         # happens under the lock).
         self._shard_states = SharedArray(self.num_shards, np.uint8,
-                                         f'{self._shm_prefix}{SHARD_STATES}')
+                                         _create_filename(self._shm_prefix, SHARD_STATES))
 
         # Time of last access per shard. This is used to decide which shard(s) to evict when we run
         # out of space.
-        self._shard_access_times = SharedArray(self.num_shards, np.uint64,
-                                               f'{self._shm_prefix}{SHARD_ACCESS_TIMES}')
+        self._shard_access_times = SharedArray(
+            self.num_shards, np.uint64, _create_filename(self._shm_prefix, SHARD_ACCESS_TIMES))
 
         # Initialize shared memory objects.
         if world.is_local_leader:
@@ -557,7 +539,7 @@ class StreamingDataset(Array, IterableDataset):
             Tuple[int, int]: What epoch this is, and sample offset in that epoch.
         """
         # Get the resume state, if it exists.
-        name = f'{self._shm_prefix}{RESUME}'
+        name = _create_filename(self._shm_prefix, RESUME)
         try:
             shm = SharedMemory(name=name, create=False)
         except FileNotFoundError:
@@ -658,7 +640,7 @@ class StreamingDataset(Array, IterableDataset):
         Args:
             obj (Dict[str, Any]): The state.
         """
-        name = f'{self._shm_prefix}{RESUME}'
+        name = _create_filename(self._shm_prefix, RESUME)
         data = json.dumps(obj, sort_keys=True).encode('utf-8')
         # Some platforms choose to allocate chunks of memory based upon that platform's memory page
         # size, hence the exact size of the shared memory block that was returned may be larger
@@ -788,13 +770,13 @@ class StreamingDataset(Array, IterableDataset):
                              f'batch size). Instead, found as {sample_ids.ndim}D shape.')
 
         # Save the generated epoch shape to shared memory.
-        name = f'{self._shm_prefix}{EPOCH_SHAPE}'
+        name = _create_filename(self._shm_prefix, EPOCH_SHAPE)
         size = ndim * np.int64().nbytes
         shape_shm = SharedMemory(name=name, create=True, size=size, auto_cleanup=False)
         shape_shm.buf[:size] = np.array(sample_ids.shape, np.int64).tobytes()
 
         # Save the generated epoch data to shared memory.
-        name = f'{self._shm_prefix}{EPOCH_DATA}'
+        name = _create_filename(self._shm_prefix, EPOCH_DATA)
         size = sample_ids.size * np.int64().nbytes
         data_shm = SharedMemory(name=name, create=True, size=size, auto_cleanup=False)
         data_shm.buf[:size] = sample_ids.tobytes()
@@ -810,13 +792,13 @@ class StreamingDataset(Array, IterableDataset):
         ndim = 5
 
         # Load the generated epoch shape from shared memory.
-        name = f'{self._shm_prefix}{EPOCH_SHAPE}'
+        name = _create_filename(self._shm_prefix, EPOCH_SHAPE)
         size = ndim * np.int64().nbytes
         shape_shm = SharedMemory(name=name, create=False, size=size, auto_cleanup=False)
         shape = tuple(np.ndarray(5, buffer=shape_shm.buf, dtype=np.int64))
 
         # Attach to the generated epoch data in shared memory.
-        name = f'{self._shm_prefix}{EPOCH_DATA}'
+        name = _create_filename(self._shm_prefix, EPOCH_DATA)
         size = int(np.prod(shape)) * np.int64().nbytes
         data_shm = SharedMemory(name=name, create=False, size=size, auto_cleanup=False)
         sample_ids = np.ndarray(shape, buffer=data_shm.buf, dtype=np.int64)

@@ -17,3 +17,6 @@ EPOCH_DATA = '_epoch_data'
 # filelock names
 BARRIER_FILELOCK = '_barrier_filelock'
 CACHE_FILELOCK = '_cache_filelock'
+
+# Time to wait, in seconds.
+TICK = 0.007

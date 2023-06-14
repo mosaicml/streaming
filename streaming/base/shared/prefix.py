@@ -14,8 +14,7 @@ import numpy as np
 from torch import distributed as dist
 
 from streaming.base.shared import SharedMemory
-from streaming.base.shared._constant import LOCALS
-from streaming.base.util import TICK
+from streaming.base._constant import LOCALS, TICK
 from streaming.base.world import World
 
 
@@ -29,6 +28,19 @@ def _each_prefix_int() -> Iterator[int]:
     while True:
         yield prefix_int
         prefix_int += 1
+
+
+def _create_filename(prefix_int: int, name: str) -> str:
+    """Get the name of the shared memory.
+
+    Args:
+        prefix (int): The prefix int.
+        name (str): The name of the shared memory.
+
+    Returns:
+        str: Unique shared memory name.
+    """
+    return f'{prefix_int:06}{name}'
 
 
 def _pack_locals(dirnames: Set[str]) -> bytes:
@@ -92,8 +104,7 @@ def _check_and_find(my_locals_set: Set[str]) -> int:
     """
     prefix_int = 0
     for prefix_int in _each_prefix_int():
-        prefix = f'{prefix_int:06}'
-        name = f'{prefix}{LOCALS}'
+        name = _create_filename(prefix_int, LOCALS)
         try:
             shm = SharedMemory(name, False)
         except FileNotFoundError:
@@ -138,7 +149,7 @@ def _check_and_find_retrying(my_locals_set: Set[str], retry: int) -> int:
 
 def get_shm_prefix(my_locals: List[str],
                    world: World,
-                   retry: int = 100) -> Tuple[str, SharedMemory]:
+                   retry: int = 100) -> Tuple[int, SharedMemory]:
     """Register or lookup our shared memory prefix.
 
     Args:
@@ -148,7 +159,7 @@ def get_shm_prefix(my_locals: List[str],
         retry (int): Number of retries upon failure before raising an exception. Defaults to ``100``.
 
     Returns:
-        Tuple[str, SharedMemory]: Shared memory prefix and object. The name is required to be very
+        Tuple[int, SharedMemory]: Shared memory integer prefix and object. The name is required to be very
             short due to limitations of Python on Mac OSX.
     """
     # Check my locals for overlap.
@@ -157,8 +168,7 @@ def get_shm_prefix(my_locals: List[str],
     # First, the local leader registers the first available shm prefix, recording its locals.
     if world.is_local_leader:
         prefix_int = _check_and_find_retrying(my_locals_set, retry)
-        prefix = f'{prefix_int:06}'  # pyright: ignore
-        name = f'{prefix}{LOCALS}'
+        name = _create_filename(prefix_int, LOCALS)
         data = _pack_locals(my_locals_set)
         shm = SharedMemory(name, True, len(data))
         shm.buf[:len(data)] = data
@@ -169,8 +179,7 @@ def get_shm_prefix(my_locals: List[str],
     # Non-local leaders go next, searching for match.
     if not world.is_local_leader:
         for prefix_int in _each_prefix_int():
-            prefix = f'{prefix_int:06}'
-            name = f'{prefix}{LOCALS}'
+            name = _create_filename(prefix_int, LOCALS)
             try:
                 shm = SharedMemory(name, False)
             except FileNotFoundError:
@@ -180,4 +189,4 @@ def get_shm_prefix(my_locals: List[str],
             if my_locals_set == their_locals_set:
                 break
 
-    return prefix, shm  # pyright: ignore
+    return prefix_int, shm  # pyright: ignore
