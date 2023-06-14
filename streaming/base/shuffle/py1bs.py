@@ -34,7 +34,7 @@ def get_shuffle_py1bs(shard_sizes: NDArray[np.int64],
     Returns:
         NDArray[np.int64]: 1:1 mapping of sample ID to shuffled sample ID.
     """
-    # Create each shard's sample ID span (begin, end excl).
+    # Create each shard's sample ID span (start, stop excl).
     spans = []
     num_samples = 0
     for shard_size in shard_sizes:
@@ -47,26 +47,27 @@ def get_shuffle_py1bs(shard_sizes: NDArray[np.int64],
     run_rng.shuffle(spans)
 
     # Break the shard spans at canonical node boundaries.
-    spans, super_spans = divide_spans(spans, num_samples, num_canonical_nodes)
+    spans, node_spans = divide_spans(spans, num_samples, num_canonical_nodes)
 
     # Shuffle the span ordering within each canonical node uniquely to this epoch.
     epoch_rng = np.random.default_rng(seed + epoch)
-    for begin, end in super_spans:
-        part = spans[begin:end]
-        epoch_rng.shuffle(part)  # pyright: ignore
-        spans[begin:end] = part
+    for node_start_span, node_stop_span in node_spans:
+        node_spans = spans[node_start_span:node_stop_span]
+        epoch_rng.shuffle(node_spans)  # pyright: ignore
+        spans[node_start_span:node_stop_span] = node_spans
 
-    # Populate the global sample ID mapping, shuffling within each block within each super-span.
+    # Populate the global sample ID mapping, shuffling within each block within each node.
     ids = np.empty(num_samples, np.int64)
-    offset = 0
-    for super_begin, super_end in super_spans:
-        super_offset = offset
-        for begin, end in spans[super_begin:super_end]:
-            span_size = end - begin
-            ids[offset:offset + span_size] = np.arange(begin, end)
-            offset += span_size
-        for start in range(super_offset, offset, block_size):
-            stop = min(start + block_size, offset)
-            epoch_rng.shuffle(ids[start:stop])
+    node_stop_sample = 0
+    for node_start_span, node_stop_span in node_spans:
+        node_start_sample = node_stop_sample
+        for span_start_sample, span_stop_sample in spans[node_start_span:node_stop_span]:
+            span_size = span_stop_sample - span_start_sample
+            ids[node_stop_sample:node_stop_sample + span_size] = \
+                np.arange(span_start_sample, span_stop_sample)
+            node_stop_sample += span_size
+        for block_start in range(node_start_sample, node_stop_sample, block_size):
+            block_stop = min(block_start + block_size, node_stop_sample)
+            epoch_rng.shuffle(ids[block_start:block_stop])
 
     return ids
