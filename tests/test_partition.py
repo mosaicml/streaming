@@ -1,4 +1,5 @@
-import pytest
+# Copyright 2023 MosaicML Streaming authors
+# SPDX-License-Identifier: Apache-2.0
 
 from streaming.base.partition import get_partitions
 
@@ -12,7 +13,6 @@ def test_partition_walk():
     workers_per_rank = 8
     batch_size = 10
     drop_first = 0
-
     """
     # Requires a lot of RAM and time
     partition_algo = 'orig'
@@ -26,5 +26,5 @@ def test_partition_walk():
     """
 
     for drop_first in range(0, 500):
-        x = get_partitions(partition_algo, num_samples, num_canonical_nodes, num_physical_nodes,
-                           ranks_per_node, workers_per_rank, batch_size, drop_first)
+        get_partitions(partition_algo, num_samples, num_canonical_nodes, num_physical_nodes,
+                       ranks_per_node, workers_per_rank, batch_size, drop_first)
