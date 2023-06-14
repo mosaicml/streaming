@@ -26,5 +26,6 @@ def test_partition_walk():
     """
 
     for drop_first in range(0, 500):
-        get_partitions(partition_algo, num_samples, num_canonical_nodes, num_physical_nodes,
-                       ranks_per_node, workers_per_rank, batch_size, drop_first)
+        x = get_partitions(partition_algo, num_samples, num_canonical_nodes, num_physical_nodes,
+                           ranks_per_node, workers_per_rank, batch_size, drop_first)
+        assert x.shape == (22, 8, 8, 1, 10)
