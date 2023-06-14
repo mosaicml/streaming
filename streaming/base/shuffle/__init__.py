@@ -8,11 +8,13 @@ from numpy.typing import NDArray
 
 from streaming.base.shuffle.naive import get_shuffle_naive
 from streaming.base.shuffle.py1b import get_shuffle_py1b
+from streaming.base.shuffle.py1bs import get_shuffle_py1bs
 from streaming.base.shuffle.py1s import get_shuffle_py1s
 from streaming.base.shuffle.py2s import get_shuffle_py2s
 
 algos = {
     'py1b': get_shuffle_py1b,
+    'py1bs': get_shuffle_py1bs,
     'py1s': get_shuffle_py1s,
     'py2s': get_shuffle_py2s,
     'naive': get_shuffle_naive,

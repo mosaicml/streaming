@@ -13,11 +13,11 @@ from numpy.typing import NDArray
 from streaming.base.shuffle.py1s import divide_spans
 
 
-def get_shuffle_py1b(shard_sizes: NDArray[np.int64],
-                     num_canonical_nodes: int,
-                     seed: int,
-                     epoch: int,
-                     block_size: int = 1 << 18) -> NDArray[np.int64]:
+def get_shuffle_py1bs(shard_sizes: NDArray[np.int64],
+                      num_canonical_nodes: int,
+                      seed: int,
+                      epoch: int,
+                      block_size: int = 1 << 18) -> NDArray[np.int64]:
     """Get the shuffled global ordering of samples for an epoch.
 
     The assignment of shards to nodes is fixed across epochs, but each grouping of shards is
