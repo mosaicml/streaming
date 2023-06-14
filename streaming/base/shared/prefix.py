@@ -13,8 +13,8 @@ from typing import Iterator, List, Set, Tuple
 import numpy as np
 from torch import distributed as dist
 
-from streaming.base.shared import SharedMemory
 from streaming.base._constant import LOCALS, TICK
+from streaming.base.shared import SharedMemory
 from streaming.base.world import World
 
 

@@ -11,10 +11,8 @@ from time import sleep
 import numpy as np
 from filelock import FileLock
 
+from streaming.base._constant import TICK
 from streaming.base.shared.array import SharedArray
-
-# Time to wait, in seconds.
-TICK = 0.07
 
 # Time out to wait before raising exception
 TIMEOUT = 60

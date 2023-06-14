@@ -10,9 +10,9 @@ from typing import List
 
 import torch.distributed as dist
 
-from streaming.base.distributed import get_local_rank, maybe_init_dist
 from streaming.base._constant import (BARRIER, CACHE_USAGE, EPOCH_DATA, EPOCH_SHAPE, LOCALS,
-                                             NEXT_EPOCH, RESUME, SHARD_ACCESS_TIMES, SHARD_STATES)
+                                      NEXT_EPOCH, RESUME, SHARD_ACCESS_TIMES, SHARD_STATES)
+from streaming.base.distributed import get_local_rank, maybe_init_dist
 from streaming.base.shared.prefix import _create_filename
 
 __all__ = ['get_list_arg']
