@@ -59,15 +59,22 @@ def get_shuffle_py1bs(shard_sizes: NDArray[np.int64],
     # Populate the global sample ID mapping, shuffling within each block within each node.
     ids = np.empty(num_samples, np.int64)
     node_stop_sample = 0
-    for node_start_span, node_stop_span in node_spans:
+    stagger = epoch_rng.integers(0, block_size, num_canonical_nodes)
+    for node, (node_start_span, node_stop_span) in enumerate(node_spans):
         node_start_sample = node_stop_sample
+
+        # Populate sample IDs given the span ordering for this node.
         for span_start_sample, span_stop_sample in spans[node_start_span:node_stop_span]:
             span_size = span_stop_sample - span_start_sample
             ids[node_stop_sample:node_stop_sample + span_size] = \
                 np.arange(span_start_sample, span_stop_sample)
             node_stop_sample += span_size
-        for block_start in range(node_start_sample, node_stop_sample, block_size):
+
+        # Shuffle within each block (with each node staggering how deep into a block it starts in
+        # order to balance shard download traffic over time).
+        for block_start in range(node_start_sample - stagger[node], node_stop_sample, block_size):
             block_stop = min(block_start + block_size, node_stop_sample)
+            block_start = max(node_start_sample, block_start)
             epoch_rng.shuffle(ids[block_start:block_stop])
 
     return ids
