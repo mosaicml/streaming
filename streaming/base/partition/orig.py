@@ -52,6 +52,9 @@ def get_partitions_orig(num_samples: int,
 
     batch_size = batch_size or 1
 
+    # If drop_first isn't a multiple of num_physical_nodes, round down to make it divisible.
+    drop_first -= drop_first % num_physical_nodes
+
     # Divide the full dataset sample range into a sample range per canonical node.
     samples_per_canonical_node = (num_samples + num_canonical_nodes - 1) // num_canonical_nodes
     node_ratio = 0
