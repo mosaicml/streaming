@@ -53,6 +53,15 @@ class LocalDataset(Array, Dataset):
             int: Dataset length.
         """
         return self.num_samples
+    
+    @property
+    def size(self) -> int:
+        """Get the size of the dataset in samples.
+
+        Returns:
+            int: Number of samples.
+        """
+        return self.num_samples
 
     def get_item(self, sample_id: int) -> Dict[str, Any]:
         """Get sample by global sample ID.
