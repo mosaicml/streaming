@@ -3,7 +3,7 @@
 
 import json
 import tempfile
-from typing import Any, Union
+from typing import Any, Tuple, Union
 
 import numpy as np
 import pytest
@@ -425,7 +425,9 @@ class TestMDSEncodings:
         ints = {'int8', 'int16', 'int32', 'int64'}
         floats = {'float16', 'float32', 'float64'}
         scalars = uints | ints | floats
-        expected_encodings = {'int', 'bytes', 'json', 'ndarray', 'png', 'jpeg', 'str', 'pil', 'pkl'} | scalars
+        expected_encodings = {
+            'int', 'bytes', 'json', 'ndarray', 'png', 'jpeg', 'str', 'pil', 'pkl'
+        } | scalars
         enc = mdsEnc.get_mds_encodings()
         assert len(enc) == len(expected_encodings)
         assert enc == expected_encodings
