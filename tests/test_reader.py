@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 @pytest.fixture(scope='function')
 def mds_dataset_dir():
     try:
-        mock_dir = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
+        mock_dir = tempfile.TemporaryDirectory()
         remote_dir = os.path.join(mock_dir.name, 'remote')
         local_dir = os.path.join(mock_dir.name, 'local')
         num_samples = 117
@@ -304,3 +304,4 @@ def test_accidental_shard_delete_exception(mds_dataset_dir: Any):
             if os.path.exists(os.path.join(local_dir, filename)):
                 os.remove(os.path.join(local_dir, filename))
             pass
+    shutil.rmtree(local_dir, ignore_errors=True)
