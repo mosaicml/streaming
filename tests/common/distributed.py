@@ -1,11 +1,10 @@
-# Copyright 2022 MosaicML Streaming authors
+# Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 import contextlib
 import inspect
 import logging
 import os
-import socket
 import time
 from typing import Any, Dict, List
 
@@ -15,6 +14,8 @@ import torch.multiprocessing as mp
 from _pytest.fixtures import FixtureRequest
 from _pytest.outcomes import Skipped
 from torch.multiprocessing import Process
+
+from .utils import get_free_tcp_port
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,7 @@ class DistributedTest:
         self._set_custom_markers(request)
 
         # Get a free TCP Port to listen on
-        self.port = self.get_free_tcp_port()
+        self.port = get_free_tcp_port()
 
         self.current_test = self._get_current_test_func(request)
         self.test_kwargs = self._get_test_kwargs(request)
@@ -101,14 +102,6 @@ class DistributedTest:
             if mark.name == 'world_size':
                 self.world_size = mark.args[0]
 
-    def get_free_tcp_port(self) -> int:
-        """Get a free socket port to listen on."""
-        tcp = socket.socket()
-        tcp.bind(('', 0))
-        _, port = tcp.getsockname()
-        tcp.close()
-        return port
-
     @contextlib.contextmanager
     def _patch_env(self, **environs: str):
         """Returns a context manager that patches ``os.environ`` with ``environs``.
@@ -138,7 +131,7 @@ class DistributedTest:
         Args:
             nproc (int): Total number of processes
         """
-        mp.set_start_method('forkserver', force=True)
+        mp.set_start_method('fork', force=True)
         skip_msg = mp.Queue()  # Allows forked processes to share pytest.skip reason
         processes = []
         for global_rank in range(nproc):

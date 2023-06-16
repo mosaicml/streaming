@@ -1,4 +1,4 @@
-# Copyright 2022 MosaicML Streaming authors
+# Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 """Script to Benchmark compression algorithms."""
@@ -9,7 +9,7 @@ from typing import Iterator
 
 import numpy as np
 
-from streaming.base.compression.compression import compress, decompress, get_compressions
+from streaming.base.compression import compress, decompress, get_compressions
 
 
 def parse_args() -> Namespace:

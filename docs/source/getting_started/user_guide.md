@@ -1,6 +1,6 @@
 # 🖼️ User Guide
 
-At a very high level, one needs to convert a raw dataset into streaming format files and then use the same streaming format files using {class}`streaming.Dataset` class for model training.
+At a very high level, one needs to convert a raw dataset into streaming format files and then use the same streaming format files using {class}`streaming.StreamingDataset` class for model training.
 
 Streaming supports different dataset writers based on your need for conversion of raw datasets into a streaming format such as
 - {class}`streaming.MDSWriter`: Writes the dataset into `.mds` (Mosaic Data Shard) extension. It supports various encoding/decoding formats(`str`, `int`, `bytes`, `jpeg`, `png`, `pil`, `pkl`, and `json`) which convert the data from that format to bytes and vice-versa.
@@ -11,7 +11,7 @@ Streaming supports different dataset writers based on your need for conversion o
 
 For more information about writers and their parameters, look at the [API reference doc](../api_reference/streaming.rst).
 
-After the dataset has been converted to one of our streaming formats, one just needs to instantiate the {class}`streaming.Dataset` class by providing the dataset path of the streaming formats and use that dataset object in PyTorch {class}`torch.utils.data.DataLoader` class. For more information about `streaming.Dataset` and its parameters, look at the {class}`streaming.Dataset` API reference doc.
+After the dataset has been converted to one of our streaming formats, one just needs to instantiate the {class}`streaming.StreamingDataset` class by providing the dataset path of the streaming formats and use that dataset object in PyTorch {class}`torch.utils.data.DataLoader` class. For more information about `streaming.StreamingDataset` and its parameters, look at the {class}`streaming.StreamingDataset` API reference doc.
 
 Streaming supports various dataset compression formats (Brotli, Bzip2, Gzip, Snappy, and Zstandard) that reduces downloading time and cloud egress fees. Additionally, Streaming also supports various hashing algorithms (SHA2, SHA3, MD5, xxHash, etc.) that ensures data integrity through cryptographic and non-cryptographic hashing algorithm.
 
@@ -19,7 +19,7 @@ Let's jump right into an example on how to convert a raw dataset into a streamin
 
 ## Writing a dataset to streaming format
 
-This guide shows you how to use your custom Dataset with {class}`streaming.MDSWriter`, but the steps would remain the same for other writers.
+This guide shows you how to use your custom StreamingDataset with {class}`streaming.MDSWriter`, but the steps would remain the same for other writers.
 
 The {class}`streaming.MDSWriter` takes the raw dataset and converts it into a sharded `.mds` format for fast data access.
 
@@ -51,38 +51,38 @@ class RandomClassificationDataset:
 
 There are a few parameters that need to be initialized before {class}`streaming.MDSWriter` gets called. Some of the parameters are optional, and others are required parameters. Let's look at each of them where we start with two required parameters.
 
-1. Provide the local filesystem directory path to store the compressed dataset files.
-    <!--pytest-codeblocks:cont-->
-    ```python
-    output_dir = 'test_output_dir'
-    ```
+1. Provide the local filesystem directory path or a remote cloud provider storage path to store the compressed dataset files. If it is a remote path, the output files are automatically upload to a remote path.
+<!--pytest-codeblocks:cont-->
+```python
+output_dir = 'test_output_dir'
+```
 
 2. Provide the column field as `Dict[str, str]`, which maps a feature name or label name with a streaming supported encoding type.
-    <!--pytest-codeblocks:cont-->
-    ```python
-    fields = {'x': 'pkl', 'y': 'pkl'}
-    ```
+<!--pytest-codeblocks:cont-->
+```python
+columns = {'x': 'pkl', 'y': 'pkl'}
+```
 
 The below parameters are optional to {class}`streaming.MDSWriter`. Let's look at each one of them
 
 1. Provide a name of a compression algorithm; the default is `None`. Streaming supports families of compression algorithms such as `br`, `gzip`, `snappy`, `zstd`, and `bz2` with the level of compression.
-    <!--pytest-codeblocks:cont-->
-    ```python
-    compression = 'zstd:7'
-    ```
+<!--pytest-codeblocks:cont-->
+```python
+compression = 'zstd:7'
+```
 
 2. Provide a name of a hashing algorithm; the default is `None`. Streaming supports families of hashing algorithm such as `sha`, `blake`, `md5`, `xxHash`, etc.
-    <!--pytest-codeblocks:cont-->
-    ```python
-    hashes = ['sha1']
-    ```
+<!--pytest-codeblocks:cont-->
+```python
+hashes = ['sha1']
+```
 
 3. Provide a shard size limit, after which point to start a new shard.
-    <!--pytest-codeblocks:cont-->
-    ```python
-    # Number act as a byte, e.g., 1024 bytes
-    limit = 1024
-    ```
+<!--pytest-codeblocks:cont-->
+```python
+# Number act as a byte, e.g., 1024 bytes
+limit = 1024
+```
 
 Once the parameters are initialized, the last thing we need is a generator that iterates over the data sample.
 <!--pytest-codeblocks:cont-->
@@ -109,9 +109,17 @@ It's time to call the {class}`streaming.MDSWriter` with the above initialized pa
 from streaming.base import MDSWriter
 
 dataset = RandomClassificationDataset()
-with MDSWriter(output_dir, fields, compression, hashes, limit) as out:
+with MDSWriter(out=output_dir, columns=columns, compression=compression, hashes=hashes, size_limit=limit) as out:
     for sample in each(dataset):
         out.write(sample)
+```
+
+Clean up after ourselves.
+<!--pytest-codeblocks:cont-->
+```
+from shutil import rmtree
+
+rmtree(output_dir)
 ```
 
 Once the dataset has been written, the output directory contains two types of files. The first is an index.json file that contains the metadata of shards and second is the shard files. For example,
@@ -123,24 +131,18 @@ dirname
 └── shard.00001.mds.zstd
 ```
 
-Finally, upload the output directory to a cloud blob storage of your choice. Below is one example of uploading a directory to an S3 bucket using [AWS CLI](https://aws.amazon.com/cli/).
-<!--pytest.mark.skip-->
-```bash
-$ aws s3 cp dirname s3://mybucket/myfolder --recursive
-```
-
 ## Loading a streaming dataset
 
 After writing a dataset in the streaming format in the previous step and uploading to a cloud object storage as s3, we are ready to start loading the data.
 
-To load the same dataset files that were created in the above steps, create a `CustomDataset` class by inheriting the {class}`streaming.Dataset` class and override the `__getitem__(idx: int)` method to get the samples. The {class}`streaming.Dataset` class requires two mandatory parameters which are `remote` which is a remote directory (S3 or local filesystem) where dataset is stored and `local` which is a local directory where dataset is cached during operation.
+To load the same dataset files that were created in the above steps, create a `CustomDataset` class by inheriting the {class}`streaming.StreamingDataset` class and override the `__getitem__(idx: int)` method to get the samples. The {class}`streaming.StreamingDataset` class requires two mandatory parameters which are `remote` which is a remote directory (S3 or local filesystem) where dataset is stored and `local` which is a local directory where dataset is cached during operation.
 <!--pytest-codeblocks:cont-->
  ```python
-from streaming.base import Dataset
+from streaming import StreamingDataset
 
-class CustomDataset(Dataset):
+class CustomDataset(StreamingDataset):
     def __init__(self, local, remote):
-        super().__init__(local, remote)
+        super().__init__(local=local, remote=remote)
 
     def __getitem__(self, idx: int) -> Any:
         obj = super().__getitem__(idx)
@@ -171,4 +173,4 @@ You've now seen an in-depth look at how to prepare and use streaming datasets wi
 
 ## Other options
 
-Please look at the API reference page for the complete list of {class}`streaming.Dataset` supporting parameters.
+Please look at the API reference page for the complete list of {class}`streaming.StreamingDataset` supporting parameters.

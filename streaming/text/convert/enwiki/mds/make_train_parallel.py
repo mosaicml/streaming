@@ -1,4 +1,4 @@
-# Copyright 2022 MosaicML Streaming authors
+# Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 """Invoke create_pretraining_data.py on shard ranges on all the cores."""
@@ -29,7 +29,7 @@ def parse_args() -> Namespace:
     args.add_argument('--out_root',
                       type=str,
                       required=True,
-                      help='Output root directory containing shard dirs named like group-###.')
+                      help='Output directory containing shard dirs named like group-###.')
     args.add_argument('--out_pattern',
                       type=str,
                       default='group-%03d',

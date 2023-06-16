@@ -1,45 +1,50 @@
-# Copyright 2022 MosaicML Streaming authors
+# Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Local Dataset."""
+"""A non-streaming pytorch map Dataset."""
 
 import json
 import os
 from typing import Any, Dict, Optional
 
+import numpy as np
 from torch.utils.data import Dataset
 
-from streaming.base.format import reader_from_json
-from streaming.base.index import Index
+from streaming.base.array import Array
+from streaming.base.format import get_index_basename, reader_from_json
+from streaming.base.spanner import Spanner
 
 __all__ = ['LocalDataset']
 
 
-class LocalDataset(Dataset):
-    """The dataset resides locally in a machine.
+class LocalDataset(Array, Dataset):
+    """A streaming dataset whose shards reside locally as a pytorch Dataset.
 
     Args:
-        dirname (str): Local dataset directory where the dataset is present.
+        local (str): Local dataset directory where shards are cached by split.
         split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
     """
 
-    def __init__(self, dirname: str, split: Optional[str] = None):
+    def __init__(self, local: str, split: Optional[str] = None):
         split = split or ''
 
-        self.dirname = dirname
+        self.local = local
         self.split = split
 
-        filename = os.path.join(dirname, split, 'index.json')
+        filename = os.path.join(local, split, get_index_basename())  # pyright: ignore
         obj = json.load(open(filename))
-        assert obj['version'] == 2
+        if obj['version'] != 2:
+            raise ValueError(f'Unsupported streaming data version: {obj["version"]}. ' +
+                             f'Expected version 2.')
 
         self.shards = []
         for info in obj['shards']:
-            shard = reader_from_json(dirname, split, info)
+            shard = reader_from_json(local, split, info)
             self.shards.append(shard)
+        self.num_samples = sum([shard.samples for shard in self.shards])
 
-        shard_sizes = list(map(lambda x: x.samples, self.shards))
-        self.index = Index(shard_sizes)
+        shard_sizes = np.array([x.samples for x in self.shards])
+        self.spanner = Spanner(shard_sizes)
 
     def __len__(self) -> int:
         """Get the length as an IterableDataset.
@@ -47,17 +52,17 @@ class LocalDataset(Dataset):
         Returns:
             int: Dataset length.
         """
-        return self.index.total_samples
+        return self.num_samples
 
-    def __getitem__(self, idx: int) -> Dict[str, Any]:
-        """Get sample by global index.
+    def get_item(self, sample_id: int) -> Dict[str, Any]:
+        """Get sample by global sample ID.
 
         Args:
-            idx (int): Sample index.
+            sample_id (int): Sample ID.
 
         Returns:
             Dict[str, Any]: Column name with sample data.
         """
-        shard_idx, idx_in_shard = self.index.find_sample(idx)
-        shard = self.shards[shard_idx]
-        return shard[idx_in_shard]
+        shard_id, index_in_shard = self.spanner[sample_id]
+        shard = self.shards[shard_id]
+        return shard[index_in_shard]

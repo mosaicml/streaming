@@ -4,7 +4,7 @@ Thanks for considering contributing to Streaming!
 
 Issues tagged with [good first issue](https://github.com/mosaicml/streaming/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) are great options to start contributing.
 
-If you have questions, join us on [Slack](https://join.slack.com/t/mosaicml-community/shared_invite/zt-w0tiddn9-WGTlRpfjcO9J5jyrMub1dg) -- we'll be happy to help you!
+If you have questions, join us on [Slack](https://mosaicml.me/slack) -- we'll be happy to help you!
 
 We welcome contributions for bug fixes, new features you'd like to contribute to the community, or improve test suite!
 

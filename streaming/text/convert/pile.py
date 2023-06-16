@@ -1,53 +1,7 @@
-# Copyright 2022 MosaicML Streaming authors
+# Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Convert the Pile dataset to streaming format.
-
-    Instructions:
-
-Download the Pile dataset (cf https://pile.eleuther.ai/) from the download site
-(https://the-eye.eu/public/AI/pile/).
-
-That will result in this directory structure:
-
-    SHA256SUMS.txt
-    test.jsonl.zst
-    train/
-        00.jsonl.zst
-        01.jsonl.zst
-        02.jsonl.zst
-        03.jsonl.zst
-        04.jsonl.zst
-        05.jsonl.zst
-        06.jsonl.zst
-        07.jsonl.zst
-        08.jsonl.zst
-        09.jsonl.zst
-        10.jsonl.zst
-        11.jsonl.zst
-        12.jsonl.zst
-        13.jsonl.zst
-        14.jsonl.zst
-        15.jsonl.zst
-        16.jsonl.zst
-        17.jsonl.zst
-        18.jsonl.zst
-        19.jsonl.zst
-        20.jsonl.zst
-        21.jsonl.zst
-        22.jsonl.zst
-        23.jsonl.zst
-        24.jsonl.zst
-        25.jsonl.zst
-        26.jsonl.zst
-        27.jsonl.zst
-        28.jsonl.zst
-        29.jsonl.zst
-    val.jsonl.zst
-
-You then run this script specifying --in_root (the above dir), --out_root (the dir to create),
-and any other flags as appropriate.
-"""
+"""Pile streaming dataset conversion script."""
 
 import json
 import os
@@ -72,7 +26,7 @@ def parse_args() -> Namespace:
         '--in_root',
         type=str,
         required=True,
-        help='Directory path to store the input dataset',
+        help='Local directory path of the input raw dataset',
     )
     args.add_argument(
         '--out_root',
@@ -85,8 +39,8 @@ def parse_args() -> Namespace:
         type=str,
         default='zstd:16',
         help='Compression algorithm to use. Empirically, Zstandard has the best performance in ' +
-        'our benchmarks. Tune the compresion level (from 1 to 22) to trade off time for ' +
-        'quality. Default: zstd:16',
+        'our benchmarks. Tune the compression level (from 1 to 22) to trade off time for ' +
+        'quality. Defaults to zstd:16',
     )
     args.add_argument(
         '--hashes',
@@ -121,7 +75,7 @@ def each_task(in_root: str, out_root: str, compression: str, hashes: List[str], 
     for in_file in in_files:
         assert in_file.startswith(in_root)
         assert in_file.endswith('.jsonl')
-        out_dir = os.path.join(out_root, in_file[len(in_root):-len('.jsonl')])
+        out_dir = os.path.join(out_root, in_file[len(in_root):-len('.jsonl')].lstrip('/'))
         yield in_file, out_dir, compression, hashes, size_limit
 
 
@@ -131,8 +85,12 @@ def file_to_dir(args: Tuple[str, str, str, List[str], int]) -> Dict[str, int]:
     This is the unit of work executed by the process pool.
 
     Args:
-        args (Tuple[str, str, str, List[str], int): All arguments, packed into a tuple because
+        args (Tuple[str, str, str, List[str], int]): All arguments, packed into a tuple because
             process pools only pass one argument.
+
+    Raises:
+        ValueError: Invalid sample fields.
+        ValueError: Invalid sample meta fields.
 
     Returns:
         Dict[str, int]: Count of how many samples belonged to each Pile dataset subset.
@@ -145,7 +103,12 @@ def file_to_dir(args: Tuple[str, str, str, List[str], int]) -> Dict[str, int]:
     }
 
     counts = Counter()
-    with MDSWriter(out_dir, columns, compression, hashes, size_limit) as out:
+    with MDSWriter(out=out_dir,
+                   columns=columns,
+                   compression=compression,
+                   hashes=hashes,
+                   size_limit=size_limit,
+                   progress_bar=True) as out:
         for line in open(in_file):
             obj = json.loads(line)
             if sorted(obj.keys()) != ['meta', 'text']:
@@ -153,7 +116,7 @@ def file_to_dir(args: Tuple[str, str, str, List[str], int]) -> Dict[str, int]:
             text = obj['text']
             meta = obj['meta']
             if sorted(meta.keys()) != ['pile_set_name']:
-                raise ValueError('Invalild sample meta fields.')
+                raise ValueError('Invalid sample meta fields.')
             pile_set_name = meta['pile_set_name']
             sample = {
                 'text': text,

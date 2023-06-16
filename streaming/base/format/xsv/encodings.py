@@ -1,4 +1,4 @@
-# Copyright 2022 MosaicML Streaming authors
+# Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 """Encode and Decode samples in a supported Tabular format."""

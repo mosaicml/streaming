@@ -1,4 +1,4 @@
-# Copyright 2022 MosaicML Streaming authors
+# Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 """Streaming package setup."""
@@ -36,60 +36,61 @@ while True:
 
 classifiers = [
     'Programming Language :: Python :: 3',
-    'Programming Language :: Python :: 3.7',
     'Programming Language :: Python :: 3.8',
     'Programming Language :: Python :: 3.9',
+    'Programming Language :: Python :: 3.10',
 ]
 
 install_requires = [
     'boto3>=1.21.45,<2',
     'Brotli>=1.0.9',
-    'datasets>=2.4.0,<3',
     'matplotlib>=3.5.2,<4',
-    'paramiko>=2.11.0,<3',
+    'paramiko>=2.11.0,<4',
     'python-snappy>=0.6.1,<1',
-    'torch>=1.10,<2',
+    'torch>=1.10,<3',
     'torchtext>=0.10',
     'torchvision>=0.10',
     'tqdm>=4.64.0,<5',
     'transformers>=4.21.3,<5',
     'xxhash>=3.0.0,<4',
     'zstd>=1.5.2.5,<2',
+    'oci>=2.88,<3',
+    'azure-storage-blob>=12.0.0,<13',
 ]
 
 extra_deps = {}
 
 extra_deps['dev'] = [
+    'datasets>=2.4.0,<3',
     'docformatter>=1.4',
     'jupyter==1.0.0',
-    'pre-commit>=2.18.1,<3',
-    'pytest==7.2.0',
+    'pre-commit>=2.18.1,<4',
+    'pytest==7.3.2',
     'pytest_codeblocks==0.16.1',
     'pytest-cov>=4,<5',
     'toml==0.10.2',
-    'yamllint==1.28.0',
+    'yamllint==1.32.0',
     'moto>=4.0,<5',
+    'fastapi==0.97.0',
+    'pydantic==1.10.9',
+    'uvicorn==0.22.0',
 ]
 
 extra_deps['docs'] = [
-    'GitPython==3.1.29',
-    'docutils==0.17.1',
-    'furo==2022.9.29',
-    'myst-parser==0.18.1',
-    'nbsphinx==0.8.10',
-    'pandoc==2.2',
-    'pypandoc==1.10',
+    'GitPython==3.1.31',
+    'docutils==0.18.1',
+    'furo==2023.5.20',
+    'myst-parser==1.0.0',
+    'nbsphinx==0.9.2',
+    'pandoc==2.3',
+    'pypandoc==1.11',
     'sphinx-argparse==0.4.0',
-    'sphinx-copybutton==0.5.0',
-    'sphinx==4.4.0',
-    'sphinx_panels==0.6.0',
-    'sphinxcontrib-images==0.9.4',
-    'sphinxcontrib.katex==0.9.0',
-    'sphinxemoji==0.2.0',
-    'sphinxext.opengraph==0.7.2',
+    'sphinx-copybutton==0.5.2',
+    'sphinx==6.2.1',
+    'sphinx-tabs==3.4.1',
 ]
 
-extra_deps['all'] = set(dep for deps in extra_deps.values() for dep in deps)
+extra_deps['all'] = sorted(set(dep for deps in extra_deps.values() for dep in deps))
 
 package_name = os.environ.get('MOSAIC_PACKAGE_NAME', 'mosaicml-streaming')
 
@@ -106,6 +107,10 @@ setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/mosaicml/streaming/',
+    include_package_data=True,
+    package_data={
+        'streaming': ['py.typed'],
+    },
     packages=setuptools.find_packages(exclude=['tests*']),
     classifiers=classifiers,
     install_requires=install_requires,

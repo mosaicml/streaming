@@ -1,7 +1,7 @@
-# Copyright 2022 MosaicML Streaming authors
+# Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""C4 (Colossal Cleaned Common Crawl) streaming dataset conversion scripts."""
+"""C4 (Colossal Cleaned Common Crawl) streaming dataset conversion script."""
 
 import os
 from argparse import ArgumentParser, Namespace
@@ -54,7 +54,7 @@ def parse_args() -> Namespace:
         help='DataLoader batch size. Default: 512',
     )
     args.add_argument(
-        '--progbar',
+        '--progress_bar',
         type=int,
         default=1,
         help='tqdm progress bar. Default: 1 (True)',
@@ -73,10 +73,13 @@ def get(split: str) -> IterableDataset:
     """Collect the samples for this dataset split.
 
     Args:
-        split (str): Split name.
+        split (str): Dataset split name.
+
+    Raises:
+        ValueError: Shards must divide evenly by num_workers
 
     Returns:
-        An IterableDataset.
+        IterableDataset: An IterableDataset.
     """
 
     class ShardedC4(IterableDataset):
@@ -137,14 +140,19 @@ def main(args: Namespace) -> None:
         ('train', 'train', 364868892, 64),
         ('validation', 'val', 364608, 8),
     ]
-    fields = {'text': 'str', 'timestamp': 'str', 'url': 'str'}
+    columns = {'text': 'str', 'timestamp': 'str', 'url': 'str'}
     hashes = get_list_arg(args.hashes)
     for old_split, new_split, num_samples, num_workers in splits:
         dataset = get(old_split)
         split_dir = os.path.join(args.out_root, new_split)
-        with MDSWriter(split_dir, fields, args.compression, hashes, args.size_limit) as out:
+        with MDSWriter(out=split_dir,
+                       columns=columns,
+                       compression=args.compression,
+                       hashes=hashes,
+                       size_limit=args.size_limit,
+                       progress_bar=args.progress_bar) as out:
             samples = each(dataset, num_workers, args.batch_size)  # pyright: ignore
-            if args.progbar:
+            if args.progress_bar:
                 samples = tqdm(samples, total=num_samples, leave=args.leave)
             for sample in samples:
                 out.write(sample)

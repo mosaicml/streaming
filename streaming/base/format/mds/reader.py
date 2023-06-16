@@ -1,7 +1,7 @@
-# Copyright 2022 MosaicML Streaming authors
+# Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-""":class:`MDSReader` reads samples from binary ``.mds`` files that were written out by:class:`StreamingDatasetWriter`."""
+""":class:`MDSReader` reads samples in `.mds` files written by :class:`StreamingDatasetWriter`."""
 
 import os
 from copy import deepcopy
@@ -67,9 +67,13 @@ class MDSReader(JointReader):
             Self: Loaded MDSReader.
         """
         args = deepcopy(obj)
-        assert args['version'] == 2
+        if args['version'] != 2:
+            raise ValueError(f'Unsupported streaming data version: {args["version"]}. ' +
+                             f'Expected version 2.')
         del args['version']
-        assert args['format'] == 'mds'
+        if args['format'] != 'mds':
+            raise ValueError(f'Unsupported data format: {args["format"]}. ' +
+                             f'Expected to be `mds`.')
         del args['format']
         args['dirname'] = dirname
         args['split'] = split
@@ -120,4 +124,8 @@ class MDSReader(JointReader):
             begin, end = np.frombuffer(pair, np.uint32)
             fp.seek(begin)
             data = fp.read(end - begin)
+        if not data:
+            raise IndexError(
+                f'Relative sample index {idx} is not present in the {self.raw_data.basename} file.'
+            )
         return data

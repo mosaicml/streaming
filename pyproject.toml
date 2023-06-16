@@ -1,3 +1,7 @@
+# build requirements
+[build-system]
+requires = ["setuptools < 68.0.0"]
+build-backend = "setuptools.build_meta"
 
 # iSort
 [tool.isort]
@@ -14,7 +18,8 @@ include = [
 exclude = [
     "build/**",
     "node_modules/**",
-    "streaming/text/convert/enwiki/**"
+    "streaming/text/convert/enwiki/**",
+    "docs/source/conf.py"
 ]
 
 reportUnnecessaryIsInstance = "warning"

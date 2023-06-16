@@ -1,10 +1,10 @@
-# Copyright 2022 MosaicML Streaming authors
+# Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-""":class:`JSONWriter` converts a list of samples into binary `.mds` files that can be read as a :class:`JSONReader`."""
+""":class:`JSONWriter` writes samples to `.json` files that can be read by :class:`JSONReader`."""
 
 import json
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -18,28 +18,51 @@ class JSONWriter(SplitWriter):
     r"""Writes a streaming JSON dataset.
 
     Args:
-        dirname (str): Local dataset directory.
         columns (Dict[str, str]): Sample columns.
+        newline (str): Newline character inserted between samples. Defaults to ``\\n``.
+        out (str | Tuple[str, str]): Output dataset directory to save shard files.
+
+            1. If ``out`` is a local directory, shard files are saved locally.
+            2. If ``out`` is a remote directory, a local temporary directory is created to
+               cache the shard files and then the shard files are uploaded to a remote
+               location. At the end, the temp directory is deleted once shards are uploaded.
+            3. If ``out`` is a tuple of ``(local_dir, remote_dir)``, shard files are saved in the
+               `local_dir` and also uploaded to a remote location.
+        keep_local (bool): If the dataset is uploaded, whether to keep the local dataset directory
+            or remove it after uploading. Defaults to ``False``.
         compression (str, optional): Optional compression or compression:level. Defaults to
             ``None``.
         hashes (List[str], optional): Optional list of hash algorithms to apply to shard files.
             Defaults to ``None``.
         size_limit (int, optional): Optional shard size limit, after which point to start a new
             shard. If None, puts everything in one shard. Defaults to ``None``.
-        newline (str): Newline character inserted between samples. Defaults to ``\\n``.
+        **kwargs (Any): Additional settings for the Writer.
+
+            progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
+                a remote location. Default to ``False``.
+            max_workers (int): Maximum number of threads used to upload output dataset files in
+                parallel to a remote location. One thread is responsible for uploading one shard
+                file to a remote location. Default to ``min(32, (os.cpu_count() or 1) + 4)``.
     """
 
     format = 'json'
 
     def __init__(self,
-                 dirname: str,
+                 *,
                  columns: Dict[str, str],
+                 newline: str = '\n',
+                 out: Union[str, Tuple[str, str]],
+                 keep_local: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,
                  size_limit: Optional[int] = 1 << 26,
-                 newline: str = '\n') -> None:
-        super().__init__(dirname, compression, hashes, size_limit)
-
+                 **kwargs: Any) -> None:
+        super().__init__(out=out,
+                         keep_local=keep_local,
+                         compression=compression,
+                         hashes=hashes,
+                         size_limit=size_limit,
+                         **kwargs)
         for encoding in columns.values():
             assert is_json_encoding(encoding)
 

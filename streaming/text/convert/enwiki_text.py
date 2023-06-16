@@ -1,4 +1,4 @@
-# Copyright 2022 MosaicML Streaming authors
+# Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 """English Wikipedia 2020-01-01 streaming dataset conversion script."""
@@ -24,7 +24,7 @@ def parse_args() -> Namespace:
         '--in_root',
         type=str,
         required=True,
-        help='Directory path to store the input dataset',
+        help='Local directory path of the input raw dataset',
     )
     args.add_argument(
         '--out_root',
@@ -51,7 +51,7 @@ def parse_args() -> Namespace:
         help='Shard size limit, after which point to start a new shard. Default: 1 << 25',
     )
     args.add_argument(
-        '--progbar',
+        '--progress_bar',
         type=int,
         default=1,
         help='tqdm progress bar. Default: 1 (True)',
@@ -67,25 +67,30 @@ def parse_args() -> Namespace:
 
 
 def process_split(in_root: str, out_root: str, compression: str, hashes: List[str],
-                  size_limit: int, progbar: int, leave: int, basenames: List[str],
+                  size_limit: int, progress_bar: int, leave: int, basenames: List[str],
                   split: str) -> None:
     """Process a dataset split.
 
     Args:
-        in_root (str): Input dataset path.
-        out_root (str): Output dataset path.
+        in_root (str): Local directory path of the input raw dataset.
+        out_root (str): Directory path to store the output dataset.
         compression (str): Which compression to use, or empty string if none.
         hashes (List[str]): List of hashes to store of the shards.
         size_limit (int): Maximum shard size in bytes.
-        progbar (int): Whether to display a progress bar.
+        progress_bar (int): Whether to display a progress bar.
         leave (int): Whether to leave the progress bar.
         basenames (List[str]): List of input shard basenames.
-        split (str): Split name.
+        split (str): Dataset split name.
     """
     split_dir = os.path.join(out_root, split)
-    fields = {'text': 'str'}
-    with MDSWriter(split_dir, fields, compression, hashes, size_limit) as out:
-        if progbar:
+    columns = {'text': 'str'}
+    with MDSWriter(out=split_dir,
+                   columns=columns,
+                   compression=compression,
+                   hashes=hashes,
+                   size_limit=size_limit,
+                   progress_bar=progress_bar) as out:
+        if progress_bar:
             basenames = tqdm(basenames, leave=leave)
         for basename in basenames:
             filename = os.path.join(in_root, basename)
@@ -98,7 +103,7 @@ def process_split(in_root: str, out_root: str, compression: str, hashes: List[st
 
 
 def main(args: Namespace) -> None:
-    """Main: create streaming enwiki dataset.
+    """Main: create streaming en-wiki dataset.
 
     Args:
         args (Namespace): command-line arguments.
@@ -108,12 +113,12 @@ def main(args: Namespace) -> None:
     basenames = [f'part-{i:05}-of-00500' for i in range(500)]
     split = 'train'
     process_split(args.in_root, args.out_root, args.compression, hashes, args.size_limit,
-                  args.progbar, args.leave, basenames, split)
+                  args.progress_bar, args.leave, basenames, split)
 
     basenames = ['eval.txt']
     split = 'val'
     process_split(args.in_root, args.out_root, args.compression, hashes, args.size_limit,
-                  args.progbar, args.leave, basenames, split)
+                  args.progress_bar, args.leave, basenames, split)
 
 
 if __name__ == '__main__':

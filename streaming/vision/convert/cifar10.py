@@ -1,4 +1,4 @@
-# Copyright 2022 MosaicML Streaming authors
+# Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 """CIFAR10 streaming dataset conversion scripts."""
@@ -22,7 +22,7 @@ def parse_args() -> Namespace:
         '--in_root',
         type=str,
         required=True,
-        help='Directory path of the input dataset',
+        help='Local directory path of the input raw dataset',
     )
     args.add_argument(
         '--out_root',
@@ -55,7 +55,7 @@ def parse_args() -> Namespace:
         help='Shard size limit, after which point to start a new shard. Default: 1 << 20',
     )
     args.add_argument(
-        '--progbar',
+        '--progress_bar',
         type=int,
         default=1,
         help='tqdm progress bar. Default: 1 (True)',
@@ -81,7 +81,7 @@ def main(args: Namespace) -> None:
     for split in splits:
         dataset = CIFAR10(root=args.in_root, train=(split == 'train'), download=True)
         convert_image_class_dataset(dataset, args.out_root, split, args.compression, hashes,
-                                    args.size_limit, args.progbar, args.leave, 'pil')
+                                    args.size_limit, args.progress_bar, args.leave, 'pil')
 
 
 if __name__ == '__main__':

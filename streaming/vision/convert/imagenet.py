@@ -1,4 +1,4 @@
-# Copyright 2022 MosaicML Streaming authors
+# Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 """ImageNet streaming dataset conversion scripts."""
@@ -27,7 +27,7 @@ def parse_args() -> Namespace:
         '--in_root',
         type=str,
         required=True,
-        help='Directory path of the input dataset',
+        help='Local directory path of the input raw dataset',
     )
     args.add_argument(
         '--out_root',
@@ -60,7 +60,7 @@ def parse_args() -> Namespace:
         help='Shard size limit, after which point to start a new shard. Default: 1 << 26',
     )
     args.add_argument(
-        '--progbar',
+        '--progress_bar',
         type=int,
         default=1,
         help='tqdm progress bar. Default: 1 (True)',
@@ -144,10 +144,15 @@ def main(args: Namespace) -> None:
         check_extensions(filenames, extensions)
         classes, class_names = get_classes(filenames, class_names)
         indices = np.random.permutation(len(filenames))
-        if args.progbar:
+        if args.progress_bar:
             indices = tqdm(indices, leave=args.leave)
-        split_dir = os.path.join(args.out_root, split)
-        with MDSWriter(split_dir, columns, args.compression, hashes, args.size_limit) as out:
+        out_split_dir = os.path.join(args.out_root, split)
+        with MDSWriter(out=out_split_dir,
+                       columns=columns,
+                       compression=args.compression,
+                       hashes=hashes,
+                       size_limit=args.size_limit,
+                       progress_bar=args.progress_bar) as out:
             for i in indices:
                 if args.validate:
                     x = Image.open(filenames[i])

@@ -1,21 +1,21 @@
-# Copyright 2022 MosaicML Streaming authors
+# Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
 import math
 import os
-from typing import Tuple
+from typing import Any, Tuple
 from unittest import mock
 
+import numpy as np
 import pytest
 import torch.distributed as dist
 from torch.utils.data import DataLoader
 
 import streaming.base.distributed as ms_dist
-from streaming.base import Dataset
-from tests.common.datasets import *
+from streaming.base import StreamingDataset
+from tests.common.datasets import SequenceDataset, write_mds_dataset
 from tests.common.distributed import DistributedTest
-from tests.common.utils import *
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +37,8 @@ class TestWorldSize(DistributedTest):
 
 class TestAllgatherObject(DistributedTest):
 
+    @pytest.mark.skip(
+        'CI non-deterministically hangs. See https://mosaicml.atlassian.net/browse/STR-61')
     @pytest.mark.world_size(2)
     @pytest.mark.parametrize(('data', 'expected_data'),
                              [(5, [5, 5]),
@@ -45,6 +47,8 @@ class TestAllgatherObject(DistributedTest):
         output = ms_dist.all_gather_object(data)
         assert output == expected_data
 
+    @pytest.mark.skip(
+        'CI non-deterministically hangs. See https://mosaicml.atlassian.net/browse/STR-61')
     @pytest.mark.world_size(1)
     @pytest.mark.parametrize(('data', 'expected_data'), [(5, [5]), (np.array(10), [np.array(10)])])
     def test_all_gather_object_non_dist(self, data: Any, expected_data: Any):
@@ -58,6 +62,8 @@ def test_all_gather_object_non_dist_exception():
         _ = ms_dist.all_gather_object(5)
 
 
+@pytest.mark.skip(
+    'Fails due to new shared Filelock. See https://mosaicml.atlassian.net/browse/CO-1403')
 class TestInit(DistributedTest):
     world_size = 2
 
@@ -66,37 +72,37 @@ class TestInit(DistributedTest):
     @pytest.mark.parametrize('num_workers', [0, 1, 8])
     @pytest.mark.parametrize('num_samples', [9867])
     @pytest.mark.parametrize('size_limit', [8_192])
-    def test_dataloader_multi_device(self, remote_local: Tuple[str, str], batch_size: int,
+    def test_dataloader_multi_device(self, local_remote_dir: Tuple[str, str], batch_size: int,
                                      drop_last: bool, num_workers: int, num_samples: int,
                                      size_limit: int):
 
-        global_rank = ms_dist.get_global_rank()
+        global_rank = ms_dist.get_rank()
         global_num_ranks = ms_dist.get_world_size()
-        node_rank = ms_dist.get_global_rank()
+        node_rank = ms_dist.get_local_rank()
 
         assert batch_size % global_num_ranks == 0
         per_rank_batch_size = batch_size // global_num_ranks
 
         # Create globally shared remote, and node-local folders
-        remote_local_list = list(remote_local)
-        dist.broadcast_object_list(remote_local_list)
-        remote, local = remote_local_list
+        local_remote_list = list(local_remote_dir)
+        dist.broadcast_object_list(local_remote_list)
+        local, remote = local_remote_list
         node_local = os.path.join(local, str(node_rank))
 
         dataset = SequenceDataset(num_samples)
         columns = dict(zip(dataset.column_names, dataset.column_encodings))
         if global_rank == 0:
-            write_synthetic_streaming_dataset(dirname=remote,
-                                              columns=columns,
-                                              samples=dataset,
-                                              size_limit=size_limit)
+            write_mds_dataset(out_root=remote,
+                              columns=columns,
+                              samples=dataset,
+                              size_limit=size_limit)
         dist.barrier()
 
-        # Build a streaming Dataset
-        dataset = Dataset(local=node_local,
-                          remote=remote,
-                          shuffle=True,
-                          batch_size=per_rank_batch_size)
+        # Build a StreamingDataset
+        dataset = StreamingDataset(local=node_local,
+                                   remote=remote,
+                                   shuffle=True,
+                                   batch_size=per_rank_batch_size)
 
         # Build DataLoader
         dataloader = DataLoader(dataset=dataset,
@@ -110,7 +116,8 @@ class TestInit(DistributedTest):
         expected_num_batches = (device_compatible_num_samples //
                                 batch_size) if drop_last else math.ceil(
                                     device_compatible_num_samples / batch_size)
-        expected_num_samples = expected_num_batches * batch_size if drop_last else device_compatible_num_samples
+        expected_num_samples = expected_num_batches * batch_size if drop_last else \
+            device_compatible_num_samples
 
         # Iterate over DataLoader
         rcvd_batches = 0

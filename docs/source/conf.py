@@ -1,4 +1,4 @@
-# Copyright 2022 MosaicML Streaming authors
+# Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 """Configuration file for the Sphinx documentation builder.
@@ -14,7 +14,6 @@ add these directories to sys.path here. If the directory is relative to the
 documentation root, use os.path.abspath to make it absolute, like shown here.
 """
 import ast
-import importlib
 import inspect
 import os
 import shutil
@@ -22,7 +21,7 @@ import sys
 import tempfile
 import types
 import warnings
-from typing import Any, Dict, List, Tuple, Type
+from typing import Any, List, Tuple, Type
 
 import sphinx.application
 import sphinx.ext.autodoc
@@ -64,7 +63,7 @@ log = sphinx.util.logging.getLogger(__name__)
 # -- Project information -----------------------------------------------------
 
 project = 'Streaming'
-copyright = '2022, MosaicML, Inc.'
+copyright = '2023, MosaicML, Inc.'
 author = 'MosaicML'
 
 # -- General configuration ---------------------------------------------------
@@ -78,18 +77,14 @@ extensions = [
     'sphinx.ext.extlinks',
     'sphinx.ext.coverage',
     'sphinx.ext.napoleon',
-    'sphinxcontrib.katex',
-    'sphinx.ext.linkcode',
+    'sphinx.ext.viewcode',
     'sphinx.ext.intersphinx',
-    'sphinxemoji.sphinxemoji',
-    'sphinxext.opengraph',
     'sphinx_copybutton',
     'myst_parser',
     'sphinxarg.ext',
     'sphinx.ext.doctest',
-    'sphinx_panels',
-    'sphinxcontrib.images',
     'nbsphinx',
+    'sphinx_tabs.tabs',
 ]
 
 
@@ -164,9 +159,7 @@ html_title = ' Streaming'
 
 # Customize CSS
 html_css_files = ['css/custom.css', 'https://cdn.jsdelivr.net/npm/@docsearch/css@3']
-html_js_files = [
-    'js/posthog.js',
-]
+html_js_files = ['js/posthog.js']
 
 # MosaicML Streaming logo
 # html_logo = 'https://storage.googleapis.com/docs.mosaicml.com/images/streaming-logo-light-mode.png'
@@ -209,10 +202,11 @@ images_config = {
 intersphinx_mapping = {
     'boto3': ('https://boto3.amazonaws.com/v1/documentation/api/latest/', None),
     'botocore': ('https://botocore.amazonaws.com/v1/documentation/api/latest', None),
-    'composer': ('https://docs.mosaicml.com/en/stable/', None),
+    'composer': ('https://docs.mosaicml.com/projects/composer/en/latest', None),
     'coolname': ('https://coolname.readthedocs.io/en/latest/', None),
     'datasets': ('https://huggingface.co/docs/datasets/master/en/', None),
     'libcloud': ('https://libcloud.readthedocs.io/en/stable/', None),
+    'mcli': ('https://docs.mosaicml.com/projects/mcli/en/latest', None),
     'numpy': ('https://numpy.org/doc/stable/', None),
     'PIL': ('https://pillow.readthedocs.io/en/stable', None),
     'python': ('https://docs.python.org/3/', None),
@@ -221,7 +215,6 @@ intersphinx_mapping = {
     'torchtext': ('https://pytorch.org/text/stable/', None),
     'torchvision': ('https://pytorch.org/vision/stable/', None),
     'transformers': ('https://huggingface.co/docs/transformers/master/en/', None),
-    'yahp': ('https://docs.mosaicml.com/projects/yahp/en/stable/', None),
 }
 
 nitpicky = False  # warn on broken links
@@ -373,8 +366,13 @@ def _modules_to_rst() -> List[types.ModuleType]:
     document_modules: List[types.Module] = [
         streaming,
         streaming.base.compression,
-        streaming.base.hashing,
         streaming.base.format,
+        streaming.base.hashing,
+        streaming.base.partition,
+        streaming.base.shared,
+        streaming.base.shuffle,
+        streaming.base.storage,
+        streaming.base.world,
     ]
     exclude_modules: List[types.Module] = [streaming.base, streaming._version]
     for name in streaming.__dict__:
@@ -474,37 +472,6 @@ def _determine_lineno_of_attribute(module: types.ModuleType, attribute: str):
     return None
 
 
-def linkcode_resolve(domain: str, info: Dict[str, str]):
-    """Adds links to the GitHub source code in the API Reference."""
-    assert domain == 'py', f'unsupported domain: {domain}'
-    module_name = info['module']
-
-    # Get the object and determine the line number
-    obj_name_in_module = info['fullname']
-    module = importlib.import_module(module_name)
-    lineno = _determine_lineno_of_attribute(module, obj_name_in_module)
-    if lineno is None:
-        obj = _recursive_getattr(module, obj_name_in_module)
-        if isinstance(obj, property):
-            # For properties, return the getter, where it is documented
-            obj = obj.fget
-        try:
-            _, lineno = inspect.getsourcelines(obj)
-        except TypeError:
-            # `inspect.getsourcelines` does not work on all object types (e.g. attributes).
-            # If it fails, it still might be possible to determine the source line through better parsing
-            # in _determine_lineno_of_attribute
-            pass
-    if lineno is None:
-        log.debug(
-            f'Could not determine source line number for {module_name}.{obj_name_in_module}.')
-        return None
-    # Format the link
-    filename = module_name.replace('.', '/')
-    commit_sha = _COMMIT_SHA
-    return f'https://github.com/mosaicml/streaming/blob/{commit_sha}/{filename}.py#L{lineno}'
-
-
 class PatchedHTMLTranslator(HTML5Translator):
     """Open all external links in a new tab."""
 
@@ -521,7 +488,7 @@ class PatchedHTMLTranslator(HTML5Translator):
             if 'refid' not in node and (
                     not any(node['refuri'].startswith(x)
                             for x in ('/', 'https://docs.mosaicml.com', '#')) or
-                    node['refuri'].startswith('https://docs.mosaicml.com/projects/streaming') or
+                    node['refuri'].startswith('https://streaming.docs.mosaicml.com') or
                     node['refuri'].startswith('https://docs.mosaicml.com/projects/yahp')):
                 # If there's a refid, or the refuri starts with a non-external uri scheme, then it's an internal
                 # (hardcoded) link, so don't open that in a new tab

@@ -1,7 +1,7 @@
-# Copyright 2022 MosaicML Streaming authors
+# Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-""":class:`JSONReader` reads samples from binary ``.json`` files that were written out by :class:`MDSWriter`."""
+""":class:`JSONReader` reads samples from `.json` files that were written by :class:`MDSWriter`."""
 
 import json
 import os
@@ -69,9 +69,15 @@ class JSONReader(SplitReader):
             Self: Loaded JSONReader.
         """
         args = deepcopy(obj)
-        assert args['version'] == 2
+        # Version check.
+        if args['version'] != 2:
+            raise ValueError(f'Unsupported streaming data version: {args["version"]}. ' +
+                             f'Expected version 2.')
         del args['version']
-        assert args['format'] == 'json'
+        # Check format.
+        if args['format'] != 'json':
+            raise ValueError(f'Unsupported data format: {args["format"]}. ' +
+                             f'Expected to be `json`.')
         del args['format']
         args['dirname'] = dirname
         args['split'] = split

@@ -1,4 +1,4 @@
-# Copyright 2022 MosaicML Streaming authors
+# Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 """Encode and Decode samples in a supported MDS format."""
@@ -12,6 +12,7 @@ from typing import Any, Optional, Set, Tuple
 import numpy as np
 from numpy import typing as npt
 from PIL import Image
+from PIL.JpegImagePlugin import JpegImageFile
 from typing_extensions import Self
 
 __all__ = [
@@ -293,6 +294,97 @@ class NDArray(Encoding):
         return arr.reshape(shape)  # pyright: ignore
 
 
+class Scalar(Encoding):
+    """Store scalar."""
+
+    def __init__(self, dtype: type) -> None:
+        self.dtype = dtype
+        self.size = self.dtype().nbytes
+
+    def encode(self, obj: Any) -> bytes:
+        return self.dtype(obj).tobytes()
+
+    def decode(self, data: bytes) -> Any:
+        return np.frombuffer(data, self.dtype)[0]
+
+
+class UInt8(Scalar):
+    """Store uint8."""
+
+    def __init__(self):
+        super().__init__(np.uint8)
+
+
+class UInt16(Scalar):
+    """Store uint16."""
+
+    def __init__(self):
+        super().__init__(np.uint16)
+
+
+class UInt32(Scalar):
+    """Store uint32."""
+
+    def __init__(self):
+        super().__init__(np.uint32)
+
+
+class UInt64(Scalar):
+    """Store uint64."""
+
+    def __init__(self):
+        super().__init__(np.uint64)
+
+
+class Int8(Scalar):
+    """Store int8."""
+
+    def __init__(self):
+        super().__init__(np.int8)
+
+
+class Int16(Scalar):
+    """Store int16."""
+
+    def __init__(self):
+        super().__init__(np.int16)
+
+
+class Int32(Scalar):
+    """Store int32."""
+
+    def __init__(self):
+        super().__init__(np.int32)
+
+
+class Int64(Scalar):
+    """Store int64."""
+
+    def __init__(self):
+        super().__init__(np.int64)
+
+
+class Float16(Scalar):
+    """Store float16."""
+
+    def __init__(self):
+        super().__init__(np.float16)
+
+
+class Float32(Scalar):
+    """Store float32."""
+
+    def __init__(self):
+        super().__init__(np.float32)
+
+
+class Float64(Scalar):
+    """Store float64."""
+
+    def __init__(self):
+        super().__init__(np.float64)
+
+
 class PIL(Encoding):
     """Store PIL image raw.
 
@@ -322,9 +414,14 @@ class JPEG(Encoding):
 
     def encode(self, obj: Image.Image) -> bytes:
         self._validate(obj, Image.Image)
-        out = BytesIO()
-        obj.save(out, format='JPEG')
-        return out.getvalue()
+        if isinstance(obj, JpegImageFile) and hasattr(obj, 'filename'):
+            # read the source file to prevent lossy re-encoding
+            with open(obj.filename, 'rb') as f:
+                return f.read()
+        else:
+            out = BytesIO()
+            obj.save(out, format='JPEG')
+            return out.getvalue()
 
     def decode(self, data: bytes) -> Image.Image:
         inp = BytesIO(data)
@@ -380,6 +477,17 @@ _encodings = {
     'str': Str,
     'int': Int,
     'ndarray': NDArray,
+    'uint8': UInt8,
+    'uint16': UInt16,
+    'uint32': UInt32,
+    'uint64': UInt64,
+    'int8': Int8,
+    'int16': Int16,
+    'int32': Int32,
+    'int64': Int64,
+    'float16': Float16,
+    'float32': Float32,
+    'float64': Float64,
     'pil': PIL,
     'jpeg': JPEG,
     'png': PNG,

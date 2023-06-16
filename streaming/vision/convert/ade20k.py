@@ -1,4 +1,4 @@
-# Copyright 2022 MosaicML Streaming authors
+# Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 """ADE20K streaming dataset conversion scripts."""
@@ -26,7 +26,7 @@ def parse_args() -> Namespace:
         '--in_root',
         type=str,
         required=True,
-        help='Directory path of the input dataset',
+        help='Local directory path of the input raw dataset',
     )
     args.add_argument(
         '--out_root',
@@ -59,7 +59,7 @@ def parse_args() -> Namespace:
         help='Shard size limit, after which point to start a new shard. Default: 1 << 22',
     )
     args.add_argument(
-        '--progbar',
+        '--progress_bar',
         type=int,
         default=1,
         help='tqdm progress bar. Default: 1 (True)',
@@ -79,17 +79,25 @@ def get(in_root: str, split: str, shuffle: bool) -> List[Tuple[str, str, str]]:
 
     Args:
         in_root (str): Input dataset directory.
-        split (str): Split name.
+        split (str): Dataset split name.
         shuffle (bool): Whether to shuffle the samples before writing.
 
+    Raises:
+        ValueError: Invalid dataset split name
+        FileNotFoundError: Images path does not exist
+        FileNotFoundError: Annotations path does not exist
+
     Returns:
-        List of samples of (uid, image_filename, annotation_filename).
+        List[Tuple[str, str, str]]: List of samples of (uid, image_filename, annotation_filename).
     """
     # Get uids
-    split_images_in_dir = os.path.join(in_root, 'images', split)
+    if split not in ('train', 'val'):
+        raise ValueError(f"Split must be one of 'train', 'val', not {split}")
+    subdir = 'training' if split == 'train' else 'validation'
+    split_images_in_dir = os.path.join(in_root, 'images', subdir)
     if not os.path.exists(split_images_in_dir):
         raise FileNotFoundError(f'Images path does not exist: {split_images_in_dir}')
-    split_annotations_in_dir = os.path.join(in_root, 'annotations', split)
+    split_annotations_in_dir = os.path.join(in_root, 'annotations', subdir)
     if not os.path.exists(split_annotations_in_dir):
         raise FileNotFoundError(f'Annotations path does not exist: {split_annotations_in_dir}')
     image_glob_pattern = os.path.join(split_images_in_dir, f'ADE_{split}_*.jpg')
@@ -116,10 +124,10 @@ def each(samples: Iterable[Tuple[str, str, str]]) -> Iterable[Dict[str, Any]]:
     """Generator over each dataset sample.
 
     Args:
-        samples (list): List of samples of (uid, image_filename, annotation_filename).
+        samples (Iterable[Tuple[str, str, str]]): A tuple of samples of (uid, image_filename, annotation_filename).
 
     Yields:
-        Sample dicts.
+        Iterator[Iterable[Dict[str, Any]]]: Sample dicts.
     """
     for (uid, image_file, annotation_file) in samples:
         uid = uid.encode('utf-8')
@@ -137,8 +145,11 @@ def main(args: Namespace) -> None:
 
     Args:
         args (Namespace): command-line arguments.
+
+    Raises:
+        ValueError: Number of samples in a dataset does not match.
     """
-    fields = {'uid': 'bytes', 'x': 'jpeg', 'y': 'png'}
+    columns = {'uid': 'bytes', 'x': 'jpeg', 'y': 'png'}
 
     for (split, expected_num_samples, shuffle) in [
         ('train', 20206, True),
@@ -150,14 +161,19 @@ def main(args: Namespace) -> None:
             raise ValueError(f'Number of samples in a dataset doesn\'t match. Expected ' +
                              f'{expected_num_samples}, but got {len(samples)}')
 
-        split_images_out_dir = os.path.join(args.out_root, split)
-        hashes = get_list_arg(args.hashes)
+        out_dir = os.path.join(args.out_root, split)
 
-        if args.progbar:
+        hashes = get_list_arg(args.hashes)
+        if args.progress_bar:
             samples = tqdm(samples, leave=args.leave)
 
-        with MDSWriter(split_images_out_dir, fields, args.compression, hashes,
-                       args.size_limit) as out:
+        with MDSWriter(out=out_dir,
+                       columns=columns,
+                       compression=args.compression,
+                       hashes=hashes,
+                       keep_local=False,
+                       size_limit=args.size_limit,
+                       progress_bar=args.progress_bar) as out:
             for sample in each(samples):
                 out.write(sample)
 

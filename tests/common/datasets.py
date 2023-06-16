@@ -1,4 +1,4 @@
-# Copyright 2022 MosaicML Streaming authors
+# Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 from typing import Any, Dict, List, Optional
@@ -62,7 +62,8 @@ class NumberAndSayDataset:
 
     Args:
         size (int): number of samples. Defaults to 100
-        column_names List[str]: A list of features' and target name. Defaults to ['number', 'words'].
+        column_names List[str]: A list of features' and target name. Defaults to ['number',
+            'words'].
         seed (int): seed value for deterministic randomness
     """
 
@@ -133,15 +134,15 @@ class NumberAndSayDataset:
         np.random.seed(self._seed)
 
 
-def write_synthetic_streaming_dataset(
-    dirname: str,
+def write_mds_dataset(
+    out_root: str,
     columns: Dict[str, str],
     samples: Any,
     size_limit: int,
     compression: Optional[str] = None,
     hashes: Optional[List[str]] = None,
 ) -> None:
-    with MDSWriter(dirname=dirname,
+    with MDSWriter(out=out_root,
                    columns=columns,
                    compression=compression,
                    hashes=hashes,
