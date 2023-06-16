@@ -513,7 +513,7 @@ class StreamingDataset(Array, IterableDataset):
         self._cache_usage.set(cache_usage)
 
     def __len__(self) -> int:
-        """Get the length as an IterableDataset.
+        """Get the length as a PyTorch IterableDataset.
 
         Returns:
             int: Dataset length.
