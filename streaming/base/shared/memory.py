@@ -9,8 +9,7 @@ from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
 from time import sleep
 from typing import Any, Optional
 
-# Time to wait, in seconds.
-TICK = 0.07
+from streaming.base.constant import TICK
 
 
 class SharedMemory:
