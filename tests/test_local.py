@@ -1,7 +1,10 @@
+# Copyright 2023 MosaicML Streaming authors
+# SPDX-License-Identifier: Apache-2.0
+
 from tempfile import TemporaryDirectory
 
-from streaming.base.local import LocalDataset
 from streaming import MDSWriter
+from streaming.base.local import LocalDataset
 
 
 def test_local():
