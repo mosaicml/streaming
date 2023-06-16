@@ -61,8 +61,8 @@ def get_partitions_orig(num_samples: int,
 
     # If drop_first isn't a multiple of num_physical_nodes, round down to make it divisible.
     if drop_first % num_physical_nodes:
-        logger.warning('`drop_first` was not divisible by `num_physical_nodes`. Rounding it ' +
-                       'down to make it divisible')
+        logger.warn('`drop_first` was not divisible by `num_physical_nodes`. Rounding it down ' +
+                    'to make it divisible.')
         drop_first -= drop_first % num_physical_nodes
 
     # Divide the full dataset sample range into a sample range per canonical node.
