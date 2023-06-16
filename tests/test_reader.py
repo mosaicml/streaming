@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 @pytest.fixture(scope='function')
 def mds_dataset_dir():
     try:
-        mock_dir = tempfile.TemporaryDirectory()
+        mock_dir = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
         remote_dir = os.path.join(mock_dir.name, 'remote')
         local_dir = os.path.join(mock_dir.name, 'local')
         num_samples = 117
@@ -290,3 +290,17 @@ def test_empty_shards_index_json_exception(local_remote_dir: Tuple[str, str]):
 
     with pytest.raises(RuntimeError, match=f'Stream contains no samples: .*'):
         _ = StreamingDataset(local=local_dir)
+
+
+@pytest.mark.usefixtures('mds_dataset_dir')
+def test_accidental_shard_delete_exception(mds_dataset_dir: Any):
+    remote_dir, local_dir = mds_dataset_dir
+    filename = 'shard.00000.mds'
+    dataset = StreamingDataset(local=local_dir, remote=remote_dir)
+
+    with pytest.raises(RuntimeError,
+                       match=f'.*Check if the shard file exists in your remote location.*'):
+        for _ in dataset:
+            if os.path.exists(os.path.join(local_dir, filename)):
+                os.remove(os.path.join(local_dir, filename))
+            pass
