@@ -3,11 +3,14 @@
 
 """Apportion shards/samples to nodes/ranks/workers for elastically deterministic sample order."""
 
+import logging
 import math
 from typing import Optional
 
 import numpy as np
 from numpy.typing import NDArray
+
+logger = logging.getLogger(__name__)
 
 
 def get_partitions_orig(num_samples: int,
@@ -39,6 +42,10 @@ def get_partitions_orig(num_samples: int,
         NDArray[np.int64]: Partitions of shape (physical nodes, ranks per node, workers per rank,
             batches per worker, batch size).
     """
+    if num_samples <= drop_first:
+        raise ValueError(f'Resuming further into the dataset ({drop_first}) than it has samples ' +
+                         f'({num_samples})')
+
     if num_canonical_nodes < num_physical_nodes:
         if num_physical_nodes % num_canonical_nodes:
             raise ValueError('Either canonical or physical nodes must be evenly divisible by ' +
@@ -51,6 +58,12 @@ def get_partitions_orig(num_samples: int,
                              'lead to each node downloading all shards')
 
     batch_size = batch_size or 1
+
+    # If drop_first isn't a multiple of num_physical_nodes, round down to make it divisible.
+    if drop_first % num_physical_nodes:
+        logger.warn('`drop_first` was not divisible by `num_physical_nodes`. Rounding it down ' +
+                    'to make it divisible.')
+        drop_first -= drop_first % num_physical_nodes
 
     # Divide the full dataset sample range into a sample range per canonical node.
     samples_per_canonical_node = (num_samples + num_canonical_nodes - 1) // num_canonical_nodes
