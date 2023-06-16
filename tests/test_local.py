@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from tempfile import TemporaryDirectory
+
 import torch
 from torch.utils.data import DataLoader
 
@@ -21,7 +22,6 @@ def test_local_dataset():
         for sample_id in range(num_samples):
             sample = dataset[sample_id]
             assert sample['value'] == sample_id
-
 
 
 def test_local_dataloader():
