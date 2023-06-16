@@ -13,7 +13,7 @@ from typing import Iterator, List, Set, Tuple
 import numpy as np
 from torch import distributed as dist
 
-from streaming.base._constant import LOCALS, TICK
+from streaming.base.constant import LOCALS, TICK
 from streaming.base.shared import SharedMemory
 from streaming.base.world import World
 
@@ -30,7 +30,7 @@ def _each_prefix_int() -> Iterator[int]:
         prefix_int += 1
 
 
-def _create_filename(prefix_int: int, name: str) -> str:
+def _get_path(prefix_int: int, name: str) -> str:
     """Get the name of the shared memory.
 
     Args:
@@ -40,7 +40,7 @@ def _create_filename(prefix_int: int, name: str) -> str:
     Returns:
         str: Unique shared memory name.
     """
-    return f'{prefix_int:06}{name}'
+    return f'{prefix_int:06}_{name}'
 
 
 def _pack_locals(dirnames: Set[str]) -> bytes:
@@ -104,7 +104,7 @@ def _check_and_find(my_locals_set: Set[str]) -> int:
     """
     prefix_int = 0
     for prefix_int in _each_prefix_int():
-        name = _create_filename(prefix_int, LOCALS)
+        name = _get_path(prefix_int, LOCALS)
         try:
             shm = SharedMemory(name, False)
         except FileNotFoundError:
@@ -168,7 +168,7 @@ def get_shm_prefix(my_locals: List[str],
     # First, the local leader registers the first available shm prefix, recording its locals.
     if world.is_local_leader:
         prefix_int = _check_and_find_retrying(my_locals_set, retry)
-        name = _create_filename(prefix_int, LOCALS)
+        name = _get_path(prefix_int, LOCALS)
         data = _pack_locals(my_locals_set)
         shm = SharedMemory(name, True, len(data))
         shm.buf[:len(data)] = data
@@ -179,7 +179,7 @@ def get_shm_prefix(my_locals: List[str],
     # Non-local leaders go next, searching for match.
     if not world.is_local_leader:
         for prefix_int in _each_prefix_int():
-            name = _create_filename(prefix_int, LOCALS)
+            name = _get_path(prefix_int, LOCALS)
             try:
                 shm = SharedMemory(name, False)
             except FileNotFoundError:

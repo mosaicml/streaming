@@ -9,7 +9,7 @@ from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
 from time import sleep
 from typing import Any, Optional
 
-from streaming.base._constant import TICK
+from streaming.base.constant import TICK
 
 
 class SharedMemory:

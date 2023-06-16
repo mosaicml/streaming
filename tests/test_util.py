@@ -6,8 +6,8 @@ from typing import List, Optional
 
 import pytest
 
-from streaming.base._constant import RESUME
-from streaming.base.shared.prefix import _create_filename
+from streaming.base.constant import RESUME
+from streaming.base.shared.prefix import _get_path
 from streaming.base.util import bytes_to_int, clean_stale_shared_memory, get_list_arg
 
 
@@ -51,7 +51,7 @@ def test_bytes_to_int_Exception():
 
 def test_clean_stale_shared_memory():
     # Create a leaked shared memory
-    name = _create_filename(0, RESUME)
+    name = _get_path(0, RESUME)
     _ = BuiltinSharedMemory(name, True, 64)
 
     # Clean up the stale shared memory

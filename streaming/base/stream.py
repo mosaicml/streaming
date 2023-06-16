@@ -12,8 +12,8 @@ import numpy as np
 from numpy.typing import NDArray
 from typing_extensions import Self
 
-from streaming.base._constant import TICK
 from streaming.base.compression import decompress
+from streaming.base.constant import TICK
 from streaming.base.format import FileInfo, Reader, get_index_basename, reader_from_json
 from streaming.base.hashing import get_hash
 from streaming.base.storage import download_file

@@ -10,10 +10,9 @@ from typing import List
 
 import torch.distributed as dist
 
-from streaming.base._constant import (BARRIER, CACHE_USAGE, EPOCH_DATA, EPOCH_SHAPE, LOCALS,
-                                      NEXT_EPOCH, RESUME, SHARD_ACCESS_TIMES, SHARD_STATES)
+from streaming.base.constant import SHM_TO_CLEAN
 from streaming.base.distributed import get_local_rank, maybe_init_dist
-from streaming.base.shared.prefix import _create_filename
+from streaming.base.shared.prefix import _get_path
 
 __all__ = ['get_list_arg']
 
@@ -106,14 +105,10 @@ def clean_stale_shared_memory() -> None:
 
     # Perform clean up on local rank 0
     if get_local_rank() == 0:
-        shm_names = [
-            BARRIER, CACHE_USAGE, EPOCH_DATA, EPOCH_SHAPE, LOCALS, NEXT_EPOCH, RESUME,
-            SHARD_ACCESS_TIMES, SHARD_STATES
-        ]
         for prefix_int in range(1000000):
             leaked_shm = False
-            for shm_name in shm_names:
-                name = _create_filename(prefix_int, shm_name)
+            for shm_name in SHM_TO_CLEAN:
+                name = _get_path(prefix_int, shm_name)
                 try:
                     shm = BuiltinSharedMemory(name, True, 4)
                 except FileExistsError:
