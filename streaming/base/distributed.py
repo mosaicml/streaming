@@ -10,6 +10,7 @@ import torch.distributed as dist
 
 TObj = TypeVar('TObj')
 
+import torch
 from torch import Tensor
 from torch import distributed as dist
 
@@ -110,3 +111,19 @@ def all_gather_object(obj: TObj) -> List[TObj]:
         'or has not been initialized. Please check you have initialized the distributed ',
         'runtime and that PyTorch has been built with distributed support.'
     ]))
+
+
+def maybe_init_dist() -> bool:
+    """Initialize torch.distributed ourselves, if necessary.
+
+    Returns:
+        bool: Whether we initialized dist ourselves.
+    """
+    if get_world_size() == 1 or not dist.is_available() or dist.is_initialized():
+        return False
+    if torch.cuda.is_available() and dist.is_nccl_available():
+        backend = 'nccl'
+    else:
+        backend = 'gloo'
+    dist.init_process_group(backend=backend, rank=get_rank(), world_size=get_world_size())
+    return True
