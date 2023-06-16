@@ -290,3 +290,18 @@ def test_empty_shards_index_json_exception(local_remote_dir: Tuple[str, str]):
 
     with pytest.raises(RuntimeError, match=f'Stream contains no samples: .*'):
         _ = StreamingDataset(local=local_dir)
+
+
+@pytest.mark.usefixtures('mds_dataset_dir')
+def test_accidental_shard_delete_exception(mds_dataset_dir: Any):
+    remote_dir, local_dir = mds_dataset_dir
+    filename = 'shard.00000.mds'
+    dataset = StreamingDataset(local=local_dir, remote=remote_dir)
+
+    with pytest.raises(RuntimeError,
+                       match=f'.*Check if the shard file exists in your remote location.*'):
+        for _ in dataset:
+            if os.path.exists(os.path.join(local_dir, filename)):
+                os.remove(os.path.join(local_dir, filename))
+            pass
+    shutil.rmtree(local_dir, ignore_errors=True)
