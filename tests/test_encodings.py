@@ -117,8 +117,8 @@ class TestMDSEncodings:
         assert (a == c).all()
         b2_len = len(b)
 
-        shape_str = 'x'.join(map(str, shape))
-        encoding = f'ndarray:{dtype.__name__},{shape_str}'
+        shape_str = ','.join(map(str, shape))
+        encoding = f'ndarray:{dtype.__name__}:{shape_str}'
         assert mdsEnc.is_mds_encoding(encoding)
         b_size = mdsEnc.get_mds_encoded_size(encoding)
         assert b_size is not None

@@ -177,14 +177,14 @@ class NDArray(Encoding):
         Returns:
             Self: The initialized Encoding.
         """
-        args = text.split(',') if text else []
+        args = text.split(':') if text else []
         assert len(args) in {0, 1, 2}
         if 1 <= len(args):
             dtype = args[0]
         else:
             dtype = None
         if 2 <= len(args):
-            shape = tuple(map(int, args[1].split('x')))
+            shape = tuple(map(int, args[1].split(',')))
         else:
             shape = None
         return cls(dtype, shape)
