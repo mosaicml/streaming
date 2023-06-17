@@ -9,9 +9,9 @@ from concurrent.futures import ThreadPoolExecutor, wait
 from concurrent.futures._base import Future
 from enum import IntEnum
 from math import ceil
-from threading import Event, Lock
+from threading import Event, Lock, Thread
 from time import sleep, time_ns
-from typing import Any, Dict, Iterator, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from filelock import FileLock
@@ -24,7 +24,7 @@ from streaming.base.constant import (BARRIER, BARRIER_FILELOCK, CACHE_FILELOCK, 
                                      EPOCH_DATA, EPOCH_SHAPE, NEXT_EPOCH, RESUME,
                                      SHARD_ACCESS_TIMES, SHARD_STATES, TICK)
 from streaming.base.distributed import maybe_init_dist
-from streaming.base.format import get_index_basename
+from streaming.base.format import reader_from_json
 from streaming.base.partition import get_partitions
 from streaming.base.shared import (SharedArray, SharedBarrier, SharedMemory, SharedScalar,
                                    _get_path, get_shm_prefix)
@@ -135,6 +135,56 @@ class _Iterator:
         """Note that a thread has exited."""
         with self._lock:
             self._num_exited += 1
+
+
+def _parallel_download_indexes(streams: Sequence[Stream]) -> None:
+    """Download every stream index in parallel.
+
+    Args:
+        streams (Sequence[Stream]): All streams.
+    """
+
+    def download_index(stream: Stream) -> None:
+        stream.download_index()
+
+    # Start the threads.
+    threads = []
+    for stream in streams:
+        thread = Thread(target=download_index, args=(stream,))
+        thread.start()
+        threads.append(thread)
+
+    # Join the threads.
+    for thread in threads:
+        thread.join()
+
+
+def _parallel_parse_indexes(streams: Sequence[Stream]) -> List[Dict[str, Any]]:
+    """Parse every stream index in parallel.
+
+    Args:
+        streams (Sequence[Stream]): All streams.
+    """
+    # Allocate space for thread outputs.
+    stream_indexes = [None] * len(streams)
+
+    # Parse one index.
+    def parse_index(stream_id: int) -> None:
+        stream = streams[stream_id]
+        stream_indexes[stream_id] = stream.parse_index()  # pyright: ignore
+
+    # Start the threads.
+    threads = []
+    for stream_id in range(len(streams)):
+        thread = Thread(target=parse_index, args=(stream_id,))
+        thread.start()
+        threads.append(thread)
+
+    # Join the threads.
+    for thread in threads:
+        thread.join()
+
+    return stream_indexes  # pyright: ignore
 
 
 class StreamingDataset(Array, IterableDataset):
@@ -321,29 +371,61 @@ class StreamingDataset(Array, IterableDataset):
         # Initialize torch dist ourselves, if necessary.
         destroy_dist = maybe_init_dist()
 
-        # Download each stream's index, load their shards, and map streams <-> shards.
-        self.num_samples = 0
+        # Download every stream's index in parallel from the local leader.
+        if world.is_local_leader:
+            _parallel_download_indexes(self.streams)
+
+        # Wait for leader process to complete downloading all stream indexes.
+        if dist.is_available() and dist.is_initialized():
+            dist.barrier()
+
+        # Now, every process parses every index file in parallel.
+        stream_indexes = _parallel_parse_indexes(self.streams)
+
+        # Shard reader for each shard of each stream.
         self.shards = []
+
+        # Method to initialize all shard readers.
+        def get_shards() -> None:
+            for stream_id, obj in enumerate(stream_indexes):
+                stream = self.streams[stream_id]
+                for info in obj['shards']:
+                    shard = reader_from_json(stream.local, stream.split, info)
+                    self.shards.append(shard)
+
+        # Init shard readers in the background while continuing directly below.
+        shard_loader = Thread(target=get_shards)
+        shard_loader.start()
+
+        # Map between streams, shards, and samples, calculating offsets.
+        #
+        # This only uses the "samples" field of the shards while we simultaneously construct the
+        # full objects in a background thread.
         stream_per_shard = []
+        samples_per_shard = []
         self.shard_offset_per_stream = np.zeros(self.num_streams, np.int64)
         self.shards_per_stream = np.zeros(self.num_streams, np.int64)
         self.sample_offset_per_stream = np.zeros(self.num_streams, np.int64)
         self.samples_per_stream = np.zeros(self.num_streams, np.int64)
-        for stream_id, stream in enumerate(self.streams):
-            stream_shards = stream.get_shards(world)
-            num_stream_samples = sum(map(len, stream_shards))
-            if not num_stream_samples:
-                index_filename = os.path.join(stream.local, stream.split, get_index_basename())
-                raise RuntimeError(f'Stream contains no samples: {index_filename}.')
-            stream_per_shard += [stream_id] * len(stream_shards)
-            self.shard_offset_per_stream[stream_id] = len(self.shards)
-            self.shards_per_stream[stream_id] = len(stream_shards)
+        self.num_shards = 0
+        self.num_samples = 0
+        for stream_id, obj in enumerate(stream_indexes):
+            stream_shard_sizes = list(map(lambda info: info['samples'], obj['shards']))
+            stream_samples = sum(stream_shard_sizes)
+            stream_per_shard += [stream_id] * len(stream_shard_sizes)
+            samples_per_shard += stream_shard_sizes
+            self.shard_offset_per_stream[stream_id] = self.num_shards
+            self.shards_per_stream[stream_id] = len(stream_shard_sizes)
             self.sample_offset_per_stream[stream_id] = self.num_samples
-            self.samples_per_stream[stream_id] = num_stream_samples
-            self.shards += stream_shards
-            self.num_samples += num_stream_samples
+            self.samples_per_stream[stream_id] = stream_samples
+            self.num_shards += len(stream_shard_sizes)
+            self.num_samples += stream_samples
         self.stream_per_shard = np.array(stream_per_shard, np.int64)
-        self.num_shards = len(self.shards)
+        self.samples_per_shard = np.array(samples_per_shard, np.int64)
+        self.sample_offset_per_shard = self.samples_per_shard.cumsum() - self.samples_per_shard
+
+        # Build the shard index (for partitioning and mapping samples to shards).
+        self.spanner = Spanner(self.samples_per_shard)
 
         # Check that cache limit is possible.
         if self.cache_limit:
@@ -354,11 +436,6 @@ class StreamingDataset(Array, IterableDataset):
                 raise ValueError(f'Minimum cache usage ({min_cache_usage} bytes) is larger than ' +
                                  f'the cache limit ({self.cache_limit} bytes). Please raise ' +
                                  f'`cache_limit`.')
-
-        # Build the shard index (for partitioning and mapping samples to shards).
-        self.samples_per_shard = np.array([shard.samples for shard in self.shards], np.int64)
-        self.sample_offset_per_shard = self.samples_per_shard.cumsum() - self.samples_per_shard
-        self.spanner = Spanner(self.samples_per_shard)
 
         # Now that we know the number of underlying samples of each stream, derive each stream's
         # true proportion/repeat/choose, as well as the total epoch size.
@@ -403,6 +480,9 @@ class StreamingDataset(Array, IterableDataset):
         # out of space.
         self._shard_access_times = SharedArray(self.num_shards, np.uint64,
                                                _get_path(self._shm_prefix_int, SHARD_ACCESS_TIMES))
+
+        # Finally, wait for the shard loader to join.
+        shard_loader.join()
 
         # Initialize shared memory objects.
         if world.is_local_leader:

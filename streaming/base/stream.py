@@ -6,19 +6,16 @@
 import json
 import os
 from tempfile import mkdtemp
-from typing import List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
 from numpy.typing import NDArray
 from typing_extensions import Self
 
 from streaming.base.compression import decompress
-from streaming.base.constant import TICK
-from streaming.base.format import FileInfo, Reader, get_index_basename, reader_from_json
+from streaming.base.format import FileInfo, Reader, get_index_basename
 from streaming.base.hashing import get_hash
 from streaming.base.storage import download_file
-from streaming.base.util import wait_for_file_to_exist
-from streaming.base.world import World
 
 
 class Stream:
@@ -365,51 +362,30 @@ class Stream:
         for raw_info, zip_info in shard.file_pairs:
             self._download_shard_part(raw_info, zip_info, shard.compression)
 
-    def get_shards(self, world: World) -> List[Reader]:
-        """Load this Stream's index, retrieving its shard readers.
-
-        Args:
-            world (World): Distributed context.
-
-        Returns:
-            `List[Reader]: Shard readers.
-        """
-        # Download the index.
+    def download_index(self) -> None:
+        """Download this stream's index."""
         basename = get_index_basename()
         filename = os.path.join(self.local, self.split, basename)  # pyright: ignore
-        if world.is_local_leader:
-            if self.remote:
-                tmp_filename = self._download_file(basename, basename + '.tmp')
-                os.rename(tmp_filename, filename)
-            else:
-                if not os.path.exists(filename):
-                    raise RuntimeError(f'No `remote` provided, but local file {filename} ' +
-                                       'does not exist either')
+        if self.remote:
+            tmp_filename = self._download_file(basename, basename + '.tmp')
+            os.rename(tmp_filename, filename)
         else:
-            wait_for_file_to_exist(
-                filename, TICK, self.download_timeout,
-                f'Index file {filename} took too long to download. Either ' +
-                f'increase the `download_timeout` value or check the other ' + f'traceback.')
+            if not os.path.exists(filename):
+                raise RuntimeError(f'No `remote` provided, but local file {filename} ' +
+                                   'does not exist either')
 
-        # Load the index.
+    def parse_index(self) -> Dict[str, Any]:
+        """Parse this stream's index.
+
+        Returns:
+            Dict[str, Any]: JSON object.
+        """
+        filename = os.path.join(self.local, self.split, get_index_basename())  # pyright: ignore
         try:
-            obj = json.load(open(filename))
+            return json.load(open(filename))
         except json.decoder.JSONDecodeError as error:
             error.args = (f'Index file at {filename} is empty or corrupted. ' + error.args[0],)
             raise error
-
-        # Version check.
-        if obj['version'] != 2:
-            raise ValueError(f'Unsupported streaming data version: {obj["version"]}. ' +
-                             f'Expected version 2.')
-
-        # Initialize shard readers according to the loaded info.
-        shards = []
-        for info in obj['shards']:
-            shard = reader_from_json(self.local, self.split, info)
-            shards.append(shard)
-
-        return shards
 
     def init_local_dir(self, shards: List[Reader]) -> List[bool]:
         """Bring a local directory into a consistent state, getting which shards are present.
