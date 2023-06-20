@@ -16,7 +16,8 @@ import tqdm
 from streaming.base.storage.download import BOTOCORE_CLIENT_ERROR_CODES
 
 __all__ = [
-    'CloudUploader', 'S3Uploader', 'GCSUploader', 'OCIUploader', 'AzureUploader', 'AzureDLUploader', 'LocalUploader'
+    'CloudUploader', 'S3Uploader', 'GCSUploader', 'OCIUploader', 'AzureUploader',
+    'AzureDLUploader', 'LocalUploader'
 ]
 
 logger = logging.getLogger(__name__)
@@ -475,6 +476,7 @@ class AzureUploader(CloudUploader):
                 f'Either bucket `{bucket_name}` does not exist! ' +
                 f'or check the bucket permission.',)
 
+
 class AzureDLUploader(CloudUploader):
     """Upload file from local machine to Microsoft Azure DataLake.
 
@@ -521,7 +523,8 @@ class AzureDLUploader(CloudUploader):
         obj = urllib.parse.urlparse(remote_filename)
         logger.debug(f'Uploading to {remote_filename}')
         file_size = os.stat(local_filename).st_size
-        file_client = self.azure_service.get_file_client(file_system=obj.netloc, file_path=obj.path.lstrip('/'))
+        file_client = self.azure_service.get_file_client(file_system=obj.netloc,
+                                                         file_path=obj.path.lstrip('/'))
 
         with tqdm.tqdm(total=file_size,
                        unit='B',
@@ -529,9 +532,7 @@ class AzureDLUploader(CloudUploader):
                        desc=f'Uploading to {remote_filename}',
                        disable=(not self.progress_bar)) as pbar:
             with open(local_filename, 'rb') as data:
-                file_client.upload_data(
-                    data=data,
-                    overwrite=True)
+                file_client.upload_data(data=data, overwrite=True)
                 pbar.update(file_size)
         self.clear_local(local=local_filename)
 
@@ -549,6 +550,7 @@ class AzureDLUploader(CloudUploader):
             raise FileNotFoundError(
                 f'Either container `{container_name}` does not exist! ' +
                 f'or check the container permission.',)
+
 
 class LocalUploader(CloudUploader):
     """Copy file from one local directory to another local directory.

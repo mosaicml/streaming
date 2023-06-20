@@ -223,11 +223,13 @@ class TestAzureUploader:
                 pass
             _ = AzureUploader(out=local)
 
+
 class TestAzureDLUploader:
 
     @patch('streaming.base.storage.upload.AzureDLUploader.check_container_exists')
     @pytest.mark.usefixtures('azure_credentials')
-    @pytest.mark.parametrize('out', ['azure://container/dir', ('./dir1', 'azure://container/dir/')])
+    @pytest.mark.parametrize('out',
+                             ['azure://container/dir', ('./dir1', 'azure://container/dir/')])
     def test_instantiation(self, mocked_requests: Mock, out: Any):
         mocked_requests.side_effect = None
         _ = AzureDLUploader(out=out)
@@ -253,6 +255,7 @@ class TestAzureDLUploader:
             with open(local_file_path, 'w') as _:
                 pass
             _ = AzureDLUploader(out=local)
+
 
 class TestLocalUploader:
 

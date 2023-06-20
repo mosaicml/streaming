@@ -150,10 +150,11 @@ class TestDownload:
         download_file(mock_remote_filepath, mock_local_filepath, 60)
         mocked_requests.assert_called_once()
         mocked_requests.assert_called_once_with(mock_remote_filepath, mock_local_filepath)
-    
+
     @patch('streaming.base.storage.download.download_from_azuredl')
     @pytest.mark.usefixtures('remote_local_file')
-    def test_download_from_azuredl_gets_called(self, mocked_requests: Mock, remote_local_file: Any):
+    def test_download_from_azuredl_gets_called(self, mocked_requests: Mock,
+                                               remote_local_file: Any):
         mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='azure-dl://')
         download_file(mock_remote_filepath, mock_local_filepath, 60)
         mocked_requests.assert_called_once()

@@ -247,6 +247,7 @@ def download_from_azure(remote: str, local: str) -> None:
     except Exception:
         raise
 
+
 def download_from_azuredl(remote: str, local: str) -> None:
     """Download a file from remote Microsoft Azure to local.
 
@@ -260,8 +261,7 @@ def download_from_azuredl(remote: str, local: str) -> None:
     obj = urllib.parse.urlparse(remote)
     if obj.scheme != 'azure-dl':
         raise ValueError(
-            f'Expected obj.scheme to be `azure-dl`, got {obj.scheme} for remote={remote}'
-        )
+            f'Expected obj.scheme to be `azure-dl`, got {obj.scheme} for remote={remote}')
 
     # Create a new session per thread
     service = DataLakeServiceClient(
@@ -269,9 +269,8 @@ def download_from_azuredl(remote: str, local: str) -> None:
         credential=os.environ['AZURE_ACCOUNT_ACCESS_KEY'],
     )
     try:
-        file_client = service.get_file_client(
-            file_system=obj.netloc, file_path=obj.path.lstrip('/')
-        )
+        file_client = service.get_file_client(file_system=obj.netloc,
+                                              file_path=obj.path.lstrip('/'))
         with open(local, 'wb') as my_file:
             file_data = file_client.download_file()
             file_data.readinto(my_file)
@@ -279,6 +278,7 @@ def download_from_azuredl(remote: str, local: str) -> None:
         raise FileNotFoundError(f'Object {remote} not found.')
     except Exception:
         raise
+
 
 def download_from_local(remote: str, local: str) -> None:
     """Download a file from remote to local.
