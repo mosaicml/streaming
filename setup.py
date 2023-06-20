@@ -56,6 +56,8 @@ install_requires = [
     'zstd>=1.5.2.5,<2',
     'oci>=2.88,<3',
     'azure-storage-blob>=12.0.0,<13',
+    'azure-storage-file-datalake>=12.11.0,<13',
+    'azure-identity>=1.13.0'
 ]
 
 extra_deps = {}
