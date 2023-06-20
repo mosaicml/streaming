@@ -258,25 +258,25 @@ def download_from_azuredl(remote: str, local: str) -> None:
     from azure.storage.filedatalake import DataLakeServiceClient
 
     obj = urllib.parse.urlparse(remote)
-    if obj.scheme != "azure-dl":
+    if obj.scheme != 'azure-dl':
         raise ValueError(
-            f'Expected obj.scheme to be "azure-dl", got {obj.scheme} for remote={remote}'
+            f'Expected obj.scheme to be `azure-dl`, got {obj.scheme} for remote={remote}'
         )
 
     # Create a new session per thread
     service = DataLakeServiceClient(
         account_url=f"https://{os.environ['AZURE_ACCOUNT_NAME']}.dfs.core.windows.net",
-        credential=os.environ["AZURE_ACCOUNT_ACCESS_KEY"],
+        credential=os.environ['AZURE_ACCOUNT_ACCESS_KEY'],
     )
     try:
         file_client = service.get_file_client(
             file_system=obj.netloc, file_path=obj.path.lstrip('/')
         )
-        with open(local, "wb") as my_file:
+        with open(local, 'wb') as my_file:
             file_data = file_client.download_file()
             file_data.readinto(my_file)
     except ResourceNotFoundError:
-        raise FileNotFoundError(f"Object {remote} not found.")
+        raise FileNotFoundError(f'Object {remote} not found.')
     except Exception:
         raise
 

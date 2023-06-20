@@ -16,7 +16,7 @@ import tqdm
 from streaming.base.storage.download import BOTOCORE_CLIENT_ERROR_CODES
 
 __all__ = [
-    'CloudUploader', 'S3Uploader', 'GCSUploader', 'OCIUploader', 'AzureUploader', "AzureDLUploader", 'LocalUploader'
+    'CloudUploader', 'S3Uploader', 'GCSUploader', 'OCIUploader', 'AzureUploader', 'AzureDLUploader', 'LocalUploader'
 ]
 
 logger = logging.getLogger(__name__)
