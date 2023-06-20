@@ -247,6 +247,38 @@ def download_from_azure(remote: str, local: str) -> None:
     except Exception:
         raise
 
+def download_from_azuredl(remote: str, local: str) -> None:
+    """Download a file from remote Microsoft Azure to local.
+
+    Args:
+        remote (str): Remote path (azure).
+        local (str): Local path (local filesystem).
+    """
+    from azure.core.exceptions import ResourceNotFoundError
+    from azure.storage.filedatalake import DataLakeServiceClient
+
+    obj = urllib.parse.urlparse(remote)
+    if obj.scheme != "azure-dl":
+        raise ValueError(
+            f'Expected obj.scheme to be "azure-dl", got {obj.scheme} for remote={remote}'
+        )
+
+    # Create a new session per thread
+    service = DataLakeServiceClient(
+        account_url=f"https://{os.environ['AZURE_ACCOUNT_NAME']}.dfs.core.windows.net",
+        credential=os.environ["AZURE_ACCOUNT_ACCESS_KEY"],
+    )
+    try:
+        file_client = service.get_file_client(
+            file_system=obj.netloc, file_path=obj.path.lstrip('/')
+        )
+        with open(local, "wb") as my_file:
+            file_data = file_client.download_file()
+            file_data.readinto(my_file)
+    except ResourceNotFoundError:
+        raise FileNotFoundError(f"Object {remote} not found.")
+    except Exception:
+        raise
 
 def download_from_local(remote: str, local: str) -> None:
     """Download a file from remote to local.
@@ -294,6 +326,8 @@ def download_file(remote: Optional[str], local: str, timeout: float):
         download_from_oci(remote, local)
     elif remote.startswith('azure://'):
         download_from_azure(remote, local)
+    elif remote.startswith('azure-dl://'):
+        download_from_azuredl(remote, local)
     else:
         download_from_local(remote, local)
 
