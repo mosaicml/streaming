@@ -10,7 +10,8 @@ import boto3
 import pytest
 from botocore.exceptions import ClientError
 
-from streaming.base.storage.download import (download_file, download_from_azure, download_from_azuredl, download_from_gcs,
+from streaming.base.storage.download import (download_file, download_from_azure,
+                                             download_from_azuredl, download_from_gcs,
                                              download_from_local, download_from_s3,
                                              download_or_wait)
 from tests.conftest import GCS_URL, MY_BUCKET, R2_URL
