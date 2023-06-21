@@ -17,7 +17,7 @@ from streaming.base.storage.download import BOTOCORE_CLIENT_ERROR_CODES
 
 __all__ = [
     'CloudUploader', 'S3Uploader', 'GCSUploader', 'OCIUploader', 'AzureUploader',
-    'AzureDLUploader', 'LocalUploader'
+    'AzureDataLakeUploader', 'LocalUploader'
 ]
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ UPLOADERS = {
     'gs': 'GCSUploader',
     'oci': 'OCIUploader',
     'azure': 'AzureUploader',
-    'azure-dl': 'AzureDLUploader',
+    'azure-dl': 'AzureDataLakeUploader',
     '': 'LocalUploader',
 }
 
@@ -477,7 +477,7 @@ class AzureUploader(CloudUploader):
                 f'or check the bucket permission.',)
 
 
-class AzureDLUploader(CloudUploader):
+class AzureDataLakeUploader(CloudUploader):
     """Upload file from local machine to Microsoft Azure DataLake.
 
     Args:

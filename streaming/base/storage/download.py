@@ -248,8 +248,8 @@ def download_from_azure(remote: str, local: str) -> None:
         raise
 
 
-def download_from_azuredl(remote: str, local: str) -> None:
-    """Download a file from remote Microsoft Azure to local.
+def download_from_azure_datalake(remote: str, local: str) -> None:
+    """Download a file from remote Microsoft Azure Data Lake to local.
 
     Args:
         remote (str): Remote path (azure).
@@ -327,7 +327,7 @@ def download_file(remote: Optional[str], local: str, timeout: float):
     elif remote.startswith('azure://'):
         download_from_azure(remote, local)
     elif remote.startswith('azure-dl://'):
-        download_from_azuredl(remote, local)
+        download_from_azure_datalake(remote, local)
     else:
         download_from_local(remote, local)
 
