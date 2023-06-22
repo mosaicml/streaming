@@ -9,8 +9,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from streaming.base.storage.upload import (AzureUploader, CloudUploader, GCSUploader,
-                                           LocalUploader, S3Uploader)
+from streaming.base.storage.upload import (AzureDataLakeUploader, AzureUploader, CloudUploader,
+                                           GCSUploader, LocalUploader, S3Uploader)
 from tests.conftest import R2_URL
 
 
@@ -222,6 +222,39 @@ class TestAzureUploader:
             with open(local_file_path, 'w') as _:
                 pass
             _ = AzureUploader(out=local)
+
+
+class TestAzureDataLakeUploader:
+
+    @patch('streaming.base.storage.upload.AzureDataLakeUploader.check_container_exists')
+    @pytest.mark.usefixtures('azure_credentials')
+    @pytest.mark.parametrize('out',
+                             ['azure://container/dir', ('./dir1', 'azure://container/dir/')])
+    def test_instantiation(self, mocked_requests: Mock, out: Any):
+        mocked_requests.side_effect = None
+        _ = AzureDataLakeUploader(out=out)
+        if not isinstance(out, str):
+            shutil.rmtree(out[0])
+
+    @pytest.mark.parametrize('out', ['ss4://container/dir'])
+    def test_invalid_remote_str(self, out: str):
+        with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
+            _ = AzureDataLakeUploader(out=out)
+
+    @pytest.mark.parametrize('out', ['ss4://container/dir', ('./dir1', 'gcs://container/dir/')])
+    def test_invalid_remote_list(self, out: Any):
+        with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
+            _ = AzureDataLakeUploader(out=out)
+
+    def test_local_directory_is_empty(self, local_remote_dir: Tuple[str, str]):
+        with pytest.raises(FileExistsError, match=f'Directory is not empty.*'):
+            local, _ = local_remote_dir
+            os.makedirs(local, exist_ok=True)
+            local_file_path = os.path.join(local, 'file.txt')
+            # Creating an empty file at specified location
+            with open(local_file_path, 'w') as _:
+                pass
+            _ = AzureDataLakeUploader(out=local)
 
 
 class TestLocalUploader:
