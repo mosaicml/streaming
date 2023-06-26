@@ -72,40 +72,55 @@ def test_list_s3_buckets():
     assert buckets['Buckets'][0]['Name'] == 'streaming-test-bucket'
 
 
-@pytest.fixture(scope='session', autouse=True)
-def gcs_credentials():
+@pytest.fixture()
+def gcs_hmac_credentials():
     """Mocked GCS Credentials for moto."""
-    os.environ['GCS_KEY'] = 'testing'
-    os.environ['GCS_SECRET'] = 'testing'
+    os.environ['GCS_KEY'] = 'hmac_key_testing'
+    os.environ['GCS_SECRET'] = 'hmac_secret_testing'
+    yield
+    del os.environ['GCS_KEY']
+    del os.environ['GCS_SECRET']
 
 
 @pytest.fixture()
-def gcs_client(gcs_credentials: Any):
+def gcs_service_account_credentials():
+    """Mocked GCS Credentials for service level account."""
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'service_account_testing'
+    yield
+    del os.environ['GOOGLE_APPLICATION_CREDENTIALS']
+
+
+@pytest.fixture()
+def gcs_hmac_client(gcs_hmac_credentials: Any):
     # Have to inline this, as the URL-param is not available as a context decorator
     with patch.dict(os.environ, {'MOTO_S3_CUSTOM_ENDPOINTS': GCS_URL}):
         # Mock needs to be started after the environment variable is patched in
         with mock_s3():
-            conn = boto3.client('s3',
-                                region_name='us-east-1',
-                                endpoint_url=GCS_URL,
-                                aws_access_key_id=os.environ['GCS_KEY'],
-                                aws_secret_access_key=os.environ['GCS_SECRET'])
+            conn = boto3.client(
+                's3',
+                region_name='us-east-1',
+                endpoint_url=GCS_URL,
+                aws_access_key_id=os.environ['GCS_KEY'],
+                aws_secret_access_key=os.environ['GCS_SECRET'],
+            )
             yield conn
 
 
 @pytest.fixture()
-def gcs_test(gcs_client: Any, bucket_name: str):
-    gcs_client.create_bucket(Bucket=bucket_name)
+def gcs_test(gcs_hmac_client: Any, bucket_name: str):
+    gcs_hmac_client.create_bucket(Bucket=bucket_name)
     yield
 
 
-@pytest.mark.usefixtures('gcs_client', 'gcs_test')
+@pytest.mark.usefixtures('gcs_hmac_client', 'gcs_test')
 def test_list_gcs_buckets():
-    client = boto3.client('s3',
-                          region_name='us-east-1',
-                          endpoint_url=GCS_URL,
-                          aws_access_key_id=os.environ['GCS_KEY'],
-                          aws_secret_access_key=os.environ['GCS_SECRET'])
+    client = boto3.client(
+        's3',
+        region_name='us-east-1',
+        endpoint_url=GCS_URL,
+        aws_access_key_id=os.environ['GCS_KEY'],
+        aws_secret_access_key=os.environ['GCS_SECRET'],
+    )
     buckets = client.list_buckets()
     assert buckets['Buckets'][0]['Name'] == MY_BUCKET
 
@@ -125,7 +140,9 @@ def r2_client(r2_credentials: Any):
     with patch.dict(os.environ, {'MOTO_S3_CUSTOM_ENDPOINTS': R2_URL}):
         # Mock needs to be started after the environment variable is patched in
         with mock_s3():
-            conn = boto3.client('s3', region_name='us-east-1', endpoint_url=R2_URL)
+            conn = boto3.client(
+                's3', region_name='us-east-1', endpoint_url=R2_URL
+            )
             yield conn
 
 

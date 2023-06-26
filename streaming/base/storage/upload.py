@@ -17,7 +17,12 @@ import tqdm
 from streaming.base.storage.download import BOTOCORE_CLIENT_ERROR_CODES
 
 __all__ = [
-    'CloudUploader', 'S3Uploader', 'GCSUploader', 'OCIUploader', 'AzureUploader', 'LocalUploader'
+    'CloudUploader',
+    'S3Uploader',
+    'GCSUploader',
+    'OCIUploader',
+    'AzureUploader',
+    'LocalUploader',
 ]
 
 logger = logging.getLogger(__name__)
@@ -30,6 +35,7 @@ UPLOADERS = {
     '': 'LocalUploader',
 }
 
+
 class Authentication(Enum):
     HMAC = 1
     SERVICE_ACCOUNT = 2
@@ -39,10 +45,12 @@ class CloudUploader:
     """Upload local files to a cloud storage."""
 
     @classmethod
-    def get(cls,
-            out: Union[str, Tuple[str, str]],
-            keep_local: bool = False,
-            progress_bar: bool = False) -> Any:
+    def get(
+        cls,
+        out: Union[str, Tuple[str, str]],
+        keep_local: bool = False,
+        progress_bar: bool = False,
+    ) -> Any:
         """Instantiate a cloud provider uploader or a local uploader based on remote path.
 
         Args:
@@ -63,8 +71,14 @@ class CloudUploader:
             CloudUploader: An instance of sub-class.
         """
         cls._validate(cls, out)
-        obj = urllib.parse.urlparse(out) if isinstance(out, str) else urllib.parse.urlparse(out[1])
-        return getattr(sys.modules[__name__], UPLOADERS[obj.scheme])(out, keep_local, progress_bar)
+        obj = (
+            urllib.parse.urlparse(out)
+            if isinstance(out, str)
+            else urllib.parse.urlparse(out[1])
+        )
+        return getattr(sys.modules[__name__], UPLOADERS[obj.scheme])(
+            out, keep_local, progress_bar
+        )
 
     def _validate(self, out: Union[str, Tuple[str, str]]) -> None:
         """Validate the `out` argument.
@@ -87,18 +101,27 @@ class CloudUploader:
             obj = urllib.parse.urlparse(out)
         else:
             if len(out) != 2:
-                raise ValueError(''.join([
-                    f'Invalid `out` argument. It is either a string of local/remote directory ',
-                    'or a list of two strings with [local, remote].'
-                ]))
+                raise ValueError(
+                    ''.join(
+                        [
+                            (
+                                f'Invalid `out` argument. It is either a string'
+                                f' of local/remote directory '
+                            ),
+                            'or a list of two strings with [local, remote].',
+                        ]
+                    )
+                )
             obj = urllib.parse.urlparse(out[1])
         if obj.scheme not in UPLOADERS:
             raise ValueError(f'Invalid Cloud provider prefix: {obj.scheme}.')
 
-    def __init__(self,
-                 out: Union[str, Tuple[str, str]],
-                 keep_local: bool = False,
-                 progress_bar: bool = False) -> None:
+    def __init__(
+        self,
+        out: Union[str, Tuple[str, str]],
+        keep_local: bool = False,
+        progress_bar: bool = False,
+    ) -> None:
         """Initialize and validate local and remote path.
 
         Args:
@@ -178,21 +201,24 @@ class S3Uploader(CloudUploader):
             a remote location. Default to ``False``.
     """
 
-    def __init__(self,
-                 out: Union[str, Tuple[str, str]],
-                 keep_local: bool = False,
-                 progress_bar: bool = False) -> None:
+    def __init__(
+        self,
+        out: Union[str, Tuple[str, str]],
+        keep_local: bool = False,
+        progress_bar: bool = False,
+    ) -> None:
         super().__init__(out, keep_local, progress_bar)
 
         import boto3
         from botocore.config import Config
+
         config = Config()
         # Create a session and use it to make our client. Unlike Resources and Sessions,
         # clients are generally thread-safe.
         session = boto3.session.Session()
-        self.s3 = session.client('s3',
-                                 config=config,
-                                 endpoint_url=os.environ.get('S3_ENDPOINT_URL'))
+        self.s3 = session.client(
+            's3', config=config, endpoint_url=os.environ.get('S3_ENDPOINT_URL')
+        )
         self.check_bucket_exists(self.remote)  # pyright: ignore
 
     def upload_file(self, filename: str):
@@ -206,16 +232,20 @@ class S3Uploader(CloudUploader):
         obj = urllib.parse.urlparse(remote_filename)
         logger.debug(f'Uploading to {remote_filename}')
         file_size = os.stat(local_filename).st_size
-        with tqdm.tqdm(total=file_size,
-                       unit='B',
-                       unit_scale=True,
-                       desc=f'Uploading to {remote_filename}',
-                       disable=(not self.progress_bar)) as pbar:
+        with tqdm.tqdm(
+            total=file_size,
+            unit='B',
+            unit_scale=True,
+            desc=f'Uploading to {remote_filename}',
+            disable=(not self.progress_bar),
+        ) as pbar:
             self.s3.upload_file(
                 local_filename,
                 obj.netloc,
                 obj.path.lstrip('/'),
-                Callback=lambda bytes_transferred: pbar.update(bytes_transferred),
+                Callback=lambda bytes_transferred: pbar.update(
+                    bytes_transferred
+                ),
             )
         self.clear_local(local=local_filename)
 
@@ -235,8 +265,10 @@ class S3Uploader(CloudUploader):
             self.s3.head_bucket(Bucket=bucket_name)
         except ClientError as error:
             if error.response['Error']['Code'] == BOTOCORE_CLIENT_ERROR_CODES:
-                error.args = (f'Either bucket `{bucket_name}` does not exist! ' +
-                              f'or check the bucket permission.',)
+                error.args = (
+                    f'Either bucket `{bucket_name}` does not exist! '
+                    + f'or check the bucket permission.',
+                )
             raise error
 
 
@@ -258,39 +290,46 @@ class GCSUploader(CloudUploader):
             a remote location. Default to ``False``.
     """
 
-    def __init__(self,
-                 out: Union[str, Tuple[str, str]],
-                 keep_local: bool = False,
-                 progress_bar: bool = False) -> None:
-
+    def __init__(
+        self,
+        out: Union[str, Tuple[str, str]],
+        keep_local: bool = False,
+        progress_bar: bool = False,
+    ) -> None:
         super().__init__(out, keep_local, progress_bar)
 
-        if 'GCS_KEY' in os.environ and 'GCS_SECRET' in os.environ:
+        if 'GOOGLE_APPLICATION_CREDENTIALS' in os.environ:
+            from google.cloud.storage import Client
+
+            service_account_path = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
+            self.gcs_client = Client.from_service_account_json(
+                service_account_path
+            )
+            self.authentication = Authentication.SERVICE_ACCOUNT
+
+        elif 'GCS_KEY' in os.environ and 'GCS_SECRET' in os.environ:
             import boto3
 
             # Create a session and use it to make our client. Unlike Resources and Sessions,
             # clients are generally thread-safe.
             session = boto3.session.Session()
-            self.gcs_client = session.client('s3',
-                                            region_name='auto',
-                                            endpoint_url='https://storage.googleapis.com',
-                                            aws_access_key_id=os.environ['GCS_KEY'],
-                                            aws_secret_access_key=os.environ['GCS_SECRET'])
+            self.gcs_client = session.client(
+                's3',
+                region_name='auto',
+                endpoint_url='https://storage.googleapis.com',
+                aws_access_key_id=os.environ['GCS_KEY'],
+                aws_secret_access_key=os.environ['GCS_SECRET'],
+            )
             self.authentication = Authentication.HMAC
 
-        elif 'GOOGLE_APPLICATION_CREDENTIALS' in os.environ:
-            from google.cloud.storage import Client
-
-            service_account_path = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
-            self.gcs_client = Client.from_service_account_json(service_account_path)
-            self.authentication = Authentication.SERVICE_ACCOUNT
-
         else:
-            raise ValueError('Either GOOGLE_APPLICATION_CREDENTIALS needs to be'
-            ' set for service level accounts or GCS_KEY and GCS_SECRET needs to'
-            ' be set for HMAC authentication')
+            raise ValueError(
+                'Either GOOGLE_APPLICATION_CREDENTIALS needs to be set for'
+                ' service level accounts or GCS_KEY and GCS_SECRET needs to be'
+                ' set for HMAC authentication'
+            )
 
-        # self.check_bucket_exists(self.remote)  # pyright: ignore
+        self.check_bucket_exists(self.remote)  # pyright: ignore
 
     def upload_file(self, filename: str) -> None:
         """Upload file from local instance to Google Cloud Storage bucket.
@@ -306,22 +345,28 @@ class GCSUploader(CloudUploader):
 
         if self.authentication == Authentication.HMAC:
             file_size = os.stat(local_filename).st_size
-            with tqdm.tqdm(total=file_size,
-                        unit='B',
-                        unit_scale=True,
-                        desc=f'Uploading to {remote_filename}',
-                        disable=(not self.progress_bar)) as pbar:
+            with tqdm.tqdm(
+                total=file_size,
+                unit='B',
+                unit_scale=True,
+                desc=f'Uploading to {remote_filename}',
+                disable=(not self.progress_bar),
+            ) as pbar:
                 self.gcs_client.upload_file(
                     local_filename,
                     obj.netloc,
                     obj.path.lstrip('/'),
-                    Callback=lambda bytes_transferred: pbar.update(bytes_transferred),
+                    Callback=lambda bytes_transferred: pbar.update(
+                        bytes_transferred
+                    ),
                 )
 
         elif self.authentication == Authentication.SERVICE_ACCOUNT:
             from google.cloud.storage import Blob, Bucket
 
-            blob = Blob(obj.path.lstrip('/'), Bucket(self.gcs_client, obj.netloc))
+            blob = Blob(
+                obj.path.lstrip('/'), Bucket(self.gcs_client, obj.netloc)
+            )
             blob.upload_from_filename(local_filename)
 
         self.clear_local(local=local_filename)
@@ -344,9 +389,14 @@ class GCSUploader(CloudUploader):
             try:
                 self.gcs_client.head_bucket(Bucket=bucket_name)
             except ClientError as error:
-                if error.response['Error']['Code'] == BOTOCORE_CLIENT_ERROR_CODES:
-                    error.args = (f'Either bucket `{bucket_name}` does not exist! ' +
-                                f'or check the bucket permission.',)
+                if (
+                    error.response['Error']['Code']
+                    == BOTOCORE_CLIENT_ERROR_CODES
+                ):
+                    error.args = (
+                        f'Either bucket `{bucket_name}` does not exist! '
+                        + f'or check the bucket permission.',
+                    )
                 raise error
 
         elif self.authentication == Authentication.SERVICE_ACCOUNT:
@@ -371,16 +421,20 @@ class OCIUploader(CloudUploader):
             a remote location. Default to ``False``.
     """
 
-    def __init__(self,
-                 out: Union[str, Tuple[str, str]],
-                 keep_local: bool = False,
-                 progress_bar: bool = False) -> None:
+    def __init__(
+        self,
+        out: Union[str, Tuple[str, str]],
+        keep_local: bool = False,
+        progress_bar: bool = False,
+    ) -> None:
         super().__init__(out, keep_local, progress_bar)
 
         import oci
+
         config = oci.config.from_file()
         self.client = oci.object_storage.ObjectStorageClient(
-            config=config, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
+            config=config, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY
+        )
         self.namespace = self.client.get_namespace().data
         self.upload_manager = oci.object_storage.UploadManager(self.client)
         self.check_bucket_exists(self.remote)  # pyright: ignore
@@ -399,17 +453,21 @@ class OCIUploader(CloudUploader):
         object_path = obj.path.strip('/')
         logger.debug(f'Uploading to {remote_filename}')
         file_size = os.stat(local_filename).st_size
-        with tqdm.tqdm(total=file_size,
-                       unit='B',
-                       unit_scale=True,
-                       desc=f'Uploading to {remote_filename}',
-                       disable=(not self.progress_bar)) as pbar:
+        with tqdm.tqdm(
+            total=file_size,
+            unit='B',
+            unit_scale=True,
+            desc=f'Uploading to {remote_filename}',
+            disable=(not self.progress_bar),
+        ) as pbar:
             self.upload_manager.upload_file(
                 namespace_name=self.namespace,
                 bucket_name=bucket_name,
                 object_name=object_path,
                 file_path=local_filename,
-                progress_callback=lambda bytes_transferred: pbar.update(bytes_transferred),
+                progress_callback=lambda bytes_transferred: pbar.update(
+                    bytes_transferred
+                ),
             )
         self.clear_local(local=local_filename)
 
@@ -427,11 +485,15 @@ class OCIUploader(CloudUploader):
         obj = urllib.parse.urlparse(remote)
         bucket_name = obj.netloc.split('@' + self.namespace)[0]
         try:
-            self.client.head_bucket(bucket_name=bucket_name, namespace_name=self.namespace)
+            self.client.head_bucket(
+                bucket_name=bucket_name, namespace_name=self.namespace
+            )
         except ServiceError as error:
             if error.status == 404:
-                error.args = (f'Bucket `{bucket_name}` does not exist! ' +
-                              f'Check the bucket permission or create the bucket.',)
+                error.args = (
+                    f'Bucket `{bucket_name}` does not exist! '
+                    + f'Check the bucket permission or create the bucket.',
+                )
             raise error
 
 
@@ -453,10 +515,12 @@ class AzureUploader(CloudUploader):
             a remote location. Default to ``False``.
     """
 
-    def __init__(self,
-                 out: Union[str, Tuple[str, str]],
-                 keep_local: bool = False,
-                 progress_bar: bool = False) -> None:
+    def __init__(
+        self,
+        out: Union[str, Tuple[str, str]],
+        keep_local: bool = False,
+        progress_bar: bool = False,
+    ) -> None:
         super().__init__(out, keep_local, progress_bar)
 
         from azure.storage.blob import BlobServiceClient
@@ -465,7 +529,8 @@ class AzureUploader(CloudUploader):
         # clients are generally thread-safe.
         self.azure_service = BlobServiceClient(
             account_url=f"https://{os.environ['AZURE_ACCOUNT_NAME']}.blob.core.windows.net",
-            credential=os.environ['AZURE_ACCOUNT_ACCESS_KEY'])
+            credential=os.environ['AZURE_ACCOUNT_ACCESS_KEY'],
+        )
         self.check_bucket_exists(self.remote)  # pyright: ignore
 
     def upload_file(self, filename: str):
@@ -481,19 +546,26 @@ class AzureUploader(CloudUploader):
         obj = urllib.parse.urlparse(remote_filename)
         logger.debug(f'Uploading to {remote_filename}')
         file_size = os.stat(local_filename).st_size
-        container_client = self.azure_service.get_container_client(container=obj.netloc)
+        container_client = self.azure_service.get_container_client(
+            container=obj.netloc
+        )
 
-        with tqdm.tqdm(total=file_size,
-                       unit='B',
-                       unit_scale=True,
-                       desc=f'Uploading to {remote_filename}',
-                       disable=(not self.progress_bar)) as pbar:
+        with tqdm.tqdm(
+            total=file_size,
+            unit='B',
+            unit_scale=True,
+            desc=f'Uploading to {remote_filename}',
+            disable=(not self.progress_bar),
+        ) as pbar:
             with open(local_filename, 'rb') as data:
                 container_client.upload_blob(
                     name=obj.path.lstrip('/'),
                     data=data,
-                    progress_hook=lambda bytes_transferred, _: pbar.update(bytes_transferred),
-                    overwrite=True)
+                    progress_hook=lambda bytes_transferred, _: pbar.update(
+                        bytes_transferred
+                    ),
+                    overwrite=True,
+                )
         self.clear_local(local=local_filename)
 
     def check_bucket_exists(self, remote: str):
@@ -506,10 +578,16 @@ class AzureUploader(CloudUploader):
             error: Bucket does not exist.
         """
         bucket_name = urllib.parse.urlparse(remote).netloc
-        if self.azure_service.get_container_client(container=bucket_name).exists() is False:
+        if (
+            self.azure_service.get_container_client(
+                container=bucket_name
+            ).exists()
+            is False
+        ):
             raise FileNotFoundError(
-                f'Either bucket `{bucket_name}` does not exist! ' +
-                f'or check the bucket permission.',)
+                f'Either bucket `{bucket_name}` does not exist! '
+                + f'or check the bucket permission.',
+            )
 
 
 class LocalUploader(CloudUploader):
@@ -530,10 +608,12 @@ class LocalUploader(CloudUploader):
             a remote location. Default to ``False``.
     """
 
-    def __init__(self,
-                 out: Union[str, Tuple[str, str]],
-                 keep_local: bool = False,
-                 progress_bar: bool = False) -> None:
+    def __init__(
+        self,
+        out: Union[str, Tuple[str, str]],
+        keep_local: bool = False,
+        progress_bar: bool = False,
+    ) -> None:
         super().__init__(out, keep_local, progress_bar)
         # Create remote directory if it doesn't exist
         if self.remote:
@@ -547,7 +627,9 @@ class LocalUploader(CloudUploader):
         """
         if self.remote:
             local_filename = os.path.join(self.local, filename)
-            remote_filename = os.path.join(self.remote, filename)  # pyright: ignore
+            remote_filename = os.path.join(
+                self.remote, filename
+            )  # pyright: ignore
             logger.debug(f'Copying to {remote_filename}')
             shutil.copy(local_filename, remote_filename)
             self.clear_local(local=local_filename)
