@@ -140,9 +140,7 @@ def r2_client(r2_credentials: Any):
     with patch.dict(os.environ, {'MOTO_S3_CUSTOM_ENDPOINTS': R2_URL}):
         # Mock needs to be started after the environment variable is patched in
         with mock_s3():
-            conn = boto3.client(
-                's3', region_name='us-east-1', endpoint_url=R2_URL
-            )
+            conn = boto3.client('s3', region_name='us-east-1', endpoint_url=R2_URL)
             yield conn
 
 

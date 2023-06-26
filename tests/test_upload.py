@@ -9,18 +9,13 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from streaming.base.storage.upload import (
-    AzureUploader,
-    CloudUploader,
-    GCSUploader,
-    LocalUploader,
-    S3Uploader,
-    Authentication,
-)
+from streaming.base.storage.upload import (Authentication, AzureUploader, CloudUploader,
+                                           GCSUploader, LocalUploader, S3Uploader)
 from tests.conftest import R2_URL
 
 
 class TestCloudUploader:
+
     @patch('streaming.base.storage.upload.S3Uploader.check_bucket_exists')
     @patch('streaming.base.storage.upload.GCSUploader.check_bucket_exists')
     @pytest.mark.parametrize(
@@ -52,20 +47,14 @@ class TestCloudUploader:
             cw = CloudUploader.get(out_root)
         assert isinstance(cw, mapping[-1])
 
-    @pytest.mark.parametrize(
-        'out', [(), ('s3://bucket/dir',), ('./dir1', './dir2', './dir3')]
-    )
+    @pytest.mark.parametrize('out', [(), ('s3://bucket/dir',), ('./dir1', './dir2', './dir3')])
     def test_invalid_out_parameter_length(self, out: Any):
         with pytest.raises(ValueError, match=f'Invalid `out` argument.*'):
             _ = CloudUploader.get(out=out)
 
-    @pytest.mark.parametrize(
-        'out', [('./dir1', 'gcs://bucket/dir/'), ('./dir1', None)]
-    )
+    @pytest.mark.parametrize('out', [('./dir1', 'gcs://bucket/dir/'), ('./dir1', None)])
     def test_invalid_out_parameter_type(self, out: Any):
-        with pytest.raises(
-            ValueError, match=f'Invalid Cloud provider prefix.*'
-        ):
+        with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
             _ = CloudUploader.get(out=out)
 
     def test_local_directory_is_empty(self, local_remote_dir: Tuple[str, str]):
@@ -78,9 +67,7 @@ class TestCloudUploader:
                 pass
             _ = CloudUploader.get(out=local)
 
-    def test_local_directory_is_created(
-        self, local_remote_dir: Tuple[str, str]
-    ):
+    def test_local_directory_is_created(self, local_remote_dir: Tuple[str, str]):
         local, _ = local_remote_dir
         _ = CloudUploader(out=local)
         assert os.path.exists(local)
@@ -104,10 +91,9 @@ class TestCloudUploader:
 
 
 class TestS3Uploader:
+
     @patch('streaming.base.storage.upload.S3Uploader.check_bucket_exists')
-    @pytest.mark.parametrize(
-        'out', ['s3://bucket/dir', ('./dir1', 's3://bucket/dir/')]
-    )
+    @pytest.mark.parametrize('out', ['s3://bucket/dir', ('./dir1', 's3://bucket/dir/')])
     def test_instantiation(self, mocked_requests: Mock, out: Any):
         mocked_requests.side_effect = None
         _ = S3Uploader(out=out)
@@ -116,18 +102,12 @@ class TestS3Uploader:
 
     @pytest.mark.parametrize('out', ['ss4://bucket/dir'])
     def test_invalid_remote_str(self, out: str):
-        with pytest.raises(
-            ValueError, match=f'Invalid Cloud provider prefix.*'
-        ):
+        with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
             _ = S3Uploader(out=out)
 
-    @pytest.mark.parametrize(
-        'out', ['ss4://bucket/dir', ('./dir1', 'gcs://bucket/dir/')]
-    )
+    @pytest.mark.parametrize('out', ['ss4://bucket/dir', ('./dir1', 'gcs://bucket/dir/')])
     def test_invalid_remote_list(self, out: Any):
-        with pytest.raises(
-            ValueError, match=f'Invalid Cloud provider prefix.*'
-        ):
+        with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
             _ = S3Uploader(out=out)
 
     def test_local_directory_is_empty(self, local_remote_dir: Tuple[str, str]):
@@ -176,10 +156,9 @@ class TestS3Uploader:
 
 
 class TestGCSUploader:
+
     @patch('streaming.base.storage.upload.GCSUploader.check_bucket_exists')
-    @pytest.mark.parametrize(
-        'out', ['gs://bucket/dir', ('./dir1', 'gs://bucket/dir/')]
-    )
+    @pytest.mark.parametrize('out', ['gs://bucket/dir', ('./dir1', 'gs://bucket/dir/')])
     @pytest.mark.usefixtures('gcs_hmac_credentials')
     def test_instantiation(self, mocked_requests: Mock, out: Any):
         mocked_requests.side_effect = None
@@ -190,19 +169,13 @@ class TestGCSUploader:
     @pytest.mark.parametrize('out', ['gcs://bucket/dir'])
     @pytest.mark.usefixtures('gcs_hmac_credentials')
     def test_invalid_remote_str(self, out: str):
-        with pytest.raises(
-            ValueError, match=f'Invalid Cloud provider prefix.*'
-        ):
+        with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
             _ = GCSUploader(out=out)
 
-    @pytest.mark.parametrize(
-        'out', ['gcs://bucket/dir', ('./dir1', 'ocix://bucket/dir/')]
-    )
+    @pytest.mark.parametrize('out', ['gcs://bucket/dir', ('./dir1', 'ocix://bucket/dir/')])
     @pytest.mark.usefixtures('gcs_hmac_credentials')
     def test_invalid_remote_list(self, out: Any):
-        with pytest.raises(
-            ValueError, match=f'Invalid Cloud provider prefix.*'
-        ):
+        with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
             _ = GCSUploader(out=out)
 
     @pytest.mark.usefixtures('gcs_hmac_credentials')
@@ -248,43 +221,36 @@ class TestGCSUploader:
     @patch('google.cloud.storage.Client.from_service_account_json')
     @pytest.mark.usefixtures('gcs_service_account_credentials')
     @pytest.mark.parametrize('out', ['gs://bucket/dir'])
-    def test_service_account_authentication(
-        self, mocked_requests: Mock, mock_client: Mock, out: str
-    ):
+    def test_service_account_authentication(self, mocked_requests: Mock, mock_client: Mock,
+                                            out: str):
         uploader = GCSUploader(out=out)
         assert uploader.authentication == Authentication.SERVICE_ACCOUNT
 
     @patch('streaming.base.storage.upload.GCSUploader.check_bucket_exists')
     @patch('google.cloud.storage.Client.from_service_account_json')
-    @pytest.mark.usefixtures(
-        'gcs_service_account_credentials', 'gcs_hmac_credentials'
-    )
+    @pytest.mark.usefixtures('gcs_service_account_credentials', 'gcs_hmac_credentials')
     @pytest.mark.parametrize('out', ['gs://bucket/dir'])
-    def test_service_account_and_hmac_authentication(
-        self, mocked_requests: Mock, mock_client: Mock, out: str
-    ):
+    def test_service_account_and_hmac_authentication(self, mocked_requests: Mock,
+                                                     mock_client: Mock, out: str):
         uploader = GCSUploader(out=out)
         assert uploader.authentication == Authentication.SERVICE_ACCOUNT
 
     @pytest.mark.parametrize('out', ['gs://bucket/dir'])
     def test_no_authentication(self, out: str):
         with pytest.raises(
-            ValueError,
-            match=(
-                f'Either GOOGLE_APPLICATION_CREDENTIALS needs to be set for'
-                f' service level accounts or GCS_KEY and GCS_SECRET needs to be'
-                f' set for HMAC authentication'
-            ),
+                ValueError,
+                match=(f'Either GOOGLE_APPLICATION_CREDENTIALS needs to be set for'
+                       f' service level accounts or GCS_KEY and GCS_SECRET needs to be'
+                       f' set for HMAC authentication'),
         ):
             _ = GCSUploader(out=out)
 
 
 class TestAzureUploader:
+
     @patch('streaming.base.storage.upload.AzureUploader.check_bucket_exists')
     @pytest.mark.usefixtures('azure_credentials')
-    @pytest.mark.parametrize(
-        'out', ['azure://bucket/dir', ('./dir1', 'azure://bucket/dir/')]
-    )
+    @pytest.mark.parametrize('out', ['azure://bucket/dir', ('./dir1', 'azure://bucket/dir/')])
     def test_instantiation(self, mocked_requests: Mock, out: Any):
         mocked_requests.side_effect = None
         _ = AzureUploader(out=out)
@@ -293,18 +259,12 @@ class TestAzureUploader:
 
     @pytest.mark.parametrize('out', ['ss4://bucket/dir'])
     def test_invalid_remote_str(self, out: str):
-        with pytest.raises(
-            ValueError, match=f'Invalid Cloud provider prefix.*'
-        ):
+        with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
             _ = AzureUploader(out=out)
 
-    @pytest.mark.parametrize(
-        'out', ['ss4://bucket/dir', ('./dir1', 'gcs://bucket/dir/')]
-    )
+    @pytest.mark.parametrize('out', ['ss4://bucket/dir', ('./dir1', 'gcs://bucket/dir/')])
     def test_invalid_remote_list(self, out: Any):
-        with pytest.raises(
-            ValueError, match=f'Invalid Cloud provider prefix.*'
-        ):
+        with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
             _ = AzureUploader(out=out)
 
     def test_local_directory_is_empty(self, local_remote_dir: Tuple[str, str]):
@@ -319,6 +279,7 @@ class TestAzureUploader:
 
 
 class TestLocalUploader:
+
     def test_upload_file(self, local_remote_dir: Tuple[str, str]):
         local, remote = local_remote_dir
         filename = 'file.txt'
@@ -350,9 +311,7 @@ class TestLocalUploader:
         lc.upload_file(filename)
         assert not os.path.exists(remote_file_path)
 
-    def test_upload_file_from_local_to_remote(
-        self, local_remote_dir: Tuple[str, str]
-    ):
+    def test_upload_file_from_local_to_remote(self, local_remote_dir: Tuple[str, str]):
         local, remote = local_remote_dir
         filename = 'file.txt'
         local_file_path = os.path.join(local, filename)
