@@ -116,6 +116,19 @@ export GCS_SECRET='wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
 ```
 ````
 
+Streaming dataset also supports [GCP service account credentials](https://cloud.google.com/iam/docs/service-account-overview). Users must set their GCP `account credentials` in the run environment.
+
+````{tabs}
+```{code-tab} py
+import os
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'KEY_FILE'
+```
+
+```{code-tab} sh
+export GOOGLE_APPLICATION_CREDENTIALS='KEY_FILE'
+```
+````
+
 ## Oracle Cloud Storage
 
 ### MosaicML platform
