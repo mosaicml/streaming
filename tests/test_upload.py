@@ -85,7 +85,6 @@ class TestCloudUploader:
     @pytest.mark.parametrize('out', ['s3://bucket/dir', 'gs://bucket/dir'])
     def test_check_bucket_exists_exception(self, out: str):
         import botocore
-
         with pytest.raises(botocore.exceptions.ClientError):
             _ = CloudUploader.get(out=out)
 
