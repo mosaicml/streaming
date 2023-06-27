@@ -513,7 +513,7 @@ class StreamingDataset(Array, IterableDataset):
         self._cache_usage.set(cache_usage)
 
     def __len__(self) -> int:
-        """Get the length as an IterableDataset.
+        """Get the length as a PyTorch IterableDataset.
 
         Returns:
             int: Dataset length.
@@ -1030,6 +1030,7 @@ class StreamingDataset(Array, IterableDataset):
         shard = self.shards[shard_id]
 
         sample = None
+        errors = []
         for _ in range(1 + retry):
             try:
                 # Shortcut path: just assume the shard is present. Using exceptions as control flow
@@ -1046,18 +1047,23 @@ class StreamingDataset(Array, IterableDataset):
 
                 # On success, break out.
                 break
-            except FileNotFoundError:
+            except FileNotFoundError as e:
                 # Fallback: shard file is missing (generates `FileNotFoundError` exception),
                 # ensure the shard file is downloaded, then try to access the sample again.
                 # Loops because it may become evicted in the meantime.
+                errors.append(str(e))
                 self.download_shard(shard_id)
         else:
+            # Main process failed. Let the threads know to terminate.
+            self._event.set()
             if self.cache_limit:
-                raise RuntimeError(f'StreamingDataset repeatedly failed to download a shard. ' +
-                                   f'This may be due to thrashing caused by `cache_limit` ' +
-                                   f'being set too low.')
+                raise RuntimeError(f'{errors[-1]}. StreamingDataset repeatedly failed to ' +
+                                   f'download a shard. This may be due to thrashing caused by ' +
+                                   f'`cache_limit` being set too low.')
             else:
-                raise RuntimeError(f'StreamingDataset repeatedly failed to download a shard.')
+                raise RuntimeError(f'{errors[-1]}. Check if the shard file exists in your ' +
+                                   f'remote location or have you deleted the shard file from ' +
+                                   f'the local directory?')
 
         return sample
 
@@ -1101,6 +1107,10 @@ class StreamingDataset(Array, IterableDataset):
 
             # If we're out of samples this epoch, exit this thread because we are done downloading.
             if it.download_index == it.total:
+                break
+
+            # Background thread or a main process crashed, terminate this thread.
+            if self._event.is_set():
                 break
 
             # If we are requested to only pre-download so many samples, if we have as many or more
@@ -1149,6 +1159,10 @@ class StreamingDataset(Array, IterableDataset):
 
             # If we're out of samples this epoch, exit this thread because we are done downloading.
             if it.ready_index == it.total:
+                break
+
+            # Background thread or a main process crashed, terminate this thread.
+            if self._event.is_set():
                 break
 
             # If we are requested to only pre-download so many samples, if we have as many or more
@@ -1208,7 +1222,7 @@ class StreamingDataset(Array, IterableDataset):
 
             # Background thread crashed, terminate the main process
             if self._event.is_set():
-                raise RuntimeError('Background thread failed. Check other traceback.')
+                break
 
             # Is there a sample ready to yield?
             if it.ready_index <= it.yield_index:

@@ -47,10 +47,19 @@ class LocalDataset(Array, Dataset):
         self.spanner = Spanner(shard_sizes)
 
     def __len__(self) -> int:
-        """Get the length as an IterableDataset.
+        """Get the length as a PyTorch Dataset.
 
         Returns:
             int: Dataset length.
+        """
+        return self.num_samples
+
+    @property
+    def size(self) -> int:
+        """Get the size of the dataset in samples.
+
+        Returns:
+            int: Number of samples.
         """
         return self.num_samples
 
