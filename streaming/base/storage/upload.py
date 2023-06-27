@@ -345,7 +345,6 @@ class GCSUploader(CloudUploader):
         Raises:
             error: Bucket does not exist.
         """
-        print(self.authentication)
         bucket_name = urllib.parse.urlparse(remote).netloc
 
         if self.authentication == Authentication.HMAC:
