@@ -3,9 +3,10 @@
 
 """A dataset, or sub-dataset if mixing, from which we stream/cache samples."""
 
+import hashlib
 import json
 import os
-from tempfile import mkdtemp
+import tempfile
 from typing import List, Optional, Sequence
 
 import numpy as np
@@ -98,8 +99,11 @@ class Stream:
                  keep_zip: Optional[bool] = None) -> None:
         self.remote = remote
         self._local = local
-        self.local = local or mkdtemp()
         self.split = split or ''
+        if local is None:
+            self.local = self._get_temporary_directory()
+        else:
+            self.local = local
 
         has_proportion = proportion is not None
         has_repeat = repeat is not None
@@ -144,6 +148,15 @@ class Stream:
         if keep_zip is not None:
             self.keep_zip = keep_zip
             self.safe_keep_zip = self.keep_zip or self.remote in {None, self.local}
+
+    def _get_temporary_directory(self) -> str:
+        root = tempfile.gettempdir()
+        hash = None
+        if self.remote is not None:
+            hashlib.md5(self.remote.encode('utf-8')).hexdigest()
+        # Removes underscore if self.split is an empty string
+        folder = '_'.join(filter(None, [hash, self.split]))
+        return os.path.join(root, folder)
 
     def apply_default(self, default: Self) -> None:
         """Apply defaults, setting any unset fields.
