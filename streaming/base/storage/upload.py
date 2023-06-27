@@ -46,12 +46,10 @@ class CloudUploader:
     """Upload local files to a cloud storage."""
 
     @classmethod
-    def get(
-        cls,
-        out: Union[str, Tuple[str, str]],
-        keep_local: bool = False,
-        progress_bar: bool = False,
-    ) -> Any:
+    def get(cls,
+            out: Union[str, Tuple[str, str]],
+            keep_local: bool = False,
+            progress_bar: bool = False) -> Any:
         """Instantiate a cloud provider uploader or a local uploader based on remote path.
 
         Args:
@@ -106,12 +104,10 @@ class CloudUploader:
         if obj.scheme not in UPLOADERS:
             raise ValueError(f'Invalid Cloud provider prefix: {obj.scheme}.')
 
-    def __init__(
-        self,
-        out: Union[str, Tuple[str, str]],
-        keep_local: bool = False,
-        progress_bar: bool = False,
-    ) -> None:
+    def __init__(self,
+                 out: Union[str, Tuple[str, str]],
+                 keep_local: bool = False,
+                 progress_bar: bool = False) -> None:
         """Initialize and validate local and remote path.
 
         Args:
@@ -191,12 +187,10 @@ class S3Uploader(CloudUploader):
             a remote location. Default to ``False``.
     """
 
-    def __init__(
-        self,
-        out: Union[str, Tuple[str, str]],
-        keep_local: bool = False,
-        progress_bar: bool = False,
-    ) -> None:
+    def __init__(self,
+                 out: Union[str, Tuple[str, str]],
+                 keep_local: bool = False,
+                 progress_bar: bool = False) -> None:
         super().__init__(out, keep_local, progress_bar)
 
         import boto3
@@ -222,13 +216,11 @@ class S3Uploader(CloudUploader):
         obj = urllib.parse.urlparse(remote_filename)
         logger.debug(f'Uploading to {remote_filename}')
         file_size = os.stat(local_filename).st_size
-        with tqdm.tqdm(
-                total=file_size,
-                unit='B',
-                unit_scale=True,
-                desc=f'Uploading to {remote_filename}',
-                disable=(not self.progress_bar),
-        ) as pbar:
+        with tqdm.tqdm(total=file_size,
+                       unit='B',
+                       unit_scale=True,
+                       desc=f'Uploading to {remote_filename}',
+                       disable=(not self.progress_bar)) as pbar:
             self.s3.upload_file(
                 local_filename,
                 obj.netloc,
@@ -276,12 +268,10 @@ class GCSUploader(CloudUploader):
             a remote location. Default to ``False``.
     """
 
-    def __init__(
-        self,
-        out: Union[str, Tuple[str, str]],
-        keep_local: bool = False,
-        progress_bar: bool = False,
-    ) -> None:
+    def __init__(self,
+                 out: Union[str, Tuple[str, str]],
+                 keep_local: bool = False,
+                 progress_bar: bool = False) -> None:
         super().__init__(out, keep_local, progress_bar)
 
         if 'GOOGLE_APPLICATION_CREDENTIALS' in os.environ:
@@ -290,7 +280,6 @@ class GCSUploader(CloudUploader):
             service_account_path = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
             self.gcs_client = Client.from_service_account_json(service_account_path)
             self.authentication = Authentication.SERVICE_ACCOUNT
-
         elif 'GCS_KEY' in os.environ and 'GCS_SECRET' in os.environ:
             import boto3
 
@@ -305,7 +294,6 @@ class GCSUploader(CloudUploader):
                 aws_secret_access_key=os.environ['GCS_SECRET'],
             )
             self.authentication = Authentication.HMAC
-
         else:
             raise ValueError('Either GOOGLE_APPLICATION_CREDENTIALS needs to be set for'
                              ' service level accounts or GCS_KEY and GCS_SECRET needs to be'
@@ -340,7 +328,6 @@ class GCSUploader(CloudUploader):
                     obj.path.lstrip('/'),
                     Callback=lambda bytes_transferred: pbar.update(bytes_transferred),
                 )
-
         elif self.authentication == Authentication.SERVICE_ACCOUNT:
             from google.cloud.storage import Blob, Bucket
 
@@ -371,7 +358,6 @@ class GCSUploader(CloudUploader):
                     error.args = (f'Either bucket `{bucket_name}` does not exist! ' +
                                   f'or check the bucket permission.',)
                 raise error
-
         elif self.authentication == Authentication.SERVICE_ACCOUNT:
             self.gcs_client.get_bucket(bucket_name)
 
@@ -394,12 +380,10 @@ class OCIUploader(CloudUploader):
             a remote location. Default to ``False``.
     """
 
-    def __init__(
-        self,
-        out: Union[str, Tuple[str, str]],
-        keep_local: bool = False,
-        progress_bar: bool = False,
-    ) -> None:
+    def __init__(self,
+                 out: Union[str, Tuple[str, str]],
+                 keep_local: bool = False,
+                 progress_bar: bool = False) -> None:
         super().__init__(out, keep_local, progress_bar)
 
         import oci
@@ -425,13 +409,11 @@ class OCIUploader(CloudUploader):
         object_path = obj.path.strip('/')
         logger.debug(f'Uploading to {remote_filename}')
         file_size = os.stat(local_filename).st_size
-        with tqdm.tqdm(
-                total=file_size,
-                unit='B',
-                unit_scale=True,
-                desc=f'Uploading to {remote_filename}',
-                disable=(not self.progress_bar),
-        ) as pbar:
+        with tqdm.tqdm(total=file_size,
+                       unit='B',
+                       unit_scale=True,
+                       desc=f'Uploading to {remote_filename}',
+                       disable=(not self.progress_bar)) as pbar:
             self.upload_manager.upload_file(
                 namespace_name=self.namespace,
                 bucket_name=bucket_name,
@@ -481,12 +463,10 @@ class AzureUploader(CloudUploader):
             a remote location. Default to ``False``.
     """
 
-    def __init__(
-        self,
-        out: Union[str, Tuple[str, str]],
-        keep_local: bool = False,
-        progress_bar: bool = False,
-    ) -> None:
+    def __init__(self,
+                 out: Union[str, Tuple[str, str]],
+                 keep_local: bool = False,
+                 progress_bar: bool = False) -> None:
         super().__init__(out, keep_local, progress_bar)
 
         from azure.storage.blob import BlobServiceClient
@@ -514,20 +494,17 @@ class AzureUploader(CloudUploader):
         file_size = os.stat(local_filename).st_size
         container_client = self.azure_service.get_container_client(container=obj.netloc)
 
-        with tqdm.tqdm(
-                total=file_size,
-                unit='B',
-                unit_scale=True,
-                desc=f'Uploading to {remote_filename}',
-                disable=(not self.progress_bar),
-        ) as pbar:
+        with tqdm.tqdm(total=file_size,
+                       unit='B',
+                       unit_scale=True,
+                       desc=f'Uploading to {remote_filename}',
+                       disable=(not self.progress_bar)) as pbar:
             with open(local_filename, 'rb') as data:
                 container_client.upload_blob(
                     name=obj.path.lstrip('/'),
                     data=data,
                     progress_hook=lambda bytes_transferred, _: pbar.update(bytes_transferred),
-                    overwrite=True,
-                )
+                    overwrite=True)
         self.clear_local(local=local_filename)
 
     def check_bucket_exists(self, remote: str):
@@ -639,12 +616,10 @@ class LocalUploader(CloudUploader):
             a remote location. Default to ``False``.
     """
 
-    def __init__(
-        self,
-        out: Union[str, Tuple[str, str]],
-        keep_local: bool = False,
-        progress_bar: bool = False,
-    ) -> None:
+    def __init__(self,
+                 out: Union[str, Tuple[str, str]],
+                 keep_local: bool = False,
+                 progress_bar: bool = False) -> None:
         super().__init__(out, keep_local, progress_bar)
         # Create remote directory if it doesn't exist
         if self.remote:

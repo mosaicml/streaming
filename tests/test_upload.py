@@ -9,8 +9,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from streaming.base.storage.upload import (Authentication, AzureUploader, CloudUploader,
-                                           GCSUploader, LocalUploader, S3Uploader)
+from streaming.base.storage.upload import (Authentication, AzureDataLakeUploader, AzureUploader,
+                                           CloudUploader, GCSUploader, LocalUploader, S3Uploader)
 from tests.conftest import R2_URL
 
 

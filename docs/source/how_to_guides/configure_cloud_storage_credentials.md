@@ -93,11 +93,28 @@ export S3_ENDPOINT_URL='https://<accountid>.r2.cloudflarestorage.com'
 
 ## Google Cloud Storage
 
-### MosaicML platform
+### GCP Service Account Credentials
+
+#### MosaicML platform
 
 For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [Google Cloud Storage](https://mcli.docs.mosaicml.com/en/latest/secrets/gcp.html) MCLI doc on how to configure the cloud provider credentials.
 
-### Others
+#### Mounted as Environment Variables
+
+Users must set their GCP `account credentials` to point to their credentials file in the run environment.
+
+````{tabs}
+```{code-tab} py
+import os
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'KEY_FILE'
+```
+
+```{code-tab} sh
+export GOOGLE_APPLICATION_CREDENTIALS='KEY_FILE'
+```
+````
+
+### GCP User Auth Credentials Mounted as Environment Variables
 
 Streaming dataset supports [GCP user credentials](https://cloud.google.com/storage/docs/authentication#user_accounts) or [HMAC keys for User account](https://cloud.google.com/storage/docs/authentication/hmackeys).  Users must set their GCP `user access key` and GCP `user access secret` in the run environment.
 
@@ -113,19 +130,6 @@ os.environ['GCS_SECRET'] = 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
 ```{code-tab} sh
 export GCS_KEY='AKIAIOSFODNN7EXAMPLE'
 export GCS_SECRET='wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
-```
-````
-
-Streaming dataset also supports [GCP service account credentials](https://cloud.google.com/iam/docs/service-account-overview). Users must set their GCP `account credentials` in the run environment.
-
-````{tabs}
-```{code-tab} py
-import os
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'KEY_FILE'
-```
-
-```{code-tab} sh
-export GOOGLE_APPLICATION_CREDENTIALS='KEY_FILE'
 ```
 ````
 
