@@ -103,6 +103,7 @@ class Stream:
         self.split = split or ''
         if local is None:
             self.local = self._get_temporary_directory()
+            self._create_or_wait_for_local()
         else:
             self.local = local
 
