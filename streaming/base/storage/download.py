@@ -168,9 +168,9 @@ def download_from_gcs(remote: str, local: str) -> None:
     elif 'GCS_KEY' in os.environ and 'GCS_SECRET' in os.environ:
         _gcs_with_hmac(remote, local, obj)
     else:
-        raise ValueError(('Either GOOGLE_APPLICATION_CREDENTIALS needs to be set for'
-                          ' service level accounts or GCS_KEY and GCS_SECRET needs to be'
-                          ' set for HMAC authentication'))
+        raise ValueError(
+            'Either GOOGLE_APPLICATION_CREDENTIALS needs to be set for service level accounts or GCS_KEY and GCS_SECRET needs to be set for HMAC authentication'
+        )
 
 
 def _gcs_with_hmac(remote: str, local: str, obj: urllib.parse.ParseResult) -> None:

@@ -9,8 +9,9 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from streaming.base.storage.upload import (Authentication, AzureDataLakeUploader, AzureUploader,
-                                           CloudUploader, GCSUploader, LocalUploader, S3Uploader)
+from streaming.base.storage.upload import (AzureDataLakeUploader, AzureUploader, CloudUploader,
+                                           GCSAuthentication, GCSUploader, LocalUploader,
+                                           S3Uploader)
 from tests.conftest import R2_URL
 
 
@@ -216,7 +217,7 @@ class TestGCSUploader:
     @pytest.mark.parametrize('out', ['gs://bucket/dir'])
     def test_hmac_authentication(self, mocked_requests: Mock, out: str):
         uploader = GCSUploader(out=out)
-        assert uploader.authentication == Authentication.HMAC
+        assert uploader.authentication == GCSAuthentication.HMAC
 
     @patch('streaming.base.storage.upload.GCSUploader.check_bucket_exists')
     @patch('google.cloud.storage.Client.from_service_account_json')
@@ -225,7 +226,7 @@ class TestGCSUploader:
     def test_service_account_authentication(self, mocked_requests: Mock, mock_client: Mock,
                                             out: str):
         uploader = GCSUploader(out=out)
-        assert uploader.authentication == Authentication.SERVICE_ACCOUNT
+        assert uploader.authentication == GCSAuthentication.SERVICE_ACCOUNT
 
     @patch('streaming.base.storage.upload.GCSUploader.check_bucket_exists')
     @patch('google.cloud.storage.Client.from_service_account_json')
@@ -234,7 +235,7 @@ class TestGCSUploader:
     def test_service_account_and_hmac_authentication(self, mocked_requests: Mock,
                                                      mock_client: Mock, out: str):
         uploader = GCSUploader(out=out)
-        assert uploader.authentication == Authentication.SERVICE_ACCOUNT
+        assert uploader.authentication == GCSAuthentication.SERVICE_ACCOUNT
 
     @pytest.mark.parametrize('out', ['gs://bucket/dir'])
     def test_no_authentication(self, out: str):

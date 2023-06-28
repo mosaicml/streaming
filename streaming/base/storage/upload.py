@@ -37,7 +37,7 @@ UPLOADERS = {
 }
 
 
-class Authentication(Enum):
+class GCSAuthentication(Enum):
     HMAC = 1
     SERVICE_ACCOUNT = 2
 
@@ -70,8 +70,7 @@ class CloudUploader:
             CloudUploader: An instance of sub-class.
         """
         cls._validate(cls, out)
-        obj = (urllib.parse.urlparse(out)
-               if isinstance(out, str) else urllib.parse.urlparse(out[1]))
+        obj = urllib.parse.urlparse(out) if isinstance(out, str) else urllib.parse.urlparse(out[1])
         return getattr(sys.modules[__name__], UPLOADERS[obj.scheme])(out, keep_local, progress_bar)
 
     def _validate(self, out: Union[str, Tuple[str, str]]) -> None:
@@ -95,11 +94,9 @@ class CloudUploader:
             obj = urllib.parse.urlparse(out)
         else:
             if len(out) != 2:
-                raise ValueError(''.join([
-                    (f'Invalid `out` argument. It is either a string'
-                     f' of local/remote directory '),
-                    'or a list of two strings with [local, remote].',
-                ]))
+                raise ValueError(
+                    'Invalid `out` argument. It is either a string of local/remote directory or a list of two strings with [local, remote].'
+                )
             obj = urllib.parse.urlparse(out[1])
         if obj.scheme not in UPLOADERS:
             raise ValueError(f'Invalid Cloud provider prefix: {obj.scheme}.')
@@ -195,7 +192,6 @@ class S3Uploader(CloudUploader):
 
         import boto3
         from botocore.config import Config
-
         config = Config()
         # Create a session and use it to make our client. Unlike Resources and Sessions,
         # clients are generally thread-safe.
@@ -279,7 +275,7 @@ class GCSUploader(CloudUploader):
 
             service_account_path = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
             self.gcs_client = Client.from_service_account_json(service_account_path)
-            self.authentication = Authentication.SERVICE_ACCOUNT
+            self.authentication = GCSAuthentication.SERVICE_ACCOUNT
         elif 'GCS_KEY' in os.environ and 'GCS_SECRET' in os.environ:
             import boto3
 
@@ -293,11 +289,11 @@ class GCSUploader(CloudUploader):
                 aws_access_key_id=os.environ['GCS_KEY'],
                 aws_secret_access_key=os.environ['GCS_SECRET'],
             )
-            self.authentication = Authentication.HMAC
+            self.authentication = GCSAuthentication.HMAC
         else:
-            raise ValueError(('Either GOOGLE_APPLICATION_CREDENTIALS needs to be set for'
-                              ' service level accounts or GCS_KEY and GCS_SECRET needs to be'
-                              ' set for HMAC authentication'))
+            raise ValueError(
+                'Either GOOGLE_APPLICATION_CREDENTIALS needs to be set for service level accounts or GCS_KEY and GCS_SECRET needs to be set for HMAC authentication'
+            )
 
         self.check_bucket_exists(self.remote)  # pyright: ignore
 
@@ -312,7 +308,7 @@ class GCSUploader(CloudUploader):
         obj = urllib.parse.urlparse(remote_filename)
         logger.debug(f'Uploading to {remote_filename}')
 
-        if self.authentication == Authentication.HMAC:
+        if self.authentication == GCSAuthentication.HMAC:
             file_size = os.stat(local_filename).st_size
             with tqdm.tqdm(
                     total=file_size,
@@ -327,7 +323,7 @@ class GCSUploader(CloudUploader):
                     obj.path.lstrip('/'),
                     Callback=lambda bytes_transferred: pbar.update(bytes_transferred),
                 )
-        elif self.authentication == Authentication.SERVICE_ACCOUNT:
+        elif self.authentication == GCSAuthentication.SERVICE_ACCOUNT:
             from google.cloud.storage import Blob, Bucket
 
             blob = Blob(obj.path.lstrip('/'), Bucket(self.gcs_client, obj.netloc))
@@ -346,7 +342,7 @@ class GCSUploader(CloudUploader):
         """
         bucket_name = urllib.parse.urlparse(remote).netloc
 
-        if self.authentication == Authentication.HMAC:
+        if self.authentication == GCSAuthentication.HMAC:
             from botocore.exceptions import ClientError
 
             try:
@@ -356,7 +352,7 @@ class GCSUploader(CloudUploader):
                     error.args = (f'Either bucket `{bucket_name}` does not exist! ' +
                                   f'or check the bucket permission.',)
                 raise error
-        elif self.authentication == Authentication.SERVICE_ACCOUNT:
+        elif self.authentication == GCSAuthentication.SERVICE_ACCOUNT:
             self.gcs_client.get_bucket(bucket_name)
 
 
@@ -515,7 +511,7 @@ class AzureUploader(CloudUploader):
             error: Bucket does not exist.
         """
         bucket_name = urllib.parse.urlparse(remote).netloc
-        if (self.azure_service.get_container_client(container=bucket_name).exists() is False):
+        if self.azure_service.get_container_client(container=bucket_name).exists() is False:
             raise FileNotFoundError(
                 f'Either bucket `{bucket_name}` does not exist! ' +
                 f'or check the bucket permission.',)
