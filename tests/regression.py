@@ -1,7 +1,9 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+import shutil
 import tempfile
+import os
 from argparse import ArgumentParser, Namespace
 from typing import Union
 
@@ -200,7 +202,7 @@ def get_dataset(num_samples: int) -> list[dict[str, int | str]]:
         num_samples (int): Number of samples.
 
     Returns:
-        list[dict[str, int | str]: The two generated splits.
+        list[dict[str, int | str]]: The two generated splits.
     """
     numbers = [((np.random.random() < 0.8) * 2 - 1) * i for i in range(num_samples)]
     samples = []
@@ -279,8 +281,9 @@ def main(args: Namespace) -> None:
         args (Namespace): Command-line arguments.
     """
     dataset = get_dataset(_NUM_SAMPLES)
-    with tempfile.TemporaryDirectory() as tmp_upload_dir, tempfile.TemporaryDirectory(
-    ) as tmp_download_dir:
+    with tempfile.TemporaryDirectory() as tmp_upload_dir:
+        tmp_dir = tempfile.gettempdir()
+        tmp_download_dir = os.path.join(tmp_dir, 'test_regression_basic')
         with MDSWriter(
                 out=tmp_upload_dir,
                 columns=_COLUMNS,
@@ -313,6 +316,7 @@ def main(args: Namespace) -> None:
         dataloader = DataLoader(dataset)
         for _ in dataloader:
             pass
+    shutil.rmtree(tmp_download_dir, ignore_errors=True)
 
 
 if __name__ == '__main__':
