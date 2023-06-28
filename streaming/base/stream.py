@@ -153,7 +153,7 @@ class Stream:
         root = tempfile.gettempdir()
         hash = None
         if self.remote is not None:
-            hashlib.md5(self.remote.encode('utf-8')).hexdigest()
+            hash = hashlib.md5(self.remote.encode('utf-8')).hexdigest()
         # Removes underscore if self.split is an empty string
         folder = '_'.join(filter(None, [hash, self.split]))
         return os.path.join(root, folder)
