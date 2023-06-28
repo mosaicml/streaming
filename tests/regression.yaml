@@ -1,0 +1,15 @@
+name: streaming-regression-test-basic-flow
+compute:
+  cluster:
+gpu_num: 8
+command: |-
+  cd streaming
+  composer tests/regression.py || (echo "Command failed - killing python" && pkill python && exit 1)
+image: mosaicml/pytorch:2.0.1_cu118-python3.10-ubuntu20.04
+scheduling:
+  resumable: true
+  priority: medium
+integrations:
+- integration_type: git_repo
+  git_repo: b-chu/streaming
+  git_branch: test_basic_flow
