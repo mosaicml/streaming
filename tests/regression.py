@@ -1,9 +1,9 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 import shutil
 import tempfile
-import os
 from argparse import ArgumentParser, Namespace
 from typing import Union
 
