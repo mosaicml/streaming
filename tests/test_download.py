@@ -84,7 +84,7 @@ class TestS3Client:
 
 class TestGCSClient:
 
-    @pytest.mark.usefixtures('gcs_client', 'gcs_test', 'remote_local_file')
+    @pytest.mark.usefixtures('gcs_hmac_client', 'gcs_test', 'remote_local_file')
     def test_download_from_gcs(self, remote_local_file: Any):
         with tempfile.NamedTemporaryFile(delete=True, suffix='.txt') as tmp:
             file_name = tmp.name.split(os.sep)[-1]
@@ -98,13 +98,13 @@ class TestGCSClient:
             download_from_gcs(mock_remote_filepath, tmp.name)
             assert os.path.isfile(tmp.name)
 
-    @pytest.mark.usefixtures('gcs_client', 'gcs_test', 'remote_local_file')
+    @pytest.mark.usefixtures('gcs_hmac_client', 'gcs_test', 'remote_local_file')
     def test_filenotfound_exception(self, remote_local_file: Any):
         with pytest.raises(FileNotFoundError):
             mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='gs://')
             download_from_gcs(mock_remote_filepath, mock_local_filepath)
 
-    @pytest.mark.usefixtures('gcs_client', 'gcs_test', 'remote_local_file')
+    @pytest.mark.usefixtures('gcs_hmac_client', 'gcs_test', 'remote_local_file')
     def test_invalid_cloud_prefix(self, remote_local_file: Any):
         with pytest.raises(ValueError):
             mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='s3://')

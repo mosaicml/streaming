@@ -29,6 +29,7 @@ class TestCloudUploader:
             ['./relative/dir/filepath', LocalUploader],
         ],
     )
+    @pytest.mark.usefixtures('gcs_hmac_credentials')
     def test_instantiation_type(
         self,
         s3_mocked_requests: Mock,
@@ -83,6 +84,7 @@ class TestCloudUploader:
         assert not os.path.exists(local_file_path)
 
     @pytest.mark.parametrize('out', ['s3://bucket/dir', 'gs://bucket/dir'])
+    @pytest.mark.usefixtures('gcs_hmac_credentials')
     def test_check_bucket_exists_exception(self, out: str):
         import botocore
         with pytest.raises(botocore.exceptions.ClientError):

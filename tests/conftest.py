@@ -36,14 +36,14 @@ def pytest_runtest_call(item: Any):
         item.runtest = lambda: True  # Dummy function so test is not run twice
 
 
-@pytest.fixture(scope='session', autouse=True)
+@pytest.fixture(scope='class', autouse=True)
 def azure_credentials():
     """Mocked azure Credentials."""
     os.environ['AZURE_ACCOUNT_NAME'] = 'testing'
     os.environ['AZURE_ACCOUNT_ACCESS_KEY'] = 'testing'
 
 
-@pytest.fixture(scope='session', autouse=True)
+@pytest.fixture(scope='class', autouse=True)
 def aws_credentials():
     """Mocked AWS Credentials for moto."""
     os.environ['AWS_ACCESS_KEY_ID'] = 'testing'
@@ -70,6 +70,20 @@ def test_list_s3_buckets():
     client = boto3.client('s3', region_name='us-east-1')
     buckets = client.list_buckets()
     assert buckets['Buckets'][0]['Name'] == 'streaming-test-bucket'
+
+
+@pytest.fixture(scope='session', autouse=True)
+def clear_environ_credentials():
+    """Clears all cloud provider credentials for testing."""
+    os.environ.pop('GCS_KEY', None)
+    os.environ.pop('GCS_SECRET', None)
+    os.environ.pop('GOOGLE_APPLICATION_CREDENTIALS', None)
+    os.environ.pop('AWS_ACCESS_KEY_ID', None)
+    os.environ.pop('AWS_SECRET_ACCESS_KEY', None)
+    os.environ.pop('AWS_SECURITY_TOKEN', None)
+    os.environ.pop('AWS_SESSION_TOKEN', None)
+    os.environ.pop('AZURE_ACCOUNT_NAME', None)
+    os.environ.pop('AZURE_ACCOUNT_ACCESS_KEY', None)
 
 
 @pytest.fixture()

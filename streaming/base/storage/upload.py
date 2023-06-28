@@ -295,9 +295,9 @@ class GCSUploader(CloudUploader):
             )
             self.authentication = Authentication.HMAC
         else:
-            raise ValueError('Either GOOGLE_APPLICATION_CREDENTIALS needs to be set for'
-                             ' service level accounts or GCS_KEY and GCS_SECRET needs to be'
-                             ' set for HMAC authentication')
+            raise ValueError(('Either GOOGLE_APPLICATION_CREDENTIALS needs to be set for'
+                              ' service level accounts or GCS_KEY and GCS_SECRET needs to be'
+                              ' set for HMAC authentication'))
 
         self.check_bucket_exists(self.remote)  # pyright: ignore
 
@@ -307,7 +307,6 @@ class GCSUploader(CloudUploader):
         Args:
             filename (str): File to upload.
         """
-
         local_filename = os.path.join(self.local, filename)
         remote_filename = os.path.join(self.remote, filename)  # pyright: ignore
         obj = urllib.parse.urlparse(remote_filename)

@@ -22,6 +22,9 @@ exclude = [
     "docs/source/conf.py"
 ]
 
+venvPath = "../"
+venv = "streaming_venv"
+
 reportUnnecessaryIsInstance = "warning"
 reportMissingTypeStubs = "none"
 reportIncompatibleMethodOverride = "none"
