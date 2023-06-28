@@ -1,16 +1,19 @@
-import numpy as np
+# Copyright 2023 MosaicML Streaming authors
+# SPDX-License-Identifier: Apache-2.0
+
 import tempfile
 from argparse import ArgumentParser, Namespace
-from streaming import MDSWriter, StreamingDataset
-from torch.utils.data import DataLoader
 from typing import Union
+
+import numpy as np
+from torch.utils.data import DataLoader
+
+from streaming import MDSWriter, StreamingDataset
 
 _NUM_SAMPLES = 10000
 # Word representation of a number
-_ONES = (
-    'zero one two three four five six seven eight nine ten eleven twelve '
-    'thirteen fourteen fifteen sixteen seventeen eighteen nineteen'
-).split()
+_ONES = ('zero one two three four five six seven eight nine ten eleven twelve '
+         'thirteen fourteen fifteen sixteen seventeen eighteen nineteen').split()
 _TENS = 'twenty thirty forty fifty sixty seventy eighty ninety'.split()
 
 _COLUMNS = {
@@ -60,19 +63,15 @@ def parse_args() -> Namespace:
         '--size_limit',
         type=int,
         default=1 << 26,
-        help=(
-            'Shard size limit, after which point to start a new shard for '
-            'MDSWriter. If ``None``, puts everything in one shard.'
-        ),
+        help=('Shard size limit, after which point to start a new shard for '
+              'MDSWriter. If ``None``, puts everything in one shard.'),
     )
     args.add_argument(
         '--local',
         type=bool,
         default=True,
-        help=(
-            'Local working directory to download shards to for'
-            ' StreamingDataset.'
-        ),
+        help=('Local working directory to download shards to for'
+              ' StreamingDataset.'),
     )
     args.add_argument(
         '--split',
@@ -83,54 +82,41 @@ def parse_args() -> Namespace:
         '--download_retry',
         type=int,
         default=2,
-        help=(
-            'Number of download re-attempts before giving up for'
-            ' StreamingDataset.'
-        ),
+        help=('Number of download re-attempts before giving up for'
+              ' StreamingDataset.'),
     )
     args.add_argument(
         '--download_timeout',
         type=float,
         default=60,
-        help=(
-            'Number of seconds to wait for a shard to download before raising '
-            'an exception for StreamingDataset.'
-        ),
+        help=('Number of seconds to wait for a shard to download before raising '
+              'an exception for StreamingDataset.'),
     )
     args.add_argument(
         '--validate_hash',
         type=str,
-        default=60,
-        help=(
-            'Hash or checksum algorithm to use to validate shards for'
-            ' StreamingDataset.'
-        ),
+        help=('Hash or checksum algorithm to use to validate shards for'
+              ' StreamingDataset.'),
     )
     args.add_argument(
         '--keep_zip',
         type=bool,
         default=False,
-        help=(
-            'Whether to keep or delete the compressed form when decompressing'
-            ' downloaded shards for StreamingDataset.'
-        ),
+        help=('Whether to keep or delete the compressed form when decompressing'
+              ' downloaded shards for StreamingDataset.'),
     )
     args.add_argument(
         '--epoch_size',
         type=int,
-        help=(
-            'Number of samples to draw per epoch balanced across all streams'
-            ' for StreamingDataset.'
-        ),
+        help=('Number of samples to draw per epoch balanced across all streams'
+              ' for StreamingDataset.'),
     )
     args.add_argument(
         '--predownload',
         type=int,
-        help=(
-            'Target number of samples ahead to download the shards per number'
-            ' of workers provided in a dataloader while iterating for'
-            ' StreamingDataset.'
-        ),
+        help=('Target number of samples ahead to download the shards per number'
+              ' of workers provided in a dataloader while iterating for'
+              ' StreamingDataset.'),
     )
     args.add_argument(
         '--cache_limit',
@@ -146,26 +132,20 @@ def parse_args() -> Namespace:
     args.add_argument(
         '--num_canonical_nodes',
         type=int,
-        help=(
-            'Canonical number of nodes for shuffling with resumption for'
-            ' StreamingDataset.'
-        ),
+        help=('Canonical number of nodes for shuffling with resumption for'
+              ' StreamingDataset.'),
     )
     args.add_argument(
         '--batch_size',
         type=int,
-        help=(
-            'Batch size of its DataLoader, which affects how the dataset is'
-            ' partitioned over the workers for StreamingDataset.'
-        ),
+        help=('Batch size of its DataLoader, which affects how the dataset is'
+              ' partitioned over the workers for StreamingDataset.'),
     )
     args.add_argument(
         '--shuffle',
         type=bool,
-        help=(
-            'Whether to iterate over the samples in randomized order for'
-            ' StreamingDataset.'
-        ),
+        help=('Whether to iterate over the samples in randomized order for'
+              ' StreamingDataset.'),
     )
     args.add_argument(
         '--shuffle_algo',
@@ -206,17 +186,9 @@ def say(i: int) -> list[str]:
     elif i < 1_000:
         return [_ONES[i // 100], 'hundred'] + (say(i % 100) if i % 100 else [])
     elif i < 1_000_000:
-        return (
-            say(i // 1_000)
-            + ['thousand']
-            + (say(i % 1_000) if i % 1_000 else [])
-        )
+        return (say(i // 1_000) + ['thousand'] + (say(i % 1_000) if i % 1_000 else []))
     elif i < 1_000_000_000:
-        return (
-            say(i // 1_000_000)
-            + ['million']
-            + (say(i % 1_000_000) if i % 1_000_000 else [])
-        )
+        return (say(i // 1_000_000) + ['million'] + (say(i % 1_000_000) if i % 1_000_000 else []))
     else:
         assert False
 
@@ -230,9 +202,7 @@ def get_dataset(num_samples: int) -> list[dict[str, int | str]]:
     Returns:
         list[dict[str, int | str]: The two generated splits.
     """
-    numbers = [
-        ((np.random.random() < 0.8) * 2 - 1) * i for i in range(num_samples)
-    ]
+    numbers = [((np.random.random() < 0.8) * 2 - 1) * i for i in range(num_samples)]
     samples = []
     for num in numbers:
         words = ' '.join(say(num))
@@ -258,7 +228,6 @@ def get_dataset(num_samples: int) -> list[dict[str, int | str]]:
 #     ) as out:
 #         for sample in samples:
 #             out.write(sample)
-
 
 # def load_data(
 #     remote: str,
@@ -310,13 +279,14 @@ def main(args: Namespace) -> None:
         args (Namespace): Command-line arguments.
     """
     dataset = get_dataset(_NUM_SAMPLES)
-    with tempfile.TemporaryDirectory() as tmp_upload_dir, tempfile.TemporaryDirectory() as tmp_download_dir:
+    with tempfile.TemporaryDirectory() as tmp_upload_dir, tempfile.TemporaryDirectory(
+    ) as tmp_download_dir:
         with MDSWriter(
-            out=tmp_upload_dir,
-            columns=_COLUMNS,
-            compression=args.compression,
-            hashes=args.hashes,
-            size_limit=args.size_limit,
+                out=tmp_upload_dir,
+                columns=_COLUMNS,
+                compression=args.compression,
+                hashes=args.hashes,
+                size_limit=args.size_limit,
         ) as out:
             for sample in dataset:
                 out.write(sample)
