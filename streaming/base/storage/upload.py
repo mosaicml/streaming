@@ -94,9 +94,9 @@ class CloudUploader:
             obj = urllib.parse.urlparse(out)
         else:
             if len(out) != 2:
-                raise ValueError(
-                    'Invalid `out` argument. It is either a string of local/remote directory or a list of two strings with [local, remote].'
-                )
+                raise ValueError(f'Invalid `out` argument. It is either a string of ' +
+                                 f'local/remote directory or a list of two strings with ' +
+                                 f'[local, remote].')
             obj = urllib.parse.urlparse(out[1])
         if obj.scheme not in UPLOADERS:
             raise ValueError(f'Invalid Cloud provider prefix: {obj.scheme}.')
@@ -292,9 +292,9 @@ class GCSUploader(CloudUploader):
             )
             self.authentication = GCSAuthentication.HMAC
         else:
-            raise ValueError(
-                'Either GOOGLE_APPLICATION_CREDENTIALS needs to be set for service level accounts or GCS_KEY and GCS_SECRET needs to be set for HMAC authentication'
-            )
+            raise ValueError(f'Either GOOGLE_APPLICATION_CREDENTIALS needs to be set for ' +
+                             f'service level accounts or GCS_KEY and GCS_SECRET needs to ' +
+                             f'be set for HMAC authentication')
 
         self.check_bucket_exists(self.remote)  # pyright: ignore
 
