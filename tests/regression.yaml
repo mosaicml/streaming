@@ -10,6 +10,7 @@ scheduling:
   resumable: true
   priority: medium
 integrations:
-- integration_type: git_repo
-  git_repo: b-chu/streaming
-  git_branch: test_basic_flow
+  - integration_type: git_repo
+    git_repo: b-chu/streaming
+    git_branch: test_basic_flow
+    ssh_clone: false
