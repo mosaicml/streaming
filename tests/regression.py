@@ -259,7 +259,8 @@ def main(args: Namespace) -> None:
         tmp_dir = tempfile.gettempdir()
         tmp_download_dir = os.path.join(tmp_dir, 'test_regression_basic')
         with MDSWriter(
-                out=tmp_upload_dir,
+                out=os.path.join(tmp_upload_dir, args.split)
+                if args.split is not None else tmp_upload_dir,
                 columns=_COLUMNS,
                 compression=args.compression,
                 hashes=args.hashes,
