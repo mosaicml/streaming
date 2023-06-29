@@ -102,11 +102,6 @@ class Stream:
         self.remote = remote
         self._local = local
         self.split = split or ''
-        if local is None:
-            self.local = self._get_temporary_directory()
-            self._create_or_wait_for_local()
-        else:
-            self.local = local
 
         has_proportion = proportion is not None
         has_repeat = repeat is not None
@@ -155,6 +150,12 @@ class Stream:
         if keep_zip is not None:
             self.keep_zip = keep_zip
             self.safe_keep_zip = self.keep_zip or self.remote in {None, self.local}
+
+        if local is None:
+            self.local = self._get_temporary_directory()
+            self._create_or_wait_for_local()
+        else:
+            self.local = local
 
     def _get_temporary_directory(self) -> str:
         """Construct a path to a temporary directory based on remote and split."""
