@@ -4,8 +4,7 @@
 import os
 import shutil
 import tempfile
-from argparse import ArgumentParser, Namespace
-from typing import Union
+from argparse import ArgumentParser, BooleanOptionalAction, Namespace
 
 import numpy as np
 from torch.utils.data import DataLoader
@@ -31,25 +30,6 @@ def parse_args() -> Namespace:
         Namespace: Command-line arguments.
     """
     args = ArgumentParser()
-    # compression: Optional[str] = None,
-    # hashes: Optional[List[str]] = None,
-    # size_limit: Optional[int] = 1 << 26,
-    # local: Optional[str] = None,
-    # split: Optional[str] = None,
-    # download_retry: int = 2,
-    # download_timeout: float = 60,
-    # validate_hash: Optional[str] = None,
-    # keep_zip: bool = False,
-    # epoch_size: Optional[int] = None,
-    # predownload: Optional[int] = None,
-    # cache_limit: Optional[Union[int, str]] = None,
-    # partition_algo: str = 'orig',
-    # num_canonical_nodes: Optional[int] = None,
-    # batch_size: Optional[int] = None,
-    # shuffle: bool = False,
-    # shuffle_algo: str = 'py1s',
-    # shuffle_seed: int = 9176,
-    # shuffle_block_size: int = 1 << 18
     args.add_argument(
         '--compression',
         type=str,
@@ -57,7 +37,7 @@ def parse_args() -> Namespace:
     )
     args.add_argument(
         '--hashes',
-        type=list[str],
+        type=str,
         nargs='+',
         help='List of hash algorithms to apply to shard files for MDSWriter.',
     )
@@ -68,13 +48,7 @@ def parse_args() -> Namespace:
         help=('Shard size limit, after which point to start a new shard for '
               'MDSWriter. If ``None``, puts everything in one shard.'),
     )
-    args.add_argument(
-        '--local',
-        type=bool,
-        default=True,
-        help=('Local working directory to download shards to for'
-              ' StreamingDataset.'),
-    )
+    args.add_argument('--local', default=False, action=BooleanOptionalAction)
     args.add_argument(
         '--split',
         type=str,
@@ -122,7 +96,7 @@ def parse_args() -> Namespace:
     )
     args.add_argument(
         '--cache_limit',
-        type=Union[int, str],
+        type=int,
         help="Maximum size in bytes of this StreamingDataset's shard cache.",
     )
     args.add_argument(

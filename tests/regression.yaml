@@ -4,7 +4,16 @@ compute:
 gpu_num: 8
 command: |-
   cd streaming
-  composer tests/regression.py || (echo "Command failed - killing python" && pkill python && exit 1)
+  composer tests/regression.py
+  composer tests/regression.py --hashes blake2b xxh128
+  composer tests/regression.py --compression gz
+  composer tests/regression.py --local false
+  composer tests/regression.py --split train
+  composer tests/regression.py --download_retry 10
+  composer tests/regression.py --download_timeout 120
+  composer tests/regression.py --hashes sha1 xxh128 --validate_hash sha1
+  composer tests/regression.py --hashes sha1 xxh128 --validate_hash xxh128
+
 image: mosaicml/composer:0.15.0
 scheduling:
   resumable: true
