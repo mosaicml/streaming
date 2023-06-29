@@ -1,6 +1,6 @@
 name: streaming-regression-test-basic-flow
 compute:
-  cluster:
+  cluster: r1z1
 gpu_num: 8
 command: |-
   cd streaming
