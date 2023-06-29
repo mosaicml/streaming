@@ -120,6 +120,7 @@ def parse_args() -> Namespace:
     args.add_argument(
         '--shuffle',
         type=bool,
+        default=False,
         help=('Whether to iterate over the samples in randomized order for'
               ' StreamingDataset.'),
     )
