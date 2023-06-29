@@ -36,14 +36,14 @@ def pytest_runtest_call(item: Any):
         item.runtest = lambda: True  # Dummy function so test is not run twice
 
 
-@pytest.fixture(scope='session', autouse=True)
+@pytest.fixture(scope='class', autouse=True)
 def azure_credentials():
     """Mocked azure Credentials."""
     os.environ['AZURE_ACCOUNT_NAME'] = 'testing'
     os.environ['AZURE_ACCOUNT_ACCESS_KEY'] = 'testing'
 
 
-@pytest.fixture(scope='session', autouse=True)
+@pytest.fixture(scope='class', autouse=True)
 def aws_credentials():
     """Mocked AWS Credentials for moto."""
     os.environ['AWS_ACCESS_KEY_ID'] = 'testing'
@@ -73,39 +73,68 @@ def test_list_s3_buckets():
 
 
 @pytest.fixture(scope='session', autouse=True)
-def gcs_credentials():
-    """Mocked GCS Credentials for moto."""
-    os.environ['GCS_KEY'] = 'testing'
-    os.environ['GCS_SECRET'] = 'testing'
+def clear_environ_credentials():
+    """Clears all cloud provider credentials for testing."""
+    os.environ.pop('GCS_KEY', None)
+    os.environ.pop('GCS_SECRET', None)
+    os.environ.pop('GOOGLE_APPLICATION_CREDENTIALS', None)
+    os.environ.pop('AWS_ACCESS_KEY_ID', None)
+    os.environ.pop('AWS_SECRET_ACCESS_KEY', None)
+    os.environ.pop('AWS_SECURITY_TOKEN', None)
+    os.environ.pop('AWS_SESSION_TOKEN', None)
+    os.environ.pop('AZURE_ACCOUNT_NAME', None)
+    os.environ.pop('AZURE_ACCOUNT_ACCESS_KEY', None)
 
 
 @pytest.fixture()
-def gcs_client(gcs_credentials: Any):
+def gcs_hmac_credentials():
+    """Mocked GCS Credentials for moto."""
+    os.environ['GCS_KEY'] = 'hmac_key_testing'
+    os.environ['GCS_SECRET'] = 'hmac_secret_testing'
+    yield
+    del os.environ['GCS_KEY']
+    del os.environ['GCS_SECRET']
+
+
+@pytest.fixture()
+def gcs_service_account_credentials():
+    """Mocked GCS Credentials for service level account."""
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'service_account_testing'
+    yield
+    del os.environ['GOOGLE_APPLICATION_CREDENTIALS']
+
+
+@pytest.fixture()
+def gcs_hmac_client(gcs_hmac_credentials: Any):
     # Have to inline this, as the URL-param is not available as a context decorator
     with patch.dict(os.environ, {'MOTO_S3_CUSTOM_ENDPOINTS': GCS_URL}):
         # Mock needs to be started after the environment variable is patched in
         with mock_s3():
-            conn = boto3.client('s3',
-                                region_name='us-east-1',
-                                endpoint_url=GCS_URL,
-                                aws_access_key_id=os.environ['GCS_KEY'],
-                                aws_secret_access_key=os.environ['GCS_SECRET'])
+            conn = boto3.client(
+                's3',
+                region_name='us-east-1',
+                endpoint_url=GCS_URL,
+                aws_access_key_id=os.environ['GCS_KEY'],
+                aws_secret_access_key=os.environ['GCS_SECRET'],
+            )
             yield conn
 
 
 @pytest.fixture()
-def gcs_test(gcs_client: Any, bucket_name: str):
-    gcs_client.create_bucket(Bucket=bucket_name)
+def gcs_test(gcs_hmac_client: Any, bucket_name: str):
+    gcs_hmac_client.create_bucket(Bucket=bucket_name)
     yield
 
 
-@pytest.mark.usefixtures('gcs_client', 'gcs_test')
+@pytest.mark.usefixtures('gcs_hmac_client', 'gcs_test')
 def test_list_gcs_buckets():
-    client = boto3.client('s3',
-                          region_name='us-east-1',
-                          endpoint_url=GCS_URL,
-                          aws_access_key_id=os.environ['GCS_KEY'],
-                          aws_secret_access_key=os.environ['GCS_SECRET'])
+    client = boto3.client(
+        's3',
+        region_name='us-east-1',
+        endpoint_url=GCS_URL,
+        aws_access_key_id=os.environ['GCS_KEY'],
+        aws_secret_access_key=os.environ['GCS_SECRET'],
+    )
     buckets = client.list_buckets()
     assert buckets['Buckets'][0]['Name'] == MY_BUCKET
 
