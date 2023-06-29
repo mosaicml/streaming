@@ -146,16 +146,16 @@ class Stream:
 
         self.validate_hash = validate_hash
 
-        self._keep_zip = keep_zip
-        if keep_zip is not None:
-            self.keep_zip = keep_zip
-            self.safe_keep_zip = self.keep_zip or self.remote in {None, self.local}
-
         if local is None:
             self.local = self._get_temporary_directory()
             self._create_or_wait_for_local()
         else:
             self.local = local
+
+        self._keep_zip = keep_zip
+        if keep_zip is not None:
+            self.keep_zip = keep_zip
+            self.safe_keep_zip = self.keep_zip or self.remote in {None, self.local}
 
     def _get_temporary_directory(self) -> str:
         """Construct a path to a temporary directory based on remote and split."""
