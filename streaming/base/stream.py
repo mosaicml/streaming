@@ -186,7 +186,7 @@ class Stream:
             wait_for_file_to_exist(
                 self.local, TICK, self.local_directory_timeout,
                 f'Local directory {self.local} took too long to be created. Either ' +
-                f'increase the `download_timeout` value or check the other traceback.')
+                f'increase the `local_directory_timeout` value or check the other traceback.')
 
     def apply_default(self, default: Self) -> None:
         """Apply defaults, setting any unset fields.
