@@ -192,6 +192,7 @@ class S3Uploader(CloudUploader):
 
         import boto3
         from botocore.config import Config
+
         config = Config()
         # Create a session and use it to make our client. Unlike Resources and Sessions,
         # clients are generally thread-safe.
