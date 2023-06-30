@@ -7,6 +7,7 @@ import os
 import shutil
 import tempfile
 from argparse import ArgumentParser, Namespace
+from typing import Union
 
 import numpy as np
 
@@ -79,7 +80,7 @@ def say(i: int) -> list[str]:
         assert False
 
 
-def get_dataset(num_samples: int) -> list[dict[str, int | str]]:
+def get_dataset(num_samples: int) -> list[dict[str, Union[int, str]]]:
     """Generate a number-saying dataset of the given size.
 
     Args:
