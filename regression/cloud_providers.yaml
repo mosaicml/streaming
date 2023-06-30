@@ -1,0 +1,19 @@
+name: streaming-regression-test-basic-flow
+compute:
+  cluster: r1z1
+gpu_num: 8
+command: |-
+  cd streaming
+  composer -n 1 regression/dataset.py --create --cloud gs
+  composer -n 2 regression/instantiate_and_iterate.py --cloud gs
+  composer -n 1 regression/dataset.py --delete --cloud gs
+
+image: mosaicml/composer:0.15.0
+scheduling:
+  resumable: true
+  priority: medium
+integrations:
+  - integration_type: git_repo
+    git_repo: b-chu/streaming
+    git_branch: test_cloud_providers
+    ssh_clone: false

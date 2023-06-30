@@ -5,11 +5,12 @@
 
 import os
 import shutil
-import tempfile
+import urllib
 from argparse import ArgumentParser, Namespace
 from typing import Union
 
 import numpy as np
+import utils
 
 from streaming import MDSWriter
 
@@ -32,6 +33,7 @@ def parse_args() -> Namespace:
         Namespace: Command-line arguments.
     """
     args = ArgumentParser()
+    args.add_argument('--cloud', type=str)
     args.add_argument('--create', default=False, action='store_true')
     args.add_argument('--delete', default=False, action='store_true')
     args.add_argument(
@@ -104,13 +106,11 @@ def main(args: Namespace) -> None:
     Args:
         args (Namespace): Command-line arguments.
     """
-    tmp_dir = tempfile.gettempdir()
-    tmp_upload_dir = os.path.join(tmp_dir, 'regression_upload')
-
+    upload_dir = utils.get_upload_dir(args.cloud)
     if args.create:
         dataset = get_dataset(_NUM_SAMPLES)
         with MDSWriter(
-                out=tmp_upload_dir,
+                out=upload_dir,
                 columns=_COLUMNS,
                 compression=args.compression,
                 hashes=args.hashes,
@@ -119,7 +119,20 @@ def main(args: Namespace) -> None:
             for sample in dataset:
                 out.write(sample)
     if args.delete:
-        shutil.rmtree(tmp_upload_dir, ignore_errors=True)
+        if args.cloud is None:
+            shutil.rmtree(upload_dir, ignore_errors=True)
+        elif args.cloud == 'gs':
+            from google.cloud.storage import Bucket, Client
+
+            service_account_path = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
+            gcs_client = Client.from_service_account_json(service_account_path)
+            obj = urllib.parse.urlparse(upload_dir)
+
+            bucket = Bucket(gcs_client, obj.netloc)
+            blobs = bucket.list_blobs(prefix=obj.path.lstrip('/'))
+
+            for blob in blobs:
+                blob.delete()
 
 
 if __name__ == '__main__':

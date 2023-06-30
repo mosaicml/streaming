@@ -8,6 +8,7 @@ import shutil
 import tempfile
 from argparse import ArgumentParser, Namespace
 
+import utils
 from torch.utils.data import DataLoader
 
 from streaming import StreamingDataset
@@ -23,6 +24,7 @@ def parse_args() -> Namespace:
         Namespace: Command-line arguments.
     """
     args = ArgumentParser()
+    args.add_argument('--cloud', type=str)
     args.add_argument('--local', default=False, action='store_true')
     args.add_argument(
         '--split',
@@ -127,10 +129,9 @@ def main(args: Namespace) -> None:
         args (Namespace): Command-line arguments.
     """
     tmp_dir = tempfile.gettempdir()
-    tmp_upload_dir = os.path.join(tmp_dir, 'regression_upload')
     tmp_download_dir = os.path.join(tmp_dir, 'test_basic_flow_download')
     dataset = StreamingDataset(
-        remote=tmp_upload_dir,
+        remote=utils.get_upload_dir(args.cloud),
         local=tmp_download_dir if args.local else None,
         split=args.split,
         download_retry=args.download_retry,
