@@ -66,9 +66,9 @@ def main(args: Namespace, kwargs: dict[str, str]) -> None:
         kwargs (dict): Named arguments.
     """
     tmp_dir = tempfile.gettempdir()
-    tmp_download_dir = os.path.join(tmp_dir, 'test_regression_download')
+    tmp_download_dir = os.path.join(tmp_dir, 'test_iterate_data_download')
     dataset = StreamingDataset(
-        remote=utils.get_upload_dir(args.cloud),
+        remote=utils.get_remote_dir(args.cloud),
         local=tmp_download_dir if args.local else None,
         split=kwargs.get('split'),
         download_retry=int(kwargs.get('download_retry', 2)),
