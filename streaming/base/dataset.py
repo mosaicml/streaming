@@ -302,7 +302,8 @@ class StreamingDataset(Array, IterableDataset):
                          download_timeout=download_timeout,
                          validate_hash=validate_hash,
                          keep_zip=keep_zip)
-
+        print(remote, local, streams)
+        print(default.local)
         # Normalize to a list of Streams.
         if streams:
             for stream in streams:
