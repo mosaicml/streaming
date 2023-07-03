@@ -161,12 +161,10 @@ class Stream:
     def _get_temporary_directory(self) -> str:
         """Construct a path to a temporary directory based on remote and split."""
         root = tempfile.gettempdir()
-        hash = None
+        hash = ''
         if self.remote is not None:
             hash = hashlib.blake2s(self.remote.encode('utf-8'), digest_size=16).hexdigest()
-        # Removes underscore if self.split is an empty string
-        folder = '_'.join(filter(None, [hash, self.split]))
-        return os.path.join(root, folder)
+        return os.path.join(root, hash, self.split)
 
     def apply_default(self, default: Self) -> None:
         """Apply defaults, setting any unset fields.
