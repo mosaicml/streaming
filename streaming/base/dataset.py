@@ -325,6 +325,9 @@ class StreamingDataset(Array, IterableDataset):
         # instantiate a World inside the StreamingDataset destructor.
         self._rank_world = world = World()
 
+        if not world.is_local_leader:
+            raise ValueError(remote, local, streams, default.local)
+
         # Download each stream's index, load their shards, and map streams <-> shards.
         self.num_samples = 0
         self.shards = []
