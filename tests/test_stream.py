@@ -18,7 +18,7 @@ from streaming.base.distributed import barrier
 def test_local_is_none_with_no_split(monkeypatch: MonkeyPatch) -> None:
     remote = 'remote_dir'
     remote_hash = hashlib.blake2s(remote.encode('utf-8'), digest_size=16).hexdigest()
-    local = os.path.join(tempfile.gettempdir(), remote_hash)
+    local = os.path.join(tempfile.gettempdir(), remote_hash) + '/'
     shutil.rmtree(local, ignore_errors=True)
     barrier()
     stream = Stream(remote=remote, local=None)
