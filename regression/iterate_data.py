@@ -19,7 +19,7 @@ _TRAIN_EPOCHS = 2
 def parse_args() -> Namespace:
     """Parse command-line arguments.
 
-    Returns:x
+    Returns:
         Namespace: Command-line arguments.
     """
     args = ArgumentParser()

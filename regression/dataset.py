@@ -28,7 +28,7 @@ _COLUMNS = {
 def parse_args() -> Namespace:
     """Parse command-line arguments.
 
-    Returns:x
+    Returns:
         Namespace: Command-line arguments.
     """
     args = ArgumentParser()
@@ -105,12 +105,12 @@ def main(args: Namespace) -> None:
         args (Namespace): Command-line arguments.
     """
     tmp_dir = tempfile.gettempdir()
-    tmp_upload_dir = os.path.join(tmp_dir, 'regression_upload')
+    tmp_remote_dir = os.path.join(tmp_dir, 'regression_remote')
 
     if args.create:
         dataset = get_dataset(_NUM_SAMPLES)
         with MDSWriter(
-                out=tmp_upload_dir,
+                out=tmp_remote_dir,
                 columns=_COLUMNS,
                 compression=args.compression,
                 hashes=args.hashes,
@@ -119,7 +119,7 @@ def main(args: Namespace) -> None:
             for sample in dataset:
                 out.write(sample)
     if args.delete:
-        shutil.rmtree(tmp_upload_dir, ignore_errors=True)
+        shutil.rmtree(tmp_remote_dir, ignore_errors=True)
 
 
 if __name__ == '__main__':
