@@ -6,9 +6,9 @@ command: |-
   pip uninstall -y mosaicml-streaming
   cd streaming
   pip install -e '.[dev]'
-  composer -n 1 regression/dataset.py --create --compression gz
-  composer -n 1 regression/dataset.py --delete
-  composer -n 1 regression/dataset.py --create --hashes sha1 xxh128
+  composer -n 1 regression/synthetic_dataset.py --create --compression gz
+  composer -n 1 regression/synthetic_dataset.py --delete
+  composer -n 1 regression/synthetic_dataset.py --create --hashes sha1 xxh128
   composer -n 2 regression/iterate_data.py
   composer -n 4 regression/iterate_data.py --local
   composer -n 8 regression/iterate_data.py --download_retry 10
@@ -20,8 +20,8 @@ command: |-
   composer -n 8 regression/iterate_data.py --cache_limit 64mb
   composer -n 8 regression/iterate_data.py --num_canonical_nodes 16
   composer -n 8 regression/iterate_data.py --batch_size 1000
-  composer -n 8 regression/iterate_data.py --shuffle --shuffle_algo asdf --shuffle_seed 12 --shuffle_block_size 10000
-  composer -n 1 regression/dataset.py --delete
+  composer -n 8 regression/iterate_data.py --shuffle --shuffle_algo py1b --shuffle_seed 12 --shuffle_block_size 10000
+  composer -n 1 regression/synthetic_dataset.py --delete
 
 image: mosaicml/composer:0.15.0
 scheduling:
@@ -29,6 +29,6 @@ scheduling:
   priority: medium
 integrations:
   - integration_type: git_repo
-    git_repo: b-chu/streaming
-    git_branch: test_basic_flow
+    git_repo: mosaicml/streaming
+    git_branch: main
     ssh_clone: false
