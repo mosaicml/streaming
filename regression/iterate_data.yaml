@@ -10,17 +10,17 @@ command: |-
   composer -n 1 regression/dataset.py --delete
   composer -n 1 regression/dataset.py --create --hashes sha1 xxh128
   composer -n 2 regression/iterate_data.py
-  # composer -n 4 regression/iterate_data.py --local
-  # composer -n 8 regression/iterate_data.py --download_retry 10
-  # composer -n 8 regression/iterate_data.py --download_timeout 120
-  # composer -n 8 regression/iterate_data.py --validate_hash sha1
-  # composer -n 8 regression/iterate_data.py --validate_hash xxh128
-  # composer -n 8 regression/iterate_data.py --keep_zip
-  # composer -n 8 regression/iterate_data.py --predownload 1000
-  # composer -n 8 regression/iterate_data.py --cache_limit 64mb
-  # composer -n 8 regression/iterate_data.py --num_canonical_nodes 16
-  # composer -n 8 regression/iterate_data.py --batch_size 1000
-  # composer -n 8 regression/iterate_data.py --shuffle --shuffle_algo asdf --shuffle_seed 12 --shuffle_block_size 10000
+  composer -n 4 regression/iterate_data.py --local
+  composer -n 8 regression/iterate_data.py --download_retry 10
+  composer -n 8 regression/iterate_data.py --download_timeout 120
+  composer -n 8 regression/iterate_data.py --validate_hash sha1
+  composer -n 8 regression/iterate_data.py --validate_hash xxh128
+  composer -n 8 regression/iterate_data.py --keep_zip
+  composer -n 8 regression/iterate_data.py --predownload 1000
+  composer -n 8 regression/iterate_data.py --cache_limit 64mb
+  composer -n 8 regression/iterate_data.py --num_canonical_nodes 16
+  composer -n 8 regression/iterate_data.py --batch_size 1000
+  composer -n 8 regression/iterate_data.py --shuffle --shuffle_algo asdf --shuffle_seed 12 --shuffle_block_size 10000
   composer -n 1 regression/dataset.py --delete
 
 image: mosaicml/composer:0.15.0
