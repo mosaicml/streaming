@@ -127,10 +127,10 @@ def main(args: Namespace) -> None:
         args (Namespace): Command-line arguments.
     """
     tmp_dir = tempfile.gettempdir()
-    tmp_upload_dir = os.path.join(tmp_dir, 'regression_upload')
+    tmp_remote_dir = os.path.join(tmp_dir, 'regression_remote')
     tmp_download_dir = os.path.join(tmp_dir, 'test_iterate_data_download')
     dataset = StreamingDataset(
-        remote=tmp_upload_dir,
+        remote=tmp_remote_dir,
         local=tmp_download_dir if args.local else None,
         split=args.split,
         download_retry=args.download_retry,
