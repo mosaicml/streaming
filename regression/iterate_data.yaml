@@ -4,10 +4,12 @@ compute:
 gpu_num: 8
 command: |-
   cd streaming
+  rm -Rf /tmp/cec1695c275f8e134e20de08669e55b0/
+  rm -Rf /tmp/regression_remote
   composer -n 1 regression/dataset.py --create --compression gz
   composer -n 1 regression/dataset.py --delete
   composer -n 1 regression/dataset.py --create --hashes sha1 xxh128
-  composer -n 2 regression/iterate_data.py
+  # composer -n 2 regression/iterate_data.py
   # composer -n 4 regression/iterate_data.py --local
   # composer -n 8 regression/iterate_data.py --download_retry 10
   # composer -n 8 regression/iterate_data.py --download_timeout 120
@@ -19,7 +21,7 @@ command: |-
   # composer -n 8 regression/iterate_data.py --num_canonical_nodes 16
   # composer -n 8 regression/iterate_data.py --batch_size 1000
   # composer -n 8 regression/iterate_data.py --shuffle --shuffle_algo asdf --shuffle_seed 12 --shuffle_block_size 10000
-  # composer -n 1 regression/dataset.py --delete
+  composer -n 1 regression/dataset.py --delete
 
 image: mosaicml/composer:0.15.0
 scheduling:
