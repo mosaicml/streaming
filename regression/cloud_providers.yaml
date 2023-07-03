@@ -5,7 +5,7 @@ gpu_num: 8
 command: |-
   cd streaming
   composer -n 1 regression/dataset.py --create --cloud gs
-  composer -n 2 regression/instantiate_and_iterate.py --cloud gs
+  composer -n 2 regression/iterate_data.py --cloud gs
   composer -n 1 regression/dataset.py --delete --cloud gs
 
 image: mosaicml/composer:0.15.0
