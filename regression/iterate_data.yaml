@@ -9,7 +9,7 @@ command: |-
   composer -n 1 regression/dataset.py --create --compression gz
   composer -n 1 regression/dataset.py --delete
   composer -n 1 regression/dataset.py --create --hashes sha1 xxh128
-  # composer -n 2 regression/iterate_data.py
+  composer -n 2 regression/iterate_data.py
   # composer -n 4 regression/iterate_data.py --local
   # composer -n 8 regression/iterate_data.py --download_retry 10
   # composer -n 8 regression/iterate_data.py --download_timeout 120

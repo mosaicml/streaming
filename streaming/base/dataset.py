@@ -302,8 +302,7 @@ class StreamingDataset(Array, IterableDataset):
                          download_timeout=download_timeout,
                          validate_hash=validate_hash,
                          keep_zip=keep_zip)
-        print(remote, local, streams)
-        print(default.local)
+
         # Normalize to a list of Streams.
         if streams:
             for stream in streams:
@@ -325,6 +324,9 @@ class StreamingDataset(Array, IterableDataset):
         # different values for these fields. We are saving the rank World here because we cannot
         # instantiate a World inside the StreamingDataset destructor.
         self._rank_world = world = World()
+
+        if not world.is_local_leader:
+            raise ValueError(remote, local, streams, default.local)
 
         # Download each stream's index, load their shards, and map streams <-> shards.
         self.num_samples = 0
