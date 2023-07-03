@@ -3,7 +3,7 @@ compute:
   cluster: r1z1
 gpu_num: 8
 command: |-
-  pip uninstall mosaicml-streaming
+  pip uninstall -y mosaicml-streaming
   cd streaming
   pip install -e '.[dev]'
   composer -n 1 regression/dataset.py --create --compression gz
