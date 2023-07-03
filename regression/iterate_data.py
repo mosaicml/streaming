@@ -129,7 +129,7 @@ def main(args: Namespace) -> None:
         args (Namespace): Command-line arguments.
     """
     tmp_dir = tempfile.gettempdir()
-    tmp_download_dir = os.path.join(tmp_dir, 'test_basic_flow_download')
+    tmp_download_dir = os.path.join(tmp_dir, 'test_regression_download')
     dataset = StreamingDataset(
         remote=utils.get_upload_dir(args.cloud),
         local=tmp_download_dir if args.local else None,
