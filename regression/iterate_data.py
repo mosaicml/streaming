@@ -17,40 +17,27 @@ from streaming.base.distributed import barrier
 _TRAIN_EPOCHS = 2
 
 
-def parse_args() -> Namespace:
+def get_kwargs(key: str) -> str:
+    """Parse key of named command-line arguments.
+
+    Returns:
+        str: Key of named arguments.
+    """
+    if key.startswith('--'):
+        key = key[2:]
+    key = key.replace('-', '_')
+    return key
+
+
+def parse_args() -> tuple[Namespace, dict[str, str]]:
     """Parse command-line arguments.
 
     Returns:
-        Namespace: Command-line arguments.
+        tuple(Namespace, dict[str, str]): Command-line arguments and named arguments.
     """
     args = ArgumentParser()
     args.add_argument('--cloud', type=str)
     args.add_argument('--local', default=False, action='store_true')
-    args.add_argument(
-        '--split',
-        type=str,
-        help='Which dataset split to use, if any for StreamingDataset.',
-    )
-    args.add_argument(
-        '--download_retry',
-        type=int,
-        default=2,
-        help=('Number of download re-attempts before giving up for'
-              ' StreamingDataset.'),
-    )
-    args.add_argument(
-        '--download_timeout',
-        type=float,
-        default=60,
-        help=('Number of seconds to wait for a shard to download before raising '
-              'an exception for StreamingDataset.'),
-    )
-    args.add_argument(
-        '--validate_hash',
-        type=str,
-        help=('Hash or checksum algorithm to use to validate shards for'
-              ' StreamingDataset.'),
-    )
     args.add_argument(
         '--keep_zip',
         default=False,
@@ -59,95 +46,46 @@ def parse_args() -> Namespace:
               ' downloaded shards for StreamingDataset.'),
     )
     args.add_argument(
-        '--epoch_size',
-        type=int,
-        help=('Number of samples to draw per epoch balanced across all streams'
-              ' for StreamingDataset.'),
-    )
-    args.add_argument(
-        '--predownload',
-        type=int,
-        help=('Target number of samples ahead to download the shards per number'
-              ' of workers provided in a dataloader while iterating for'
-              ' StreamingDataset.'),
-    )
-    args.add_argument(
-        '--cache_limit',
-        type=str,
-        help="Maximum size in bytes of this StreamingDataset's shard cache.",
-    )
-    args.add_argument(
-        '--partition_algo',
-        type=str,
-        default='orig',
-        help='Which partitioning algorithm to use for StreamingDataset.',
-    )
-    args.add_argument(
-        '--num_canonical_nodes',
-        type=int,
-        help=('Canonical number of nodes for shuffling with resumption for'
-              ' StreamingDataset.'),
-    )
-    args.add_argument(
-        '--batch_size',
-        type=int,
-        help=('Batch size of its DataLoader, which affects how the dataset is'
-              ' partitioned over the workers for StreamingDataset.'),
-    )
-    args.add_argument(
         '--shuffle',
         default=False,
         action='store_true',
         help=('Whether to iterate over the samples in randomized order for'
               ' StreamingDataset.'),
     )
-    args.add_argument(
-        '--shuffle_algo',
-        type=str,
-        default='py1s',
-        help='Which shuffling algorithm to use for StreamingDataset.',
-    )
-    args.add_argument(
-        '--shuffle_seed',
-        type=int,
-        default=9176,
-        help='Seed for Deterministic data shuffling for StreamingDataset.',
-    )
-    args.add_argument(
-        '--shuffle_block_size',
-        type=int,
-        default=1 << 18,
-        help='Unit of shuffle for StreamingDataset.',
-    )
-    return args.parse_args()
+
+    args, runtime_args = args.parse_known_args()
+    kwargs = {get_kwargs(k): v for k, v in zip(runtime_args[::2], runtime_args[1::2])}
+    return args, kwargs
 
 
-def main(args: Namespace) -> None:
+def main(args: Namespace, kwargs: dict[str, str]) -> None:
     """Benchmark time taken to generate the epoch for a given dataset.
 
     Args:
         args (Namespace): Command-line arguments.
+        kwargs (dict): Named arguments.
     """
     tmp_dir = tempfile.gettempdir()
     tmp_download_dir = os.path.join(tmp_dir, 'test_regression_download')
     dataset = StreamingDataset(
         remote=utils.get_upload_dir(args.cloud),
         local=tmp_download_dir if args.local else None,
-        split=args.split,
-        download_retry=args.download_retry,
-        download_timeout=args.download_timeout,
-        validate_hash=args.validate_hash,
+        split=kwargs.get('split'),
+        download_retry=int(kwargs.get('download_retry', 2)),
+        download_timeout=float(kwargs.get('download_timeout', 60)),
+        validate_hash=kwargs.get('validate_hash'),
         keep_zip=args.keep_zip,
-        epoch_size=args.epoch_size,
-        predownload=args.predownload,
-        cache_limit=args.cache_limit,
-        partition_algo=args.partition_algo,
-        num_canonical_nodes=args.num_canonical_nodes,
-        batch_size=args.batch_size,
+        epoch_size=int(kwargs['epoch_size']) if 'epoch_size' in kwargs else None,
+        predownload=int(kwargs['predownload']) if 'predownload' in kwargs else None,
+        cache_limit=kwargs.get('cache_limit'),
+        partition_algo=kwargs.get('partition_algo', 'orig'),
+        num_canonical_nodes=int(kwargs['num_canonical_nodes'])
+        if 'num_canonical_nodes' in kwargs else None,
+        batch_size=int(kwargs['batch_size']) if 'batch_size' in kwargs else None,
         shuffle=args.shuffle,
-        shuffle_algo=args.shuffle_algo,
-        shuffle_seed=args.shuffle_seed,
-        shuffle_block_size=args.shuffle_block_size,
+        shuffle_algo=kwargs.get('shuffle_algo', 'py1s'),
+        shuffle_seed=int(kwargs.get('shuffle_seed', 9176)),
+        shuffle_block_size=int(kwargs.get('shuffle_block_size', 1 << 18)),
     )
 
     dataloader = DataLoader(dataset)
@@ -163,4 +101,5 @@ def main(args: Namespace) -> None:
 
 
 if __name__ == '__main__':
-    main(parse_args())
+    args, kwargs = parse_args()
+    main(args, kwargs)
