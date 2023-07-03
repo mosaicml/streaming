@@ -15,7 +15,7 @@ from typing_extensions import Self
 
 from streaming.base.compression import decompress
 from streaming.base.constant import TICK
-from streaming.base.distributed import get_rank
+from streaming.base.distributed import barrier, get_local_rank
 from streaming.base.format import FileInfo, Reader, get_index_basename, reader_from_json
 from streaming.base.hashing import get_hash
 from streaming.base.storage import download_file
@@ -96,7 +96,6 @@ class Stream:
                  choose: Optional[int] = None,
                  download_retry: Optional[int] = None,
                  download_timeout: Optional[float] = None,
-                 local_directory_timeout: float = 60,
                  validate_hash: Optional[str] = None,
                  keep_zip: Optional[bool] = None) -> None:
         self.remote = remote
@@ -140,15 +139,17 @@ class Stream:
                 raise ValueError('`download_timeout` must be positive')
             self.download_timeout = download_timeout
 
-        self.local_directory_timeout = local_directory_timeout
-        if local_directory_timeout <= 0:
-            raise ValueError('`local_directory_timeout` must be positive')
-
         self.validate_hash = validate_hash
 
         if local is None:
             self.local = self._get_temporary_directory()
-            self._create_or_wait_for_local()
+            if get_local_rank() == 0:
+                if os.path.exists(self.local):
+                    raise ValueError(
+                        f'Could not create a local directory. Specify a local directory with the `local` value.'
+                    )
+                os.makedirs(self.local)
+            barrier()
         else:
             self.local = local
 
@@ -162,31 +163,10 @@ class Stream:
         root = tempfile.gettempdir()
         hash = None
         if self.remote is not None:
-            hash = hashlib.md5(self.remote.encode('utf-8')).hexdigest()
+            hash = hashlib.blake2s(self.remote.encode('utf-8'), digest_size=16).hexdigest()
         # Removes underscore if self.split is an empty string
         folder = '_'.join(filter(None, [hash, self.split]))
         return os.path.join(root, folder)
-
-    def _create_or_wait_for_local(self) -> None:
-        """Create the local directory or wait for the local directory to be created.
-
-        Rank 0 will create the temporary local directory or raise an error if it already exists.
-        The other ranks will wait for that directory to be created.
-        """
-        if get_rank() == 0:
-            try:
-                os.makedirs(self.local)
-            except FileExistsError as e:
-                raise Exception(
-                    'Could not create a local directory. Specify a local directory with the `local` value.'
-                ) from e
-            except:
-                raise
-        else:
-            wait_for_file_to_exist(
-                self.local, TICK, self.local_directory_timeout,
-                f'Local directory {self.local} took too long to be created. Either ' +
-                f'increase the `local_directory_timeout` value or check the other traceback.')
 
     def apply_default(self, default: Self) -> None:
         """Apply defaults, setting any unset fields.
