@@ -17,7 +17,7 @@ from streaming.base.distributed import barrier
 @pytest.mark.world_size(2)
 def test_local_is_none_with_no_split(monkeypatch: MonkeyPatch) -> None:
     remote = 'remote_dir'
-    remote_hash = hashlib.md5(remote.encode('utf-8')).hexdigest()
+    remote_hash = hashlib.blake2s(remote.encode('utf-8'), digest_size=16).hexdigest()
     local = os.path.join(tempfile.gettempdir(), remote_hash)
     shutil.rmtree(local, ignore_errors=True)
     barrier()
@@ -28,7 +28,7 @@ def test_local_is_none_with_no_split(monkeypatch: MonkeyPatch) -> None:
 @pytest.mark.world_size(2)
 def test_local_is_none_with_split(monkeypatch: MonkeyPatch) -> None:
     remote = 'remote_dir'
-    remote_hash = hashlib.md5(remote.encode('utf-8')).hexdigest()
+    remote_hash = hashlib.blake2s(remote.encode('utf-8'), digest_size=16).hexdigest()
     local = os.path.join(tempfile.gettempdir(), remote_hash + '_' + 'train')
     shutil.rmtree(local, ignore_errors=True)
     barrier()
