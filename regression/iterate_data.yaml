@@ -3,9 +3,9 @@ compute:
   cluster: r1z1
 gpu_num: 8
 command: |-
+  pip uninstall mosaicml-streaming
   cd streaming
-  rm -Rf /tmp/cec1695c275f8e134e20de08669e55b0/
-  rm -Rf /tmp/regression_remote
+  pip install -e '.[dev]'
   composer -n 1 regression/dataset.py --create --compression gz
   composer -n 1 regression/dataset.py --delete
   composer -n 1 regression/dataset.py --create --hashes sha1 xxh128
