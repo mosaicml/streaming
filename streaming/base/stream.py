@@ -96,7 +96,6 @@ class Stream:
                  choose: Optional[int] = None,
                  download_retry: Optional[int] = None,
                  download_timeout: Optional[float] = None,
-                 local_directory_timeout: float = 60,
                  validate_hash: Optional[str] = None,
                  keep_zip: Optional[bool] = None) -> None:
         self.remote = remote
@@ -144,10 +143,6 @@ class Stream:
             if download_timeout <= 0:
                 raise ValueError('`download_timeout` must be positive')
             self.download_timeout = download_timeout
-
-        self.local_directory_timeout = local_directory_timeout
-        if local_directory_timeout <= 0:
-            raise ValueError('`local_directory_timeout` must be positive')
 
         self.validate_hash = validate_hash
 
