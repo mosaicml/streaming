@@ -288,6 +288,9 @@ class StreamingDataset(Array, IterableDataset):
             raise ValueError(
                 'You must provide either `streams` or `remote`/`local`, but not both.')
 
+        # Initialize torch dist ourselves, if necessary.
+        destroy_dist = maybe_init_dist()
+
         # Create a temporary directory for the default stream
         if remote is None and local is None and split is None:
             local = mkdtemp()
@@ -321,9 +324,6 @@ class StreamingDataset(Array, IterableDataset):
         # different values for these fields. We are saving the rank World here because we cannot
         # instantiate a World inside the StreamingDataset destructor.
         self._rank_world = world = World()
-
-        # Initialize torch dist ourselves, if necessary.
-        destroy_dist = maybe_init_dist()
 
         # Download each stream's index, load their shards, and map streams <-> shards.
         self.num_samples = 0
