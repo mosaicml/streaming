@@ -29,7 +29,7 @@ _COLUMNS = {
 def parse_args() -> Namespace:
     """Parse command-line arguments.
 
-    Returns:x
+    Returns:
         Namespace: Command-line arguments.
     """
     args = ArgumentParser()
@@ -106,11 +106,11 @@ def main(args: Namespace) -> None:
     Args:
         args (Namespace): Command-line arguments.
     """
-    upload_dir = utils.get_upload_dir(args.cloud)
+    remote_dir = utils.get_remote_dir(args.cloud)
     if args.create:
         dataset = get_dataset(_NUM_SAMPLES)
         with MDSWriter(
-                out=upload_dir,
+                out=remote_dir,
                 columns=_COLUMNS,
                 compression=args.compression,
                 hashes=args.hashes,
@@ -120,13 +120,13 @@ def main(args: Namespace) -> None:
                 out.write(sample)
     if args.delete:
         if args.cloud is None:
-            shutil.rmtree(upload_dir, ignore_errors=True)
+            shutil.rmtree(remote_dir, ignore_errors=True)
         elif args.cloud == 'gs':
             from google.cloud.storage import Bucket, Client
 
             service_account_path = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
             gcs_client = Client.from_service_account_json(service_account_path)
-            obj = urllib.parse.urlparse(upload_dir)
+            obj = urllib.parse.urlparse(remote_dir)
 
             bucket = Bucket(gcs_client, obj.netloc)
             blobs = bucket.list_blobs(prefix=obj.path.lstrip('/'))

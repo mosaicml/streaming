@@ -7,26 +7,26 @@ import os
 import tempfile
 from typing import Optional
 
-_CLOUD_UPLOAD_LOCATIONS = {'gs': 'gs://mosaicml-composer-tests/streaming/regression/'}
+_CLOUD_REMOTE_LOCATIONS = {'gs': 'gs://mosaicml-composer-tests/streaming/regression/'}
 
 
-def get_upload_dir(storage: Optional[str]) -> str:
-    """Get an upload directory.
+def get_remote_dir(storage: Optional[str]) -> str:
+    """Get an remote directory.
 
     Args:
         storage (str): Type of storage to use.
 
     Returns:
-        str: Upload directory.
+        str: Remote directory.
     """
     if storage is None:
-        return get_local_upload_dir()
+        return get_local_remote_dir()
     else:
-        return _CLOUD_UPLOAD_LOCATIONS[storage]
+        return _CLOUD_REMOTE_LOCATIONS[storage]
 
 
-def get_local_upload_dir() -> str:
-    """Get a local upload directory."""
+def get_local_remote_dir() -> str:
+    """Get a local remote directory."""
     tmp_dir = tempfile.gettempdir()
-    tmp_upload_dir = os.path.join(tmp_dir, 'regression_upload')
-    return tmp_upload_dir
+    tmp_remote_dir = os.path.join(tmp_dir, 'regression_remote')
+    return tmp_remote_dir
