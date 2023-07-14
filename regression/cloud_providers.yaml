@@ -3,10 +3,12 @@ compute:
   cluster: r1z1
 gpu_num: 8
 command: |-
+  pip uninstall -y mosaicml-streaming
   cd streaming
-  composer -n 1 regression/dataset.py --create --cloud gs
+  pip install -e '.[dev]'
+  composer -n 1 regression/synthetic_dataset.py --create --cloud gs
   composer -n 2 regression/iterate_data.py --cloud gs
-  composer -n 1 regression/dataset.py --delete --cloud gs
+  composer -n 1 regression/synthetic_dataset.py --delete --cloud gs
 
 image: mosaicml/composer:0.15.0
 scheduling:
