@@ -5,7 +5,7 @@
 
 import os
 import shutil
-import urllib
+import urllib.parse
 from argparse import ArgumentParser, Namespace
 from typing import Union
 
