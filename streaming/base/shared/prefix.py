@@ -115,9 +115,8 @@ def _check_and_find(my_locals_set: Set[str]) -> int:
             raise ValueError(f'Reused local directory: {sorted(my_locals_set)} vs ' +
                              f'{sorted(their_locals_set)}. Provide a different one. If using ' +
                              f'a unique local directory, try deleting the local directory and ' +
-                             f'call `streaming.base.util.clean_stale_shared_memory()` only once ' +
-                             f'in your script to clean up the stale shared memory before ' +
-                             f'instantiation of `StreamingDataset`.')
+                             f'call `python -c "import streaming; streaming.base.util.clean_stale_shared_memory()"` ' +
+                             f'to clean up the stale shared memory.')
     return prefix_int
 
 
