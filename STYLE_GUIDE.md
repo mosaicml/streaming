@@ -27,7 +27,7 @@ Streaming uses the [yapf](https://github.com/google/yapf) formatter for general 
 (see section 2.2). These checks can also be run manually via:
 
 ```
-pre-commit run yapf --all-files  # for yahp
+pre-commit run yapf --all-files  # for yapf
 pre-commit run isort --all-files  # for isort
 ```
 

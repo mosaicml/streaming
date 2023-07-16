@@ -158,14 +158,32 @@ def download_from_gcs(remote: str, local: str) -> None:
         remote (str): Remote path (GCS).
         local (str): Local path (local filesystem).
     """
-    import boto3
-    from boto3.s3.transfer import TransferConfig
-    from botocore.exceptions import ClientError
-
     obj = urllib.parse.urlparse(remote)
     if obj.scheme != 'gs':
         raise ValueError(
             f'Expected obj.scheme to be `gs`, instead, got {obj.scheme} for remote={remote}')
+
+    if 'GOOGLE_APPLICATION_CREDENTIALS' in os.environ:
+        _gcs_with_service_account(local, obj)
+    elif 'GCS_KEY' in os.environ and 'GCS_SECRET' in os.environ:
+        _gcs_with_hmac(remote, local, obj)
+    else:
+        raise ValueError(f'Either GOOGLE_APPLICATION_CREDENTIALS needs to be set for ' +
+                         f'service level accounts or GCS_KEY and GCS_SECRET needs to be ' +
+                         f'set for HMAC authentication')
+
+
+def _gcs_with_hmac(remote: str, local: str, obj: urllib.parse.ParseResult) -> None:
+    """Download a file from remote GCS to local using user level credentials.
+
+    Args:
+        remote (str): Remote path (GCS).
+        local (str): Local path (local filesystem).
+        obj (ParseResult): ParseResult object of remote.
+    """
+    import boto3
+    from boto3.s3.transfer import TransferConfig
+    from botocore.exceptions import ClientError
 
     # Create a new session per thread
     session = boto3.session.Session()
@@ -188,6 +206,22 @@ def download_from_gcs(remote: str, local: str) -> None:
             raise FileNotFoundError(f'Object {remote} not found.') from e
     except Exception:
         raise
+
+
+def _gcs_with_service_account(local: str, obj: urllib.parse.ParseResult) -> None:
+    """Download a file from remote GCS to local using service account credentials.
+
+    Args:
+        local (str): Local path (local filesystem).
+        obj (ParseResult): ParseResult object of remote path (GCS).
+    """
+    from google.cloud.storage import Blob, Bucket, Client
+
+    service_account_path = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
+    gcs_client = Client.from_service_account_json(service_account_path)
+
+    blob = Blob(obj.path.lstrip('/'), Bucket(gcs_client, obj.netloc))
+    blob.download_to_filename(local)
 
 
 def download_from_oci(remote: str, local: str) -> None:
@@ -248,6 +282,38 @@ def download_from_azure(remote: str, local: str) -> None:
         raise
 
 
+def download_from_azure_datalake(remote: str, local: str) -> None:
+    """Download a file from remote Microsoft Azure Data Lake to local.
+
+    Args:
+        remote (str): Remote path (azure).
+        local (str): Local path (local filesystem).
+    """
+    from azure.core.exceptions import ResourceNotFoundError
+    from azure.storage.filedatalake import DataLakeServiceClient
+
+    obj = urllib.parse.urlparse(remote)
+    if obj.scheme != 'azure-dl':
+        raise ValueError(
+            f'Expected obj.scheme to be `azure-dl`, got {obj.scheme} for remote={remote}')
+
+    # Create a new session per thread
+    service = DataLakeServiceClient(
+        account_url=f"https://{os.environ['AZURE_ACCOUNT_NAME']}.dfs.core.windows.net",
+        credential=os.environ['AZURE_ACCOUNT_ACCESS_KEY'],
+    )
+    try:
+        file_client = service.get_file_client(file_system=obj.netloc,
+                                              file_path=obj.path.lstrip('/'))
+        with open(local, 'wb') as my_file:
+            file_data = file_client.download_file()
+            file_data.readinto(my_file)
+    except ResourceNotFoundError:
+        raise FileNotFoundError(f'Object {remote} not found.')
+    except Exception:
+        raise
+
+
 def download_from_local(remote: str, local: str) -> None:
     """Download a file from remote to local.
 
@@ -294,6 +360,8 @@ def download_file(remote: Optional[str], local: str, timeout: float):
         download_from_oci(remote, local)
     elif remote.startswith('azure://'):
         download_from_azure(remote, local)
+    elif remote.startswith('azure-dl://'):
+        download_from_azure_datalake(remote, local)
     else:
         download_from_local(remote, local)
 

@@ -44,6 +44,7 @@ classifiers = [
 install_requires = [
     'boto3>=1.21.45,<2',
     'Brotli>=1.0.9',
+    'google-cloud-storage>=2.9.0',
     'matplotlib>=3.5.2,<4',
     'paramiko>=2.11.0,<4',
     'python-snappy>=0.6.1,<1',
@@ -56,6 +57,8 @@ install_requires = [
     'zstd>=1.5.2.5,<2',
     'oci>=2.88,<3',
     'azure-storage-blob>=12.0.0,<13',
+    'azure-storage-file-datalake>=12.11.0,<13',
+    'azure-identity>=1.13.0',
 ]
 
 extra_deps = {}
@@ -65,13 +68,13 @@ extra_deps['dev'] = [
     'docformatter>=1.4',
     'jupyter==1.0.0',
     'pre-commit>=2.18.1,<4',
-    'pytest==7.3.2',
+    'pytest==7.4.0',
     'pytest_codeblocks==0.16.1',
     'pytest-cov>=4,<5',
     'toml==0.10.2',
     'yamllint==1.32.0',
     'moto>=4.0,<5',
-    'fastapi==0.97.0',
+    'fastapi==0.98.0',
     'pydantic==1.10.9',
     'uvicorn==0.22.0',
 ]
@@ -80,7 +83,7 @@ extra_deps['docs'] = [
     'GitPython==3.1.31',
     'docutils==0.18.1',
     'furo==2023.5.20',
-    'myst-parser==1.0.0',
+    'myst-parser==2.0.0',
     'nbsphinx==0.9.2',
     'pandoc==2.3',
     'pypandoc==1.11',

@@ -10,7 +10,8 @@ import boto3
 import pytest
 from botocore.exceptions import ClientError
 
-from streaming.base.storage.download import (download_file, download_from_azure, download_from_gcs,
+from streaming.base.storage.download import (download_file, download_from_azure,
+                                             download_from_azure_datalake, download_from_gcs,
                                              download_from_local, download_from_s3,
                                              download_or_wait)
 from tests.conftest import GCS_URL, MY_BUCKET, R2_URL
@@ -42,6 +43,7 @@ class TestAzureClient:
             mock_remote_filepath, mock_local_filepath = remote_local_file(
                 cloud_prefix='aaazure://')
             download_from_azure(mock_remote_filepath, mock_local_filepath)
+            download_from_azure_datalake(mock_remote_filepath, mock_local_filepath)
 
 
 class TestS3Client:
@@ -82,7 +84,7 @@ class TestS3Client:
 
 class TestGCSClient:
 
-    @pytest.mark.usefixtures('gcs_client', 'gcs_test', 'remote_local_file')
+    @pytest.mark.usefixtures('gcs_hmac_client', 'gcs_test', 'remote_local_file')
     def test_download_from_gcs(self, remote_local_file: Any):
         with tempfile.NamedTemporaryFile(delete=True, suffix='.txt') as tmp:
             file_name = tmp.name.split(os.sep)[-1]
@@ -96,13 +98,13 @@ class TestGCSClient:
             download_from_gcs(mock_remote_filepath, tmp.name)
             assert os.path.isfile(tmp.name)
 
-    @pytest.mark.usefixtures('gcs_client', 'gcs_test', 'remote_local_file')
+    @pytest.mark.usefixtures('gcs_hmac_client', 'gcs_test', 'remote_local_file')
     def test_filenotfound_exception(self, remote_local_file: Any):
         with pytest.raises(FileNotFoundError):
             mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='gs://')
             download_from_gcs(mock_remote_filepath, mock_local_filepath)
 
-    @pytest.mark.usefixtures('gcs_client', 'gcs_test', 'remote_local_file')
+    @pytest.mark.usefixtures('gcs_hmac_client', 'gcs_test', 'remote_local_file')
     def test_invalid_cloud_prefix(self, remote_local_file: Any):
         with pytest.raises(ValueError):
             mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='s3://')
@@ -145,6 +147,15 @@ class TestDownload:
     @pytest.mark.usefixtures('remote_local_file')
     def test_download_from_azure_gets_called(self, mocked_requests: Mock, remote_local_file: Any):
         mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='azure://')
+        download_file(mock_remote_filepath, mock_local_filepath, 60)
+        mocked_requests.assert_called_once()
+        mocked_requests.assert_called_once_with(mock_remote_filepath, mock_local_filepath)
+
+    @patch('streaming.base.storage.download.download_from_azure_datalake')
+    @pytest.mark.usefixtures('remote_local_file')
+    def test_download_from_azure_datalake_gets_called(self, mocked_requests: Mock,
+                                                      remote_local_file: Any):
+        mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='azure-dl://')
         download_file(mock_remote_filepath, mock_local_filepath, 60)
         mocked_requests.assert_called_once()
         mocked_requests.assert_called_once_with(mock_remote_filepath, mock_local_filepath)
