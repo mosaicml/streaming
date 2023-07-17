@@ -43,12 +43,12 @@ class _ShardState(IntEnum):
 
     Restrictions:
     - The initial state of INVALID must be zero.
-    - State transitions: MISSING -> DOWNLOADING -> PRESENT -> MISSING.
+    - State transitions: REMOTE -> DOWNLOADING -> LOCAL -> REMOTE.
     """
     INVALID = 0
-    MISSING = 1
+    REMOTE = 1
     DOWNLOADING = 2
-    PRESENT = 3
+    LOCAL = 3
 
 
 class _IterState(IntEnum):
@@ -409,36 +409,24 @@ class StreamingDataset(Array, IterableDataset):
             # Set initial epoch (before any resumption).
             self.next_epoch = 0
 
-            # Normalize each stream's local dir, discovering which shards are present.
-            are_shards_present = []
-            for stream_id, stream in enumerate(self.streams):
-                start = self.shard_offset_per_stream[stream_id]
-                stop = start + self.shards_per_stream[stream_id]
-                stream_shards = self.shards[start:stop]
-                are_shards_present += stream.init_local_dir(stream_shards)
-
-            # Calculate the initial cache usage using shard presence info.
-            #
-            # If we are above cache_limit, do nothing about it until the first download (which will
-            # evict until happy).
+            # Get cache usage due to streams.
             self.cache_usage = 0
             for stream in self.streams:
                 self.cache_usage += stream.get_index_size()
-            for shard_id, is_shard_present in enumerate(are_shards_present):
-                if is_shard_present:
-                    stream_id = self.stream_per_shard[shard_id]
-                    stream = self.streams[stream_id]
-                    shard = self.shards[shard_id]
-                    self.cache_usage += shard.get_persistent_size(stream.safe_keep_zip)
 
-            # Also use shard presence to initialize the shard states array and last access times.
-            for shard_id, is_shard_present in enumerate(are_shards_present):
-                if is_shard_present:
-                    self._shard_states[shard_id] = _ShardState.PRESENT
-                    self._shard_access_times[shard_id] = time_ns()
-                else:
-                    self._shard_states[shard_id] = _ShardState.MISSING
-                    self._shard_access_times[shard_id] = NEVER
+            # Get cache usage due to shards.
+            cache_usage_per_shard = np.zeros(self.num_shards, np.int64)
+            for stream_id, stream in enumerate(self.streams):
+                begin = self.shard_offset_per_stream[stream_id]
+                end = begin + self.shards_per_stream[stream_id]
+                stream.set_up_local(self.shards[begin:end], cache_usage_per_shard[begin:end])
+            self.cache_usage += cache_usage_per_shard.sum()
+
+            # If either raw or zip are present after local dir setup, the shard is considered
+            # present for download/eviction logic purposes (may need to decompress upon use).
+            for shard_id, size in enumerate(cache_usage_per_shard):
+                self._shard_states[shard_id] = _ShardState.LOCAL if size else _ShardState.REMOTE
+                self._shard_access_times[shard_id] = time_ns()
 
         if dist.is_available() and dist.is_initialized():
             dist.barrier()
@@ -857,16 +845,13 @@ class StreamingDataset(Array, IterableDataset):
         self._shard_access_times[shard_id] = NEVER
 
         # Set the shard state to missing.
-        self._shard_states[shard_id] = _ShardState.MISSING
+        self._shard_states[shard_id] = _ShardState.REMOTE
 
-        # Perform the eviction.
+        # Perform the eviction, updating cache usage to account for the removal.
         shard = self.shards[shard_id]
-        shard.evict()
-
-        # Lastly, update cache usage to account for the removal.
-        stream_id = self.stream_per_shard[shard_id]
-        stream = self.streams[stream_id]
-        self.cache_usage -= shard.get_persistent_size(stream.safe_keep_zip)
+        self.cache_usage -= shard.evict()
+        if self.cache_usage < 0:
+            raise RuntimeError(f'Negative cache usage: {self.cache_usage}.')
 
     def _evict_coldest_shard(self) -> None:
         """Evict the coldeset (i.e., least recently accessed) shard.
@@ -894,7 +879,7 @@ class StreamingDataset(Array, IterableDataset):
             # The shard has a valid timestamp. Now, verify that it is actually present. There is an
             # edge case where it may not be present (see the note in get_item()). If not present,
             # pick the next lowest shard.
-            if self._shard_states[shard_id] != _ShardState.PRESENT:
+            if self._shard_states[shard_id] != _ShardState.LOCAL:
                 self._shard_access_times[shard_id] = NEVER
                 continue
 
@@ -957,7 +942,7 @@ class StreamingDataset(Array, IterableDataset):
         state = self._shard_states[shard_id]
 
         # Which state is it in?
-        if state == _ShardState.MISSING:
+        if state == _ShardState.REMOTE:
             # If missing, transition state to downloading.
             self._shard_states[shard_id] = _ShardState.DOWNLOADING
 
@@ -970,23 +955,19 @@ class StreamingDataset(Array, IterableDataset):
             if self.cache_limit:
                 # Evict one shard at a time until our download will stay under the cache limit.
                 # This means both the raw and zip forms of the shard due to decompressing.
-                shard_full_size = shard.get_full_size()
-                while self.cache_limit < self.cache_usage + shard_full_size:
+                shard_max_cache_usage = shard.get_max_size()
+                while self.cache_limit < self.cache_usage + shard_max_cache_usage:
                     self._evict_coldest_shard()
-
-            # Calculate and apply the persistent change in cache usage, which depends on
-            # whether compression was used and keep_zip.
-            self.cache_usage += shard.get_persistent_size(stream.safe_keep_zip)
 
             # With the above preamble done, we can release the cache lock.
             lock.release()
 
             # Perform the download (shard will not be modified in DOWNLOADING state).
-            stream.download_shard(shard)
+            self.cache_usage += stream.download_shard(shard)
 
-            # Download completed, so note the time and transition shard state to PRESENT.
+            # Download completed, so note the time and transition shard state to LOCAL.
             self._shard_access_times[shard_id] = time_ns()
-            self._shard_states[shard_id] = _ShardState.PRESENT
+            self._shard_states[shard_id] = _ShardState.LOCAL
         elif state == _ShardState.DOWNLOADING:
             # Someone else is currently downloading the shard. Release the lock for others to make
             # progress.
@@ -994,14 +975,14 @@ class StreamingDataset(Array, IterableDataset):
 
             # Do we wait on them?
             if blocking:
-                # Wait for the shard to transition out of DOWNLOADING state (to PRESENT, although
+                # Wait for the shard to transition out of DOWNLOADING state (to LOCAL, although
                 # it would be possible for it to become evicted again before a TICK has elapsed).
                 while self._shard_states[shard_id] == _ShardState.DOWNLOADING:
                     sleep(TICK)
 
             # There is no need to update the last access time, because that will be set by the
             # process that downloaded the shard.
-        elif state == _ShardState.PRESENT:
+        elif state == _ShardState.LOCAL:
             # Shard is already downloaded. There is nothing to do, except touch the shard.
             self._shard_access_times[shard_id] = time_ns()
             lock.release()
@@ -1041,7 +1022,7 @@ class StreamingDataset(Array, IterableDataset):
                 # download_shard().
                 #
                 # Note: for performance reasons, we have not taken the lock here. This results in
-                # an edge case where a shard has a last access time but is actually not PRESENT.
+                # an edge case where a shard has a last access time but is actually not LOCAL.
                 # This impacts _evict_coldest_shard(), which we modify to handle this case.
                 self._shard_access_times[shard_id] = time_ns()
 
@@ -1183,10 +1164,10 @@ class StreamingDataset(Array, IterableDataset):
             shard_id, _ = self.spanner[sample_id]
             # During cold shard eviction, shard state might go in the reverse direction. If a shard
             # is missing while fetching a sample, download it.
-            if self._shard_states[shard_id] == _ShardState.MISSING:
+            if self._shard_states[shard_id] == _ShardState.REMOTE:
                 self.download_shard(shard_id, False)
             # Wait for a shard file to download completely.
-            while self._shard_states[shard_id] != _ShardState.PRESENT:
+            while self._shard_states[shard_id] != _ShardState.LOCAL:
                 sleep(TICK)
 
             # Step forward one sample.
