@@ -7,7 +7,11 @@ import os
 import tempfile
 from typing import Optional
 
-_CLOUD_REMOTE_LOCATIONS = {'gs': 'gs://mosaicml-composer-tests/streaming/regression/'}
+_CLOUD_REMOTE_LOCATIONS = {
+    'gs': 'gs://mosaicml-composer-tests/streaming/regression/',
+    's3': 's3://streaming-upload-test-bucket/streaming/regression/',
+    'oci': 'oci://streaming-test/regression'
+}
 
 
 def get_remote_dir(storage: Optional[str]) -> str:

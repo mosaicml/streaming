@@ -100,6 +100,60 @@ def get_dataset(num_samples: int) -> list[dict[str, Union[int, str]]]:
     return samples
 
 
+def delete_gcs(remote_dir: str) -> None:
+    """Delete a remote directory from gcs.
+
+    Args:
+        remote_dir (str): Location of the remote directory.
+    """
+    from google.cloud.storage import Bucket, Client
+
+    service_account_path = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
+    gcs_client = Client.from_service_account_json(service_account_path)
+    obj = urllib.parse.urlparse(remote_dir)
+
+    bucket = Bucket(gcs_client, obj.netloc)
+    blobs = bucket.list_blobs(prefix=obj.path.lstrip('/'))
+
+    for blob in blobs:
+        blob.delete()
+
+
+def delete_s3(remote_dir: str) -> None:
+    """Delete a remote directory from s3.
+
+    Args:
+        remote_dir (str): Location of the remote directory.
+    """
+    import boto3
+
+    obj = urllib.parse.urlparse(remote_dir)
+
+    s3 = boto3.resource('s3')
+    bucket = s3.Bucket(obj.netloc)
+    bucket.objects.filter(Prefix=obj.path.lstrip('/')).delete()
+
+
+def delete_oci(remote_dir: str) -> None:
+    """Delete a remote directory from oci.
+
+    Args:
+        remote_dir (str): Location of the remote directory.
+    """
+    import oci
+
+    obj = urllib.parse.urlparse(remote_dir)
+
+    config = oci.config.from_file()
+    oci_client = oci.object_storage.ObjectStorageClient(
+        config=config, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
+    namespace = oci_client.get_namespace().data
+    objects = oci_client.list_objects(namespace, obj.netloc, prefix=obj.path.lstrip('/'))
+
+    for filenames in objects.data.objects:
+        oci_client.delete_object(namespace, obj.netloc, filenames.name)
+
+
 def main(args: Namespace) -> None:
     """Benchmark time taken to generate the epoch for a given dataset.
 
@@ -122,17 +176,11 @@ def main(args: Namespace) -> None:
         if args.cloud is None:
             shutil.rmtree(remote_dir, ignore_errors=True)
         elif args.cloud == 'gs':
-            from google.cloud.storage import Bucket, Client
-
-            service_account_path = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
-            gcs_client = Client.from_service_account_json(service_account_path)
-            obj = urllib.parse.urlparse(remote_dir)
-
-            bucket = Bucket(gcs_client, obj.netloc)
-            blobs = bucket.list_blobs(prefix=obj.path.lstrip('/'))
-
-            for blob in blobs:
-                blob.delete()
+            delete_gcs(remote_dir)
+        elif args.cloud == 's3':
+            delete_s3(remote_dir)
+        elif args.cloud == 'oci':
+            delete_oci(remote_dir)
 
 
 if __name__ == '__main__':

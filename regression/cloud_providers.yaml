@@ -1,4 +1,4 @@
-name: streaming-regression-test-basic-flow
+name: streaming-regression-test-cloud-providers
 compute:
   cluster: r1z1
 gpu_num: 8
@@ -9,6 +9,12 @@ command: |-
   composer -n 1 regression/synthetic_dataset.py --create --cloud gs
   composer -n 2 regression/iterate_data.py --cloud gs
   composer -n 1 regression/synthetic_dataset.py --delete --cloud gs
+  composer -n 1 regression/synthetic_dataset.py --create --cloud s3
+  composer -n 4 regression/iterate_data.py --cloud s3
+  composer -n 1 regression/synthetic_dataset.py --delete --cloud s3
+  composer -n 1 regression/synthetic_dataset.py --create --cloud oci
+  composer -n 8 regression/iterate_data.py --cloud oci
+  composer -n 1 regression/synthetic_dataset.py --delete --cloud oci
 
 image: mosaicml/composer:0.15.0
 scheduling:
