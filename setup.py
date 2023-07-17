@@ -80,7 +80,7 @@ extra_deps['dev'] = [
 ]
 
 extra_deps['docs'] = [
-    'GitPython==3.1.31',
+    'GitPython==3.1.32',
     'docutils==0.18.1',
     'furo==2023.5.20',
     'myst-parser==2.0.0',
