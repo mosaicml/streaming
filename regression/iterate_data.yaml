@@ -7,6 +7,7 @@ command: |-
   cd streaming
   pip install -e '.[dev]'
   composer -n 1 regression/synthetic_dataset.py --create --compression gz
+  composer -n 2 regression/iterate_data.py
   composer -n 1 regression/synthetic_dataset.py --delete
   composer -n 1 regression/synthetic_dataset.py --create --hashes sha1 xxh128
   composer -n 2 regression/iterate_data.py
@@ -28,6 +29,6 @@ scheduling:
   priority: medium
 integrations:
   - integration_type: git_repo
-    git_repo: mosaicml/streaming
-    git_branch: main
+    git_repo: b-chu/streaming
+    git_branch: test_basic_flow
     ssh_clone: false

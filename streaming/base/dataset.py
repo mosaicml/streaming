@@ -9,7 +9,6 @@ from concurrent.futures import ThreadPoolExecutor, wait
 from concurrent.futures._base import Future
 from enum import IntEnum
 from math import ceil
-from tempfile import mkdtemp
 from threading import Event, Lock
 from time import sleep, time_ns
 from typing import Any, Dict, Iterator, Optional, Sequence, Tuple, Union
@@ -328,9 +327,6 @@ class StreamingDataset(Array, IterableDataset):
         # different values for these fields. We are saving the rank World here because we cannot
         # instantiate a World inside the StreamingDataset destructor.
         self._rank_world = world = World()
-
-        if not world.is_local_leader:
-            raise ValueError(remote, local, streams, default.local)
 
         # Download each stream's index, load their shards, and map streams <-> shards.
         self.num_samples = 0
