@@ -57,9 +57,10 @@ class _IterState(IntEnum):
     Restrictions:
     - State transitions: ITERATING -> EXITING -> EXITED.
     """
-    ITERATING = 0
-    EXITING = 1
-    EXITED = 2
+    ITERATING = 0  # We are currently iterating through an epoch.
+    EXITING = 1    # We have been signalled to end the epoch (either we hit end of __iter__, or
+                   # someone else started a new epoch, of which only one can be valid at a time).
+    EXITED = 2     # All threads have noticed the exit signal and exited.
 
 
 class _Iterator:
