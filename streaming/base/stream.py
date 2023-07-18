@@ -166,7 +166,8 @@ class Stream:
             hash = hashlib.blake2s(self.remote.encode('utf-8'), digest_size=16).hexdigest()
         return os.path.join(root, hash, self.split)
 
-    def apply_default(self, default: Self) -> None:
+
+    def apply_default(self, default: dict) -> None:
         """Apply defaults, setting any unset fields.
 
         We use pairs of (name, _name) in order to make type checking happy.
@@ -178,16 +179,16 @@ class Stream:
             raise ValueError('`remote` and/or `local` path must be provided')
 
         if not self.split:
-            self.split = default.split or ''
+            self.split = default['split'] or ''
         if self._download_retry is None:
-            self.download_retry = default.download_retry
+            self.download_retry = default['download_retry']
         if self._download_timeout is None:
-            self.download_timeout = default.download_timeout
+            self.download_timeout = default['download_timeout']
         if self.validate_hash is None:
-            self.validate_hash = default.validate_hash or None
+            self.validate_hash = default['validate_hash'] or None
         if self._keep_zip is None:
-            self.keep_zip = default.keep_zip
-            self.safe_keep_zip = self.keep_zip or self.remote in {None, self.local}
+            self.keep_zip = default['keep_zip']
+            self.safe_keep_zip = default['keep_zip'] or self.remote in {None, self.local}
 
     @classmethod
     def validate_weights(cls, streams: Sequence[Self]) -> bool:
