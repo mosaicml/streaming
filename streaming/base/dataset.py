@@ -9,7 +9,6 @@ from concurrent.futures import ThreadPoolExecutor, wait
 from concurrent.futures._base import Future
 from enum import IntEnum
 from math import ceil
-from tempfile import mkdtemp
 from threading import Event, Lock
 from time import sleep, time_ns
 from typing import Any, Dict, Iterator, Optional, Sequence, Tuple, Union
@@ -290,10 +289,6 @@ class StreamingDataset(Array, IterableDataset):
 
         # Initialize torch dist ourselves, if necessary.
         destroy_dist = maybe_init_dist()
-
-        # Create a temporary directory for the default stream
-        if remote is None and local is None and split is None:
-            local = mkdtemp()
 
         # Initialize the Stream defaults and normalize to a list of Streams.
         if streams:
