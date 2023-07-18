@@ -45,10 +45,10 @@ class _ShardState(IntEnum):
     - The initial state of INVALID must be zero.
     - State transitions: REMOTE -> DOWNLOADING -> LOCAL -> REMOTE.
     """
-    INVALID = 0
-    REMOTE = 1
-    DOWNLOADING = 2
-    LOCAL = 3
+    INVALID = 0      # The state is allocated (e.g., in an array), but not initialized yet.
+    REMOTE = 1       # The shard exists only at the remote source.
+    DOWNLOADING = 2  # The shard is currently downloading from remote to local.
+    LOCAL = 3        # Some form of the shard (raw or zip) exists locally (as well as remotely).
 
 
 class _IterState(IntEnum):
