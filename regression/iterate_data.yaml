@@ -1,7 +1,7 @@
 name: streaming-regression-test-iterate-data
 compute:
-  cluster: r1z1
-gpu_num: 8
+  gpus: 8 # Number of GPUs to use
+  # cluster: TODO # Name of the cluster to use for this run
 command: |-
   pip uninstall -y mosaicml-streaming
   cd streaming
