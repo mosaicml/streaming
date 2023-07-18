@@ -101,11 +101,6 @@ class Stream:
         self.remote = remote
         self._local = local
         self.split = split or ''
-        if local is None:
-            self.local = self._get_temporary_directory()
-            self._create_or_wait_for_local()
-        else:
-            self.local = local
 
         has_proportion = proportion is not None
         has_repeat = repeat is not None
@@ -170,7 +165,6 @@ class Stream:
         if self.remote is not None:
             hash = hashlib.blake2s(self.remote.encode('utf-8'), digest_size=16).hexdigest()
         return os.path.join(root, hash, self.split)
-
 
     def apply_default(self, default: dict) -> None:
         """Apply defaults, setting any unset fields.
