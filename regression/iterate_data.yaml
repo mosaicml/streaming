@@ -29,6 +29,6 @@ scheduling:
   priority: medium
 integrations:
   - integration_type: git_repo
-    git_repo: b-chu/streaming
-    git_branch: test_basic_flow
+    git_repo: mosaicml/streaming
+    git_branch: main
     ssh_clone: false
