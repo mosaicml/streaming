@@ -6,6 +6,7 @@
 import os
 import shutil
 import tempfile
+import urllib.parse
 from argparse import ArgumentParser, Namespace
 
 import utils
@@ -37,6 +38,7 @@ def parse_args() -> tuple[Namespace, dict[str, str]]:
     """
     args = ArgumentParser()
     args.add_argument('--cloud', type=str)
+    args.add_argument('--check_download', default=False, action='store_true')
     args.add_argument('--local', default=False, action='store_true')
     args.add_argument(
         '--keep_zip',
@@ -56,6 +58,43 @@ def parse_args() -> tuple[Namespace, dict[str, str]]:
     args, runtime_args = args.parse_known_args()
     kwargs = {get_kwargs(k): v for k, v in zip(runtime_args[::2], runtime_args[1::2])}
     return args, kwargs
+
+
+def get_file_count(cloud: str) -> int:
+    """Get the number of files in a remote directory.
+
+    Args:
+        cloud (str): Cloud provider.
+    """
+    remote_dir = utils.get_remote_dir(cloud)
+    obj = urllib.parse.urlparse(remote_dir)
+    files = []
+    if cloud == 'gcs':
+        from google.cloud.storage import Bucket, Client
+
+        service_account_path = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
+        gcs_client = Client.from_service_account_json(service_account_path)
+
+        bucket = Bucket(gcs_client, obj.netloc)
+        files = bucket.list_blobs(prefix=obj.path.lstrip('/'))
+    elif cloud == 's3':
+        import boto3
+
+        s3 = boto3.resource('s3')
+        bucket = s3.Bucket(obj.netloc)
+        files = bucket.objects.filter(Prefix=obj.path.lstrip('/'))
+    elif cloud == 'oci':
+        import oci
+
+        config = oci.config.from_file()
+        oci_client = oci.object_storage.ObjectStorageClient(
+            config=config, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
+        namespace = oci_client.get_namespace().data
+        objects = oci_client.list_objects(namespace, obj.netloc, prefix=obj.path.lstrip('/'))
+
+        files = objects.data.objects
+
+    return sum(1 for _ in files)
 
 
 def main(args: Namespace, kwargs: dict[str, str]) -> None:
@@ -87,6 +126,15 @@ def main(args: Namespace, kwargs: dict[str, str]) -> None:
         shuffle_seed=int(kwargs.get('shuffle_seed', 9176)),
         shuffle_block_size=int(kwargs.get('shuffle_block_size', 1 << 18)),
     )
+
+    if args.check_download and args.cloud is not None:
+        num_cloud_files = get_file_count(args.cloud)
+        local_dir = dataset.streams[0].local
+        num_local_files = len([
+            name for name in os.listdir(local_dir) if os.path.isfile(os.path.join(local_dir, name))
+        ])
+        print(num_local_files)
+        assert num_cloud_files == num_local_files
 
     dataloader = DataLoader(dataset)
     for _ in range(_TRAIN_EPOCHS):
