@@ -10,10 +10,11 @@ import urllib.parse
 from argparse import ArgumentParser, Namespace
 
 import utils
+from torch import distributed as dist
 from torch.utils.data import DataLoader
 
 from streaming import StreamingDataset
-from streaming.base.distributed import barrier
+from streaming.base.distributed import barrier, maybe_init_dist
 
 _TRAIN_EPOCHS = 2
 
@@ -69,7 +70,7 @@ def get_file_count(cloud: str) -> int:
     remote_dir = utils.get_remote_dir(cloud)
     obj = urllib.parse.urlparse(remote_dir)
     files = []
-    if cloud == 'gcs':
+    if cloud == 'gs':
         from google.cloud.storage import Bucket, Client
 
         service_account_path = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
@@ -104,6 +105,9 @@ def main(args: Namespace, kwargs: dict[str, str]) -> None:
         args (Namespace): Command-line arguments.
         kwargs (dict): Named arguments.
     """
+    # Initialize torch dist ourselves, if necessary.
+    destroy_dist = maybe_init_dist()
+
     tmp_dir = tempfile.gettempdir()
     tmp_download_dir = os.path.join(tmp_dir, 'test_iterate_data_download')
     dataset = StreamingDataset(
@@ -127,25 +131,27 @@ def main(args: Namespace, kwargs: dict[str, str]) -> None:
         shuffle_block_size=int(kwargs.get('shuffle_block_size', 1 << 18)),
     )
 
+    dataloader = DataLoader(dataset)
+    for _ in range(_TRAIN_EPOCHS):
+        for _ in dataloader:
+            pass
+
     if args.check_download and args.cloud is not None:
         num_cloud_files = get_file_count(args.cloud)
         local_dir = dataset.streams[0].local
         num_local_files = len([
             name for name in os.listdir(local_dir) if os.path.isfile(os.path.join(local_dir, name))
         ])
-        print(num_local_files)
         assert num_cloud_files == num_local_files
-
-    dataloader = DataLoader(dataset)
-    for _ in range(_TRAIN_EPOCHS):
-        for _ in dataloader:
-            pass
 
     barrier()
     # Clean up directories
     for stream in dataset.streams:
         shutil.rmtree(stream.local, ignore_errors=True)
     shutil.rmtree(tmp_download_dir, ignore_errors=True)
+
+    if destroy_dist:
+        dist.destroy_process_group()
 
 
 if __name__ == '__main__':
