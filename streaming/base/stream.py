@@ -316,11 +316,11 @@ class Stream:
         if not self.safe_keep_zip:
             os.remove(zip_filename)
 
-    def _download_shard_part(self,
-                             raw_info: FileInfo,
-                             zip_info: Optional[FileInfo] = None,
-                             compression: Optional[str] = None) -> int:
-        """Download shard data given metadata for the raw and compressed versions of it.
+    def _prepare_shard_part(self,
+                            raw_info: FileInfo,
+                            zip_info: Optional[FileInfo] = None,
+                            compression: Optional[str] = None) -> int:
+        """Get shard data given metadata for the raw and compressed versions of it.
 
         MDS format uses joint shards (ie, one file per shard). Other formats supported by streaming
         use split shards (ie, shard data lives in two files per shard: the raw data itself and
@@ -372,8 +372,8 @@ class Stream:
                         raise ValueError(f'Checksum failure: {raw_filename}')
         return delta
 
-    def download_shard(self, shard: Reader) -> int:
-        """Download the given shard.
+    def prepare_shard(self, shard: Reader) -> int:
+        """Ensure (download, validate, extract, etc.) that we have the given shard.
 
         Args:
             shard (Reader): Which shard.
@@ -383,7 +383,7 @@ class Stream:
         """
         delta = 0
         for raw_info, zip_info in shard.file_pairs:
-            delta += self._download_shard_part(raw_info, zip_info, shard.compression)
+            delta += self._prepare_shard_part(raw_info, zip_info, shard.compression)
         return delta
 
     def get_shards(self, world: World) -> List[Reader]:
