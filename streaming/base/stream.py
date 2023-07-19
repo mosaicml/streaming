@@ -3,9 +3,10 @@
 
 """A dataset, or sub-dataset if mixing, from which we stream/cache samples."""
 
+import hashlib
 import json
 import os
-from tempfile import mkdtemp
+import tempfile
 from typing import List, Optional, Sequence
 
 import numpy as np
@@ -14,6 +15,7 @@ from typing_extensions import Self
 
 from streaming.base.compression import decompress
 from streaming.base.constant import TICK
+from streaming.base.distributed import barrier, get_local_rank
 from streaming.base.format import FileInfo, Reader, get_index_basename, reader_from_json
 from streaming.base.hashing import get_hash
 from streaming.base.storage import download_file
@@ -98,7 +100,6 @@ class Stream:
                  keep_zip: Optional[bool] = None) -> None:
         self.remote = remote
         self._local = local
-        self.local = local or mkdtemp()
         self.split = split or ''
 
         has_proportion = proportion is not None
@@ -140,12 +141,32 @@ class Stream:
 
         self.validate_hash = validate_hash
 
+        if local is None:
+            self.local = self._get_temporary_directory()
+            if get_local_rank() == 0:
+                if os.path.exists(self.local):
+                    raise ValueError(
+                        f'Could not create a local directory. Specify a local directory with the `local` value.'
+                    )
+                os.makedirs(self.local)
+            barrier()
+        else:
+            self.local = local
+
         self._keep_zip = keep_zip
         if keep_zip is not None:
             self.keep_zip = keep_zip
             self.safe_keep_zip = self.keep_zip or self.remote in {None, self.local}
 
-    def apply_default(self, default: Self) -> None:
+    def _get_temporary_directory(self) -> str:
+        """Construct a path to a temporary directory based on remote and split."""
+        root = tempfile.gettempdir()
+        hash = ''
+        if self.remote is not None:
+            hash = hashlib.blake2s(self.remote.encode('utf-8'), digest_size=16).hexdigest()
+        return os.path.join(root, hash, self.split)
+
+    def apply_default(self, default: dict) -> None:
         """Apply defaults, setting any unset fields.
 
         We use pairs of (name, _name) in order to make type checking happy.
@@ -157,16 +178,16 @@ class Stream:
             raise ValueError('`remote` and/or `local` path must be provided')
 
         if not self.split:
-            self.split = default.split or ''
+            self.split = default['split'] or ''
         if self._download_retry is None:
-            self.download_retry = default.download_retry
+            self.download_retry = default['download_retry']
         if self._download_timeout is None:
-            self.download_timeout = default.download_timeout
+            self.download_timeout = default['download_timeout']
         if self.validate_hash is None:
-            self.validate_hash = default.validate_hash or None
+            self.validate_hash = default['validate_hash'] or None
         if self._keep_zip is None:
-            self.keep_zip = default.keep_zip
-            self.safe_keep_zip = self.keep_zip or self.remote in {None, self.local}
+            self.keep_zip = default['keep_zip']
+            self.safe_keep_zip = default['keep_zip'] or self.remote in {None, self.local}
 
     @classmethod
     def validate_weights(cls, streams: Sequence[Self]) -> bool:
