@@ -289,20 +289,30 @@ class StreamingDataset(Array, IterableDataset):
             raise ValueError(
                 'You must provide either `streams` or `remote`/`local`, but not both.')
 
-        # Initialize the Stream defaults.
-        default = Stream(remote=remote,
-                         local=local,
-                         split=split,
-                         download_retry=download_retry,
-                         download_timeout=download_timeout,
-                         validate_hash=validate_hash,
-                         keep_zip=keep_zip)
+        # Initialize torch dist ourselves, if necessary.
+        destroy_dist = maybe_init_dist()
 
-        # Normalize to a list of Streams.
+        # Initialize the Stream defaults and normalize to a list of Streams.
         if streams:
+            default = {
+                'remote': remote,
+                'local': local,
+                'split': split,
+                'download_retry': download_retry,
+                'download_timeout': download_timeout,
+                'validate_hash': validate_hash,
+                'keep_zip': keep_zip,
+            }
             for stream in streams:
                 stream.apply_default(default)
         else:
+            default = Stream(remote=remote,
+                             local=local,
+                             split=split,
+                             download_retry=download_retry,
+                             download_timeout=download_timeout,
+                             validate_hash=validate_hash,
+                             keep_zip=keep_zip)
             streams = [default]
 
         # Validate the stream weighting scheme (relative or absolute) to catch errors before we go
@@ -319,9 +329,6 @@ class StreamingDataset(Array, IterableDataset):
         # different values for these fields. We are saving the rank World here because we cannot
         # instantiate a World inside the StreamingDataset destructor.
         self._rank_world = world = World()
-
-        # Initialize torch dist ourselves, if necessary.
-        destroy_dist = maybe_init_dist()
 
         # Download each stream's index, load their shards, and map streams <-> shards.
         self.num_samples = 0
