@@ -4,17 +4,14 @@
 """Create a streaming dataset from toy data with various options for regression testing."""
 
 import os
-import shutil
 import tempfile
 import urllib.parse
 from argparse import ArgumentParser, Namespace
 
 import utils
-from torch import distributed as dist
 from torch.utils.data import DataLoader
 
 from streaming import StreamingDataset
-from streaming.base.distributed import barrier, maybe_init_dist
 
 _TRAIN_EPOCHS = 2
 
@@ -105,9 +102,6 @@ def main(args: Namespace, kwargs: dict[str, str]) -> None:
         args (Namespace): Command-line arguments.
         kwargs (dict): Named arguments.
     """
-    # Initialize torch dist ourselves, if necessary.
-    destroy_dist = maybe_init_dist()
-
     tmp_dir = tempfile.gettempdir()
     tmp_download_dir = os.path.join(tmp_dir, 'test_iterate_data_download')
     dataset = StreamingDataset(
@@ -142,16 +136,8 @@ def main(args: Namespace, kwargs: dict[str, str]) -> None:
         num_local_files = len([
             name for name in os.listdir(local_dir) if os.path.isfile(os.path.join(local_dir, name))
         ])
+        print(num_cloud_files)
         assert num_cloud_files == num_local_files
-
-    barrier()
-    # Clean up directories
-    for stream in dataset.streams:
-        shutil.rmtree(stream.local, ignore_errors=True)
-    shutil.rmtree(tmp_download_dir, ignore_errors=True)
-
-    if destroy_dist:
-        dist.destroy_process_group()
 
 
 if __name__ == '__main__':

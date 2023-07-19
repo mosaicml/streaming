@@ -14,7 +14,6 @@ import utils
 
 from streaming import MDSWriter
 
-_NUM_SAMPLES = 10000
 # Word representation of a number
 _ONES = ('zero one two three four five six seven eight nine ten eleven twelve '
          'thirteen fourteen fifteen sixteen seventeen eighteen nineteen').split()
@@ -54,6 +53,10 @@ def parse_args() -> Namespace:
         help=('Shard size limit, after which point to start a new shard for '
               'MDSWriter. If ``None``, puts everything in one shard.'),
     )
+    args.add_argument('--num_samples',
+                      type=int,
+                      default=10000,
+                      help='Number of samples to generate')
     return args.parse_args()
 
 
@@ -162,7 +165,7 @@ def main(args: Namespace) -> None:
     """
     remote_dir = utils.get_remote_dir(args.cloud)
     if args.create:
-        dataset = get_dataset(_NUM_SAMPLES)
+        dataset = get_dataset(args.num_samples)
         with MDSWriter(
                 out=remote_dir,
                 columns=_COLUMNS,
