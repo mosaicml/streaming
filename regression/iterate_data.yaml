@@ -23,6 +23,7 @@ command: |-
   composer -n 8 regression/iterate_data.py --batch_size 1000
   composer -n 8 regression/iterate_data.py --shuffle --shuffle_algo py1b --shuffle_seed 12 --shuffle_block_size 10000
   composer -n 1 regression/synthetic_dataset.py --delete
+
 image: mosaicml/composer:0.15.0
 scheduling:
   resumable: true
