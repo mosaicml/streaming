@@ -89,9 +89,8 @@ class Writer(ABC):
 
         size_limit_value = None
         if size_limit:
-            if (isinstance(size_limit, str)):
-                size_limit_value = bytes_to_int(size_limit)
-            if size_limit_value is not None and size_limit_value < 0:
+            size_limit_value = bytes_to_int(size_limit)
+            if size_limit_value < 0:
                 raise ValueError(f'`size_limit` must be greater than zero, instead, ' +
                                  f'found as {size_limit_value}.')
 

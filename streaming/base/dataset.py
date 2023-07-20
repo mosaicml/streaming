@@ -371,9 +371,8 @@ class StreamingDataset(Array, IterableDataset):
         # Convert epoch size from string to int, if needed. Cannot be negative.
         epoch_size_value = None
         if epoch_size:
-            if isinstance(epoch_size, str):
-                epoch_size_value = number_abbrev_to_int(epoch_size)
-            if (epoch_size_value is not None and epoch_size_value < 0):
+            epoch_size_value = number_abbrev_to_int(epoch_size)
+            if epoch_size_value < 0:
                 raise ValueError(f'Epoch size cannot be negative. Received {epoch_size_value}.')
 
         # Now that we know the number of underlying samples of each stream, derive each stream's
