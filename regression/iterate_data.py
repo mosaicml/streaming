@@ -136,7 +136,6 @@ def main(args: Namespace, kwargs: dict[str, str]) -> None:
         num_local_files = len([
             name for name in os.listdir(local_dir) if os.path.isfile(os.path.join(local_dir, name))
         ])
-        print(num_cloud_files)
         assert num_cloud_files == num_local_files
 
 
