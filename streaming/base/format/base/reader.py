@@ -6,9 +6,10 @@
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict, Iterator, List, Optional, Set
+from typing import Any, Dict, Iterator, List, Optional, Set, Union
 
 from streaming.base.array import Array
+from streaming.base.util import bytes_to_int
 
 __all__ = ['FileInfo', 'Reader', 'JointReader', 'SplitReader']
 
@@ -36,8 +37,10 @@ class Reader(Array, ABC):
         compression (str, optional): Optional compression or compression:level.
         hashes (List[str]): Optional list of hash algorithms to apply to shard files.
         samples (int): Number of samples in this shard.
-        size_limit (int, optional): Optional shard size limit, after which point to start a new
-            shard. If None, puts everything in one shard.
+        size_limit (Union[int, str], optional): Optional shard size limit, after which point to start a new
+            shard. If None, puts everything in one shard. Can specify bytes
+            human-readable format as well, for example ``"100kb"`` for 100 kibibyte
+            (100*1024*1024) and so on.
     """
 
     def __init__(
@@ -47,8 +50,16 @@ class Reader(Array, ABC):
         compression: Optional[str],
         hashes: List[str],
         samples: int,
-        size_limit: Optional[int],
+        size_limit: Optional[Union[int, str]],
     ) -> None:
+
+        if size_limit:
+            if (isinstance(size_limit, str)):
+                size_limit = bytes_to_int(size_limit)
+            if size_limit < 0:
+                raise ValueError(f'`size_limit` must be greater than zero, instead, ' +
+                                 f'found as {size_limit}.')
+
         self.dirname = dirname
         self.split = split or ''
         self.compression = compression
@@ -277,7 +288,7 @@ class JointReader(Reader):
         hashes (List[str]): Optional list of hash algorithms to apply to shard files.
         raw_data (FileInfo): Uncompressed data file info.
         samples (int): Number of samples in this shard.
-        size_limit (int, optional): Optional shard size limit, after which point to start a new
+        size_limit (Union[int, str], optional): Optional shard size limit, after which point to start a new
             shard. If None, puts everything in one shard.
         zip_data (FileInfo, optional): Compressed data file info.
     """
@@ -290,7 +301,7 @@ class JointReader(Reader):
         hashes: List[str],
         raw_data: FileInfo,
         samples: int,
-        size_limit: Optional[int],
+        size_limit: Optional[Union[int, str]],
         zip_data: Optional[FileInfo],
     ) -> None:
         super().__init__(dirname, split, compression, hashes, samples, size_limit)
@@ -310,7 +321,7 @@ class SplitReader(Reader):
         raw_data (FileInfo): Uncompressed data file info.
         raw_meta (FileInfo): Uncompressed meta file info.
         samples (int): Number of samples in this shard.
-        size_limit (int, optional): Optional shard size limit, after which point to start a new
+        size_limit (Union[int, str], optional): Optional shard size limit, after which point to start a new
             shard. If None, puts everything in one shard.
         zip_data (FileInfo, optional): Compressed data file info.
         zip_meta (FileInfo, optional): Compressed meta file info.
@@ -325,7 +336,7 @@ class SplitReader(Reader):
         raw_data: FileInfo,
         raw_meta: FileInfo,
         samples: int,
-        size_limit: Optional[int],
+        size_limit: Optional[Union[int, str]],
         zip_data: Optional[FileInfo],
         zip_meta: Optional[FileInfo],
     ) -> None:

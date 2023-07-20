@@ -20,6 +20,7 @@ from streaming.base.compression import compress, get_compression_extension, is_c
 from streaming.base.format.index import get_index_basename
 from streaming.base.hashing import get_hash, is_hash
 from streaming.base.storage.upload import CloudUploader
+from streaming.base.util import bytes_to_int
 
 __all__ = ['JointWriter', 'SplitWriter']
 
@@ -44,8 +45,10 @@ class Writer(ABC):
             ``None``.
         hashes (List[str], optional): Optional list of hash algorithms to apply to shard files.
             Defaults to ``None``.
-        size_limit (int, optional): Optional shard size limit, after which point to start a new
-            shard. If ``None``, puts everything in one shard. Defaults to ``1 << 26``.
+        size_limit (Union[int, str], optional): Optional shard size limit, after which point to start a new
+            shard. If ``None``, puts everything in one shard. Defaults to ``1 << 26``. Can specify bytes
+            human-readable format as well, for example ``"100kb"`` for 100 kibibyte
+            (100*1024*1024) and so on.
         extra_bytes_per_shard (int): Extra bytes per serialized shard (for computing shard size
             while writing). Defaults to ``0``.
         extra_bytes_per_sample (int): Extra bytes per serialized sample (for computing shard size
@@ -67,7 +70,7 @@ class Writer(ABC):
                  keep_local: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,
-                 size_limit: Optional[int] = 1 << 26,
+                 size_limit: Optional[Union[int, str]] = 1 << 26,
                  extra_bytes_per_shard: int = 0,
                  extra_bytes_per_sample: int = 0,
                  **kwargs: Any) -> None:
@@ -84,17 +87,18 @@ class Writer(ABC):
             if not is_hash(algo):
                 raise ValueError(f'Invalid hash: {algo}.')
 
+        size_limit_value = None
         if size_limit:
-            if size_limit < 0:
+            if (isinstance(size_limit, str)):
+                size_limit_value = bytes_to_int(size_limit)
+            if size_limit_value is not None and size_limit_value < 0:
                 raise ValueError(f'`size_limit` must be greater than zero, instead, ' +
-                                 f'found as {size_limit}.')
-        else:
-            size_limit = None
+                                 f'found as {size_limit_value}.')
 
         self.keep_local = keep_local
         self.compression = compression
         self.hashes = hashes
-        self.size_limit = size_limit
+        self.size_limit = size_limit_value
         self.extra_bytes_per_shard = extra_bytes_per_shard
         self.extra_bytes_per_sample = extra_bytes_per_sample
         self.new_samples: List[bytes]
@@ -338,7 +342,7 @@ class JointWriter(Writer):
                  keep_local: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,
-                 size_limit: Optional[int] = 1 << 26,
+                 size_limit: Optional[Union[int, str]] = 1 << 26,
                  extra_bytes_per_shard: int = 0,
                  extra_bytes_per_sample: int = 0,
                  **kwargs: Any) -> None:
@@ -419,7 +423,7 @@ class SplitWriter(Writer):
                  keep_local: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,
-                 size_limit: Optional[int] = 1 << 26,
+                 size_limit: Optional[Union[int, str]] = 1 << 26,
                  **kwargs: Any) -> None:
         super().__init__(out=out,
                          keep_local=keep_local,

@@ -14,6 +14,10 @@ import pytest
 from numpy.typing import NDArray
 
 from streaming.base import StreamingDataset
+from streaming.base.format.base.reader import FileInfo
+from streaming.base.format.json import JSONReader
+from streaming.base.format.mds import MDSReader
+from streaming.base.format.xsv import XSVReader
 from tests.common.datasets import SequenceDataset, write_mds_dataset
 from tests.common.utils import copy_all_files
 
@@ -305,3 +309,205 @@ def test_accidental_shard_delete_exception(mds_dataset_dir: Any):
                 os.remove(os.path.join(local_dir, filename))
             pass
     shutil.rmtree(local_dir, ignore_errors=True)
+
+
+class TestAllReaderSizeLimits:
+
+    @pytest.mark.parametrize('input,expected', [('3Kb', 3 * 1024), ('4mb', 4 * 1024**2),
+                                                ('2Gb', 2 * 1024**3), ('5tB', 5 * 1024**4),
+                                                ('0.7pb', int(0.7 * 1024**5)),
+                                                ('0.03EB', int(0.03 * 1024**6)),
+                                                ('537Zb', 537 * 1024**7), ('91yB', 91 * 1024**8)])
+    def test_size_limit_human_readable(self, input: str, expected: int) -> None:
+        dirname = '/fake/directory'
+        split = None
+        column_sizes = []
+        compression = None
+        column_encodings = []
+        column_names = []
+        columns = {}
+        hashes = []
+        newline = '\n'
+        raw_data = FileInfo(basename='fake', bytes=0, hashes={})
+        raw_meta = FileInfo(basename='fake', bytes=0, hashes={})
+        zip_data = FileInfo(basename='fake', bytes=0, hashes={})
+        zip_meta = FileInfo(basename='fake', bytes=0, hashes={})
+        separator = ','
+        samples = 0
+        mreader = MDSReader(dirname=dirname,
+                            column_encodings=column_encodings,
+                            column_names=column_names,
+                            hashes=hashes,
+                            raw_data=raw_data,
+                            samples=samples,
+                            size_limit=input,
+                            split=split,
+                            column_sizes=column_sizes,
+                            compression=compression,
+                            zip_data=zip_data)
+        jreader = JSONReader(dirname=dirname,
+                             columns=columns,
+                             hashes=hashes,
+                             newline=newline,
+                             raw_data=raw_data,
+                             raw_meta=raw_meta,
+                             samples=samples,
+                             size_limit=input,
+                             split=split,
+                             compression=compression,
+                             zip_data=zip_data,
+                             zip_meta=zip_meta)
+        xreader = XSVReader(dirname=dirname,
+                            column_encodings=column_encodings,
+                            column_names=column_names,
+                            hashes=hashes,
+                            newline=newline,
+                            raw_data=raw_data,
+                            raw_meta=raw_meta,
+                            separator=separator,
+                            samples=samples,
+                            size_limit=input,
+                            split=split,
+                            compression=compression,
+                            zip_data=zip_data,
+                            zip_meta=zip_meta)
+        assert (mreader.size_limit == expected)
+        assert (jreader.size_limit == expected)
+        assert (xreader.size_limit == expected)
+
+    def test_size_limit_negative_MDS(self) -> None:
+        dirname = '/fake/directory'
+        split = None
+        column_sizes = []
+        compression = None
+        column_encodings = []
+        column_names = []
+        hashes = []
+        raw_data = FileInfo(basename='fake', bytes=0, hashes={})
+        zip_data = FileInfo(basename='fake', bytes=0, hashes={})
+        samples = 0
+        with pytest.raises(ValueError):
+            _ = MDSReader(dirname=dirname,
+                          column_encodings=column_encodings,
+                          column_names=column_names,
+                          hashes=hashes,
+                          raw_data=raw_data,
+                          samples=samples,
+                          size_limit='-4GB',
+                          split=split,
+                          column_sizes=column_sizes,
+                          compression=compression,
+                          zip_data=zip_data)
+
+    def test_size_limit_negative_JSON(self) -> None:
+        dirname = '/fake/directory'
+        split = None
+        compression = None
+        columns = {}
+        hashes = []
+        newline = '\n'
+        raw_data = FileInfo(basename='fake', bytes=0, hashes={})
+        raw_meta = FileInfo(basename='fake', bytes=0, hashes={})
+        zip_data = FileInfo(basename='fake', bytes=0, hashes={})
+        zip_meta = FileInfo(basename='fake', bytes=0, hashes={})
+        samples = 0
+        with pytest.raises(ValueError):
+            _ = JSONReader(dirname=dirname,
+                           columns=columns,
+                           hashes=hashes,
+                           newline=newline,
+                           raw_data=raw_data,
+                           raw_meta=raw_meta,
+                           samples=samples,
+                           size_limit='-4GB',
+                           split=split,
+                           compression=compression,
+                           zip_data=zip_data,
+                           zip_meta=zip_meta)
+
+    def test_size_limit_negative_XSV(self) -> None:
+        dirname = '/fake/directory'
+        split = None
+        compression = None
+        column_encodings = []
+        column_names = []
+        hashes = []
+        newline = '\n'
+        raw_data = FileInfo(basename='fake', bytes=0, hashes={})
+        raw_meta = FileInfo(basename='fake', bytes=0, hashes={})
+        zip_data = FileInfo(basename='fake', bytes=0, hashes={})
+        zip_meta = FileInfo(basename='fake', bytes=0, hashes={})
+        separator = ','
+        samples = 0
+        with pytest.raises(ValueError):
+            _ = XSVReader(dirname=dirname,
+                          column_encodings=column_encodings,
+                          column_names=column_names,
+                          hashes=hashes,
+                          newline=newline,
+                          raw_data=raw_data,
+                          raw_meta=raw_meta,
+                          samples=samples,
+                          separator=separator,
+                          size_limit='-4GB',
+                          split=split,
+                          compression=compression,
+                          zip_data=zip_data,
+                          zip_meta=zip_meta)
+
+    def test_size_limit_none(self) -> None:
+        dirname = '/fake/directory'
+        split = None
+        column_sizes = []
+        compression = None
+        column_encodings = []
+        column_names = []
+        columns = {}
+        hashes = []
+        newline = '\n'
+        raw_data = FileInfo(basename='fake', bytes=0, hashes={})
+        raw_meta = FileInfo(basename='fake', bytes=0, hashes={})
+        zip_data = FileInfo(basename='fake', bytes=0, hashes={})
+        zip_meta = FileInfo(basename='fake', bytes=0, hashes={})
+        separator = ','
+        samples = 0
+        mreader = MDSReader(dirname=dirname,
+                            column_encodings=column_encodings,
+                            column_names=column_names,
+                            hashes=hashes,
+                            raw_data=raw_data,
+                            samples=samples,
+                            size_limit=None,
+                            split=split,
+                            column_sizes=column_sizes,
+                            compression=compression,
+                            zip_data=zip_data)
+        jreader = JSONReader(dirname=dirname,
+                             columns=columns,
+                             hashes=hashes,
+                             newline=newline,
+                             raw_data=raw_data,
+                             raw_meta=raw_meta,
+                             samples=samples,
+                             size_limit=None,
+                             split=split,
+                             compression=compression,
+                             zip_data=zip_data,
+                             zip_meta=zip_meta)
+        xreader = XSVReader(dirname=dirname,
+                            column_encodings=column_encodings,
+                            column_names=column_names,
+                            hashes=hashes,
+                            newline=newline,
+                            raw_data=raw_data,
+                            raw_meta=raw_meta,
+                            separator=separator,
+                            samples=samples,
+                            size_limit=None,
+                            split=split,
+                            compression=compression,
+                            zip_data=zip_data,
+                            zip_meta=zip_meta)
+        assert (mreader.size_limit is None)
+        assert (jreader.size_limit is None)
+        assert (xreader.size_limit is None)

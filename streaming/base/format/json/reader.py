@@ -6,7 +6,7 @@
 import json
 import os
 from copy import deepcopy
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 from typing_extensions import Self
@@ -31,7 +31,9 @@ class JSONReader(SplitReader):
         raw_meta (FileInfo): Uncompressed meta file info.
         samples (int): Number of samples in this shard.
         size_limit (int, optional): Optional shard size limit, after which point to start a new
-            shard. If None, puts everything in one shard.
+            shard. If None, puts everything in one shard. Can specify bytes
+            human-readable format as well, for example ``"100kb"`` for 100 kibibyte
+            (100*1024*1024) and so on.
         zip_data (FileInfo, optional): Compressed data file info.
         zip_meta (FileInfo, optional): Compressed meta file info.
     """
@@ -47,7 +49,7 @@ class JSONReader(SplitReader):
         raw_data: FileInfo,
         raw_meta: FileInfo,
         samples: int,
-        size_limit: Optional[int],
+        size_limit: Optional[Union[int, str]],
         zip_data: Optional[FileInfo],
         zip_meta: Optional[FileInfo],
     ) -> None:

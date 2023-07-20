@@ -5,7 +5,7 @@
 
 import os
 from copy import deepcopy
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 from typing_extensions import Self
@@ -29,8 +29,10 @@ class MDSReader(JointReader):
         hashes (List[str]): Optional list of hash algorithms to apply to shard files.
         raw_data (FileInfo): Uncompressed data file info.
         samples (int): Number of samples in this shard.
-        size_limit (int, optional): Optional shard size limit, after which point to start a new
-            shard. If None, puts everything in one shard.
+        size_limit (Union[int, str], optional): Optional shard size limit, after which point to start a new
+            shard. If None, puts everything in one shard. Can specify bytes
+            human-readable format as well, for example ``"100kb"`` for 100 kibibyte
+            (100*1024*1024) and so on.
         zip_data (FileInfo, optional): Compressed data file info.
     """
 
@@ -45,7 +47,7 @@ class MDSReader(JointReader):
         hashes: List[str],
         raw_data: FileInfo,
         samples: int,
-        size_limit: Optional[int],
+        size_limit: Optional[Union[int, str]],
         zip_data: Optional[FileInfo],
     ) -> None:
         super().__init__(dirname, split, compression, hashes, raw_data, samples, size_limit,
