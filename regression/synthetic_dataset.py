@@ -4,7 +4,9 @@
 """Create a toy dataset using MDSWriter for regression testing."""
 
 import os
+import random
 import shutil
+import string
 import urllib.parse
 from argparse import ArgumentParser, Namespace
 from typing import Union
@@ -99,6 +101,12 @@ def get_dataset(num_samples: int) -> list[dict[str, Union[int, str]]]:
     for num in numbers:
         words = ' '.join(say(num))
         sample = {'number': num, 'words': words}
+        samples.append(sample)
+    for num in range(num_samples):
+        sample = {
+            'number': num,
+            'words': ''.join([random.choice(string.ascii_lowercase) for _ in range(num_samples)])
+        }
         samples.append(sample)
     return samples
 

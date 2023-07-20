@@ -6,13 +6,13 @@ command: |-
   pip uninstall -y mosaicml-streaming
   cd streaming
   pip install -e '.[dev]'
-  composer -n 1 regression/synthetic_dataset.py --create --cloud gs --size_limit 4194304 # 4mb
+  composer -n 1 regression/synthetic_dataset.py --create --cloud gs --num_samples 20000 --size_limit 4194304 # 4mb
   composer -n 2 regression/iterate_data.py --cloud gs --check_download
   composer -n 1 regression/synthetic_dataset.py --delete --cloud gs
-  composer -n 1 regression/synthetic_dataset.py --create --cloud s3 --size_limit 134217728 # 128 mb
+  composer -n 1 regression/synthetic_dataset.py --create --cloud s3 --num_samples 25000 --size_limit 134217728 # 128 mb
   composer -n 4 regression/iterate_data.py --cloud s3 --check_download --local
   composer -n 1 regression/synthetic_dataset.py --delete --cloud s3
-  composer -n 1 regression/synthetic_dataset.py --create --cloud oci --size_limit 268435456 # 256 mb
+  composer -n 1 regression/synthetic_dataset.py --create --cloud oci --num_samples 25000 --size_limit 268435456 # 256 mb
   composer -n 8 regression/iterate_data.py --cloud oci --check_download
   composer -n 1 regression/synthetic_dataset.py --delete --cloud oci
 
