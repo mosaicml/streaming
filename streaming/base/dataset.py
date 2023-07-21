@@ -220,7 +220,7 @@ class StreamingDataset(Array, IterableDataset):
             streams. If ``None``, takes its value from the total number of underlying samples.
             Provide this field if you are weighting streams relatively to target a larger or
             smaller epoch size. Defaults to ``None``. Can also take in human-readable number
-            abbreviations (e.g., ``"100k"``, ``"64M"``, ``"77b"``, and so on).
+            abbreviations (e.g., ``"100k"``, ``"64M"``, ``"77b"``, and so on). Defaults to ``None``.
         predownload (int, optional): Target number of samples ahead to download the shards per
             number of workers provided in a dataloader while iterating. If ``None``, its value
             gets derived using batch size and number of canonical nodes

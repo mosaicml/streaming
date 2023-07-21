@@ -35,9 +35,9 @@ class JSONWriter(SplitWriter):
         hashes (List[str], optional): Optional list of hash algorithms to apply to shard files.
             Defaults to ``None``.
         size_limit (Union[int, str], optional): Optional shard size limit, after which point to start a new
-            shard. If None, puts everything in one shard. Defaults to ``None``. Can specify bytes
+            shard. If None, puts everything in one shard. Can specify bytes
             human-readable format as well, for example ``"100kb"`` for 100 kibibyte
-            (100*1024*1024) and so on.
+            (100*1024*1024) and so on. Defaults to ``1 << 26``.
         **kwargs (Any): Additional settings for the Writer.
 
             progress_bar (bool): Display TQDM progress bars for uploading output dataset files to

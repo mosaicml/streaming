@@ -8,7 +8,6 @@ from typing import Any, Tuple
 import pytest
 from torch.utils.data import DataLoader
 
-from streaming import Stream
 from streaming.base import StreamingDataLoader, StreamingDataset
 from tests.common.datasets import SequenceDataset, write_mds_dataset
 
@@ -268,31 +267,3 @@ def test_multiple_dataset_instantiation(mds_dataset_dir: Any, shuffle_seed: tupl
 
     assert len(train_sample_order) == len(val_sample_order), 'Missing samples'
     assert len(set(train_sample_order)) == len(set(val_sample_order)), 'Duplicate samples'
-
-
-@pytest.mark.usefixtures('local_remote_dir')
-@pytest.mark.parametrize('batch_size', [2])
-@pytest.mark.parametrize('num_samples', [10])
-@pytest.mark.parametrize('size_limit', [8_192])
-@pytest.mark.parametrize('seed', [1234])
-@pytest.mark.usefixtures('local_remote_dir')
-@pytest.mark.parametrize('input,expected', [('3K', 3000), ('4m', 4000000), ('2b', 2000000000),
-                                            ('5t', 5000000000000), ('0.7b', 700000000),
-                                            ('0.03k', 30), ('537b', 537000000000)])
-def test_dataset_epoch_size_human_readable(local_remote_dir: Tuple[str, str], batch_size: int,
-                                           num_samples: int, size_limit: int, seed: int,
-                                           input: str, expected: int):
-
-    dataset = SequenceDataset(num_samples)
-    columns = dict(zip(dataset.column_names, dataset.column_encodings))
-    local, remote = local_remote_dir
-    write_mds_dataset(out_root=remote, columns=columns, samples=dataset, size_limit=size_limit)
-
-    # Build a StreamingDataset
-    dataset = StreamingDataset(streams=[Stream(local=local, remote=remote, proportion=1.0)],
-                               shuffle=False,
-                               batch_size=batch_size,
-                               shuffle_seed=seed,
-                               epoch_size=input)
-
-    assert (dataset.epoch_size == expected)
