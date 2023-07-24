@@ -80,7 +80,7 @@ hashes = ['sha1']
 3. Provide a shard size limit, after which point to start a new shard.
 <!--pytest-codeblocks:cont-->
 ```python
-# Number act as a byte, e.g., 1024 bytes
+# Number act as a byte, e.g., 1024 bytes. A string abbreviation (ex: "1024b" or "1kb") is also acceptable
 limit = 1024
 ```
 

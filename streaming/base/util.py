@@ -6,7 +6,7 @@
 import os
 from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
 from time import sleep, time
-from typing import List
+from typing import List, Union
 
 import torch.distributed as dist
 
@@ -53,11 +53,11 @@ def wait_for_file_to_exist(filename: str, poll_interval: float, timeout: float,
             raise RuntimeError(f'{err_msg}' + f'{timeout:.3f} < {dt:.3f} secs.')
 
 
-def bytes_to_int(bytes_str: str) -> int:
+def bytes_to_int(bytes_str: Union[int, str]) -> int:
     """Convert human readable byte format to an integer.
 
     Args:
-        bytes_str (str): Value to convert.
+        bytes_str (Union[int, str]): Value to convert.
 
     Raises:
         ValueError: Invalid byte suffix.
@@ -65,6 +65,10 @@ def bytes_to_int(bytes_str: str) -> int:
     Returns:
         int: Integer value of bytes.
     """
+    #input is already an int
+    if isinstance(bytes_str, int) or isinstance(bytes_str, float):
+        return int(bytes_str)
+
     units = {
         'kb': 1024,
         'mb': 1024**2,
@@ -79,7 +83,13 @@ def bytes_to_int(bytes_str: str) -> int:
     for suffix in units:
         bytes_str = bytes_str.lower().strip()
         if bytes_str.lower().endswith(suffix):
-            return int(float(bytes_str[0:-len(suffix)]) * units[suffix])
+            try:
+                return int(float(bytes_str[0:-len(suffix)]) * units[suffix])
+            except ValueError:
+                raise ValueError(''.join([
+                    f'Unsupported value/suffix {bytes_str}. Supported suffix are ',
+                    f'{["b"] + list(units.keys())}.'
+                ]))
     else:
         # Convert bytes to an integer
         if bytes_str.endswith('b') and bytes_str[0:-1].isdigit():
@@ -91,6 +101,50 @@ def bytes_to_int(bytes_str: str) -> int:
             raise ValueError(''.join([
                 f'Unsupported value/suffix {bytes_str}. Supported suffix are ',
                 f'{["b"] + list(units.keys())}.'
+            ]))
+
+
+def number_abbrev_to_int(abbrev_str: Union[int, str]) -> int:
+    """Convert human readable number abbreviations to an integer.
+
+    Args:
+        abbrev_str (Union[int, str]): Value to convert.
+
+    Raises:
+        ValueError: Invalid number suffix.
+
+    Returns:
+        int: Integer value of number abbreviation.
+    """
+    #input is already an int
+    if isinstance(abbrev_str, int) or isinstance(abbrev_str, float):
+        return int(abbrev_str)
+
+    units = {
+        'k': 10**3,
+        'm': 10**6,
+        'b': 10**9,
+        't': 10**12,
+    }
+    # Convert a various abbreviation types to an integer
+    for suffix in units:
+        abbrev_str = abbrev_str.lower().strip()
+        if abbrev_str.lower().endswith(suffix):
+            try:
+                return int(float(abbrev_str[0:-len(suffix)]) * units[suffix])
+            except ValueError:
+                raise ValueError(''.join([
+                    f'Unsupported value/suffix {abbrev_str}. Supported suffix are ',
+                    f'{list(units.keys())}.'
+                ]))
+    else:
+        # Convert string representation of a number to an integer
+        if abbrev_str.isdigit():
+            return int(abbrev_str)
+        else:
+            raise ValueError(''.join([
+                f'Unsupported value/suffix {abbrev_str}. Supported suffix are ',
+                f'{list(units.keys())}.'
             ]))
 
 
