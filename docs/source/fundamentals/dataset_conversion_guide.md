@@ -59,7 +59,7 @@ _encodings['int32'] = Int32
 
 4. A `hashes` algorithm name to verify data integrity. Check out the [hashing](hashing.md) document for additional details.
 
-5. A shard `size_limit` in bytes for each shard file, after which point to start a new shard. Shard file size depends on the dataset size, but generally, too small of a shard size creates a ton of shard files and heavy network overheads, and too large of a shard size creates fewer shard files, but the training start time would increase since it has to wait for a shard file to get downloaded locally. Based on our intuition, the shard file size of 64Mb, and 128Mb play a balanced role.
+5. A shard `size_limit` in bytes for each shard file, after which point to start a new shard. Shard file size depends on the dataset size, but generally, too small of a shard size creates a ton of shard files and heavy network overheads, and too large of a shard size creates fewer shard files, but the training start time would increase since it has to wait for a shard file to get downloaded locally. Based on our intuition, the shard file size of 64Mb, and 128Mb play a balanced role. This parameter is a number of bytes, either directly as an `int` or a human-readable suffix (ex: `1024` or `"1kb"`)
 
 6. A `keep_local` parameter if you would like to keep the shard files locally after it has been uploaded to a remote cloud location by MDSWriter.
 

@@ -31,7 +31,7 @@ from streaming.base.shared import (SharedArray, SharedBarrier, SharedMemory, Sha
 from streaming.base.shuffle import get_shuffle
 from streaming.base.spanner import Spanner
 from streaming.base.stream import Stream
-from streaming.base.util import bytes_to_int
+from streaming.base.util import bytes_to_int, number_abbrev_to_int
 from streaming.base.world import World
 
 # An arbitrary time in the future, used for cold shard eviction.
@@ -218,10 +218,11 @@ class StreamingDataset(Array, IterableDataset):
         keep_zip (bool): Whether to keep or delete the compressed form when decompressing
             downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
             ``False``.
-        epoch_size (int, optional): Number of samples to draw per epoch balanced across all
+        epoch_size (Union[int, str], optional): Number of samples to draw per epoch balanced across all
             streams. If ``None``, takes its value from the total number of underlying samples.
             Provide this field if you are weighting streams relatively to target a larger or
-            smaller epoch size. Defaults to ``None``.
+            smaller epoch size. Defaults to ``None``. Can also take in human-readable number
+            abbreviations (e.g., ``"100k"``, ``"64M"``, ``"77b"``, and so on). Defaults to ``None``.
         predownload (int, optional): Target number of samples ahead to download the shards per
             number of workers provided in a dataloader while iterating. If ``None``, its value
             gets derived using batch size and number of canonical nodes
@@ -263,7 +264,7 @@ class StreamingDataset(Array, IterableDataset):
                  download_timeout: float = 60,
                  validate_hash: Optional[str] = None,
                  keep_zip: bool = False,
-                 epoch_size: Optional[int] = None,
+                 epoch_size: Optional[Union[int, str]] = None,
                  predownload: Optional[int] = None,
                  cache_limit: Optional[Union[int, str]] = None,
                  partition_algo: str = 'orig',
@@ -369,10 +370,17 @@ class StreamingDataset(Array, IterableDataset):
         self.sample_offset_per_shard = self.samples_per_shard.cumsum() - self.samples_per_shard
         self.spanner = Spanner(self.samples_per_shard)
 
+        # Convert epoch size from string to int, if needed. Cannot be negative.
+        epoch_size_value = None
+        if epoch_size:
+            epoch_size_value = number_abbrev_to_int(epoch_size)
+            if epoch_size_value < 0:
+                raise ValueError(f'Epoch size cannot be negative. Received {epoch_size_value}.')
+
         # Now that we know the number of underlying samples of each stream, derive each stream's
         # true proportion/repeat/choose, as well as the total epoch size.
-        self.epoch_size = Stream.apply_weights(self.streams, self.samples_per_stream, epoch_size,
-                                               self.shuffle_seed)
+        self.epoch_size = Stream.apply_weights(self.streams, self.samples_per_stream,
+                                               epoch_size_value, self.shuffle_seed)
 
         # Length (__len__) is the resampled epoch size divided over the number of devices.
         self.length = ceil(self.epoch_size / world.num_ranks)
