@@ -36,7 +36,7 @@ class MDSWriter(JointWriter):
             Defaults to ``None``.
         size_limit (Union[int, str], optional): Optional shard size limit, after which point to start a new
             shard. If ``None``, puts everything in one shard. Can specify bytes
-            human-readable format as well, for example ``"100kb"`` for 100 kibibyte
+            human-readable format as well, for example ``"100kb"`` for 100 kilobyte
             (100*1024*1024) and so on. Defaults to ``1 << 26``.
         **kwargs (Any): Additional settings for the Writer.
 
