@@ -5,7 +5,6 @@ import json
 import logging
 import os
 import shutil
-import tempfile
 import time
 from typing import Any, Dict, List, Tuple, Union
 
@@ -14,49 +13,37 @@ import pytest
 from numpy.typing import NDArray
 
 from streaming.base import StreamingDataset
-from tests.common.datasets import SequenceDataset, write_mds_dataset
-from tests.common.utils import copy_all_files
+from tests.common.utils import convert_to_mds, copy_all_files
 
 logger = logging.getLogger(__name__)
 
 
-@pytest.fixture(scope='function')
-def mds_dataset_dir():
-    try:
-        mock_dir = tempfile.TemporaryDirectory()
-        remote_dir = os.path.join(mock_dir.name, 'remote')
-        local_dir = os.path.join(mock_dir.name, 'local')
-        num_samples = 117
-        size_limit = 1 << 8
-        dataset = SequenceDataset(num_samples)
-        columns = dict(zip(dataset.column_names, dataset.column_encodings))
-
-        write_mds_dataset(out_root=remote_dir,
-                          columns=columns,
-                          samples=dataset,
-                          size_limit=size_limit)
-        yield remote_dir, local_dir
-    finally:
-        mock_dir.cleanup()  # pyright: ignore
-
-
 @pytest.mark.parametrize('batch_size', [None, 1, 2])
-@pytest.mark.parametrize('remote_arg', ['none', 'same', 'different'])
+@pytest.mark.parametrize('remote_arg', ['empty', 'same', 'different', 'local'])
 @pytest.mark.parametrize('shuffle', [False, True])
 @pytest.mark.parametrize('seed', [5151])
 @pytest.mark.parametrize('num_canonical_nodes', [1])
-@pytest.mark.usefixtures('mds_dataset_dir')
-def test_dataset_sample_order(mds_dataset_dir: Any, batch_size: int, remote_arg: str,
-                              shuffle: bool, seed: int, num_canonical_nodes: int):
+@pytest.mark.parametrize('compression', [None, 'zstd:7'])
+@pytest.mark.usefixtures('local_remote_dir')
+def test_dataset_sample_order(local_remote_dir: Any, batch_size: int, remote_arg: str,
+                              shuffle: bool, seed: int, num_canonical_nodes: int,
+                              compression: str):
     num_samples = 117
-    remote_dir, local_dir = mds_dataset_dir
-    if remote_arg == 'none':
+    remote_dir, local_dir = local_remote_dir
+    convert_to_mds(out_root=remote_dir,
+                   dataset_name='sequencedataset',
+                   num_samples=num_samples,
+                   compression=compression,
+                   size_limit=1 << 8)
+    if remote_arg == 'empty':
         local_dir = remote_dir
         remote_dir = None
     elif remote_arg == 'same':
         local_dir = remote_dir
     elif remote_arg == 'different':
         pass
+    elif remote_arg == 'local':
+        local_dir = None
     else:
         assert False, f'Unknown value of remote_arg: {remote_arg}'
 
@@ -99,9 +86,16 @@ def test_dataset_sample_order(mds_dataset_dir: Any, batch_size: int, remote_arg:
 @pytest.mark.parametrize('batch_size', [None, 1, 2])
 @pytest.mark.parametrize('seed', [8988])
 @pytest.mark.parametrize('shuffle', [False, True])
-@pytest.mark.usefixtures('mds_dataset_dir')
-def test_dataset_determinism(mds_dataset_dir: Any, batch_size: int, seed: int, shuffle: bool):
-    remote_dir, local_dir = mds_dataset_dir
+@pytest.mark.parametrize('compression', [None, 'gz:3'])
+@pytest.mark.usefixtures('local_remote_dir')
+def test_dataset_determinism(local_remote_dir: Any, batch_size: int, seed: int, shuffle: bool,
+                             compression: str):
+    remote_dir, local_dir = local_remote_dir
+    convert_to_mds(out_root=remote_dir,
+                   dataset_name='sequencedataset',
+                   num_samples=117,
+                   compression=compression,
+                   size_limit=1 << 8)
 
     # Build StreamingDataset
     dataset = StreamingDataset(local=local_dir,
@@ -138,9 +132,13 @@ def test_dataset_determinism(mds_dataset_dir: Any, batch_size: int, seed: int, s
     ['index'],
 )
 @pytest.mark.parametrize('seed', [7777])
-@pytest.mark.usefixtures('mds_dataset_dir')
-def test_reader_download_fail(mds_dataset_dir: Any, missing_file: str, seed: int):
-    remote_dir, local_dir = mds_dataset_dir
+@pytest.mark.usefixtures('local_remote_dir')
+def test_reader_download_fail(local_remote_dir: Any, missing_file: str, seed: int):
+    remote_dir, local_dir = local_remote_dir
+    convert_to_mds(out_root=remote_dir,
+                   dataset_name='sequencedataset',
+                   num_samples=117,
+                   size_limit=1 << 8)
 
     if missing_file == 'index':
         os.remove(os.path.join(remote_dir, 'index.json'))
@@ -160,10 +158,14 @@ def test_reader_download_fail(mds_dataset_dir: Any, missing_file: str, seed: int
 @pytest.mark.parametrize('created_ago', [0.5, 1.0])
 @pytest.mark.parametrize('download_timeout', [1])
 @pytest.mark.parametrize('seed', [2569])
-@pytest.mark.usefixtures('mds_dataset_dir')
-def test_reader_after_crash(mds_dataset_dir: Any, created_ago: float, download_timeout: float,
+@pytest.mark.usefixtures('local_remote_dir')
+def test_reader_after_crash(local_remote_dir: Any, created_ago: float, download_timeout: float,
                             seed: int):
-    remote_dir, local_dir = mds_dataset_dir
+    remote_dir, local_dir = local_remote_dir
+    convert_to_mds(out_root=remote_dir,
+                   dataset_name='sequencedataset',
+                   num_samples=117,
+                   size_limit=1 << 8)
 
     if not os.path.exists(local_dir):
         os.mkdir(local_dir)
@@ -220,7 +222,7 @@ def _validate_sample(index: Union[int, slice, List[int], NDArray[np.int64]],
         # False,
     ],
 )
-@pytest.mark.usefixtures('mds_dataset_dir')
+@pytest.mark.usefixtures('local_remote_dir')
 @pytest.mark.parametrize('index', [
     -1, 0, [17], [44, 98], [-14, -87, -55],
     slice(0, 29, 3),
@@ -229,9 +231,13 @@ def _validate_sample(index: Union[int, slice, List[int], NDArray[np.int64]],
     np.array([3, 19, -70, -32])
 ])
 @pytest.mark.parametrize('seed', [5566])
-def test_reader_getitem(mds_dataset_dir: Any, share_remote_local: bool,
+def test_reader_getitem(local_remote_dir: Any, share_remote_local: bool,
                         index: Union[int, slice, List[int], NDArray[np.int64]], seed: int):
-    remote_dir, local_dir = mds_dataset_dir
+    remote_dir, local_dir = local_remote_dir
+    convert_to_mds(out_root=remote_dir,
+                   dataset_name='sequencedataset',
+                   num_samples=117,
+                   size_limit=1 << 8)
     if share_remote_local:
         local_dir = remote_dir
 
@@ -246,11 +252,15 @@ def test_reader_getitem(mds_dataset_dir: Any, share_remote_local: bool,
     _validate_sample(index, sample, len(dataset))
 
 
-@pytest.mark.usefixtures('mds_dataset_dir')
-def test_dataset_split_instantiation(mds_dataset_dir: Any):
+@pytest.mark.usefixtures('local_remote_dir')
+def test_dataset_split_instantiation(local_remote_dir: Any):
 
     splits = ['train', 'val']
-    remote_dir, local_dir = mds_dataset_dir
+    remote_dir, local_dir = local_remote_dir
+    convert_to_mds(out_root=remote_dir,
+                   dataset_name='sequencedataset',
+                   num_samples=117,
+                   size_limit=1 << 8)
 
     # Build StreamingDataset for each split
     for split in splits:
@@ -259,9 +269,13 @@ def test_dataset_split_instantiation(mds_dataset_dir: Any):
         _ = StreamingDataset(local=local_dir, remote=remote_dir, split=split)
 
 
-@pytest.mark.usefixtures('mds_dataset_dir')
+@pytest.mark.usefixtures('local_remote_dir')
 def test_invalid_index_json_exception(local_remote_dir: Tuple[str, str]):
-    local_dir, _ = local_remote_dir
+    local_dir, remote_dir = local_remote_dir
+    convert_to_mds(out_root=remote_dir,
+                   dataset_name='sequencedataset',
+                   num_samples=117,
+                   size_limit=1 << 8)
     filename = 'index.json'
     if not os.path.exists(local_dir):
         os.mkdir(local_dir)
@@ -275,9 +289,13 @@ def test_invalid_index_json_exception(local_remote_dir: Tuple[str, str]):
         _ = StreamingDataset(local=local_dir)
 
 
-@pytest.mark.usefixtures('mds_dataset_dir')
+@pytest.mark.usefixtures('local_remote_dir')
 def test_empty_shards_index_json_exception(local_remote_dir: Tuple[str, str]):
-    local_dir, _ = local_remote_dir
+    local_dir, remote_dir = local_remote_dir
+    convert_to_mds(out_root=remote_dir,
+                   dataset_name='sequencedataset',
+                   num_samples=117,
+                   size_limit=1 << 8)
     filename = 'index.json'
     content = {'shards': [], 'version': 2}
 
@@ -292,13 +310,18 @@ def test_empty_shards_index_json_exception(local_remote_dir: Tuple[str, str]):
         _ = StreamingDataset(local=local_dir)
 
 
-@pytest.mark.usefixtures('mds_dataset_dir')
-def test_accidental_shard_delete(mds_dataset_dir: Any):
-    remote_dir, local_dir = mds_dataset_dir
+@pytest.mark.usefixtures('local_remote_dir')
+def test_accidental_shard_delete(local_remote_dir: Any):
+    remote_dir, local_dir = local_remote_dir
+    convert_to_mds(out_root=remote_dir,
+                   dataset_name='sequencedataset',
+                   num_samples=117,
+                   size_limit=1 << 8)
     basename = 'shard.00000.mds'
     filename = os.path.join(local_dir, basename)
     dataset = StreamingDataset(local=local_dir, remote=remote_dir)
     for _ in dataset:
         if os.path.exists(filename):
             os.remove(filename)
+    assert not os.path.exists(filename), f'{basename} is missing'
     shutil.rmtree(local_dir, ignore_errors=True)
