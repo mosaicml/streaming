@@ -82,7 +82,6 @@ def bytes_to_int(bytes_str: Union[int, str]) -> int:
     # Convert a various byte types to an integer
     for suffix in units:
         bytes_str = bytes_str.lower().strip()
-        #leftover_str = bytes_str[0:-len(suffix)].lower().strip()
         if bytes_str.lower().endswith(suffix):
             try:
                 return int(float(bytes_str[0:-len(suffix)]) * units[suffix])
@@ -130,7 +129,6 @@ def number_abbrev_to_int(abbrev_str: Union[int, str]) -> int:
     # Convert a various abbreviation types to an integer
     for suffix in units:
         abbrev_str = abbrev_str.lower().strip()
-        #leftover_str = abbrev_str[0:-len(suffix)].lower().strip()
         if abbrev_str.lower().endswith(suffix):
             try:
                 return int(float(abbrev_str[0:-len(suffix)]) * units[suffix])
