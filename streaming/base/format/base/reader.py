@@ -86,34 +86,50 @@ class Reader(Array, ABC):
         """
         return self.samples
 
-    def _evict_raw(self) -> None:
-        """Remove all raw files belonging to this shard."""
+    def _evict_raw(self) -> int:
+        """Remove all raw files belonging to this shard.
+
+        Returns:
+            int: Bytes evicted from cache.
+        """
+        size = 0
         for raw_info, _ in self.file_pairs:
             filename = os.path.join(self.dirname, self.split, raw_info.basename)
             if os.path.exists(filename):
                 os.remove(filename)
+                size += raw_info.bytes
+        return size
 
-    def _evict_zip(self) -> None:
-        """Remove all zip files belonging to this shard."""
+    def _evict_zip(self) -> int:
+        """Remove all zip files belonging to this shard.
+
+        Returns:
+            int: Bytes evicted from cache.
+        """
+        size = 0
         for _, zip_info in self.file_pairs:
             if zip_info:
                 filename = os.path.join(self.dirname, self.split, zip_info.basename)
                 if os.path.exists(filename):
                     os.remove(filename)
+                    size += zip_info.bytes
+        return size
 
-    def evict(self) -> None:
-        """Remove all files belonging to this shard."""
-        self._evict_raw()
-        self._evict_zip()
+    def evict(self) -> int:
+        """Remove all files belonging to this shard.
 
-    def init_local_dir(self, filenames_present: Set[str], keep_zip: bool) -> bool:
+        Returns:
+            int: Bytes evicted from cache.
+        """
+        return self._evict_raw() + self._evict_zip()
+
+    def set_up_local(self, listing: Set[str], safe_keep_zip: bool) -> int:
         """Bring what shard files are present to a consistent state, returning whether present.
 
         Args:
-            filenames_present (Set[str]): The listing of all files under dirname/[split/]. This is
-                listed once and then saved because there could potentially be very many shard
-                files.
-            keep_zip (bool): Whether to keep zip files when decompressing. Possible when
+            listing (Set[str]): The listing of all files under dirname/[split/]. This is listed
+                once and then saved because there could potentially be very many shard files.
+            safe_keep_zip (bool): Whether to keep zip files when decompressing. Possible when
                 compression was used. Necessary when local is the remote or there is no remote.
 
         Returns:
@@ -125,51 +141,78 @@ class Reader(Array, ABC):
         for raw_info, zip_info in self.file_pairs:
             if raw_info:
                 filename = os.path.join(self.dirname, self.split, raw_info.basename)
-                if filename in filenames_present:
+                if filename in listing:
                     raw_files_present += 1
             if zip_info:
                 filename = os.path.join(self.dirname, self.split, zip_info.basename)
-                if filename in filenames_present:
+                if filename in listing:
                     zip_files_present += 1
 
         # If the shard raw files are partially present, garbage collect the present ones and mark
         # the shard raw as not present, in order to achieve consistency.
         if not raw_files_present:
-            is_raw_present = False
+            has_raw = False
         elif raw_files_present < len(self.file_pairs):
-            is_raw_present = False
+            has_raw = False
             self._evict_raw()
         else:
-            is_raw_present = True
+            has_raw = True
 
         # Same as the above, but for shard zip files.
         if not zip_files_present:
-            is_zip_present = False
+            has_zip = False
         elif zip_files_present < len(self.file_pairs):
-            is_zip_present = False
+            has_zip = False
             self._evict_zip()
         else:
-            is_zip_present = True
+            has_zip = True
 
-        # Do we keep_zip?
-        if keep_zip:
-            # If we can keep_zip, and we do, and have either raw or zip, we must have the other one
-            # too, because they are downloaded and decompressed together.
-            if self.compression and (is_zip_present != is_raw_present):
-                if is_raw_present:
-                    is_raw_present = False
-                    self._evict_raw()
-                elif is_zip_present:
-                    is_zip_present = False
-                    self._evict_zip()
+        # Enumerate cases of raw/zip presence.
+        if self.compression:
+            if safe_keep_zip:
+                if has_raw:
+                    if has_zip:
+                        # Present (normalized).
+                        pass
+                    else:
+                        # Missing: there is no natural way to arrive at this state, so drop raw.
+                        has_raw = False
+                        self._evict_raw()
+                else:
+                    if has_zip:
+                        # Present: but missing raw, so need to decompress upon use.
+                        pass
+                    else:
+                        # Missing (normalized).
+                        pass
+            else:
+                if has_raw:
+                    if has_zip:
+                        # Present: zip is unnecessary, so evict it.
+                        has_zip = False
+                        self._evict_raw()
+                    else:
+                        # Present (normalized).
+                        pass
+                else:
+                    if has_zip:
+                        # Present: but missing raw, so need to decompress and evict zip upon use.
+                        pass
+                    else:
+                        # Missing (normalized).
+                        pass
         else:
-            # If we don't keep_zip, drop any zip files.
-            if is_zip_present:
-                is_zip_present = False
-                self._evict_zip()
+            if has_zip:
+                raise ValueError('Shard is invalid: compression was not used, but has a ' +
+                                 'compressed form.')
 
-        # Now, the shard is either entirely or not at all present given keep_zip.
-        return is_raw_present
+        # Get cache usage. Shard is present if either raw or zip are present.
+        size = 0
+        if has_raw:
+            size += self.get_raw_size()
+        if has_zip:
+            size += self.get_zip_size() or 0
+        return size
 
     def get_raw_size(self) -> int:
         """Get the raw (uncompressed) size of this shard.
@@ -195,10 +238,10 @@ class Reader(Array, ABC):
             size += info.bytes
         return size
 
-    def get_full_size(self) -> int:
+    def get_max_size(self) -> int:
         """Get the full size of this shard.
 
-        "Full" in this case means both the raw (decompressed) and zip (compressed) versions are
+        "Max" in this case means both the raw (decompressed) and zip (compressed) versions are
         resident (assuming it has a zip form). This is the maximum disk usage the shard can reach.
         When compressed was used, even if keep_zip is ``False``, the zip form must still be
         resident at the same time as the raw form during shard decompression.
@@ -206,9 +249,7 @@ class Reader(Array, ABC):
         Returns:
             int: Size in bytes.
         """
-        raw_size = self.get_raw_size()
-        zip_size = self.get_zip_size() or 0
-        return raw_size + zip_size
+        return self.get_raw_size() + (self.get_zip_size() or 0)
 
     def get_persistent_size(self, keep_zip: bool) -> int:
         """Get the persistent size of this shard.
@@ -225,7 +266,7 @@ class Reader(Array, ABC):
         """
         if self.compression:
             if keep_zip:
-                size = self.get_full_size()
+                size = self.get_max_size()
             else:
                 size = self.get_raw_size()
         else:

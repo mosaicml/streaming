@@ -357,26 +357,26 @@ class StreamingOutsideDTWebVid(StreamingDataset):
                 break
 
             # If we're out of samples this epoch, exit this thread because we are done downloading.
-            if it.download_index == it.total:
+            if it.prepare_index == it.total:
                 break
 
             # If we are requested to only pre-download so many samples, if we have as many or more
             # downloaded already, we wait and check again later.
             if self.predownload is not None:
-                samples_ahead = it.download_index - it.yield_index
+                samples_ahead = it.prepare_index - it.yield_index
                 if self.predownload <= samples_ahead:
                     sleep(TICK)
                     continue
 
             # If we hit -1, we skip.
-            sample_id = it.sample_ids[it.download_index]
+            sample_id = it.sample_ids[it.prepare_index]
             if sample_id == -1:
-                it.download_index += 1
+                it.prepare_index += 1
                 continue
 
             # Download and decompress the shard for this sample, if not already done.
             shard_id, _ = self.spanner[sample_id]
-            self.download_shard(shard_id, False)
+            self.prepare_shard(shard_id, False)
 
             # Predownload the sample's extra data.
             obj = super().get_item(sample_id)
@@ -388,7 +388,7 @@ class StreamingOutsideDTWebVid(StreamingDataset):
                     download_file(remote, local, self.download_timeout)
 
             # Step forward one sample.
-            it.download_index += 1
+            it.prepare_index += 1
 
         # Note that we exited.
         it.on_exit()
