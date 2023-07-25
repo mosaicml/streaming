@@ -320,8 +320,10 @@ def test_accidental_shard_delete(local_remote_dir: Any):
     basename = 'shard.00000.mds'
     filename = os.path.join(local_dir, basename)
     dataset = StreamingDataset(local=local_dir, remote=remote_dir)
+    is_removed = False
     for _ in dataset:
-        if os.path.exists(filename):
+        if os.path.exists(filename) and not is_removed:
             os.remove(filename)
-    assert not os.path.exists(filename), f'{basename} is missing'
+            is_removed = True
+    assert os.path.exists(filename), f'{basename} is missing'
     shutil.rmtree(local_dir, ignore_errors=True)
