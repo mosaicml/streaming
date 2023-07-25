@@ -45,4 +45,5 @@ jobs:
         id: tests
         run: |
           set -ex
+          ulimit -n unlimited
           python3 -m pytest
