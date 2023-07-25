@@ -27,7 +27,7 @@ _Put an `x` without space in the boxes that apply. If you are unsure about any c
 ### Tests
 - [ ] I ran `pre-commit` on my change. (check out the `pre-commit` section of [prerequisites](https://github.com/mosaicml/streaming/blob/main/CONTRIBUTING.md#prerequisites))
 - [ ] I have added tests that prove my fix is effective or that my feature works (if appropriate).
-- [ ] I ran the tests locally to make sure it pass. (check out [testing](https://github.com/mosaicml/streaming/blob/main/CONTRIBUTING.md#running-tests))
+- [ ] I ran the tests locally to make sure it pass. (check out [testing](https://github.com/mosaicml/streaming/blob/main/CONTRIBUTING.md#submitting-a-contribution))
 - [ ] I have added unit and/or integration tests as appropriate to ensure backward compatibility of the changes.
 
 <!--
