@@ -18,6 +18,9 @@ To set up the development environment in your local box, run the commands below.
 <!--pytest.mark.skip-->
 ```bash
 pip install -e '.[dev]'
+
+# Optional: If you would like to install all the dependencies
+pip install -e '.[all]'
 ```
 
 2\. Configure [pre-commit](https://pre-commit.com/), which automatically formats code before
@@ -47,22 +50,53 @@ git remote add upstream https://github.com/mosaicml/streaming.git
 
 <!--pytest.mark.skip-->
 ```bash
+cd streaming
 git checkout -b cool-new-feature
 ```
 
-4\. When you are ready, submit a pull request into the streaming repository! If merged, we'll reach out to send you some free swag :)
+4\. Run linting as part of `pre-commit`.
+
+<!--pytest.mark.skip-->
+```bash
+git add <file1> <file2>
+pre-commit run
+
+# Optional: Run pre-commit for all files
+pre-commit run --all-files
+```
+
+5\. Run the unit test to ensure it passes locally.
+
+<!--pytest.mark.skip-->
+```bash
+ulimit -n unlimited # Workaround: To overcome 'Too many open files' issues since streaming uses atexit handler to close file descriptor at the end.
+
+pytest -vv -s . # run all the unittests
+cd docs && make clean && make doctest # run doctests
+```
+
+6\. [Optional] Compile and visualize the documentation locally. If you have a documentation changes, running the below commands is mandatory.
+
+<!--pytest.mark.skip-->
+```bash
+cd docs
+pip install -e '.[docs]'
+make clean && make html
+make host   # open the output link in a browser.
+```
+
+See the [Makefile](/Makefile) for more information.
+
+
+7\. When you are ready, submit a pull request into the streaming repository!
+<!--pytest.mark.skip-->
+```bash
+git commit -m "cool feature"    # Add relevant commit message
+git push origin cool-new-feature
+```
+
+Create a pull request to propose changes you've made to a fork of an upstream repository by following this [guide](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork).
 
 ## Configuring README Code Snippets
 
 Streaming uses [pytest-codeblocks](https://github.com/nschloe/pytest-codeblocks) to test all example code snippets. The pytest-codeblocks repository explains how to annotate code snippets, which supports most `pytest` configurations. For example, if a test requires model training, the GPU mark (`<!--pytest.mark.skip-->`) should be applied.
-
-## Running Tests
-
-To test your changes locally, run:
-
-1. `pytest .`  # run all the unittests
-1. `cd docs && make doctest`  # run doctests
-
-See the [Makefile](/Makefile) for more information.
-
-If you want to run pre-commit hooks manually, which check for code formatting and type annotations, run `pre-commit run --all-files`
