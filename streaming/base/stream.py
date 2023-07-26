@@ -421,7 +421,12 @@ class Stream:
         filename = os.path.join(self.local, self.split, basename)  # pyright: ignore
         if world.is_local_leader:
             if self.remote:
-                filename = self._download_file(basename)
+                # Downloads the `index.json` as `index.json.tmp` fully and then rename it to
+                # `index.json` since only one process downloads the `index.json` file while
+                # other processes wait for it to get downloaded. Hence, It avoids loading the
+                # in-progress downloading `index.json`.
+                tmp_filename = self._download_file(basename, basename + '.tmp')
+                os.rename(tmp_filename, filename)
             else:
                 if not os.path.exists(filename):
                     raise RuntimeError(f'No `remote` provided, but local file {filename} ' +
