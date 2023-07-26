@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from shutil import rmtree
-from typing import Tuple
+from typing import Any, Tuple
 
 import pytest
 
@@ -60,7 +60,8 @@ def five(remote: str, local: str):
 
 
 @pytest.mark.usefixtures('local_remote_dir')
-def test_laziness(local_remote_dir: Tuple[str, str]):
+@pytest.mark.parametrize('func', [one, two, three, four, five])
+def test_laziness(local_remote_dir: Tuple[str, str], func: Any):
     num_samples = 10_000
     local, remote = local_remote_dir
     columns = {'value': 'int'}
@@ -77,5 +78,4 @@ def test_laziness(local_remote_dir: Tuple[str, str]):
             sample = {'value': i}
             out.write(sample)
 
-    for func in [one, two, three, four, five]:
-        func(remote, local)
+    func(remote, local)
