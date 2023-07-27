@@ -198,6 +198,11 @@ class StreamingDataset(Array, IterableDataset):
         * ``shuffle_seed``
         * ``shuffle_block_size``
 
+      * Sampling:
+
+        * ``sampling_method``
+
+
     Args:
         streams (Sequence[Stream], optional): One or more streams to stream/cache samples from,
             which may be upsampled or downsampled. StreamingDataset uses either ``streams`` or
@@ -252,6 +257,8 @@ class StreamingDataset(Array, IterableDataset):
         shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1s``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
         shuffle_block_size (int): Unit of shuffle. Defaults to ``1 << 18``.
+        sampling_method (str): Which sampling method to use, either ``balanced`` or ``fixed``.
+            Defaults to ``balanced``.
     """
 
     def __init__(self,
@@ -273,7 +280,8 @@ class StreamingDataset(Array, IterableDataset):
                  shuffle: bool = False,
                  shuffle_algo: str = 'py1s',
                  shuffle_seed: int = 9176,
-                 shuffle_block_size: int = 1 << 18) -> None:
+                 shuffle_block_size: int = 1 << 18,
+                 sampling_method: str = 'balanced') -> None:
         # Global arguments (which do not live in Streams).
         self.predownload = predownload
         self.cache_limit = cache_limit
@@ -284,11 +292,18 @@ class StreamingDataset(Array, IterableDataset):
         self.shuffle_algo = shuffle_algo
         self.shuffle_seed = shuffle_seed
         self.shuffle_block_size = shuffle_block_size
+        self.sampling_method = sampling_method.lower().strip()
 
         # Check streams vs remote/local.
         if bool(streams) == (bool(remote) or bool(local)):
             raise ValueError(
                 'You must provide either `streams` or `remote`/`local`, but not both.')
+
+        # Check sampling method is one of "balanced" or "fixed".
+        if sampling_method not in ['balanced', 'fixed']:
+            raise ValueError(
+                f'Invalid sampling method: {sampling_method}. Must be one of `balanced` or `fixed`.'
+            )
 
         # Initialize torch dist ourselves, if necessary.
         destroy_dist = maybe_init_dist()
@@ -661,13 +676,17 @@ class StreamingDataset(Array, IterableDataset):
         Returns:
             Tuple[NDArray[np.int64], NDArray[np.int64]]: Sampled shard sizes and sample mapping.
         """
-        # Initialize random number generator and arrays.
-        rng = np.random.default_rng(self.shuffle_seed + epoch)
+        # Initialize random number generator and arrays. If sampling_method is "fixed", the rng
+        # seed does not change, resulting in the same samples from each stream each epoch.
+        rng = np.random.default_rng(self.shuffle_seed + epoch) \
+            if self.sampling_method == 'balanced' \
+            else np.random.default_rng(self.shuffle_seed)
         shuffle_units = []
         sample_ids = []
 
         # Iterate over each stream.
         for stream_id in range(self.num_streams):
+            # stream's shard offset in list of all shards from all streams
             stream_shard_offset = self.shard_offset_per_stream[stream_id]
             num_stream_shards = self.shards_per_stream[stream_id]
             stream_shard_ids = stream_shard_offset + np.arange(num_stream_shards)
@@ -675,6 +694,7 @@ class StreamingDataset(Array, IterableDataset):
             # Calculate choose per stream shard.
             samples_per_stream_shard = self.samples_per_shard[stream_shard_ids]
             stream_samples = sum(samples_per_stream_shard)
+            # the number of items to choose from each stream (calculated during dataset initialization)
             stream_choose = self.streams[stream_id].choose
             if stream_choose == stream_samples:
                 choose_per_stream_shard = samples_per_stream_shard
@@ -689,7 +709,12 @@ class StreamingDataset(Array, IterableDataset):
             for shard_id, shard_samples, shard_choose in zip(stream_shard_ids,
                                                              samples_per_stream_shard,
                                                              choose_per_stream_shard):
-                # Calculate shuffle units.
+                # Calculate shuffle units for this shard.
+                # shuffle units are lists where each entry is a number of samples to take
+                # from the shard. If upsampling a shard with 4 samples by 2.5x,
+                # shard_choose will be 10, and shard_shuffle_units will be [4, 4, 2]. If
+                # downsamping that same shard by 0.5x, shard_choose will be 2 and
+                # shard_shuffle_units will be just [2].
                 shard_shuffle_units = [shard_samples] * (shard_choose // shard_samples)
                 remainder = shard_choose % shard_samples
                 if remainder:
@@ -704,6 +729,8 @@ class StreamingDataset(Array, IterableDataset):
                     sample_ids += [full_repeat] * num_full_repeats
 
                 # Calculate sample IDs of a possible partial repeat.
+                # for fixed sampling this partial repeat chooses the same
+                # samples since we have fixed the rng seed.
                 shortfall = shard_choose % shard_samples
                 if shortfall:
                     partial_repeat = shard_sample_offset + rng.choice(
