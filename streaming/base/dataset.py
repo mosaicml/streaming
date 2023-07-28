@@ -304,6 +304,12 @@ class StreamingDataset(Array, IterableDataset):
             raise ValueError(
                 f'Invalid sampling method: {sampling_method}. Must be one of `balanced` or `fixed`.'
             )
+        # Convert epoch size from string to int, if needed. Cannot be negative.
+        epoch_size_value = None
+        if epoch_size:
+            epoch_size_value = number_abbrev_to_int(epoch_size)
+            if epoch_size_value < 0:
+                raise ValueError(f'Epoch size cannot be negative. Received {epoch_size_value}.')
 
         # Initialize torch dist ourselves, if necessary.
         destroy_dist = maybe_init_dist()
@@ -321,6 +327,22 @@ class StreamingDataset(Array, IterableDataset):
             }
             for stream in streams:
                 stream.apply_default(default)
+        elif epoch_size_value:
+            # if there are no streams provided but the epoch_size is speficied
+            # we create a single stream that chooses the speficied number of samples
+            # per epoch. The epoch consists of data from this single stream.
+            samples_specified_stream = Stream(remote=remote,
+                                              local=local,
+                                              split=split,
+                                              choose=epoch_size_value,
+                                              download_retry=download_retry,
+                                              download_timeout=download_timeout,
+                                              validate_hash=validate_hash,
+                                              keep_zip=keep_zip)
+            # reset epoch_size_value back to default of None since we have already accounted
+            # for it inside the samples_specified_stream
+            epoch_size_value = None
+            streams = [samples_specified_stream]
         else:
             default = Stream(remote=remote,
                              local=local,
@@ -384,13 +406,6 @@ class StreamingDataset(Array, IterableDataset):
         self.samples_per_shard = np.array([shard.samples for shard in self.shards], np.int64)
         self.sample_offset_per_shard = self.samples_per_shard.cumsum() - self.samples_per_shard
         self.spanner = Spanner(self.samples_per_shard)
-
-        # Convert epoch size from string to int, if needed. Cannot be negative.
-        epoch_size_value = None
-        if epoch_size:
-            epoch_size_value = number_abbrev_to_int(epoch_size)
-            if epoch_size_value < 0:
-                raise ValueError(f'Epoch size cannot be negative. Received {epoch_size_value}.')
 
         # Now that we know the number of underlying samples of each stream, derive each stream's
         # true proportion/repeat/choose, as well as the total epoch size.

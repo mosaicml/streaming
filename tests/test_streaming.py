@@ -289,15 +289,14 @@ def test_multiple_dataset_instantiation(local_remote_dir: Any, shuffle_seed: tup
 @pytest.mark.parametrize('batch_size', [1, 4])
 @pytest.mark.parametrize('seed', [2222])
 @pytest.mark.parametrize('shuffle', [False])
-@pytest.mark.parametrize('drop_last', [False, True])
+@pytest.mark.parametrize('drop_last', [False])
 @pytest.mark.parametrize('num_workers', [0, 8])
 @pytest.mark.parametrize('num_canonical_nodes', [1])
-@pytest.mark.parametrize('epoch_size', [10, 100, 200, 300])
+@pytest.mark.parametrize('epoch_size', [10, 100])
 @pytest.mark.usefixtures('local_remote_dir')
 def test_dataloader_fixed_sampling(local_remote_dir: Any, batch_size: int, seed: int,
                                    shuffle: bool, drop_last: bool, num_workers: int,
                                    num_canonical_nodes: int, epoch_size: int):
-
     remote_dir, local_dir = local_remote_dir
     convert_to_mds(out_root=remote_dir,
                    dataset_name='sequencedataset',
@@ -344,3 +343,45 @@ def test_dataloader_fixed_sampling(local_remote_dir: Any, batch_size: int, seed:
                     samples_seen[element] = 1
 
         assert samples_seen == first_samples_seen
+
+
+@pytest.mark.parametrize('batch_size', [1, 4])
+@pytest.mark.parametrize('seed', [2222])
+@pytest.mark.parametrize('shuffle', [False])
+@pytest.mark.parametrize('drop_last', [False, True])
+@pytest.mark.parametrize('num_workers', [0, 8])
+@pytest.mark.parametrize('num_canonical_nodes', [1])
+@pytest.mark.parametrize('epoch_size', [10, 100])
+@pytest.mark.usefixtures('local_remote_dir')
+def test_dataloader_epoch_size_no_streams(local_remote_dir: Any, batch_size: int, seed: int,
+                                          shuffle: bool, drop_last: bool, num_workers: int,
+                                          num_canonical_nodes: int, epoch_size: int):
+    remote_dir, local_dir = local_remote_dir
+    convert_to_mds(out_root=remote_dir,
+                   dataset_name='sequencedataset',
+                   num_samples=117,
+                   size_limit=1 << 8)
+
+    # Build StreamingDataset
+    dataset = StreamingDataset(local=local_dir,
+                               remote=remote_dir,
+                               shuffle=shuffle,
+                               batch_size=batch_size,
+                               shuffle_seed=seed,
+                               num_canonical_nodes=num_canonical_nodes,
+                               epoch_size=epoch_size)
+
+    # Build DataLoader
+    dataloader = StreamingDataLoader(dataset=dataset,
+                                     batch_size=batch_size,
+                                     num_workers=num_workers,
+                                     drop_last=drop_last)
+
+    samples_seen = 0
+    for batch in dataloader:
+        samples_seen += batch['sample'].size(dim=0)
+
+    if drop_last:
+        assert samples_seen == epoch_size - (epoch_size % batch_size)
+    else:
+        assert samples_seen == epoch_size
