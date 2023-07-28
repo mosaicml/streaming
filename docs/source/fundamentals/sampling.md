@@ -1,4 +1,4 @@
-# Environments
+# Sampling
 
 You can choose how sampling from your dataset(s) occurs between epochs by specifying the `sampling_method` when instantiating `StreamingDataset`. Currently, this can take on one of two values:
 
