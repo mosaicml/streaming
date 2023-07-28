@@ -288,9 +288,9 @@ def test_multiple_dataset_instantiation(local_remote_dir: Any, shuffle_seed: tup
 
 @pytest.mark.parametrize('batch_size', [1, 4])
 @pytest.mark.parametrize('seed', [2222])
-@pytest.mark.parametrize('shuffle', [False])
+@pytest.mark.parametrize('shuffle', [False, True])
 @pytest.mark.parametrize('drop_last', [False])
-@pytest.mark.parametrize('num_workers', [0, 8])
+@pytest.mark.parametrize('num_workers', [0, 3])
 @pytest.mark.parametrize('num_canonical_nodes', [1])
 @pytest.mark.parametrize('epoch_size', [10, 100])
 @pytest.mark.usefixtures('local_remote_dir')
@@ -322,25 +322,23 @@ def test_dataloader_fixed_sampling(local_remote_dir: Any, batch_size: int, seed:
     # iterate once over the dataloader (first epoch)
     first_samples_seen = {}
     for batch in dataloader:
-        print('yo')
-        first_samples_seen[1] = batch
-        for element in batch:
-            if element in first_samples_seen:
-                first_samples_seen[element] += 1
+        for element in batch['sample']:
+            int_element = int(element)
+            if int_element in first_samples_seen:
+                first_samples_seen[int_element] += 1
             else:
-                first_samples_seen[element] = 1
+                first_samples_seen[int_element] = 1
 
     # check 3 more epochs to see if samples are the same
-    samples_seen = {}
     for _ in range(3):
-        print('again yo')
-        samples_seen[1] = 1
+        samples_seen = {}
         for batch in dataloader:
-            for element in batch:
+            for element in batch['sample']:
+                int_element = int(element)
                 if element in samples_seen:
-                    samples_seen[element] += 1
+                    samples_seen[int_element] += 1
                 else:
-                    samples_seen[element] = 1
+                    samples_seen[int_element] = 1
 
         assert samples_seen == first_samples_seen
 

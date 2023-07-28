@@ -58,6 +58,7 @@ If you have any questions, please feel free to reach out to us on [Twitter](htt
    fundamentals/hashing.md
    fundamentals/environments.md
    fundamentals/shuffling.md
+   fundamentals/sampling.md
 
 .. toctree::
    :hidden:
