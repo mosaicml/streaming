@@ -289,6 +289,13 @@ class StreamingDataset(Array, IterableDataset):
         if bool(streams) == (bool(remote) or bool(local)):
             raise ValueError(
                 'You must provide either `streams` or `remote`/`local`, but not both.')
+        
+        # Convert epoch size from string to int, if needed. Cannot be negative.
+        epoch_size_value = None
+        if epoch_size:
+            epoch_size_value = number_abbrev_to_int(epoch_size)
+            if epoch_size_value < 0:
+                raise ValueError(f'Epoch size cannot be negative. Received {epoch_size_value}.')
 
         # Initialize torch dist ourselves, if necessary.
         destroy_dist = maybe_init_dist()
@@ -310,11 +317,16 @@ class StreamingDataset(Array, IterableDataset):
             default = Stream(remote=remote,
                              local=local,
                              split=split,
+                             choose=epoch_size_value,
                              download_retry=download_retry,
                              download_timeout=download_timeout,
                              validate_hash=validate_hash,
                              keep_zip=keep_zip)
             streams = [default]
+            # reset `epoch_size_value` to None when we initialize StreamingDataset with no 
+            # streams so that when we `apply_weights` over this single stream we use the
+            # epoch size to absolutely weight the single stream.
+            epoch_size_value = None
 
         # Validate the stream weighting scheme (relative or absolute) to catch errors before we go
         # to the trouble of loading them.
@@ -369,13 +381,6 @@ class StreamingDataset(Array, IterableDataset):
         self.samples_per_shard = np.array([shard.samples for shard in self.shards], np.int64)
         self.sample_offset_per_shard = self.samples_per_shard.cumsum() - self.samples_per_shard
         self.spanner = Spanner(self.samples_per_shard)
-
-        # Convert epoch size from string to int, if needed. Cannot be negative.
-        epoch_size_value = None
-        if epoch_size:
-            epoch_size_value = number_abbrev_to_int(epoch_size)
-            if epoch_size_value < 0:
-                raise ValueError(f'Epoch size cannot be negative. Received {epoch_size_value}.')
 
         # Now that we know the number of underlying samples of each stream, derive each stream's
         # true proportion/repeat/choose, as well as the total epoch size.
