@@ -45,6 +45,9 @@ jobs:
         id: tests
         run: |
           set -ex
-          python3 -m pytest --splits 3 --group 1
-          python3 -m pytest --splits 3 --group 2
-          python3 -m pytest --splits 3 --group 3
+          pytest --cov --splits 5 --group ${{ matrix.group }}
+      - name: Upload coverage
+        uses: actions/upload-artifact@v2
+        with:
+          name: coverage${{ matrix.group }}
+          path: .coverage
