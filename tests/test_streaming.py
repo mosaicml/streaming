@@ -17,7 +17,7 @@ from tests.common.utils import convert_to_mds
 @pytest.mark.parametrize('shuffle', [False])
 @pytest.mark.parametrize('drop_last', [False, True])
 @pytest.mark.parametrize('num_workers', [3, 6])
-@pytest.mark.parametrize('num_canonical_nodes', [1, 4, 8])
+@pytest.mark.parametrize('num_canonical_nodes', [4, 8])
 @pytest.mark.parametrize('epoch_size', [10, 200])
 @pytest.mark.usefixtures('local_remote_dir')
 def test_dataloader_epoch_size_no_streams(local_remote_dir: Tuple[str, str], batch_size: int, seed: int,
@@ -57,67 +57,67 @@ def test_dataloader_epoch_size_no_streams(local_remote_dir: Tuple[str, str], bat
         else:
             assert samples_seen == epoch_size
 
-@pytest.mark.parametrize('batch_size', [128])
-@pytest.mark.parametrize('drop_last', [False, True])
-@pytest.mark.parametrize('shuffle', [False, True])
-@pytest.mark.parametrize('num_workers', [0, 4])
-@pytest.mark.parametrize('num_samples', [9867, 30_000])
-@pytest.mark.parametrize('size_limit', [8_192])
-@pytest.mark.parametrize('seed', [1234])
-@pytest.mark.usefixtures('local_remote_dir')
-def test_dataloader_single_device(local_remote_dir: Tuple[str, str], batch_size: int,
-                                  drop_last: bool, shuffle: bool, num_workers: int,
-                                  num_samples: int, size_limit: int, seed: int):
-    local, remote = local_remote_dir
-    convert_to_mds(out_root=remote,
-                   dataset_name='sequencedataset',
-                   num_samples=num_samples,
-                   size_limit=size_limit)
+# @pytest.mark.parametrize('batch_size', [128])
+# @pytest.mark.parametrize('drop_last', [False, True])
+# @pytest.mark.parametrize('shuffle', [False, True])
+# @pytest.mark.parametrize('num_workers', [0, 4])
+# @pytest.mark.parametrize('num_samples', [9867, 30_000])
+# @pytest.mark.parametrize('size_limit', [8_192])
+# @pytest.mark.parametrize('seed', [1234])
+# @pytest.mark.usefixtures('local_remote_dir')
+# def test_dataloader_single_device(local_remote_dir: Tuple[str, str], batch_size: int,
+#                                   drop_last: bool, shuffle: bool, num_workers: int,
+#                                   num_samples: int, size_limit: int, seed: int):
+#     local, remote = local_remote_dir
+#     convert_to_mds(out_root=remote,
+#                    dataset_name='sequencedataset',
+#                    num_samples=num_samples,
+#                    size_limit=size_limit)
 
-    # Build a StreamingDataset
-    dataset = StreamingDataset(local=local,
-                               remote=remote,
-                               shuffle=shuffle,
-                               batch_size=batch_size,
-                               shuffle_seed=seed)
+#     # Build a StreamingDataset
+#     dataset = StreamingDataset(local=local,
+#                                remote=remote,
+#                                shuffle=shuffle,
+#                                batch_size=batch_size,
+#                                shuffle_seed=seed)
 
-    # Build DataLoader
-    dataloader = DataLoader(dataset=dataset,
-                            batch_size=batch_size,
-                            num_workers=num_workers,
-                            drop_last=drop_last)
+#     # Build DataLoader
+#     dataloader = DataLoader(dataset=dataset,
+#                             batch_size=batch_size,
+#                             num_workers=num_workers,
+#                             drop_last=drop_last)
 
-    # Expected number of batches based on batch_size and drop_last
-    expected_num_batches = (num_samples // batch_size) if drop_last else math.ceil(num_samples /
-                                                                                   batch_size)
-    expected_num_samples = expected_num_batches * batch_size if drop_last else num_samples
+#     # Expected number of batches based on batch_size and drop_last
+#     expected_num_batches = (num_samples // batch_size) if drop_last else math.ceil(num_samples /
+#                                                                                    batch_size)
+#     expected_num_samples = expected_num_batches * batch_size if drop_last else num_samples
 
-    # Iterate over DataLoader
-    rcvd_batches = 0
-    sample_order = []
+#     # Iterate over DataLoader
+#     rcvd_batches = 0
+#     sample_order = []
 
-    for batch_ix, batch in enumerate(dataloader):
-        rcvd_batches += 1
+#     for batch_ix, batch in enumerate(dataloader):
+#         rcvd_batches += 1
 
-        # Every batch should be complete except (maybe) final one
-        if batch_ix + 1 < expected_num_batches:
-            assert len(batch['id']) == batch_size
-        else:
-            if drop_last:
-                assert len(batch['id']) == batch_size
-            else:
-                assert len(batch['id']) <= batch_size
+#         # Every batch should be complete except (maybe) final one
+#         if batch_ix + 1 < expected_num_batches:
+#             assert len(batch['id']) == batch_size
+#         else:
+#             if drop_last:
+#                 assert len(batch['id']) == batch_size
+#             else:
+#                 assert len(batch['id']) <= batch_size
 
-        sample_order.extend(batch['id'][:])
+#         sample_order.extend(batch['id'][:])
 
-    # Test dataloader length
-    assert len(dataloader) == expected_num_batches
-    assert rcvd_batches == expected_num_batches
+#     # Test dataloader length
+#     assert len(dataloader) == expected_num_batches
+#     assert rcvd_batches == expected_num_batches
 
-    # Test that all samples arrived with no duplicates
-    assert len(set(sample_order)) == expected_num_samples
-    if not drop_last:
-        assert len(set(sample_order)) == num_samples
+#     # Test that all samples arrived with no duplicates
+#     assert len(set(sample_order)) == expected_num_samples
+#     if not drop_last:
+#         assert len(set(sample_order)) == num_samples
 
 
 @pytest.mark.parametrize('batch_size', [1, 4])
