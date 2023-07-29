@@ -23,15 +23,15 @@ from tests.common.utils import convert_to_mds
 def test_dataloader_epoch_size_no_streams(local_remote_dir: Tuple[str, str], batch_size: int, seed: int,
                                           shuffle: bool, drop_last: bool, num_workers: int,
                                           num_canonical_nodes: int, epoch_size: int):
-    remote_dir, local_dir = local_remote_dir
-    convert_to_mds(out_root=remote_dir,
+    local, remote = local_remote_dir
+    convert_to_mds(out_root=remote,
                    dataset_name='sequencedataset',
                    num_samples=117,
                    size_limit=1 << 8)
 
     # Build StreamingDataset
-    dataset = StreamingDataset(local=local_dir,
-                               remote=remote_dir,
+    dataset = StreamingDataset(local=local,
+                               remote=remote,
                                shuffle=shuffle,
                                batch_size=batch_size,
                                shuffle_seed=seed,
@@ -56,6 +56,9 @@ def test_dataloader_epoch_size_no_streams(local_remote_dir: Tuple[str, str], bat
             assert samples_seen == epoch_size - (epoch_size % batch_size)
         else:
             assert samples_seen == epoch_size
+
+    shutil.rmtree(local)
+    shutil.rmtree(remote)
 
 @pytest.mark.parametrize('batch_size', [128])
 @pytest.mark.parametrize('drop_last', [False, True])
@@ -118,6 +121,9 @@ def test_dataloader_single_device(local_remote_dir: Tuple[str, str], batch_size:
     assert len(set(sample_order)) == expected_num_samples
     if not drop_last:
         assert len(set(sample_order)) == num_samples
+
+    shutil.rmtree(local)
+    shutil.rmtree(remote)
 
 
 @pytest.mark.parametrize('batch_size', [1, 4])
