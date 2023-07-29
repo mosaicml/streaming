@@ -41,7 +41,10 @@ jobs:
           set -ex
           python -m pip install --upgrade pip wheel
           python -m pip install -e .${{ matrix.install_version }}
-          ulimit -n 4096
+          ulimit -n
+          ulimit -Sn
+          ulimit -Hn
+          ulimit -n 131071
       - name: Run Tests
         id: tests
         run: |
