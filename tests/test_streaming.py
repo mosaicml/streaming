@@ -57,8 +57,6 @@ def test_dataloader_epoch_size_no_streams(local_remote_dir: Tuple[str, str], bat
         else:
             assert samples_seen == epoch_size
 
-    shutil.rmtree(local)
-    shutil.rmtree(remote)
 
 @pytest.mark.parametrize('batch_size', [128])
 @pytest.mark.parametrize('drop_last', [False, True])
@@ -122,9 +120,6 @@ def test_dataloader_single_device(local_remote_dir: Tuple[str, str], batch_size:
     if not drop_last:
         assert len(set(sample_order)) == num_samples
 
-    shutil.rmtree(local)
-    shutil.rmtree(remote)
-
 
 @pytest.mark.parametrize('batch_size', [1, 4])
 @pytest.mark.parametrize('seed', [1111])
@@ -175,9 +170,6 @@ def test_dataloader_determinism(local_remote_dir: Any, batch_size: int, seed: in
     assert len(sample_order) == len(second_sample_order)
     assert sample_order == second_sample_order
 
-    shutil.rmtree(local_dir)
-    shutil.rmtree(remote_dir)
-
 
 @pytest.mark.parametrize('batch_size', [1, 4])
 @pytest.mark.parametrize('seed', [2222])
@@ -220,9 +212,6 @@ def test_dataloader_sample_order(local_remote_dir: Any, batch_size: int, seed: i
         sample_order.extend(batch['id'][:])
 
     assert expected_sample_order == sample_order
-
-    shutil.rmtree(local_dir)
-    shutil.rmtree(remote_dir)
 
 
 @pytest.mark.parametrize('batch_size', [1, 4])
@@ -289,9 +278,6 @@ def test_streamingdataloader_mid_epoch_resumption(local_remote_dir: Any, batch_s
     assert len(set(sample_order)) == len(set(expected_sample_order)), 'Duplicate samples'
     assert sample_order == expected_sample_order, 'Incorrect sample order'
 
-    shutil.rmtree(local_dir)
-    shutil.rmtree(remote_dir)
-
 
 @pytest.mark.parametrize('shuffle_seed', [(9876, 9876), (12345, 1567)])
 @pytest.mark.usefixtures('local_remote_dir')
@@ -344,6 +330,3 @@ def test_multiple_dataset_instantiation(local_remote_dir: Any, shuffle_seed: tup
 
     assert len(train_sample_order) == len(val_sample_order), 'Missing samples'
     assert len(set(train_sample_order)) == len(set(val_sample_order)), 'Duplicate samples'
-
-    shutil.rmtree(local_dir)
-    shutil.rmtree(remote_dir)

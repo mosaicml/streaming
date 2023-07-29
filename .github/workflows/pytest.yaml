@@ -45,4 +45,6 @@ jobs:
         id: tests
         run: |
           set -ex
-          python3 -m pytest
+          python3 -m pytest --splits 3 --group 1
+          python3 -m pytest --splits 3 --group 2
+          python3 -m pytest --splits 3 --group 3

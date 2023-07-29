@@ -13,7 +13,7 @@ def one(remote: str, local: str):
     """
     Verify __getitem__ accesses.
     """
-    dataset = StreamingDataset(local=local, remote=remote)
+    dataset = StreamingDataset(local=remote)
     for i in range(dataset.num_samples):
         sample = dataset[i]
         assert sample['value'] == i
@@ -23,7 +23,7 @@ def two(remote: str, local: str):
     """
     Verify __iter__ -> __getitem__ accesses.
     """
-    dataset = StreamingDataset(local=local, remote=remote, num_canonical_nodes=1)
+    dataset = StreamingDataset(local=remote, num_canonical_nodes=1)
     for i, sample in zip(range(dataset.num_samples), dataset):
         assert sample['value'] == i
 
