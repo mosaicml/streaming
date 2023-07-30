@@ -20,7 +20,8 @@ from tests.common.utils import convert_to_mds
 @pytest.mark.parametrize('num_canonical_nodes', [4, 8])
 @pytest.mark.parametrize('epoch_size', [10, 200])
 @pytest.mark.usefixtures('local_remote_dir')
-def test_dataloader_epoch_size_no_streams(local_remote_dir: Tuple[str, str], batch_size: int, seed: int,
+def test_dataloader_epoch_size_no_streams(local_remote_dir: Tuple[str,
+                                                                  str], batch_size: int, seed: int,
                                           shuffle: bool, drop_last: bool, num_workers: int,
                                           num_canonical_nodes: int, epoch_size: int):
     local, remote = local_remote_dir

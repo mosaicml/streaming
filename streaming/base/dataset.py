@@ -289,7 +289,7 @@ class StreamingDataset(Array, IterableDataset):
         if bool(streams) == (bool(remote) or bool(local)):
             raise ValueError(
                 'You must provide either `streams` or `remote`/`local`, but not both.')
-        
+
         # Convert epoch size from string to int, if needed. Cannot be negative.
         epoch_size_value = None
         if epoch_size:
@@ -323,7 +323,7 @@ class StreamingDataset(Array, IterableDataset):
                              validate_hash=validate_hash,
                              keep_zip=keep_zip)
             streams = [default]
-            # reset `epoch_size_value` to None when we initialize StreamingDataset with no 
+            # reset `epoch_size_value` to None when we initialize StreamingDataset with no
             # streams so that when we `apply_weights` over this single stream we use the
             # epoch size to absolutely weight the single stream.
             epoch_size_value = None
