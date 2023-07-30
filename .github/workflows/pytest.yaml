@@ -45,4 +45,4 @@ jobs:
         id: tests
         run: |
           set -ex
-          pytest --splits 3 --group 1 --cov-append && pytest --splits 3 --group 2 --cov-append && pytest --splits 3 --group 3 --cov-appen
+          pytest --splits 3 --group 1 --cov-append && pytest --splits 3 --group 2 --cov-append && pytest --splits 3 --group 3 --cov-append
