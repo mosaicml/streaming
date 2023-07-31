@@ -46,7 +46,7 @@ jobs:
         # Jira link for above: https://mosaicml.atlassian.net/browse/STR-107
         id: tests
         run: |
-          set -ex 
+          set -ex
           pytest --splits 3 --group 1 --cov-fail-under=10
           pytest --splits 3 --group 2 --cov-fail-under=10
           pytest --splits 3 --group 3 --cov-fail-under=10
