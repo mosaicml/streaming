@@ -42,7 +42,11 @@ jobs:
           python -m pip install --upgrade pip wheel
           python -m pip install -e .${{ matrix.install_version }}
       - name: Run Tests
+        # TODO: stop using pytest-split and remove low coverage requirement once C++ shared mem impl is done!
+        # Jira link for above: https://mosaicml.atlassian.net/browse/STR-107
         id: tests
         run: |
           set -ex
-          python3 -m pytest
+          pytest --splits 3 --group 1 --cov-fail-under=10
+          pytest --splits 3 --group 2 --cov-fail-under=10
+          pytest --splits 3 --group 3 --cov-fail-under=10
