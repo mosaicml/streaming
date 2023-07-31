@@ -47,6 +47,10 @@ jobs:
         id: tests
         run: |
           set -ex
-          pytest --splits 3 --group 1 --cov-fail-under=10
-          pytest --splits 3 --group 2 --cov-fail-under=10
-          pytest --splits 3 --group 3 --cov-fail-under=10
+          pytest --splits 7 --group 1 --cov-fail-under=10
+          pytest --splits 7 --group 2 --cov-fail-under=10
+          pytest --splits 7 --group 3 --cov-fail-under=10
+          pytest --splits 7 --group 4 --cov-fail-under=10
+          pytest --splits 7 --group 5 --cov-fail-under=10
+          pytest --splits 7 --group 6 --cov-fail-under=10
+          pytest --splits 7 --group 7 --cov-fail-under=10
