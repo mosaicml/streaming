@@ -300,7 +300,7 @@ class StreamingDataset(Array, IterableDataset):
                 'You must provide either `streams` or `remote`/`local`, but not both.')
 
         # Check sampling method is one of "balanced" or "fixed".
-        if sampling_method not in ['balanced', 'fixed']:
+        if self.sampling_method not in ['balanced', 'fixed']:
             raise ValueError(
                 f'Invalid sampling method: {sampling_method}. Must be one of `balanced` or `fixed`.'
             )
@@ -347,11 +347,16 @@ class StreamingDataset(Array, IterableDataset):
             default = Stream(remote=remote,
                              local=local,
                              split=split,
+                             choose=epoch_size_value,
                              download_retry=download_retry,
                              download_timeout=download_timeout,
                              validate_hash=validate_hash,
                              keep_zip=keep_zip)
             streams = [default]
+            # reset `epoch_size_value` to None when we initialize StreamingDataset with no
+            # streams so that when we `apply_weights` over this single stream we use the
+            # epoch size to absolutely weight the single stream.
+            epoch_size_value = None
 
         # Validate the stream weighting scheme (relative or absolute) to catch errors before we go
         # to the trouble of loading them.
