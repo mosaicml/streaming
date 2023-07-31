@@ -59,7 +59,6 @@ def test_dataloader_epoch_size_no_streams(local_remote_dir: Tuple[str,
             assert samples_seen == epoch_size
 
 
-
 @pytest.mark.parametrize('batch_size', [4])
 @pytest.mark.parametrize('seed', [2222])
 @pytest.mark.parametrize('shuffle', [False, True])
@@ -69,8 +68,8 @@ def test_dataloader_epoch_size_no_streams(local_remote_dir: Tuple[str,
 @pytest.mark.parametrize('epoch_size', [10, 200])
 @pytest.mark.usefixtures('local_remote_dir')
 def test_dataloader_fixed_sampling(local_remote_dir: Any, batch_size: int, seed: int,
-                                   shuffle: bool, drop_last: bool, num_workers: int, num_canonical_nodes: int,
-                                   epoch_size: int):
+                                   shuffle: bool, drop_last: bool, num_workers: int,
+                                   num_canonical_nodes: int, epoch_size: int):
     remote_dir, local_dir = local_remote_dir
     convert_to_mds(out_root=remote_dir,
                    dataset_name='sequencedataset',
