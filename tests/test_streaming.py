@@ -101,7 +101,7 @@ def test_dataloader_fixed_balanced_sampling(local_remote_dir: Any, batch_size: i
         for batch in dataloader:
             for element in batch['sample']:
                 int_element = int(element)
-                if element in samples_seen:
+                if int_element in samples_seen:
                     samples_seen[int_element] += 1
                 else:
                     samples_seen[int_element] = 1
