@@ -4,14 +4,14 @@
 """Create a streaming dataset from toy data with various options for regression testing."""
 
 import os
-import shutil
 import tempfile
+import urllib.parse
 from argparse import ArgumentParser, Namespace
 
+import utils
 from torch.utils.data import DataLoader
 
 from streaming import StreamingDataset
-from streaming.base.distributed import barrier
 
 _TRAIN_EPOCHS = 2
 
@@ -35,6 +35,8 @@ def parse_args() -> tuple[Namespace, dict[str, str]]:
         tuple(Namespace, dict[str, str]): Command-line arguments and named arguments.
     """
     args = ArgumentParser()
+    args.add_argument('--cloud_url', type=str)
+    args.add_argument('--check_download', default=False, action='store_true')
     args.add_argument('--local', default=False, action='store_true')
     args.add_argument(
         '--keep_zip',
@@ -56,6 +58,43 @@ def parse_args() -> tuple[Namespace, dict[str, str]]:
     return args, kwargs
 
 
+def get_file_count(cloud_url: str) -> int:
+    """Get the number of files in a remote directory.
+
+    Args:
+        cloud_url (str): Cloud provider url.
+    """
+    obj = urllib.parse.urlparse(cloud_url)
+    cloud = obj.scheme
+    files = []
+    if cloud == 'gs':
+        from google.cloud.storage import Bucket, Client
+
+        service_account_path = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
+        gcs_client = Client.from_service_account_json(service_account_path)
+
+        bucket = Bucket(gcs_client, obj.netloc)
+        files = bucket.list_blobs(prefix=obj.path.lstrip('/'))
+    elif cloud == 's3':
+        import boto3
+
+        s3 = boto3.resource('s3')
+        bucket = s3.Bucket(obj.netloc)
+        files = bucket.objects.filter(Prefix=obj.path.lstrip('/'))
+    elif cloud == 'oci':
+        import oci
+
+        config = oci.config.from_file()
+        oci_client = oci.object_storage.ObjectStorageClient(
+            config=config, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
+        namespace = oci_client.get_namespace().data
+        objects = oci_client.list_objects(namespace, obj.netloc, prefix=obj.path.lstrip('/'))
+
+        files = objects.data.objects
+
+    return sum(1 for _ in files)
+
+
 def main(args: Namespace, kwargs: dict[str, str]) -> None:
     """Benchmark time taken to generate the epoch for a given dataset.
 
@@ -64,10 +103,9 @@ def main(args: Namespace, kwargs: dict[str, str]) -> None:
         kwargs (dict): Named arguments.
     """
     tmp_dir = tempfile.gettempdir()
-    tmp_remote_dir = os.path.join(tmp_dir, 'regression_remote')
     tmp_download_dir = os.path.join(tmp_dir, 'test_iterate_data_download')
     dataset = StreamingDataset(
-        remote=tmp_remote_dir,
+        remote=args.cloud_url if args.cloud_url is not None else utils.get_local_remote_dir(),
         local=tmp_download_dir if args.local else None,
         split=kwargs.get('split'),
         download_retry=int(kwargs.get('download_retry', 2)),
@@ -92,11 +130,13 @@ def main(args: Namespace, kwargs: dict[str, str]) -> None:
         for _ in dataloader:
             pass
 
-    barrier()
-    # Clean up directories
-    for stream in dataset.streams:
-        shutil.rmtree(stream.local, ignore_errors=True)
-    shutil.rmtree(tmp_download_dir, ignore_errors=True)
+    if args.check_download and args.cloud_url is not None:
+        num_cloud_files = get_file_count(args.cloud_url)
+        local_dir = dataset.streams[0].local
+        num_local_files = len([
+            name for name in os.listdir(local_dir) if os.path.isfile(os.path.join(local_dir, name))
+        ])
+        assert num_cloud_files == num_local_files
 
 
 if __name__ == '__main__':
