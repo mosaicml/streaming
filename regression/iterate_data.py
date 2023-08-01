@@ -35,7 +35,7 @@ def parse_args() -> tuple[Namespace, dict[str, str]]:
         tuple(Namespace, dict[str, str]): Command-line arguments and named arguments.
     """
     args = ArgumentParser()
-    args.add_argument('--cloud', type=str)
+    args.add_argument('--cloud_url', type=str)
     args.add_argument('--check_download', default=False, action='store_true')
     args.add_argument('--local', default=False, action='store_true')
     args.add_argument(
@@ -58,14 +58,14 @@ def parse_args() -> tuple[Namespace, dict[str, str]]:
     return args, kwargs
 
 
-def get_file_count(cloud: str) -> int:
+def get_file_count(cloud_url: str) -> int:
     """Get the number of files in a remote directory.
 
     Args:
-        cloud (str): Cloud provider.
+        cloud_url (str): Cloud provider url.
     """
-    remote_dir = utils.get_remote_dir(cloud)
-    obj = urllib.parse.urlparse(remote_dir)
+    obj = urllib.parse.urlparse(cloud_url)
+    cloud = obj.scheme
     files = []
     if cloud == 'gs':
         from google.cloud.storage import Bucket, Client
@@ -105,7 +105,7 @@ def main(args: Namespace, kwargs: dict[str, str]) -> None:
     tmp_dir = tempfile.gettempdir()
     tmp_download_dir = os.path.join(tmp_dir, 'test_iterate_data_download')
     dataset = StreamingDataset(
-        remote=utils.get_remote_dir(args.cloud),
+        remote=args.cloud_url if args.cloud_url is not None else utils.get_local_remote_dir(),
         local=tmp_download_dir if args.local else None,
         split=kwargs.get('split'),
         download_retry=int(kwargs.get('download_retry', 2)),
@@ -130,8 +130,8 @@ def main(args: Namespace, kwargs: dict[str, str]) -> None:
         for _ in dataloader:
             pass
 
-    if args.check_download and args.cloud is not None:
-        num_cloud_files = get_file_count(args.cloud)
+    if args.check_download and args.cloud_url is not None:
+        num_cloud_files = get_file_count(args.cloud_url)
         local_dir = dataset.streams[0].local
         num_local_files = len([
             name for name in os.listdir(local_dir) if os.path.isfile(os.path.join(local_dir, name))

@@ -34,7 +34,7 @@ def parse_args() -> Namespace:
         Namespace: Command-line arguments.
     """
     args = ArgumentParser()
-    args.add_argument('--cloud', type=str)
+    args.add_argument('--cloud_url', type=str)
     args.add_argument('--create', default=False, action='store_true')
     args.add_argument('--delete', default=False, action='store_true')
     args.add_argument(
@@ -171,7 +171,7 @@ def main(args: Namespace) -> None:
     Args:
         args (Namespace): Command-line arguments.
     """
-    remote_dir = utils.get_remote_dir(args.cloud)
+    remote_dir = args.cloud_url if args.cloud_url is not None else utils.get_local_remote_dir()
     if args.create:
         dataset = get_dataset(args.num_samples)
         with MDSWriter(
@@ -184,13 +184,15 @@ def main(args: Namespace) -> None:
             for sample in dataset:
                 out.write(sample)
     if args.delete:
-        if args.cloud is None:
+        obj = urllib.parse.urlparse(remote_dir)
+        cloud = obj.scheme
+        if cloud == '':
             shutil.rmtree(remote_dir, ignore_errors=True)
-        elif args.cloud == 'gs':
+        elif cloud == 'gs':
             delete_gcs(remote_dir)
-        elif args.cloud == 's3':
+        elif cloud == 's3':
             delete_s3(remote_dir)
-        elif args.cloud == 'oci':
+        elif cloud == 'oci':
             delete_oci(remote_dir)
 
 

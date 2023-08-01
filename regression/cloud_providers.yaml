@@ -6,15 +6,15 @@ command: |-
   pip uninstall -y mosaicml-streaming
   cd streaming
   pip install -e '.[dev]'
-  composer -n 1 regression/synthetic_dataset.py --create --cloud gs --num_samples 25000 --size_limit 4194304 # 4mb
-  composer -n 2 regression/iterate_data.py --cloud gs --check_download
-  composer -n 1 regression/synthetic_dataset.py --delete --cloud gs
-  composer -n 1 regression/synthetic_dataset.py --create --cloud s3 --num_samples 25000 --size_limit 134217728 # 128 mb
-  composer -n 4 regression/iterate_data.py --cloud s3 --check_download --local
-  composer -n 1 regression/synthetic_dataset.py --delete --cloud s3
-  composer -n 1 regression/synthetic_dataset.py --create --cloud oci --num_samples 25000 --size_limit 268435456 # 256 mb
-  composer -n 8 regression/iterate_data.py --cloud oci --check_download
-  composer -n 1 regression/synthetic_dataset.py --delete --cloud oci
+  composer -n 1 regression/synthetic_dataset.py --create --cloud_url gs://mosaicml-composer-tests/streaming/regression/ --size_limit 4194304 # 4mb
+  composer -n 2 regression/iterate_data.py --cloud_url gs://mosaicml-composer-tests/streaming/regression/ --check_download
+  composer -n 1 regression/synthetic_dataset.py --delete --cloud_url gs://mosaicml-composer-tests/streaming/regression/
+  composer -n 1 regression/synthetic_dataset.py --create --cloud_url s3://streaming-upload-test-bucket/streaming/regression/ --size_limit 134217728 # 128 mb
+  composer -n 4 regression/iterate_data.py --cloud_url s3://streaming-upload-test-bucket/streaming/regression/ --check_download --local
+  composer -n 1 regression/synthetic_dataset.py --delete --cloud_url s3://streaming-upload-test-bucket/streaming/regression/
+  composer -n 1 regression/synthetic_dataset.py --create --cloud_url oci://streaming-test/regression --size_limit 268435456 # 256 mb
+  composer -n 8 regression/iterate_data.py --cloud_url oci://streaming-test/regression --check_download
+  composer -n 1 regression/synthetic_dataset.py --delete --cloud_url oci://streaming-test/regression
 
 image: mosaicml/composer:0.15.0
 scheduling:
