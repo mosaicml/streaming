@@ -717,7 +717,7 @@ class StreamingDataset(Array, IterableDataset):
                 # shuffle units are lists where each entry is a number of samples to take
                 # from the shard. If upsampling a shard with 4 samples by 2.5x,
                 # shard_choose will be 10, and shard_shuffle_units will be [4, 4, 2]. If
-                # downsamping that same shard by 0.5x, shard_choose will be 2 and
+                # downsampling that same shard by 0.5x, shard_choose will be 2 and
                 # shard_shuffle_units will be just [2].
                 shard_shuffle_units = [shard_samples] * (shard_choose // shard_samples)
                 remainder = shard_choose % shard_samples

@@ -47,7 +47,6 @@ def test_dataloader_epoch_size_no_streams(local_remote_dir: Tuple[str,
 
     samples_seen = 0
     for batch in dataloader:
-        print(batch['sample'])
         samples_seen += batch['sample'].size(dim=0)
 
     if epoch_size % num_canonical_nodes != 0:
@@ -65,7 +64,7 @@ def test_dataloader_epoch_size_no_streams(local_remote_dir: Tuple[str,
 @pytest.mark.parametrize('drop_last', [False])
 @pytest.mark.parametrize('num_workers', [3, 6])
 @pytest.mark.parametrize('num_canonical_nodes', [4, 8])
-@pytest.mark.parametrize('epoch_size', [10, 200])
+@pytest.mark.parametrize('epoch_size', [16, 200])
 @pytest.mark.parametrize('sampling_method', ['fixed', 'balanced'])
 @pytest.mark.usefixtures('local_remote_dir')
 def test_dataloader_fixed_balanced_sampling(local_remote_dir: Any, batch_size: int, seed: int,
@@ -99,12 +98,11 @@ def test_dataloader_fixed_balanced_sampling(local_remote_dir: Any, batch_size: i
     for epoch in range(3):
         samples_seen = first_samples_seen if epoch == 0 else {}
         for batch in dataloader:
-            for element in batch['sample']:
-                int_element = int(element)
-                if int_element in samples_seen:
-                    samples_seen[int_element] += 1
+            for sample_id in batch['id']:
+                if sample_id in samples_seen:
+                    samples_seen[sample_id] += 1
                 else:
-                    samples_seen[int_element] = 1
+                    samples_seen[sample_id] = 1
 
         if epoch > 0 and sampling_method == 'fixed':
             assert samples_seen == first_samples_seen
