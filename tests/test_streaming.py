@@ -66,10 +66,12 @@ def test_dataloader_epoch_size_no_streams(local_remote_dir: Tuple[str,
 @pytest.mark.parametrize('num_workers', [3, 6])
 @pytest.mark.parametrize('num_canonical_nodes', [4, 8])
 @pytest.mark.parametrize('epoch_size', [10, 200])
+@pytest.mark.parametrize('sampling_method', ['fixed', 'balanced'])
 @pytest.mark.usefixtures('local_remote_dir')
-def test_dataloader_fixed_sampling(local_remote_dir: Any, batch_size: int, seed: int,
-                                   shuffle: bool, drop_last: bool, num_workers: int,
-                                   num_canonical_nodes: int, epoch_size: int):
+def test_dataloader_fixed_balanced_sampling(local_remote_dir: Any, batch_size: int, seed: int,
+                                            shuffle: bool, drop_last: bool, num_workers: int,
+                                            num_canonical_nodes: int, epoch_size: int,
+                                            sampling_method: str):
     remote_dir, local_dir = local_remote_dir
     convert_to_mds(out_root=remote_dir,
                    dataset_name='sequencedataset',
@@ -84,23 +86,13 @@ def test_dataloader_fixed_sampling(local_remote_dir: Any, batch_size: int, seed:
                                shuffle_seed=seed,
                                num_canonical_nodes=num_canonical_nodes,
                                epoch_size=epoch_size,
-                               sampling_method='fixed')
+                               sampling_method=sampling_method)
 
     # Build DataLoader
     dataloader = StreamingDataLoader(dataset=dataset,
                                      batch_size=batch_size,
                                      num_workers=num_workers,
                                      drop_last=drop_last)
-
-    # iterate once over the dataloader (first epoch)
-    first_samples_seen = {}
-    for batch in dataloader:
-        for element in batch['sample']:
-            int_element = int(element)
-            if int_element in first_samples_seen:
-                first_samples_seen[int_element] += 1
-            else:
-                first_samples_seen[int_element] = 1
 
     # check 2 more epochs to see if samples are the same
     first_samples_seen = {}
@@ -114,8 +106,10 @@ def test_dataloader_fixed_sampling(local_remote_dir: Any, batch_size: int, seed:
                 else:
                     samples_seen[int_element] = 1
 
-        if epoch > 0:
+        if epoch > 0 and sampling_method == 'fixed':
             assert samples_seen == first_samples_seen
+        if epoch > 0 and sampling_method == 'balanced':
+            assert samples_seen != first_samples_seen
 
 
 @pytest.mark.parametrize('batch_size', [128])
@@ -179,6 +173,30 @@ def test_dataloader_single_device(local_remote_dir: Tuple[str, str], batch_size:
     assert len(set(sample_order)) == expected_num_samples
     if not drop_last:
         assert len(set(sample_order)) == num_samples
+
+
+@pytest.mark.parametrize('batch_size', [1, 4])
+@pytest.mark.parametrize('seed', [1111])
+@pytest.mark.parametrize('shuffle', [False, True])
+@pytest.mark.parametrize('num_workers', [0, 8])
+@pytest.mark.usefixtures('local_remote_dir')
+def test_sampling_method_invalid_Exception(local_remote_dir: Any, batch_size: int, seed: int,
+                                           shuffle: bool, num_workers: int):
+    bad_sampling_methods = ['balanfixed', 'fixedd', '', 'random', 'ayo']
+    remote_dir, local_dir = local_remote_dir
+    convert_to_mds(out_root=remote_dir,
+                   dataset_name='sequencedataset',
+                   num_samples=117,
+                   size_limit=1 << 8)
+
+    for method in bad_sampling_methods:
+        with pytest.raises(ValueError, match=f'Invalid sampling method:*'):
+            _ = StreamingDataset(local=local_dir,
+                                 remote=remote_dir,
+                                 shuffle=shuffle,
+                                 batch_size=batch_size,
+                                 shuffle_seed=seed,
+                                 sampling_method=method)
 
 
 @pytest.mark.parametrize('batch_size', [1, 4])

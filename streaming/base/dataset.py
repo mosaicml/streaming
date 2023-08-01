@@ -327,22 +327,6 @@ class StreamingDataset(Array, IterableDataset):
             }
             for stream in streams:
                 stream.apply_default(default)
-        elif epoch_size_value:
-            # if there are no streams provided but the epoch_size is speficied
-            # we create a single stream that chooses the speficied number of samples
-            # per epoch. The epoch consists of data from this single stream.
-            samples_specified_stream = Stream(remote=remote,
-                                              local=local,
-                                              split=split,
-                                              choose=epoch_size_value,
-                                              download_retry=download_retry,
-                                              download_timeout=download_timeout,
-                                              validate_hash=validate_hash,
-                                              keep_zip=keep_zip)
-            # reset epoch_size_value back to default of None since we have already accounted
-            # for it inside the samples_specified_stream
-            epoch_size_value = None
-            streams = [samples_specified_stream]
         else:
             default = Stream(remote=remote,
                              local=local,
