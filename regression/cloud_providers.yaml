@@ -1,0 +1,27 @@
+name: streaming-regression-test-cloud-providers
+compute:
+  gpus: 8 # Number of GPUs to use
+  # cluster: TODO # Name of the cluster to use for this run
+command: |-
+  pip uninstall -y mosaicml-streaming
+  cd streaming
+  pip install -e '.[dev]'
+  composer -n 1 regression/synthetic_dataset.py --create --cloud_url $GS_CLOUD_URL --size_limit 4194304 # 4mb
+  composer -n 2 regression/iterate_data.py --cloud_url $GS_CLOUD_URL --check_download
+  composer -n 1 regression/synthetic_dataset.py --delete --cloud_url $GS_CLOUD_URL
+  composer -n 1 regression/synthetic_dataset.py --create --cloud_url $S3_URL --size_limit 134217728 # 128 mb
+  composer -n 4 regression/iterate_data.py --cloud_url $S3_URL --check_download --local
+  composer -n 1 regression/synthetic_dataset.py --delete --cloud_url $S3_URL
+  composer -n 1 regression/synthetic_dataset.py --create --cloud_url $OCI_URL --size_limit 268435456 # 256 mb
+  composer -n 8 regression/iterate_data.py --cloud_url $OCI_URL --check_download
+  composer -n 1 regression/synthetic_dataset.py --delete --cloud_url $OCI_URL
+
+image: mosaicml/composer:0.15.0
+scheduling:
+  resumable: true
+  priority: medium
+integrations:
+  - integration_type: git_repo
+    git_repo: mosaicml/streaming
+    git_branch: main
+    ssh_clone: false

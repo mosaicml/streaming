@@ -4,16 +4,18 @@
 """Create a toy dataset using MDSWriter for regression testing."""
 
 import os
+import random
 import shutil
-import tempfile
+import string
+import urllib.parse
 from argparse import ArgumentParser, Namespace
 from typing import Union
 
 import numpy as np
+import utils
 
 from streaming import MDSWriter
 
-_NUM_SAMPLES = 10000
 # Word representation of a number
 _ONES = ('zero one two three four five six seven eight nine ten eleven twelve '
          'thirteen fourteen fifteen sixteen seventeen eighteen nineteen').split()
@@ -32,6 +34,7 @@ def parse_args() -> Namespace:
         Namespace: Command-line arguments.
     """
     args = ArgumentParser()
+    args.add_argument('--cloud_url', type=str)
     args.add_argument('--create', default=False, action='store_true')
     args.add_argument('--delete', default=False, action='store_true')
     args.add_argument(
@@ -52,6 +55,10 @@ def parse_args() -> Namespace:
         help=('Shard size limit, after which point to start a new shard for '
               'MDSWriter. If ``None``, puts everything in one shard.'),
     )
+    args.add_argument('--num_samples',
+                      type=int,
+                      default=10000,
+                      help='Number of samples to generate')
     return args.parse_args()
 
 
@@ -95,7 +102,67 @@ def get_dataset(num_samples: int) -> list[dict[str, Union[int, str]]]:
         words = ' '.join(say(num))
         sample = {'number': num, 'words': words}
         samples.append(sample)
+    for num in range(num_samples):
+        sample = {
+            'number': num,
+            'words': ''.join([random.choice(string.ascii_lowercase) for _ in range(num_samples)])
+        }
+        samples.append(sample)
     return samples
+
+
+def delete_gcs(remote_dir: str) -> None:
+    """Delete a remote directory from gcs.
+
+    Args:
+        remote_dir (str): Location of the remote directory.
+    """
+    from google.cloud.storage import Bucket, Client
+
+    service_account_path = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
+    gcs_client = Client.from_service_account_json(service_account_path)
+    obj = urllib.parse.urlparse(remote_dir)
+
+    bucket = Bucket(gcs_client, obj.netloc)
+    blobs = bucket.list_blobs(prefix=obj.path.lstrip('/'))
+
+    for blob in blobs:
+        blob.delete()
+
+
+def delete_s3(remote_dir: str) -> None:
+    """Delete a remote directory from s3.
+
+    Args:
+        remote_dir (str): Location of the remote directory.
+    """
+    import boto3
+
+    obj = urllib.parse.urlparse(remote_dir)
+
+    s3 = boto3.resource('s3')
+    bucket = s3.Bucket(obj.netloc)
+    bucket.objects.filter(Prefix=obj.path.lstrip('/')).delete()
+
+
+def delete_oci(remote_dir: str) -> None:
+    """Delete a remote directory from oci.
+
+    Args:
+        remote_dir (str): Location of the remote directory.
+    """
+    import oci
+
+    obj = urllib.parse.urlparse(remote_dir)
+
+    config = oci.config.from_file()
+    oci_client = oci.object_storage.ObjectStorageClient(
+        config=config, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
+    namespace = oci_client.get_namespace().data
+    objects = oci_client.list_objects(namespace, obj.netloc, prefix=obj.path.lstrip('/'))
+
+    for filenames in objects.data.objects:
+        oci_client.delete_object(namespace, obj.netloc, filenames.name)
 
 
 def main(args: Namespace) -> None:
@@ -104,13 +171,11 @@ def main(args: Namespace) -> None:
     Args:
         args (Namespace): Command-line arguments.
     """
-    tmp_dir = tempfile.gettempdir()
-    tmp_remote_dir = os.path.join(tmp_dir, 'regression_remote')
-
+    remote_dir = args.cloud_url if args.cloud_url is not None else utils.get_local_remote_dir()
     if args.create:
-        dataset = get_dataset(_NUM_SAMPLES)
+        dataset = get_dataset(args.num_samples)
         with MDSWriter(
-                out=tmp_remote_dir,
+                out=remote_dir,
                 columns=_COLUMNS,
                 compression=args.compression,
                 hashes=args.hashes,
@@ -119,7 +184,16 @@ def main(args: Namespace) -> None:
             for sample in dataset:
                 out.write(sample)
     if args.delete:
-        shutil.rmtree(tmp_remote_dir, ignore_errors=True)
+        obj = urllib.parse.urlparse(remote_dir)
+        cloud = obj.scheme
+        if cloud == '':
+            shutil.rmtree(remote_dir, ignore_errors=True)
+        elif cloud == 'gs':
+            delete_gcs(remote_dir)
+        elif cloud == 's3':
+            delete_s3(remote_dir)
+        elif cloud == 'oci':
+            delete_oci(remote_dir)
 
 
 if __name__ == '__main__':
