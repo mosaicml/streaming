@@ -334,14 +334,14 @@ class Stream:
         os.rename(tmp_filename, raw_filename)
 
         # Maybe remove compressed to save space.
-        if not self.keep_zip and self.remote != self.local:
+        if not self.safe_keep_zip:
             os.remove(zip_filename)
 
-    def _download_shard_part(self,
-                             raw_info: FileInfo,
-                             zip_info: Optional[FileInfo] = None,
-                             compression: Optional[str] = None) -> None:
-        """Download shard data given metadata for the raw and compressed versions of it.
+    def _prepare_shard_part(self,
+                            raw_info: FileInfo,
+                            zip_info: Optional[FileInfo] = None,
+                            compression: Optional[str] = None) -> int:
+        """Get shard data given metadata for the raw and compressed versions of it.
 
         MDS format uses joint shards (ie, one file per shard). Other formats supported by streaming
         use split shards (ie, shard data lives in two files per shard: the raw data itself and
@@ -352,39 +352,60 @@ class Stream:
             zip_info (FileInfo, optional): Zip file info. Defaults to ``None``.
             compression (str, optional): Compression algorithm used for zip_info. Defaults to
                 ``None``.
+
+        Returns:
+            int: Change in cache usage.
         """
-        # If the local raw file already exists, this is a no-op.
+        # Has raw?
+        delta = 0
         raw_filename = os.path.join(self.local, self.split, raw_info.basename)
         if os.path.isfile(raw_filename):
-            return
-
-        # Is compression used?
-        if zip_info:
-            # Download the compressed form if missing.
-            zip_filename = os.path.join(self.local, self.split, zip_info.basename)
-            if not os.path.isfile(zip_filename):
-                self._download_file(zip_info.basename)
-
-            # Validate and decompress.
-            self._decompress_shard_part(zip_info, zip_filename, raw_filename, compression)
+            # Has raw.
+            if zip_info and not self.safe_keep_zip:
+                zip_filename = os.path.join(self.local, self.split, zip_info.basename)
+                if os.path.isfile(zip_filename):
+                    # If don't keep zip and it has a zip, drop the zip.
+                    os.remove(zip_filename)
+                    delta -= zip_info.bytes
         else:
-            # Download the raw form.
-            self._download_file(raw_info.basename)
+            # Missing raw. Uses zip?
+            if zip_info:
+                # Ensure has zip.
+                zip_filename = os.path.join(self.local, self.split, zip_info.basename)
+                if not os.path.isfile(zip_filename):
+                    self._download_file(zip_info.basename)
+                    delta += zip_info.bytes
 
-            # Validate if requested.
-            if self.validate_hash:
-                data = open(raw_filename, 'rb').read()
-                if get_hash(self.validate_hash, data) != raw_info.hashes[self.validate_hash]:
-                    raise ValueError(f'Checksum failure: {raw_filename}')
+                # Validate and decompress.
+                self._decompress_shard_part(zip_info, zip_filename, raw_filename, compression)
+                delta += raw_info.bytes
+                if not self.safe_keep_zip:
+                    delta -= zip_info.bytes
+            else:
+                # Download raw.
+                self._download_file(raw_info.basename)
+                delta += raw_info.bytes
 
-    def download_shard(self, shard: Reader) -> None:
-        """Download the given shard.
+                # Validate.
+                if self.validate_hash:
+                    data = open(raw_filename, 'rb').read()
+                    if get_hash(self.validate_hash, data) != raw_info.hashes[self.validate_hash]:
+                        raise ValueError(f'Checksum failure: {raw_filename}')
+        return delta
+
+    def prepare_shard(self, shard: Reader) -> int:
+        """Ensure (download, validate, extract, etc.) that we have the given shard.
 
         Args:
             shard (Reader): Which shard.
+
+        Returns:
+            int: Change in cache usage.
         """
+        delta = 0
         for raw_info, zip_info in shard.file_pairs:
-            self._download_shard_part(raw_info, zip_info, shard.compression)
+            delta += self._prepare_shard_part(raw_info, zip_info, shard.compression)
+        return delta
 
     def get_shards(self, world: World) -> List[Reader]:
         """Load this Stream's index, retrieving its shard readers.
@@ -400,6 +421,10 @@ class Stream:
         filename = os.path.join(self.local, self.split, basename)  # pyright: ignore
         if world.is_local_leader:
             if self.remote:
+                # Downloads the `index.json` as `index.json.tmp` fully and then rename it to
+                # `index.json` since only one process downloads the `index.json` file while
+                # other processes wait for it to get downloaded. Hence, It avoids loading the
+                # in-progress downloading `index.json`.
                 tmp_filename = self._download_file(basename, basename + '.tmp')
                 os.rename(tmp_filename, filename)
             else:
@@ -432,14 +457,12 @@ class Stream:
 
         return shards
 
-    def init_local_dir(self, shards: List[Reader]) -> List[bool]:
+    def set_up_local(self, shards: List[Reader], cache_usage_per_shard: NDArray[np.int64]) -> None:
         """Bring a local directory into a consistent state, getting which shards are present.
 
         Args:
             shards (List[Reader]): List of this stream's shards.
-
-        Returns:
-            List[bool]: List of whether each stream shard is present.
+            cache_usage_per_shard (NDArray[np.int64]): Cache usage per shard of this stream.
         """
         # List the cache directory (so that we hit the filesystem once).
         local_dirname = os.path.join(self.local, self.split)
@@ -450,11 +473,8 @@ class Stream:
                 listing.add(filename)
 
         # Determine which shards are present, making local dir consistent.
-        are_shards_present = []
-        for shard in shards:
-            is_shard_present = shard.init_local_dir(listing, self.safe_keep_zip)
-            are_shards_present.append(is_shard_present)
-        return are_shards_present
+        for i, shard in enumerate(shards):
+            cache_usage_per_shard[i] = shard.set_up_local(listing, self.safe_keep_zip)
 
     def get_index_size(self) -> int:
         """Get the size of the index file in bytes.

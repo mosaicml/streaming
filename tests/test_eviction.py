@@ -4,7 +4,7 @@
 import operator
 import os
 from shutil import rmtree
-from typing import Tuple
+from typing import Any, Tuple
 
 import pytest
 from torch.utils.data import DataLoader
@@ -92,7 +92,7 @@ def manual_shard_eviction(remote: str, local: str, keep_zip: bool):
     dataset = StreamingDataset(remote=remote, local=local, keep_zip=keep_zip)
 
     for shard_id in range(dataset.num_shards):
-        dataset.download_shard(shard_id)
+        dataset.prepare_shard(shard_id)
 
     full = set(os.listdir(local))
 
@@ -119,12 +119,15 @@ def cache_limit_too_low(remote: str, local: str, keep_zip: bool):
     rmtree(local, ignore_errors=False)
 
 
-funcs = shard_eviction_disabled, shard_eviction_too_high, shard_eviction, manual_shard_eviction,
-cache_limit_too_low,
+funcs = [
+    shard_eviction_disabled, shard_eviction_too_high, shard_eviction, manual_shard_eviction,
+    cache_limit_too_low
+]
 
 
 @pytest.mark.usefixtures('local_remote_dir')
-def test_eviction_nozip(local_remote_dir: Tuple[str, str]):
+@pytest.mark.parametrize('func', [f for f in funcs])
+def test_eviction_nozip(local_remote_dir: Tuple[str, str], func: Any):
     num_samples = 5_000
     local, remote = local_remote_dir
     columns = {'data': 'bytes'}
@@ -141,12 +144,12 @@ def test_eviction_nozip(local_remote_dir: Tuple[str, str]):
             sample = {'data': b'\0'}
             out.write(sample)
 
-    for func in funcs:
-        func(remote, local, False)
+    func(remote, local, False)
 
 
 @pytest.mark.usefixtures('local_remote_dir')
-def test_eviction_zip_nokeep(local_remote_dir: Tuple[str, str]):
+@pytest.mark.parametrize('func', [f for f in funcs])
+def test_eviction_zip_nokeep(local_remote_dir: Tuple[str, str], func: Any):
     num_samples = 5_000
     local, remote = local_remote_dir
     columns = {'data': 'bytes'}
@@ -163,12 +166,12 @@ def test_eviction_zip_nokeep(local_remote_dir: Tuple[str, str]):
             sample = {'data': b'\0'}
             out.write(sample)
 
-    for func in funcs:
-        func(remote, local, False)
+    func(remote, local, False)
 
 
 @pytest.mark.usefixtures('local_remote_dir')
-def test_eviction_zip_keep(local_remote_dir: Tuple[str, str]):
+@pytest.mark.parametrize('func', [f for f in funcs])
+def test_eviction_zip_keep(local_remote_dir: Tuple[str, str], func: Any):
     num_samples = 5_000
     local, remote = local_remote_dir
     columns = {'data': 'bytes'}
@@ -185,5 +188,4 @@ def test_eviction_zip_keep(local_remote_dir: Tuple[str, str]):
             sample = {'data': b'\0'}
             out.write(sample)
 
-    for func in funcs:
-        func(remote, local, True)
+    func(remote, local, True)

@@ -9,7 +9,54 @@ import pytest
 from torch.utils.data import DataLoader
 
 from streaming.base import StreamingDataLoader, StreamingDataset
-from tests.common.datasets import SequenceDataset, write_mds_dataset
+from tests.common.utils import convert_to_mds
+
+
+@pytest.mark.parametrize('batch_size', [4])
+@pytest.mark.parametrize('seed', [2222])
+@pytest.mark.parametrize('shuffle', [False])
+@pytest.mark.parametrize('drop_last', [False, True])
+@pytest.mark.parametrize('num_workers', [3, 6])
+@pytest.mark.parametrize('num_canonical_nodes', [4, 8])
+@pytest.mark.parametrize('epoch_size', [10, 200])
+@pytest.mark.usefixtures('local_remote_dir')
+def test_dataloader_epoch_size_no_streams(local_remote_dir: Tuple[str,
+                                                                  str], batch_size: int, seed: int,
+                                          shuffle: bool, drop_last: bool, num_workers: int,
+                                          num_canonical_nodes: int, epoch_size: int):
+    local, remote = local_remote_dir
+    convert_to_mds(out_root=remote,
+                   dataset_name='sequencedataset',
+                   num_samples=117,
+                   size_limit=1 << 8)
+
+    # Build StreamingDataset
+    dataset = StreamingDataset(local=local,
+                               remote=remote,
+                               shuffle=shuffle,
+                               batch_size=batch_size,
+                               shuffle_seed=seed,
+                               num_canonical_nodes=num_canonical_nodes,
+                               epoch_size=epoch_size)
+
+    # Build DataLoader
+    dataloader = StreamingDataLoader(dataset=dataset,
+                                     batch_size=batch_size,
+                                     num_workers=num_workers,
+                                     drop_last=drop_last)
+
+    samples_seen = 0
+    for batch in dataloader:
+        print(batch['sample'])
+        samples_seen += batch['sample'].size(dim=0)
+
+    if epoch_size % num_canonical_nodes != 0:
+        assert samples_seen == math.ceil(epoch_size / num_canonical_nodes) * num_canonical_nodes
+    else:
+        if drop_last:
+            assert samples_seen == epoch_size - (epoch_size % batch_size)
+        else:
+            assert samples_seen == epoch_size
 
 
 @pytest.mark.parametrize('batch_size', [128])
@@ -23,10 +70,11 @@ from tests.common.datasets import SequenceDataset, write_mds_dataset
 def test_dataloader_single_device(local_remote_dir: Tuple[str, str], batch_size: int,
                                   drop_last: bool, shuffle: bool, num_workers: int,
                                   num_samples: int, size_limit: int, seed: int):
-    dataset = SequenceDataset(num_samples)
-    columns = dict(zip(dataset.column_names, dataset.column_encodings))
     local, remote = local_remote_dir
-    write_mds_dataset(out_root=remote, columns=columns, samples=dataset, size_limit=size_limit)
+    convert_to_mds(out_root=remote,
+                   dataset_name='sequencedataset',
+                   num_samples=num_samples,
+                   size_limit=size_limit)
 
     # Build a StreamingDataset
     dataset = StreamingDataset(local=local,
@@ -78,10 +126,14 @@ def test_dataloader_single_device(local_remote_dir: Tuple[str, str], batch_size:
 @pytest.mark.parametrize('seed', [1111])
 @pytest.mark.parametrize('shuffle', [False, True])
 @pytest.mark.parametrize('num_workers', [0, 8])
-@pytest.mark.usefixtures('mds_dataset_dir')
-def test_dataloader_determinism(mds_dataset_dir: Any, batch_size: int, seed: int, shuffle: bool,
+@pytest.mark.usefixtures('local_remote_dir')
+def test_dataloader_determinism(local_remote_dir: Any, batch_size: int, seed: int, shuffle: bool,
                                 num_workers: int):
-    remote_dir, local_dir = mds_dataset_dir
+    remote_dir, local_dir = local_remote_dir
+    convert_to_mds(out_root=remote_dir,
+                   dataset_name='sequencedataset',
+                   num_samples=117,
+                   size_limit=1 << 8)
 
     # Build StreamingDataset
     dataset = StreamingDataset(local=local_dir,
@@ -126,10 +178,14 @@ def test_dataloader_determinism(mds_dataset_dir: Any, batch_size: int, seed: int
 @pytest.mark.parametrize('drop_last', [False, True])
 @pytest.mark.parametrize('num_workers', [0, 8])
 @pytest.mark.parametrize('num_canonical_nodes', [1])
-@pytest.mark.usefixtures('mds_dataset_dir')
-def test_dataloader_sample_order(mds_dataset_dir: Any, batch_size: int, seed: int, shuffle: bool,
+@pytest.mark.usefixtures('local_remote_dir')
+def test_dataloader_sample_order(local_remote_dir: Any, batch_size: int, seed: int, shuffle: bool,
                                  drop_last: bool, num_workers: int, num_canonical_nodes: int):
-    remote_dir, local_dir = mds_dataset_dir
+    remote_dir, local_dir = local_remote_dir
+    convert_to_mds(out_root=remote_dir,
+                   dataset_name='sequencedataset',
+                   num_samples=117,
+                   size_limit=1 << 8)
 
     # Build StreamingDataset
     dataset = StreamingDataset(local=local_dir,
@@ -164,11 +220,15 @@ def test_dataloader_sample_order(mds_dataset_dir: Any, batch_size: int, seed: in
 @pytest.mark.parametrize('shuffle', [False, True])
 @pytest.mark.parametrize('num_workers', [0, 4])
 @pytest.mark.parametrize('num_canonical_nodes', [1])
-@pytest.mark.usefixtures('mds_dataset_dir')
-def test_streamingdataloader_mid_epoch_resumption(mds_dataset_dir: Any, batch_size: int, seed: int,
-                                                  shuffle: bool, num_workers: int,
+@pytest.mark.usefixtures('local_remote_dir')
+def test_streamingdataloader_mid_epoch_resumption(local_remote_dir: Any, batch_size: int,
+                                                  seed: int, shuffle: bool, num_workers: int,
                                                   num_canonical_nodes: int):
-    remote_dir, local_dir = mds_dataset_dir
+    remote_dir, local_dir = local_remote_dir
+    convert_to_mds(out_root=remote_dir,
+                   dataset_name='sequencedataset',
+                   num_samples=117,
+                   size_limit=1 << 8)
 
     # Build StreamingDataset
     dataset = StreamingDataset(local=local_dir,
@@ -221,9 +281,13 @@ def test_streamingdataloader_mid_epoch_resumption(mds_dataset_dir: Any, batch_si
 
 
 @pytest.mark.parametrize('shuffle_seed', [(9876, 9876), (12345, 1567)])
-@pytest.mark.usefixtures('mds_dataset_dir')
-def test_multiple_dataset_instantiation(mds_dataset_dir: Any, shuffle_seed: tuple):
-    remote_dir, local_dir = mds_dataset_dir
+@pytest.mark.usefixtures('local_remote_dir')
+def test_multiple_dataset_instantiation(local_remote_dir: Any, shuffle_seed: tuple):
+    remote_dir, local_dir = local_remote_dir
+    convert_to_mds(out_root=remote_dir,
+                   dataset_name='sequencedataset',
+                   num_samples=117,
+                   size_limit=1 << 8)
     batch_size = 8
     num_workers = 2
 

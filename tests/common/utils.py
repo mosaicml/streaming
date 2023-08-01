@@ -10,6 +10,10 @@ from typing import Any, List, Optional
 
 import pytest
 
+from streaming import MDSWriter
+
+from .datasets import NumberAndSayDataset, SequenceDataset
+
 
 @pytest.fixture(scope='function')
 def local_remote_dir() -> Any:
@@ -34,6 +38,33 @@ def compressed_local_remote_dir() -> Any:
         yield mock_compressed_dir, mock_local_dir, mock_remote_dir
     finally:
         mock_dir.cleanup()  # pyright: ignore
+
+
+def convert_to_mds(**kwargs: Any):
+    """Converts a dataset to MDS format."""
+    dataset_mapping = {
+        'sequencedataset': SequenceDataset,
+        'numberandsaydataset': NumberAndSayDataset,
+    }
+    dataset_name = kwargs['dataset_name'].lower()
+    out_root = kwargs['out_root']
+    num_samples = kwargs.get('num_samples', 117)
+    keep_local = kwargs.get('keep_local', False)
+    compression = kwargs.get('compression', None)
+    hashes = kwargs.get('hashes', None)
+    size_limit = kwargs.get('size_limit', 1 << 8)
+
+    dataset = dataset_mapping[dataset_name](num_samples)
+    columns = dict(zip(dataset.column_names, dataset.column_encodings))
+
+    with MDSWriter(out=out_root,
+                   columns=columns,
+                   keep_local=keep_local,
+                   compression=compression,
+                   hashes=hashes,
+                   size_limit=size_limit) as out:
+        for sample in dataset:
+            out.write(sample)
 
 
 def get_config_in_bytes(format: str,
