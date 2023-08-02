@@ -9,16 +9,26 @@ command: |-
 
   python regression/synthetic_dataset.py --create --out /tmp/streaming_dataset/
 
+  # Check sample order without shuffling
   composer -n 2 regression/iterate_data.py --num_canonical_nodes 1 --batch_size 1 --local /tmp/local_dataset/ --remote /tmp/streaming_dataset/ --shuffling-validation-file /tmp/test_samples_0.txt
   rm -Rf /tmp/local_dataset/
-
   composer -n 8 regression/iterate_data.py --num_canonical_nodes 1 --batch_size 1 --local /tmp/local_dataset/ --remote /tmp/streaming_dataset/ --shuffling-validation-file /tmp/test_samples_1.txt
   rm -Rf /tmp/local_dataset/
-
   cmp --silent /tmp/test_samples_0.txt /tmp/test_samples_1.txt || exit 1
 
   rm -Rf /tmp/test_samples_0.txt
   rm -Rf /tmp/test_samples_1.txt
+
+  # Check sample order with shuffling
+  composer -n 2 regression/iterate_data.py --num_canonical_nodes 1 --batch_size 1 --local /tmp/local_dataset/ --remote /tmp/streaming_dataset/ --shuffling-validation-file /tmp/test_samples_0.txt
+  rm -Rf /tmp/local_dataset/ --shuffle
+  composer -n 8 regression/iterate_data.py --num_canonical_nodes 1 --batch_size 1 --local /tmp/local_dataset/ --remote /tmp/streaming_dataset/ --shuffling-validation-file /tmp/test_samples_1.txt
+  rm -Rf /tmp/local_dataset/ --shuffle
+  cmp --silent /tmp/test_samples_0.txt /tmp/test_samples_1.txt || exit 1
+
+  rm -Rf /tmp/test_samples_0.txt
+  rm -Rf /tmp/test_samples_1.txt
+
   python regression/synthetic_dataset.py --delete --out /tmp/streaming_dataset/
 
 image: mosaicml/composer:0.15.0
