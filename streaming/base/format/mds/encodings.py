@@ -155,7 +155,7 @@ class NDArray(Encoding):
         """
         if dtype is None or shape is None:
             return None
-        return np.prod(shape) * getattr(np, dtype)().nbytes
+        return int(np.prod(shape)) * getattr(np, dtype)().nbytes
 
     def __init__(self, dtype: Optional[str] = None, shape: Optional[Tuple[int]] = None):
         if dtype is not None:
