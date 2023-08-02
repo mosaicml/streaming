@@ -37,15 +37,18 @@ def parse_args() -> tuple[Namespace, dict[str, str]]:
     return args, kwargs
 
 
-def get_file_count(cloud_url: str) -> Union[int, None]:
+def get_file_count(remote: str) -> Union[int, None]:
     """Get the number of files in a remote directory.
 
     Args:
-        cloud_url (str): Cloud provider url.
+        remote (str): Remote directory URL.
     """
-    obj = urllib.parse.urlparse(cloud_url)
+    obj = urllib.parse.urlparse(remote)
     cloud = obj.scheme
     files = []
+    if cloud == '':
+        return len(
+            [name for name in os.listdir(remote) if os.path.isfile(os.path.join(remote, name))])
     if cloud == 'gs':
         from google.cloud.storage import Bucket, Client
 
@@ -73,6 +76,8 @@ def get_file_count(cloud_url: str) -> Union[int, None]:
 
         files = objects.data.objects
         return sum(1 for _ in files)
+    else:
+        raise ValueError(f'Unsupported remote directory prefix {cloud} in {remote}')
 
 
 def main(args: Namespace, kwargs: dict[str, str]) -> None:

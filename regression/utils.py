@@ -5,7 +5,6 @@
 
 import logging
 import os
-import tempfile
 import urllib.parse
 from typing import Any, Dict
 
@@ -130,13 +129,6 @@ def get_writer_params(kwargs: Dict[str, str]) -> Dict[str, Any]:
         writer_params['max_workers'] = int(kwargs['max_workers'])
     logger.debug(f'writer_params: {writer_params}')
     return writer_params
-
-
-def get_local_remote_dir() -> str:
-    """Get a local remote directory."""
-    tmp_dir = tempfile.gettempdir()
-    tmp_remote_dir = os.path.join(tmp_dir, 'regression_remote')
-    return tmp_remote_dir
 
 
 def delete_gcs(remote_dir: str) -> None:

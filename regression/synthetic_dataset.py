@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Sequence
 
 import numpy as np
 import torch
-from utils import delete_gcs, delete_oci, delete_s3, get_writer_params
+from utils import delete_gcs, delete_oci, delete_s3, get_kwargs, get_writer_params
 
 from streaming.base import MDSWriter
 
@@ -201,48 +201,6 @@ class ImageDataset:
         torch.manual_seed(self._seed)
 
 
-def get_kwargs(kwargs: str) -> str:
-    """Parse key of named command-line arguments.
-
-    Args:
-        kwargs (str): Command-line arguments.
-
-    Returns:
-        str: Key of named arguments.
-    """
-    if kwargs.startswith('--'):
-        kwargs = kwargs[2:]
-    kwargs = kwargs.replace('-', '_')
-    return kwargs
-
-
-def parse_args() -> tuple[Namespace, dict[str, str]]:
-    """Parse command-line arguments.
-
-    Returns:
-        tuple[Namespace, dict[str, str]]: Command-line arguments and named arguments.
-    """
-    args = ArgumentParser()
-    args.add_argument(
-        '--name',
-        type=str,
-        default='SequenceDataset',
-        help='Dataset name. Supported: SequenceDataset, NumberAndSayDataset, ImageDataset',
-    )
-    args.add_argument(
-        '--out',
-        type=str,
-        required=True,
-        help='Output dataset directory to store MDS shard files (local or remote)',
-    )
-    args.add_argument('--create', default=False, action='store_true', help='Create dataset')
-    args.add_argument('--delete', default=False, action='store_true', help='Delete dataset')
-
-    args, runtime_args = args.parse_known_args()
-    kwargs = {get_kwargs(k): v for k, v in zip(runtime_args[::2], runtime_args[1::2])}
-    return args, kwargs
-
-
 def get_dataset_params(kwargs: Dict[str, str]) -> Dict[str, Any]:
     """Get the dataset parameters from command-line arguments.
 
@@ -264,6 +222,35 @@ def get_dataset_params(kwargs: Dict[str, str]) -> Dict[str, Any]:
     return dataset_params
 
 
+def parse_args() -> tuple[Namespace, dict[str, str]]:
+    """Parse command-line arguments.
+
+    Returns:
+        tuple[Namespace, dict[str, str]]: Command-line arguments and named arguments.
+    """
+    args = ArgumentParser()
+    args.add_argument(
+        '--name',
+        type=str,
+        default='SequenceDataset',
+        help='Dataset name. Supported: SequenceDataset, NumberAndSayDataset, ImageDataset',
+    )
+    args.add_argument(
+        '--out',
+        type=str,
+        required=True,
+        help='Output dataset directory to store MDS shard files (local or remote)',
+    )
+    # Create a mutually exclusive group to ensure only one can be specified at a time.
+    me_group = args.add_mutually_exclusive_group()
+    me_group.add_argument('--create', default=False, action='store_true', help='Create dataset')
+    me_group.add_argument('--delete', default=False, action='store_true', help='Delete dataset')
+
+    args, runtime_args = args.parse_known_args()
+    kwargs = {get_kwargs(k): v for k, v in zip(runtime_args[::2], runtime_args[1::2])}
+    return args, kwargs
+
+
 def main(args: Namespace, kwargs: Dict[str, str]) -> None:
     """Create and delete a dataset.
 
@@ -282,7 +269,7 @@ def main(args: Namespace, kwargs: Dict[str, str]) -> None:
         with MDSWriter(out=args.out, columns=columns, **writer_params) as out:
             for sample in dataset:
                 out.write(sample)
-    elif args.delete:
+    if args.delete:
         shutil.rmtree(args.out, ignore_errors=True)
         obj = urllib.parse.urlparse(args.out)
         cloud = obj.scheme
