@@ -1,0 +1,32 @@
+name: streaming-regression-test-deterministic-shuffling
+compute:
+  gpus: 8 # Number of GPUs to use
+  # cluster: TODO # Name of the cluster to use for this run
+command: |-
+  pip uninstall -y mosaicml-streaming
+  cd streaming
+  pip install -e '.[dev]'
+
+  python regression/synthetic_dataset.py --create --out /tmp/streaming_dataset/
+
+  composer -n 2 regression/iterate_data.py --num_canonical_nodes 1 --batch_size 1 --local /tmp/local_dataset/ --remote /tmp/streaming_dataset/ --shuffling-validation-file /tmp/test_samples_0.txt
+  rm -Rf /tmp/local_dataset/
+
+  composer -n 8 regression/iterate_data.py --num_canonical_nodes 1 --batch_size 1 --local /tmp/local_dataset/ --remote /tmp/streaming_dataset/ --shuffling-validation-file /tmp/test_samples_1.txt
+  rm -Rf /tmp/local_dataset/
+
+  cmp --silent /tmp/test_samples_0.txt /tmp/test_samples_1.txt || exit 1
+
+  rm -Rf /tmp/test_samples_0.txt
+  rm -Rf /tmp/test_samples_1.txt
+  python regression/synthetic_dataset.py --delete --out /tmp/streaming_dataset/
+
+image: mosaicml/composer:0.15.0
+scheduling:
+  resumable: true
+  priority: medium
+integrations:
+  - integration_type: git_repo
+    git_repo: mosaicml/streaming
+    git_branch: main
+    ssh_clone: false
