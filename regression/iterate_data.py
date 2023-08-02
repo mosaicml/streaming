@@ -7,6 +7,7 @@ import os
 import time
 import urllib.parse
 from argparse import ArgumentParser, Namespace
+from typing import Union
 
 from torch.utils.data import DataLoader
 from utils import get_dataloader_params, get_kwargs, get_streaming_dataset_params
@@ -36,7 +37,7 @@ def parse_args() -> tuple[Namespace, dict[str, str]]:
     return args, kwargs
 
 
-def get_file_count(cloud_url: str) -> int:
+def get_file_count(cloud_url: str) -> Union[int, None]:
     """Get the number of files in a remote directory.
 
     Args:
@@ -53,12 +54,14 @@ def get_file_count(cloud_url: str) -> int:
 
         bucket = Bucket(gcs_client, obj.netloc)
         files = bucket.list_blobs(prefix=obj.path.lstrip('/'))
+        return sum(1 for f in files if f.key[-1] != '/')
     elif cloud == 's3':
         import boto3
 
         s3 = boto3.resource('s3')
         bucket = s3.Bucket(obj.netloc)
         files = bucket.objects.filter(Prefix=obj.path.lstrip('/'))
+        return sum(1 for f in files if f.key[-1] != '/')
     elif cloud == 'oci':
         import oci
 
@@ -69,8 +72,7 @@ def get_file_count(cloud_url: str) -> int:
         objects = oci_client.list_objects(namespace, obj.netloc, prefix=obj.path.lstrip('/'))
 
         files = objects.data.objects
-
-    return sum(1 for _ in files)
+        return sum(1 for _ in files)
 
 
 def main(args: Namespace, kwargs: dict[str, str]) -> None:
@@ -94,16 +96,17 @@ def main(args: Namespace, kwargs: dict[str, str]) -> None:
         if epoch > 0:
             iter_time.append(time.time() - start_time)
 
-    if args.validate_iter_time:
-        print(f'Average iter time: {sum(iter_time) / len(iter_time)}')
-
     if args.validate_files and dataset.streams[0].remote is not None:
         num_remote_files = get_file_count(dataset.streams[0].remote)
         local_dir = dataset.streams[0].local
         num_local_files = len([
             name for name in os.listdir(local_dir) if os.path.isfile(os.path.join(local_dir, name))
         ])
-        assert num_remote_files == num_local_files
+        assert num_remote_files == num_local_files, f'Expected {num_remote_files} files, got {num_local_files}'
+
+    # TODO: Assert the iteration time is within a certain threshold
+    if args.validate_iter_time:
+        print(f'Average iter time: {sum(iter_time) / len(iter_time)} secs.')
 
 
 if __name__ == '__main__':

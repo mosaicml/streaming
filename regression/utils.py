@@ -3,10 +3,13 @@
 
 """Utility and helper functions for regression testing."""
 
+import logging
 import os
 import tempfile
 import urllib.parse
 from typing import Any, Dict
+
+logger = logging.getLogger(__name__)
 
 
 def get_kwargs(kwargs: str) -> str:
@@ -76,6 +79,7 @@ def get_streaming_dataset_params(kwargs: Dict[str, str]) -> Dict[str, Any]:
         dataset_params['repeat'] = float(kwargs['repeat'])
     if 'choose' in kwargs:
         dataset_params['choose'] = int(kwargs['choose'])
+    logger.debug(f'dataset_params: {dataset_params}')
     return dataset_params
 
 
@@ -98,6 +102,7 @@ def get_dataloader_params(kwargs: Dict[str, str]) -> Dict[str, Any]:
     if 'persistent_workers' in kwargs:
         dataloader_params['persistent_workers'] = kwargs['persistent_workers'].lower().capitalize(
         ) == 'True'
+    logger.debug(f'dataloader_params: {dataloader_params}')
     return dataloader_params
 
 
@@ -123,7 +128,7 @@ def get_writer_params(kwargs: Dict[str, str]) -> Dict[str, Any]:
         writer_params['progress_bar'] = kwargs['progress_bar'].lower().capitalize() == 'True'
     if 'max_workers' in kwargs:
         writer_params['max_workers'] = int(kwargs['max_workers'])
-    print(writer_params)
+    logger.debug(f'writer_params: {writer_params}')
     return writer_params
 
 

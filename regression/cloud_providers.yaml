@@ -7,13 +7,15 @@ command: |-
   cd streaming
   pip install -e '.[dev]'
   python regression/synthetic_dataset.py --create --name imagedataset --out $GCS_URL --size_limit 4194304 # 4mb
-  composer -n 2 regression/iterate_data.py --out $GCS_URL --check_download
+  composer -n 2 regression/iterate_data.py --remote $GCS_URL --validate-files
   python regression/synthetic_dataset.py --delete --out $GCS_URL
+
   python regression/synthetic_dataset.py --create --name imagedataset --out $S3_URL --num_samples 500 --size_limit 134217728 # 128 mb
-  composer -n 4 regression/iterate_data.py --out $S3_URL --check_download --local
+  composer -n 4 regression/iterate_data.py --remote $S3_URL --local /tmp/local_dataset/ --validate-files
   python regression/synthetic_dataset.py --delete --out $S3_URL
+
   python regression/synthetic_dataset.py --create --name imagedataset --out $OCI_URL --num_samples 500 --size_limit 268435456 # 256 mb
-  composer -n 8 regression/iterate_data.py --out $OCI_URL --check_download
+  composer -n 8 regression/iterate_data.py --remote $OCI_URL --validate-files
   python regression/synthetic_dataset.py --delete --out $OCI_URL
 
 image: mosaicml/composer:latest
