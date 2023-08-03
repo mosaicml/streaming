@@ -7,7 +7,7 @@ import os
 import shutil
 import urllib.parse
 from time import sleep, time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 __all__ = ['download_or_wait']
 
@@ -312,6 +312,61 @@ def download_from_azure_datalake(remote: str, local: str) -> None:
         raise FileNotFoundError(f'Object {remote} not found.')
     except Exception:
         raise
+
+
+def download_from_databricks_uc_volume(volume_name: str, local: str, api_url: str, api_token: str) -> None:
+    """Download a file from a remote Databricks Unity Catalog Volume to local.
+
+    Args:
+        volume_name (str): The name of the volume.
+        local (str): Local folder to download files to.
+        api_url (str): The URL of the Databricks REST API.
+        api_token (str): The API token to use for authentication.
+    """
+
+    def _get_bucket_and_prefix(storage_location: str) -> Tuple[str, str]:
+        path = storage_location.replace('s3://', '')
+        segments = path.split('/')
+        bucket = segments[0]
+        prefix = '/'.join(segments[1:])
+        return bucket, prefix
+
+    import boto3
+    from botocore.config import Config
+    import requests
+
+    # Get volume info
+    resp = requests.get(
+        f'{api_url}/api/2.1/unity-catalog/volumes/{volume_name}',
+        headers={'Authorization': f'Bearer {api_token}'},
+    )
+    volume_info = resp.json()
+    volume_id = volume_info['volume_id']
+    bucket, prefix = _get_bucket_and_prefix(volume_info['storage_location'])
+
+    # Get read credentials
+    resp = requests.post(
+        f'{api_url}/api/2.1/unity-catalog/temporary-volume-credentials',
+        json={'volume_id': volume_id, 'operation': 'READ_VOLUME'},
+        headers={'Authorization': f'Bearer {api_token}'},
+    )
+    credentials = resp.json()
+    aws_credentials = credentials['aws_temp_credentials']
+
+    # List files in the bucket with the prefix and download them
+    client = boto3.session.Session().client(
+        's3',
+        config=Config(),
+        endpoint_url=None,
+        aws_access_key_id=aws_credentials['access_key_id'],
+        aws_session_token=aws_credentials['session_token'],
+        aws_secret_access_key=aws_credentials['secret_access_key'],
+    )
+    resp = client.list_objects_v2(Bucket=bucket, Prefix=prefix)
+    for obj in resp['Contents']:
+        file_path = obj['Key']
+        # TODO: Async
+        client.download_file(bucket, file_path, os.path.join(local, os.path.basename(file_path)))
 
 
 def download_from_local(remote: str, local: str) -> None:
