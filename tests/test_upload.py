@@ -10,8 +10,8 @@ from unittest.mock import Mock, patch
 import pytest
 
 from streaming.base.storage.upload import (AzureDataLakeUploader, AzureUploader, CloudUploader,
-                                           DBFSUploader, GCSAuthentication, GCSUploader,
-                                           LocalUploader, S3Uploader)
+                                           DatabricksUnityCatalogUploader, DBFSUploader, GCSAuthentication,
+                                           GCSUploader, LocalUploader, S3Uploader)
 from tests.conftest import R2_URL
 
 
@@ -315,6 +315,30 @@ class TestAzureDataLakeUploader:
             with open(local_file_path, 'w') as _:
                 pass
             _ = AzureDataLakeUploader(out=local)
+
+
+class TestDatabricksUnityCatalogUploader:
+
+    @pytest.mark.parametrize('out', ['uc://container/dir', ('./dir1', 'uc://container/dir/')])
+    def test_instantiation(self, out: Any):
+        _ = DatabricksUnityCatalogUploader(out=out)
+        if not isinstance(out, str):
+            shutil.rmtree(out[0], ignore_errors=True)
+
+    @pytest.mark.parametrize('out', ['ss4://bucket/dir', ('./dir1', 'gcs://bucket/dir/')])
+    def test_invalid_remote_list(self, out: Any):
+        with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
+            _ = DatabricksUnityCatalogUploader(out=out)
+
+    def test_local_directory_is_empty(self, local_remote_dir: Tuple[str, str]):
+        with pytest.raises(FileExistsError, match=f'Directory is not empty.*'):
+            local, _ = local_remote_dir
+            os.makedirs(local, exist_ok=True)
+            local_file_path = os.path.join(local, 'file.txt')
+            # Creating an empty file at specified location
+            with open(local_file_path, 'w') as _:
+                pass
+            _ = DatabricksUnityCatalogUploader(out=local)
 
 
 class TestDBFSUploader:

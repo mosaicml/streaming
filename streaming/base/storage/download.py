@@ -322,6 +322,30 @@ def download_from_azure_datalake(remote: str, local: str) -> None:
         raise
 
 
+def download_from_databricks_unity_catalog(remote: str, local: str) -> None:
+    """Download a file from remote Databricks Unity Catalog to local.
+
+    Args:
+        remote (str): Remote path (Databricks Unity Catalog).
+        local (str): Local path (local filesystem).
+    """
+    from databricks.sdk import WorkspaceClient
+
+    obj = urllib.parse.urlparse(remote)
+    if obj.scheme != 'uc':
+        raise ValueError(
+            f'Expected obj.scheme to be `uc`, instead, got {obj.scheme} for remote={remote}')
+
+    client = WorkspaceClient()
+    file_path = remote.lstrip('uc:/')
+    uc_file = client.files.download(file_path)
+    local_tmp = local + '.tmp'
+    with open(local_tmp, 'wb') as f:
+        f.write(uc_file.read())
+    uc_file.close()
+    os.rename(local_tmp, local)
+
+
 def download_from_dbfs(remote: str, local: str) -> None:
     """Download a file from remote Databricks File System to local.
 
@@ -395,6 +419,8 @@ def download_file(remote: Optional[str], local: str, timeout: float):
         download_from_azure_datalake(remote, local)
     elif remote.startswith('dbfs:/'):
         download_from_dbfs(remote, local)
+    elif remote.startswith('uc://'):
+        download_from_databricks_unity_catalog(remote, local)
     else:
         download_from_local(remote, local)
 
