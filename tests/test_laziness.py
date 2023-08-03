@@ -36,7 +36,7 @@ def three(remote: str, local: str):
     for i in range(dataset.num_samples):
         sample = dataset[i]
         assert sample['value'] == i
-    rmtree(local)
+    rmtree(local, ignore_errors=True)
 
 
 def four(remote: str, local: str):
