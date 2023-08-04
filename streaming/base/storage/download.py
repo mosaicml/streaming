@@ -320,6 +320,24 @@ def download_from_azure_datalake(remote: str, local: str) -> None:
         raise
 
 
+def download_from_dbfs(remote: str, local: str) -> None:
+    """Download a file from remote Databricks File System to local.
+
+    Args:
+        remote (str): Remote path (dbfs).
+        local (str): Local path (local filesystem).
+    """
+    from databricks.sdk import WorkspaceClient
+
+    client = WorkspaceClient()
+    file_path = remote.lstrip('dbfs:')
+    dbfs_file = client.dbfs.download(file_path)
+    with open(local, 'wb') as f:
+        for chunk in iter(lambda: dbfs_file.read(4096), b''):
+            f.write(chunk)
+    dbfs_file.close()
+
+
 def download_from_local(remote: str, local: str) -> None:
     """Download a file from remote to local.
 
@@ -368,6 +386,8 @@ def download_file(remote: Optional[str], local: str, timeout: float):
         download_from_azure(remote, local)
     elif remote.startswith('azure-dl://'):
         download_from_azure_datalake(remote, local)
+    elif remote.startswith('dbfs:/'):
+        download_from_dbfs(remote, local)
     else:
         download_from_local(remote, local)
 
