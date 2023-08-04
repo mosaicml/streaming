@@ -162,7 +162,7 @@ class DeltaMdsConverter(mlflow.pyfunc.PythonModel):
         # Start spark job and log artifacts with mlflow
 
         with mlflow.start_run() as run:
-            Turn autolog on to save model artifacts, requirements, etc.
+            #Turn autolog on to save model artifacts, requirements, etc.
             mlflow.autolog(log_models=True)
 
             self.spark_jobs(pandas_processing_fn, ppfn_kwargs, mds_kwargs)
