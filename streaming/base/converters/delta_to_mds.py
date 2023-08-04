@@ -10,8 +10,6 @@ from pyspark.sql.types import StructType, StructField, StringType
 from pyspark import TaskContext
 import mlflow
 from collections.abc import Iterable
-import pyspark
-
 
 default_mds_kwargs = {
     'compression': 'zstd:7',
@@ -55,6 +53,7 @@ class DeltaMdsConverter(mlflow.pyfunc.PythonModel):
                    proc_fn,
                    ppfn_kwargs: Dict = {},
                    mds_kwargs: Dict = {}):
+
 
         def write_mds(iterator):
 
@@ -120,15 +119,18 @@ class DeltaMdsConverter(mlflow.pyfunc.PythonModel):
 
         # Read data
 
+        import pyspark
+        self.spark = pyspark.sql.SparkSession.builder.getOrCreate()
+
         if dataframe is not None:
             self.df_delta = dataframe
             self.raw_input_artifact = 'read from a dataframe reference, nothing to log'
         else:
             try:
-                self.df_delta = spark.read.parquet(delta_parquet_path)
+                self.df_delta = self.spark.read.parquet(delta_parquet_path)
             except:
                 try:
-                    self.df_delta = spark.read.table(delta_table_path)
+                    self.df_delta = self.spark.read.table(delta_table_path)
                 except:
                     raise ValueError(f"Both input tables: {delta_parquet_path}, {delta_table_path} cannot be read!")
                 else:
