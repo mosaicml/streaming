@@ -10,6 +10,7 @@ from pyspark.sql.types import StructType, StructField, StringType
 from pyspark import TaskContext
 import mlflow
 from collections.abc import Iterable
+import dbutils
 
 default_mds_kwargs = {
     'compression': 'zstd:7',
