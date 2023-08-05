@@ -139,9 +139,9 @@ class DeltaMdsConverter(mlflow.pyfunc.PythonModel):
                     except:
                         raise ValueError(f"Both input tables: {delta_parquet_path}, {delta_table_path} cannot be read!")
                     else:
-                        mlflow.data.from_spark(self.delta, table_name = delta_table_path)
+                        mlflow.data.from_spark(self.df_delta, table_name = delta_table_path)
                 else:
-                    mlflow.data.from_spark(self.delta, path = delta_parquet_path)
+                    mlflow.data.from_spark(self.df_delta, path = delta_parquet_path)
 
             # Prepare partition schema
             self.result_schema = StructType([StructField("mds_path", StringType(), False)])
