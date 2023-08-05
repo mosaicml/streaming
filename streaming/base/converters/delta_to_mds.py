@@ -125,63 +125,48 @@ class DeltaMdsConverter(mlflow.pyfunc.PythonModel):
         import pyspark
         self.spark = pyspark.sql.SparkSession.builder.getOrCreate()
 
-        experiment_name = 'dataPrep'
-        #exp_id = mlflow.set_experiment(experiment_name=experiment_name)
-
-        with mlflow.start_run() as run:
-            model_info = mlflow.pyfunc.log_model(artifact_path="model", python_model=self)
-            #mlflow.autolog(log_models=True)
-            mflow.log_params({'mds_path':mds_path, 'partition_size':partition_size, 'merge_index': merge_index, 'pandas_processing_fn': pandas_processing_fn, 'sample_ratio': sample_ratio, 'remote': remote})
-            mlflow.log_params(mds_kwargs, "mds_kwargs.json")
-            mlflow.log_params(ppfn_kwargs, "ppfn_kwargs.json")
-
-            if dataframe is not None:
-                self.df_delta = dataframe
-                mlflow.data.from_spark(dataframe)
-            else:
+        if dataframe is not None:
+            self.df_delta = dataframe
+        else:
+            try:
+                self.df_delta = self.spark.read.parquet(delta_parquet_path)
+            except:
                 try:
-                    self.df_delta = self.spark.read.parquet(delta_parquet_path)
+                    self.df_delta = self.spark.read.table(delta_table_path)
                 except:
-                    try:
-                        self.df_delta = self.spark.read.table(delta_table_path)
-                    except:
-                        raise ValueError(f"Both input tables: {delta_parquet_path}, {delta_table_path} cannot be read!")
-                    else:
-                        mlflow.data.from_spark(self.df_delta, table_name = delta_table_path)
-                else:
-                    mlflow.data.from_spark(self.df_delta, path = delta_parquet_path)
+                    raise ValueError(f"Both input tables: {delta_parquet_path}, {delta_table_path} cannot be read!")
 
-            # Prepare partition schema
-            self.result_schema = StructType([StructField("mds_path", StringType(), False)])
+        # Prepare partition schema
+        self.result_schema = StructType([StructField("mds_path", StringType(), False)])
 
-            if 0 < sample_ratio < 1:
-                self.df_delta = self.df_delta.sample(sample_ratio)
+        if 0 < sample_ratio < 1:
+            self.df_delta = self.df_delta.sample(sample_ratio)
 
-            # Clean up dest folder
-            mnt_path = mds_path
+        # Clean up dest folder
+        mnt_path = mds_path
 
-            if remote != '':
-                assert(remote == 'dbfs'), "Other remotes are not developed yet"
-                mnt_path = f'/{remote}/{mds_path}'
+        if remote != '':
+            assert(remote == 'dbfs'), "Other remotes are not developed yet"
+            mnt_path = f'/{remote}/{mds_path}'
 
-            try:
-                shutil.rmtree(mnt_path)
-            except:
-                print('rmtree error, ignore for now')
+        try:
+            shutil.rmtree(mnt_path)
+        except:
+            print('rmtree error, ignore for now')
 
-            try:
-                os.makedirs(mnt_path)
-            except:
-                print('os.makedirs error, ignore for now')
+        try:
+            os.makedirs(mnt_path)
+        except:
+            print('os.makedirs error, ignore for now')
 
-            mds_kwargs['out'] = mnt_path
+        mds_kwargs['out'] = mnt_path
 
-            # Set internal variables
-            self.partition_size = partition_size
-            self.merge_index = merge_index
+        # Set internal variables
+        self.partition_size = partition_size
+        self.merge_index = merge_index
 
-            # Start spark job and log artifacts with mlflow
-            self.spark_jobs(pandas_processing_fn, ppfn_kwargs, mds_kwargs)
+        # Start spark job and log artifacts with mlflow
+        self.spark_jobs(pandas_processing_fn, ppfn_kwargs, mds_kwargs)
 
 
 
