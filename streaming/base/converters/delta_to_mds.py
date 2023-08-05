@@ -10,7 +10,8 @@ from pyspark.sql.types import StructType, StructField, StringType
 from pyspark import TaskContext
 import mlflow
 from collections.abc import Iterable
-import pyspark.dbutils as dbutils
+import shutil
+
 
 default_mds_kwargs = {
     'compression': 'zstd:7',
@@ -146,18 +147,15 @@ class DeltaMdsConverter(mlflow.pyfunc.PythonModel):
             self.df_delta = self.df_delta.sample(sample_ratio)
 
         # Clean up dest folder
-        dbutils_path = mds_path
-        mounted_path = mds_path
+        mnt_path = mds_path
 
         if remote != '':
             assert(remote == 'dbfs'), "Other remotes are not developed yet"
+            mnt_path = f'/{remote}/{mds_path}'
 
-            dbutils_path = f'{remote}:{mds_path}'
-            mounted_path = f'/{remote}/{mds_path}'
-
-        dbutils.fs.rm(dbutils_path, recurse=True)
-        dbutils.fs.mkdirs(dbutils_path)
-        mds_kwargs['out'] = mounted_path
+        shutil.rmtree(mnt_path, recurse=True)
+        os.makedirs(mnt_path)
+        mds_kwargs['out'] = mnt_path
 
         # Set internal variables
         self.partition_size = partition_size
