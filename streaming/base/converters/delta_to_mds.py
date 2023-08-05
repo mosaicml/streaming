@@ -125,8 +125,12 @@ class DeltaMdsConverter(mlflow.pyfunc.PythonModel):
         import pyspark
         self.spark = pyspark.sql.SparkSession.builder.getOrCreate()
 
-        with mlflow.start_run(experiment_name='dataPrep') as run:
-            mlflow.autolog(log_models=True)
+        experiment_name = 'dataPrep'
+        exp_id = mlflow.set_experiment(experiment_name=experiment_name)
+
+        with mlflow.start_run() as run:
+            model_info = mlflow.pyfunc.log_model(artifact_path="model", python_model=self)
+            #mlflow.autolog(log_models=True)
             mflow.log_params({'mds_path':mds_path, 'partition_size':partition_size, 'merge_index': merge_index, 'pandas_processing_fn': pandas_processing_fn, 'sample_ratio': sample_ratio, 'remote': remote})
             mlflow.log_params(mds_kwargs, "mds_kwargs.json")
             mlflow.log_params(ppfn_kwargs, "ppfn_kwargs.json")
