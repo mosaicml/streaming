@@ -126,7 +126,7 @@ class DeltaMdsConverter(mlflow.pyfunc.PythonModel):
         self.spark = pyspark.sql.SparkSession.builder.getOrCreate()
 
         experiment_name = 'dataPrep'
-        exp_id = mlflow.set_experiment(experiment_name=experiment_name)
+        #exp_id = mlflow.set_experiment(experiment_name=experiment_name)
 
         with mlflow.start_run() as run:
             model_info = mlflow.pyfunc.log_model(artifact_path="model", python_model=self)
