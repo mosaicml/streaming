@@ -127,7 +127,7 @@ class DeltaMdsConverter(mlflow.pyfunc.PythonModel):
 
         with mlflow.start_run(experiment_name='dataPrep') as run:
             mlflow.autolog(log_models=True)
-            mflow.log_params({'mds_path':mds_path, 'partition_size':partition_size, 'merge_index': merge_index, 'pandas_processing_fn': pandas_processing_fn, 'sample_ratio': sample_ratio, 'remote': remote}
+            mflow.log_params({'mds_path':mds_path, 'partition_size':partition_size, 'merge_index': merge_index, 'pandas_processing_fn': pandas_processing_fn, 'sample_ratio': sample_ratio, 'remote': remote})
             mlflow.log_params(mds_kwargs, "mds_kwargs.json")
             mlflow.log_params(ppfn_kwargs, "ppfn_kwargs.json")
 
