@@ -124,60 +124,57 @@ class DeltaMdsConverter(mlflow.pyfunc.PythonModel):
         import pyspark
         self.spark = pyspark.sql.SparkSession.builder.getOrCreate()
 
-        if dataframe is not None:
-            self.df_delta = dataframe
-            self.raw_input_artifact = 'read from a dataframe reference, nothing to log'
-        else:
-            try:
-                self.df_delta = self.spark.read.parquet(delta_parquet_path)
-            except:
-                try:
-                    self.df_delta = self.spark.read.table(delta_table_path)
-                except:
-                    raise ValueError(f"Both input tables: {delta_parquet_path}, {delta_table_path} cannot be read!")
-                else:
-                    self.raw_input_artifact = delta_table_path
-            else:
-                self.raw_input_artifact = delta_parquet_path
-
-        # Prepare partition schema
-        self.result_schema = StructType([StructField("mds_path", StringType(), False)])
-
-        if 0 < sample_ratio < 1:
-            self.df_delta = self.df_delta.sample(sample_ratio)
-
-        # Clean up dest folder
-        mnt_path = mds_path
-
-        if remote != '':
-            assert(remote == 'dbfs'), "Other remotes are not developed yet"
-            mnt_path = f'/{remote}/{mds_path}'
-
-        try:
-            shutil.rmtree(mnt_path)
-        except:
-            print('rmtree error, ignore for now')
-
-        try:
-            os.makedirs(mnt_path)
-        except:
-            print('os.makedirs error, ignore for now')
-
-        mds_kwargs['out'] = mnt_path
-
-        # Set internal variables
-        self.partition_size = partition_size
-        self.merge_index = merge_index
-
-        # Start spark job and log artifacts with mlflow
-
         with mlflow.start_run() as run:
-            #Turn autolog on to save model artifacts, requirements, etc.
             mlflow.autolog(log_models=True)
 
+            if dataframe is not None:
+                self.df_delta = dataframe
+                mlflow.data.from_spark(dataframe)
+            else:
+                try:
+                    self.df_delta = self.spark.read.parquet(delta_parquet_path)
+                except:
+                    try:
+                        self.df_delta = self.spark.read.table(delta_table_path)
+                    except:
+                        raise ValueError(f"Both input tables: {delta_parquet_path}, {delta_table_path} cannot be read!")
+                    else:
+                        mlflow.data.from_spark(dataframe, table_name = delta_table_path)
+                else:
+                    mlflow.data.from_spark(dataframe, path = delta_parquet_path)
+
+            # Prepare partition schema
+            self.result_schema = StructType([StructField("mds_path", StringType(), False)])
+
+            if 0 < sample_ratio < 1:
+                self.df_delta = self.df_delta.sample(sample_ratio)
+
+            # Clean up dest folder
+            mnt_path = mds_path
+
+            if remote != '':
+                assert(remote == 'dbfs'), "Other remotes are not developed yet"
+                mnt_path = f'/{remote}/{mds_path}'
+
+            try:
+                shutil.rmtree(mnt_path)
+            except:
+                print('rmtree error, ignore for now')
+
+            try:
+                os.makedirs(mnt_path)
+            except:
+                print('os.makedirs error, ignore for now')
+
+            mds_kwargs['out'] = mnt_path
+
+            # Set internal variables
+            self.partition_size = partition_size
+            self.merge_index = merge_index
+
+            # Start spark job and log artifacts with mlflow
             self.spark_jobs(pandas_processing_fn, ppfn_kwargs, mds_kwargs)
 
-            mlflow.log_artifact(self.raw_input_artifact)
 
 
 def test():
