@@ -153,7 +153,7 @@ class DeltaMdsConverter(mlflow.pyfunc.PythonModel):
             assert(remote == 'dbfs'), "Other remotes are not developed yet"
             mnt_path = f'/{remote}/{mds_path}'
 
-        shutil.rmtree(mnt_path, recurse=True)
+        shutil.rmtree(mnt_path)
         os.makedirs(mnt_path)
         mds_kwargs['out'] = mnt_path
 
