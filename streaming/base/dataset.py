@@ -385,7 +385,7 @@ class StreamingDataset(Array, IterableDataset):
         if self.cache_limit:
             if isinstance(self.cache_limit, str):
                 self.cache_limit = bytes_to_int(self.cache_limit)
-            min_cache_usage = sum(map(lambda stream: stream.get_index_size(), streams))
+            min_cache_usage = sum((stream.get_index_size() for stream in streams))
             if self.cache_limit <= min_cache_usage:
                 raise ValueError(f'Minimum cache usage ({min_cache_usage} bytes) is larger than ' +
                                  f'the cache limit ({self.cache_limit} bytes). Please raise ' +
