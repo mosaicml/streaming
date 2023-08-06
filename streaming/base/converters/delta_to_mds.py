@@ -100,8 +100,10 @@ class DeltaMdsConverter(mlflow.pyfunc.PythonModel):
             with open(mds_index, 'w') as out:
                 json.dump(obj, out)
 
-        #partitions = self.df_delta.repartition(self.partition_size).mapInPandas(func=write_mds, schema=self.result_schema).collect()
-        partitions = self.df_delta.mapInPandas(func=write_mds, schema=self.result_schema).collect()
+        if self.partition_size > 0:
+            partitions = self.df_delta.repartition(self.partition_size).mapInPandas(func=write_mds, schema=self.result_schema).collect()
+        else:
+            partitions = self.df_delta.mapInPandas(func=write_mds, schema=self.result_schema).collect()
 
         if self.merge_index:
             merge_index(partitions)
