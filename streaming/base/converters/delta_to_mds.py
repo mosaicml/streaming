@@ -119,6 +119,7 @@ class DeltaMdsConverter(mlflow.pyfunc.PythonModel):
                 pandas_processing_fn : Callable = None,
                 sample_ratio : float = -1.0,
                 remote : str = '',
+                overwrite : bool = True,
                 mds_kwargs: Dict = {},
                 ppfn_kwargs: Dict = {}):
 
@@ -151,15 +152,12 @@ class DeltaMdsConverter(mlflow.pyfunc.PythonModel):
             assert(remote == 'dbfs'), "Other remotes are not developed yet"
             mnt_path = f'/{remote}/{mds_path}'
 
-        try:
-            shutil.rmtree(mnt_path)
-        except:
-            print('rmtree error, ignore for now')
-
-        try:
-            os.makedirs(mnt_path)
-        except:
-            print('os.makedirs error, ignore for now')
+        if not overwrite:
+            try:
+                shutil.rmtree(mnt_path)
+                os.makedirs(mnt_path)
+            except:
+                print('Ignore for now rmtree and os.makedirs error: folder exists permission issue etc.')
 
         mds_kwargs['out'] = mnt_path
 
