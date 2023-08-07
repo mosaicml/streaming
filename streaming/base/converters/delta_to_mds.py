@@ -186,10 +186,6 @@ class DeltaMdsConverter(mlflow.pyfunc.PythonModel):
             mlflow.log_dict(default_mds_kwargs, 'default_mds_kwargs.json')
             mlflow.log_dict(default_ppfn_kwargs, 'default_ppfn_kwargs.json')
 
-            model_info = mlflow.pyfunc.log_model(artifact_path="model", python_model=dmc)
-            mlflow.log_dict(default_mds_kwargs, 'default_mds_kwargs.json')
-            mlflow.log_dict(default_ppfn_kwargs, 'default_ppfn_kwargs.json')
-
 def test():
 
     dmc = DeltaMdsConverter()
