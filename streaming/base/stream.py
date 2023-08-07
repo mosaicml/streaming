@@ -146,8 +146,9 @@ class Stream:
             if get_local_rank() == 0:
                 if os.path.exists(self.local):
                     raise ValueError(
-                        f'Could not create a local directory. Specify a local directory with the `local` value.'
-                    )
+                        f'Could not create a temporary local directory {self.local} . Either ' +
+                        f'delete the directory or specify a unique local directory with the ' +
+                        f'`local` value.')
                 os.makedirs(self.local)
             barrier()
         else:
