@@ -177,7 +177,7 @@ class DeltaMdsConverter(mlflow.pyfunc.PythonModel):
             mlflow.log_param("delta_table_path", delta_table_path)
             mlflow.log_param("mds_path", mds_path)
             mlflow.log_param("remote", remote)
-            mlflow.log_param("pandas_processing_fn", pandas_prcessing_fn)
+            mlflow.log_param("pandas_processing_fn", pandas_processing_fn)
             mlflow.log_param("partition_size", partition_size)
             mlflow.log_param("merge_index", merge_index)
             mlflow.log_param("sample_ratio", sample_ratio)
