@@ -172,7 +172,7 @@ class DeltaMdsConverter(mlflow.pyfunc.PythonModel):
         with mlflow.start_run() as run:
 
             # mlflow log
-            model_info = mlflow.pyfunc.log_model(artifact_path="model", python_model=self)
+            #model_info = mlflow.pyfunc.log_model(artifact_path="model", python_model=self)
             mlflow.log_param("delta_parquet_path", delta_parquet_path)
             mlflow.log_param("delta_table_path", delta_table_path)
             mlflow.log_param("mds_path", mds_path)
