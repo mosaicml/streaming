@@ -169,6 +169,26 @@ class DeltaMdsConverter(mlflow.pyfunc.PythonModel):
         self.spark_jobs(pandas_processing_fn, ppfn_kwargs, mds_kwargs)
 
 
+        with mlflow.start_run() as run:
+
+            # mlflow log
+            model_info = mlflow.pyfunc.log_model(artifact_path="model", python_model=dmc)
+            mlflow.log_param("delta_parquet_path", delta_parquet_path)
+            mlflow.log_param("delta_table_path", delta_table_path)
+            mlflow.log_param("mds_path", mds_path)
+            mlflow.log_param("remote", remote)
+            mlflow.log_param("pandas_processing_fn", pandas_prcessing_fn)
+            mlflow.log_param("partition_size", partition_size)
+            mlflow.log_param("merge_index", merge_index)
+            mlflow.log_param("sample_ratio", sample_ratio)
+            mlflow.log_param("overwrite", overwrite)
+            dataset =mlflow.data.from_spark(dataframe)
+            mlflow.log_dict(default_mds_kwargs, 'default_mds_kwargs.json')
+            mlflow.log_dict(default_ppfn_kwargs, 'default_ppfn_kwargs.json')
+
+            model_info = mlflow.pyfunc.log_model(artifact_path="model", python_model=dmc)
+            mlflow.log_dict(default_mds_kwargs, 'default_mds_kwargs.json')
+            mlflow.log_dict(default_ppfn_kwargs, 'default_ppfn_kwargs.json')
 
 def test():
 
