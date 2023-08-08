@@ -1,5 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
+"""A utility to convert databricks' tables to MDS."""
+
 
 import json
 import os
@@ -40,6 +42,7 @@ default_ppfn_kwargs = {
 
 
 def is_iterable(obj):
+    """Check if obj is iterable"""
     return issubclass(type(obj), Iterable)
 
 
@@ -268,9 +271,7 @@ class DeltaMdsConverter(mlflow.pyfunc.PythonModel):
 
 
 def test():
-    """
-    test from databricks
-    """
+    """test from databricks."""
     dmc = DeltaMdsConverter()
 
     default_ppfn_kwargs.pop('key')
