@@ -5,6 +5,7 @@
 
 import ast
 import shutil
+import sys
 import urllib.parse
 from argparse import ArgumentParser, Namespace
 from typing import Any, Dict, List, Sequence
@@ -14,6 +15,12 @@ import torch
 from utils import delete_gcs, delete_oci, delete_s3, get_kwargs, get_writer_params
 
 from streaming.base import MDSWriter
+
+_DATASET_MAP = {
+    'sequencedataset': 'SequenceDataset',
+    'numberandsaydataset': 'NumberAndSayDataset',
+    'imagedataset': 'ImageDataset',
+}
 
 
 class SequenceDataset:
@@ -200,6 +207,10 @@ class ImageDataset:
         self._seed = value  # pyright: ignore
         torch.manual_seed(self._seed)
 
+    @seed.setter
+    def seed(self, value: int) -> None:
+        self._seed = value  # pyright: ignore
+        torch.manual_seed(self._seed)
 
 def get_dataset_params(kwargs: Dict[str, str]) -> Dict[str, Any]:
     """Get the dataset parameters from command-line arguments.
@@ -260,9 +271,9 @@ def main(args: Namespace, kwargs: Dict[str, str]) -> None:
     """
     dataset_params = get_dataset_params(kwargs)
     writer_params = get_writer_params(kwargs)
-    if args.name.lower() not in DATASET_MAP:
-        raise ValueError(f'Unsupported dataset {args.name}. Supported: {DATASET_MAP.keys()}')
-    dataset = DATASET_MAP[args.name.lower()](**dataset_params)
+    if args.name.lower() not in _DATASET_MAP:
+        raise ValueError(f'Unsupported dataset {args.name}. Supported: {_DATASET_MAP.keys()}')
+    dataset = getattr(sys.modules[__name__], _DATASET_MAP[args.name.lower()])(**dataset_params)
     columns = {name: dtype for name, dtype in zip(dataset.column_names, dataset.column_encodings)}
 
     if args.create:
@@ -284,10 +295,5 @@ def main(args: Namespace, kwargs: Dict[str, str]) -> None:
 
 
 if __name__ == '__main__':
-    DATASET_MAP = {
-        'sequencedataset': SequenceDataset,
-        'numberandsaydataset': NumberAndSayDataset,
-        'imagedataset': ImageDataset,
-    }
     args, kwargs = parse_args()
     main(args, kwargs)

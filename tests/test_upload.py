@@ -100,7 +100,7 @@ class TestS3Uploader:
         mocked_requests.side_effect = None
         _ = S3Uploader(out=out)
         if not isinstance(out, str):
-            shutil.rmtree(out[0])
+            shutil.rmtree(out[0], ignore_errors=True)
 
     @pytest.mark.parametrize('out', ['ss4://bucket/dir'])
     def test_invalid_remote_str(self, out: str):
@@ -166,7 +166,7 @@ class TestGCSUploader:
         mocked_requests.side_effect = None
         _ = GCSUploader(out=out)
         if not isinstance(out, str):
-            shutil.rmtree(out[0])
+            shutil.rmtree(out[0], ignore_errors=True)
 
     @pytest.mark.parametrize('out', ['gcs://bucket/dir'])
     @pytest.mark.usefixtures('gcs_hmac_credentials')
@@ -257,7 +257,7 @@ class TestAzureUploader:
         mocked_requests.side_effect = None
         _ = AzureUploader(out=out)
         if not isinstance(out, str):
-            shutil.rmtree(out[0])
+            shutil.rmtree(out[0], ignore_errors=True)
 
     @pytest.mark.parametrize('out', ['ss4://bucket/dir'])
     def test_invalid_remote_str(self, out: str):
@@ -290,7 +290,7 @@ class TestAzureDataLakeUploader:
         mocked_requests.side_effect = None
         _ = AzureDataLakeUploader(out=out)
         if not isinstance(out, str):
-            shutil.rmtree(out[0])
+            shutil.rmtree(out[0], ignore_errors=True)
 
     @pytest.mark.parametrize('out', ['ss4://container/dir'])
     def test_invalid_remote_str(self, out: str):
