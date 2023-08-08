@@ -59,9 +59,7 @@ def parse_args():
 
 
 class DeltaMdsConverter(mlflow.pyfunc.PythonModel):
-
-    """
-    A class for converting Delta Lake data into MDS format using PySpark and pandas.
+    """A class for converting Delta Lake data into MDS format using PySpark and pandas.
 
     This class provides methods to convert Delta Lake data into MDS (Model Deployment
     Service) format, which is optimized for efficient model serving. The conversion
@@ -164,8 +162,7 @@ class DeltaMdsConverter(mlflow.pyfunc.PythonModel):
 
         # Read data
 
-        """
-        Execute the Delta Lake to MDS conversion process.
+        """Execute the Delta Lake to MDS conversion process.
 
         This method orchestrates the conversion of Delta Lake data into MDS format by
         processing the input data, applying a user-defined pandas processing function if
