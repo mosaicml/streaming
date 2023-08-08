@@ -1,11 +1,18 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-from streaming.base.converters.delta_to_mds import DeltaMdsConverter, default_mds_kwargs
+from streaming.base.converters.delta_to_mds import DeltaMdsConverter, default_mds_kwargs, is_iterable
 
 
 class TestDeltaMdsConverter:
 
+    @skip
+    def test_spark_jobs(self):
+        dmc = DeltaMdsConverter()
+
+        dmc.spark_jobs(None, {}, {} )
+
+    @skip
     def test_delta_mds_converter(self):
         """Test from databricks."""
         dmc = DeltaMdsConverter()

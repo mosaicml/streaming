@@ -46,20 +46,6 @@ def is_iterable(obj):
     return issubclass(type(obj), Iterable)
 
 
-def parse_args():
-    """Parse commandline arguments."""
-    parser = ArgumentParser(
-        description=
-        'Convert dataset into MDS format. Running from command line does not support optionally processing functions!'
-    )
-    parser.add_argument('--delta_table_path', type=str, required=True)
-    parser.add_argument('--mds_path', type=str, required=True)
-    parser.add_argument('--partition_size', type=int, required=True)
-    parser.add_argument('--merge_index', type=bool, required=True)
-
-    parsed = parser.parse_args()
-    return parsed
-
 
 class DeltaMdsConverter(mlflow.pyfunc.PythonModel):
     """A class for converting Delta Lake data into MDS format using PySpark and pandas.
@@ -271,6 +257,21 @@ class DeltaMdsConverter(mlflow.pyfunc.PythonModel):
 
 
 if __name__ == '__main__':
+
+    def parse_args():
+        """Parse commandline arguments."""
+        parser = ArgumentParser(
+            description=
+            'Convert dataset into MDS format. Running from command line does not support optionally processing functions!'
+        )
+        parser.add_argument('--delta_table_path', type=str, required=True)
+        parser.add_argument('--mds_path', type=str, required=True)
+        parser.add_argument('--partition_size', type=int, required=True)
+        parser.add_argument('--merge_index', type=bool, required=True)
+
+        parsed = parser.parse_args()
+        return parsed
+
 
     args = parse_args()
 
