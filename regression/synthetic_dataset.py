@@ -1,200 +1,295 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Create a toy dataset using MDSWriter for regression testing."""
+"""Create a dataset and save it to a directory."""
 
-import os
-import random
+import ast
 import shutil
-import string
+import sys
 import urllib.parse
 from argparse import ArgumentParser, Namespace
-from typing import Union
+from typing import Any, Dict, List, Sequence
 
 import numpy as np
-import utils
+import torch
+from utils import delete_gcs, delete_oci, delete_s3, get_kwargs, get_writer_params
 
-from streaming import MDSWriter
+from streaming.base import MDSWriter
 
-# Word representation of a number
-_ONES = ('zero one two three four five six seven eight nine ten eleven twelve '
-         'thirteen fourteen fifteen sixteen seventeen eighteen nineteen').split()
-_TENS = 'twenty thirty forty fifty sixty seventy eighty ninety'.split()
-
-_COLUMNS = {
-    'number': 'int',
-    'words': 'str',
+_DATASET_MAP = {
+    'sequencedataset': 'SequenceDataset',
+    'numberandsaydataset': 'NumberAndSayDataset',
+    'imagedataset': 'ImageDataset',
 }
 
 
-def parse_args() -> Namespace:
+class SequenceDataset:
+    """A Sequence dataset with incremental ID and a value with a multiple of 3.
+
+    Args:
+        num_samples (int): number of samples. Defaults to 100.
+        column_names List[str]: A list of features' and target name. Defaults to ['id', 'sample'].
+    """
+
+    def __init__(self, num_samples: int = 100, column_names: List[str] = ['id', 'sample']) -> None:
+        self.num_samples = num_samples
+        self.column_encodings = ['str', 'int']
+        self.column_sizes = [None, 8]
+        self.column_names = column_names
+        self._index = 0
+
+    def __len__(self) -> int:
+        return self.num_samples
+
+    def __getitem__(self, index: int) -> Dict[str, Any]:
+        if index < self.num_samples:
+            return {
+                self.column_names[0]: f'{index:06}',
+                self.column_names[1]: 3 * index,
+            }
+        raise IndexError('Index out of bound')
+
+    def __iter__(self):
+        return self
+
+    def __next__(self) -> Dict[str, Any]:
+        if self._index >= self.num_samples:
+            raise StopIteration
+        id = f'{self._index:06}'
+        data = 3 * self._index
+        self._index += 1
+        return {
+            self.column_names[0]: id,
+            self.column_names[1]: data,
+        }
+
+    def get_sample_in_bytes(self, index: int) -> Dict[str, Any]:
+        sample = self.__getitem__(index)
+        sample[self.column_names[0]] = sample[self.column_names[0]].encode('utf-8')
+        sample[self.column_names[1]] = np.int64(sample[self.column_names[1]]).tobytes()
+        return sample
+
+
+class NumberAndSayDataset:
+    """Generate a synthetic number-saying dataset.
+
+    Converting a numbers from digits to words, for example, number 123 would spell as
+    `one hundred twenty three`. The numbers are generated randomly and it supports a number
+    up-to positive/negative approximately 99 Millions.
+
+    Args:
+        num_samples (int): number of samples. Defaults to 100.
+        column_names List[str]: A list of features' and target name. Defaults to ['number',
+            'words'].
+        seed (int): seed value for deterministic randomness.
+    """
+
+    ones = (
+        'zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen ' +
+        'fifteen sixteen seventeen eighteen nineteen').split()
+
+    tens = 'twenty thirty forty fifty sixty seventy eighty ninety'.split()
+
+    def __init__(self,
+                 num_samples: int = 100,
+                 column_names: List[str] = ['number', 'words'],
+                 seed: int = 987) -> None:
+        self.num_samples = num_samples
+        self.column_encodings = ['int', 'str']
+        self.column_sizes = [8, None]
+        self.column_names = column_names
+        self._index = 0
+        self.seed = seed
+
+    def __len__(self) -> int:
+        return self.num_samples
+
+    def _say(self, i: int) -> List[str]:
+        if i < 0:
+            return ['negative'] + self._say(-i)
+        elif i <= 19:
+            return [self.ones[i]]
+        elif i < 100:
+            return [self.tens[i // 10 - 2]] + ([self.ones[i % 10]] if i % 10 else [])
+        elif i < 1_000:
+            return [self.ones[i // 100], 'hundred'] + (self._say(i % 100) if i % 100 else [])
+        elif i < 1_000_000:
+            return self._say(i // 1_000) + ['thousand'
+                                           ] + (self._say(i % 1_000) if i % 1_000 else [])
+        elif i < 1_000_000_000:
+            return self._say(
+                i // 1_000_000) + ['million'] + (self._say(i % 1_000_000) if i % 1_000_000 else [])
+        else:
+            assert False
+
+    def _get_number(self) -> int:
+        sign = (np.random.random() < 0.8) * 2 - 1
+        mag = 10**np.random.uniform(1, 4) - 10
+        return sign * int(mag**2)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self) -> Dict[str, Any]:
+        if self._index >= self.num_samples:
+            raise StopIteration
+        number = self._get_number()
+        words = ' '.join(self._say(number))
+        self._index += 1
+        return {
+            self.column_names[0]: number,
+            self.column_names[1]: words,
+        }
+
+    @property
+    def seed(self) -> int:
+        return self._seed
+
+    @seed.setter
+    def seed(self, value: int) -> None:
+        self._seed = value  # pyright: ignore
+        np.random.seed(self._seed)
+
+
+class ImageDataset:
+    """An Image dataset with values drawn from a normal distribution.
+
+    Args:
+        num_samples (int): number of samples. Defaults to 100.
+        column_names List[str]: A list of features' and target name. Defaults to ['x'].
+        seed (int): seed value for deterministic randomness.
+        shape (Sequence[int]): shape of the image. Defaults to (3, 32, 32).
+    """
+
+    def __init__(
+            self,
+            num_samples: int = 100,
+            column_names: List[str] = ['x'],
+            seed: int = 987,
+            shape: Sequence[int] = (3, 32, 32),
+    ) -> None:
+        self.shape = shape
+        self.num_samples = num_samples
+        self.column_encodings = ['pkl']
+        self.column_sizes = [None]
+        self.column_names = column_names
+        self.seed = seed
+        self._index = 0
+
+    def __len__(self) -> int:
+        return self.num_samples
+
+    def __getitem__(self, index: int) -> Dict[str, Any]:
+        if index < self.num_samples:
+            return {
+                self.column_names[0]: torch.randn(self.num_samples, *self.shape),
+            }
+        raise IndexError(f'Index {index} out of bound for size {self.num_samples}')
+
+    def __iter__(self):
+        return self
+
+    def __next__(self) -> Dict[str, Any]:
+        if self._index >= self.num_samples:
+            raise StopIteration
+        x = torch.randn(self.num_samples, *self.shape)
+        self._index += 1
+        return {
+            self.column_names[0]: x,
+        }
+
+    @property
+    def seed(self) -> int:
+        return self._seed
+
+    @seed.setter
+    def seed(self, value: int) -> None:
+        self._seed = value  # pyright: ignore
+        torch.manual_seed(self._seed)
+
+
+def get_dataset_params(kwargs: Dict[str, str]) -> Dict[str, Any]:
+    """Get the dataset parameters from command-line arguments.
+
+    Args:
+        kwargs (Dict[str, str]): Command-line arguments.
+
+    Returns:
+        Dict[str, Any]: Dataset parameters.
+    """
+    dataset_params = {}
+    if 'num_samples' in kwargs:
+        dataset_params['num_samples'] = int(kwargs['num_samples'])
+    if 'seed' in kwargs:
+        dataset_params['seed'] = int(kwargs['seed'])
+    if 'shape' in kwargs:
+        dataset_params['shape'] = ast.literal_eval(kwargs['shape'])
+    if 'column_names' in kwargs:
+        dataset_params['column_names'] = ast.literal_eval(kwargs['column_names'])
+    return dataset_params
+
+
+def parse_args() -> tuple[Namespace, dict[str, str]]:
     """Parse command-line arguments.
 
     Returns:
-        Namespace: Command-line arguments.
+        tuple[Namespace, dict[str, str]]: Command-line arguments and named arguments.
     """
     args = ArgumentParser()
-    args.add_argument('--cloud_url', type=str)
-    args.add_argument('--create', default=False, action='store_true')
-    args.add_argument('--delete', default=False, action='store_true')
     args.add_argument(
-        '--compression',
+        '--name',
         type=str,
-        help='Compression or compression:level for MDSWriter.',
+        default='SequenceDataset',
+        help='Dataset name. Supported: SequenceDataset, NumberAndSayDataset, ImageDataset',
     )
     args.add_argument(
-        '--hashes',
+        '--out',
         type=str,
-        nargs='+',
-        help='List of hash algorithms to apply to shard files for MDSWriter.',
+        required=True,
+        help='Output dataset directory to store MDS shard files (local or remote)',
     )
-    args.add_argument(
-        '--size_limit',
-        type=int,
-        default=1 << 26,
-        help=('Shard size limit, after which point to start a new shard for '
-              'MDSWriter. If ``None``, puts everything in one shard.'),
-    )
-    args.add_argument('--num_samples',
-                      type=int,
-                      default=10000,
-                      help='Number of samples to generate')
-    return args.parse_args()
+    # Create a mutually exclusive group to ensure only one can be specified at a time.
+    me_group = args.add_mutually_exclusive_group()
+    me_group.add_argument('--create', default=False, action='store_true', help='Create dataset')
+    me_group.add_argument('--delete', default=False, action='store_true', help='Delete dataset')
+
+    args, runtime_args = args.parse_known_args()
+    kwargs = {get_kwargs(k): v for k, v in zip(runtime_args[::2], runtime_args[1::2])}
+    return args, kwargs
 
 
-def say(i: int) -> list[str]:
-    """Get the word form of a number.
+def main(args: Namespace, kwargs: Dict[str, str]) -> None:
+    """Create and delete a dataset.
 
     Args:
-        i (int): The number.
-
-    Returns:
-        List[str]: The number in word form.
+        args (Namespace): Arguments.
+        kwargs (Dict[str, str]): Named arguments.
     """
-    if i < 0:
-        return ['negative'] + say(-i)
-    elif i <= 19:
-        return [_ONES[i]]
-    elif i < 100:
-        return [_TENS[i // 10 - 2]] + ([_ONES[i % 10]] if i % 10 else [])
-    elif i < 1_000:
-        return [_ONES[i // 100], 'hundred'] + (say(i % 100) if i % 100 else [])
-    elif i < 1_000_000:
-        return (say(i // 1_000) + ['thousand'] + (say(i % 1_000) if i % 1_000 else []))
-    elif i < 1_000_000_000:
-        return (say(i // 1_000_000) + ['million'] + (say(i % 1_000_000) if i % 1_000_000 else []))
-    else:
-        assert False
+    dataset_params = get_dataset_params(kwargs)
+    writer_params = get_writer_params(kwargs)
+    if args.name.lower() not in _DATASET_MAP:
+        raise ValueError(f'Unsupported dataset {args.name}. Supported: {_DATASET_MAP.keys()}')
+    dataset = getattr(sys.modules[__name__], _DATASET_MAP[args.name.lower()])(**dataset_params)
+    columns = {name: dtype for name, dtype in zip(dataset.column_names, dataset.column_encodings)}
 
-
-def get_dataset(num_samples: int) -> list[dict[str, Union[int, str]]]:
-    """Generate a number-saying dataset of the given size.
-
-    Args:
-        num_samples (int): Number of samples.
-
-    Returns:
-        list[dict[str, int | str]]: The two generated splits.
-    """
-    numbers = [((np.random.random() < 0.8) * 2 - 1) * i for i in range(num_samples)]
-    samples = []
-    for num in numbers:
-        words = ' '.join(say(num))
-        sample = {'number': num, 'words': words}
-        samples.append(sample)
-    for num in range(num_samples):
-        sample = {
-            'number': num,
-            'words': ''.join([random.choice(string.ascii_lowercase) for _ in range(num_samples)])
-        }
-        samples.append(sample)
-    return samples
-
-
-def delete_gcs(remote_dir: str) -> None:
-    """Delete a remote directory from gcs.
-
-    Args:
-        remote_dir (str): Location of the remote directory.
-    """
-    from google.cloud.storage import Bucket, Client
-
-    service_account_path = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
-    gcs_client = Client.from_service_account_json(service_account_path)
-    obj = urllib.parse.urlparse(remote_dir)
-
-    bucket = Bucket(gcs_client, obj.netloc)
-    blobs = bucket.list_blobs(prefix=obj.path.lstrip('/'))
-
-    for blob in blobs:
-        blob.delete()
-
-
-def delete_s3(remote_dir: str) -> None:
-    """Delete a remote directory from s3.
-
-    Args:
-        remote_dir (str): Location of the remote directory.
-    """
-    import boto3
-
-    obj = urllib.parse.urlparse(remote_dir)
-
-    s3 = boto3.resource('s3')
-    bucket = s3.Bucket(obj.netloc)
-    bucket.objects.filter(Prefix=obj.path.lstrip('/')).delete()
-
-
-def delete_oci(remote_dir: str) -> None:
-    """Delete a remote directory from oci.
-
-    Args:
-        remote_dir (str): Location of the remote directory.
-    """
-    import oci
-
-    obj = urllib.parse.urlparse(remote_dir)
-
-    config = oci.config.from_file()
-    oci_client = oci.object_storage.ObjectStorageClient(
-        config=config, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
-    namespace = oci_client.get_namespace().data
-    objects = oci_client.list_objects(namespace, obj.netloc, prefix=obj.path.lstrip('/'))
-
-    for filenames in objects.data.objects:
-        oci_client.delete_object(namespace, obj.netloc, filenames.name)
-
-
-def main(args: Namespace) -> None:
-    """Benchmark time taken to generate the epoch for a given dataset.
-
-    Args:
-        args (Namespace): Command-line arguments.
-    """
-    remote_dir = args.cloud_url if args.cloud_url is not None else utils.get_local_remote_dir()
     if args.create:
-        dataset = get_dataset(args.num_samples)
-        with MDSWriter(
-                out=remote_dir,
-                columns=_COLUMNS,
-                compression=args.compression,
-                hashes=args.hashes,
-                size_limit=args.size_limit,
-        ) as out:
+        with MDSWriter(out=args.out, columns=columns, **writer_params) as out:
             for sample in dataset:
                 out.write(sample)
     if args.delete:
-        obj = urllib.parse.urlparse(remote_dir)
+        shutil.rmtree(args.out, ignore_errors=True)
+        obj = urllib.parse.urlparse(args.out)
         cloud = obj.scheme
         if cloud == '':
-            shutil.rmtree(remote_dir, ignore_errors=True)
+            shutil.rmtree(args.out, ignore_errors=True)
         elif cloud == 'gs':
-            delete_gcs(remote_dir)
+            delete_gcs(args.out)
         elif cloud == 's3':
-            delete_s3(remote_dir)
+            delete_s3(args.out)
         elif cloud == 'oci':
-            delete_oci(remote_dir)
+            delete_oci(args.out)
 
 
 if __name__ == '__main__':
-    main(parse_args())
+    args, kwargs = parse_args()
+    main(args, kwargs)

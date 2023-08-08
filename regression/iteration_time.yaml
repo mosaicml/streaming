@@ -1,0 +1,22 @@
+name: streaming-regression-test-iteration-time
+compute:
+  gpus: 8 # Number of GPUs to use
+  # cluster: TODO # Name of the cluster to use for this run
+command: |-
+  pip uninstall -y mosaicml-streaming
+  cd streaming
+  pip install -e '.[dev]'
+  python regression/synthetic_dataset.py --create --name imagedataset --out /tmp/streaming_dataset/ --num_samples 300
+  composer -n 2 regression/iterate_data.py --remote /tmp/streaming_dataset/ --local /tmp/local_dataset/ --batch_size 32
+  python regression/synthetic_dataset.py --delete --out /tmp/streaming_dataset/
+  rm -rf /tmp/local_dataset/
+
+image: mosaicml/composer:latest
+scheduling:
+  resumable: true
+  priority: medium
+integrations:
+  - integration_type: git_repo
+    git_repo: mosaicml/streaming
+    git_branch: main
+    ssh_clone: false
