@@ -1,7 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
-"""A utility to convert databricks' tables to MDS."""
 
+"""A utility to convert databricks' tables to MDS."""
 
 import json
 import os
@@ -42,7 +42,7 @@ default_ppfn_kwargs = {
 
 
 def is_iterable(obj):
-    """Check if obj is iterable"""
+    """Check if obj is iterable."""
     return issubclass(type(obj), Iterable)
 
 
@@ -268,28 +268,6 @@ class DeltaMdsConverter(mlflow.pyfunc.PythonModel):
             dataset = mlflow.data.from_spark(dataframe)
             mlflow.log_dict(default_mds_kwargs, 'default_mds_kwargs.json')
             mlflow.log_dict(default_ppfn_kwargs, 'default_ppfn_kwargs.json')
-
-
-def test():
-    """test from databricks."""
-    dmc = DeltaMdsConverter()
-
-    default_ppfn_kwargs.pop('key')
-
-    remote = ''
-    input_path = '/refinedweb/raw'
-    mds_path = '/Volumes/datasets/default/mosaic_hackathon/mds/ml/refinedweb'
-
-    dmc.execute(delta_parquet_path=input_path,
-                mds_path=mds_path,
-                partition_size=2048,
-                merge_index=True,
-                pandas_processing_fn=pandas_processing_fn,
-                sample_ratio=-1,
-                remote=remote,
-                mds_kwargs=default_mds_kwargs,
-                ppfn_kwargs=default_ppfn_kwargs)
-
 
 if __name__ == '__main__':
 
