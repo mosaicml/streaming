@@ -159,9 +159,6 @@ class DeltaMdsConverter(mlflow.pyfunc.PythonModel):
                 overwrite: bool = True,
                 mds_kwargs: Dict = {},
                 ppfn_kwargs: Dict = {}):
-
-        # Read data
-
         """Execute the Delta Lake to MDS conversion process.
 
         This method orchestrates the conversion of Delta Lake data into MDS format by
@@ -271,6 +268,9 @@ class DeltaMdsConverter(mlflow.pyfunc.PythonModel):
 
 
 def test():
+    """
+    test from databricks
+    """
     dmc = DeltaMdsConverter()
 
     default_ppfn_kwargs.pop('key')
