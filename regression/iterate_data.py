@@ -31,9 +31,7 @@ def parse_args() -> tuple[Namespace, dict[str, str]]:
                       default=2,
                       help='Number of epochs to iterate over the data')
     args.add_argument('--validate-files', default=False, action='store_true', help='Verify files')
-    args.add_argument('--shuffling-validation-file',
-                      type=str,
-                      help='File location to store sample order')
+    args.add_argument('--sample-order-file', type=str, help='File location to store sample order')
     args.add_argument('--validate-iter-time',
                       default=False,
                       action='store_true',
@@ -94,8 +92,10 @@ def main(args: Namespace, kwargs: dict[str, str]) -> None:
         args (Namespace): Command-line arguments.
         kwargs (dict): Named arguments.
     """
-    # Initialize torch dist ourselves, if necessary.
-    destroy_dist = maybe_init_dist()
+    destroy_dist = False
+    if args.sample_order_file is not None:
+        # Initialize torch dist ourselves, if necessary.
+        destroy_dist = maybe_init_dist()
 
     dataset_params = get_streaming_dataset_params(kwargs)
     dataloader_params = get_dataloader_params(kwargs)
@@ -107,7 +107,7 @@ def main(args: Namespace, kwargs: dict[str, str]) -> None:
         if epoch > 0:
             start_time = time.time()
         for batch in dataloader:
-            if args.shuffling_validation_file is not None:
+            if args.sample_order_file is not None:
                 samples = [int(sample) for sample in batch['id']]
                 obj_gather_list = [
                     torch.zeros(1, dtype=torch.int64).cuda(get_rank())
@@ -117,7 +117,7 @@ def main(args: Namespace, kwargs: dict[str, str]) -> None:
                            torch.Tensor(samples).to(dtype=torch.int64).cuda(get_rank()))
                 barrier()
                 if get_rank() == 0:
-                    with open(args.shuffling_validation_file, 'a') as f:
+                    with open(args.sample_order_file, 'a') as f:
                         all_samples = [
                             str(sample) + '\n'
                             for tensors in obj_gather_list
