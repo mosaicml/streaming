@@ -110,7 +110,7 @@ def main(args: Namespace, kwargs: dict[str, str]) -> None:
             if args.sample_order_file is not None:
                 samples = [int(sample) for sample in batch['id']]
                 obj_gather_list = [
-                    torch.zeros(1, dtype=torch.int64).cuda(get_rank())
+                    torch.zeros(len(samples), dtype=torch.int64).cuda(get_rank())
                     for _ in range(get_world_size())
                 ]
                 all_gather(obj_gather_list,
