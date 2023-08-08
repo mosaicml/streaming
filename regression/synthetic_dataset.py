@@ -207,6 +207,7 @@ class ImageDataset:
         self._seed = value  # pyright: ignore
         torch.manual_seed(self._seed)
 
+
 def get_dataset_params(kwargs: Dict[str, str]) -> Dict[str, Any]:
     """Get the dataset parameters from command-line arguments.
 
