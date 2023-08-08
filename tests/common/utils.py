@@ -24,7 +24,7 @@ def local_remote_dir() -> Any:
         mock_remote_dir = os.path.join(mock_dir.name, 'remote')
         yield mock_local_dir, mock_remote_dir
     finally:
-        mock_dir.cleanup()  # pyright: ignore
+        shutil.rmtree(mock_dir.name, ignore_errors=True)  # pyright: ignore
 
 
 @pytest.fixture(scope='function')
@@ -37,7 +37,7 @@ def compressed_local_remote_dir() -> Any:
         mock_remote_dir = os.path.join(mock_dir.name, 'remote')
         yield mock_compressed_dir, mock_local_dir, mock_remote_dir
     finally:
-        mock_dir.cleanup()  # pyright: ignore
+        shutil.rmtree(mock_dir.name, ignore_errors=True)  # pyright: ignore
 
 
 def convert_to_mds(**kwargs: Any):
