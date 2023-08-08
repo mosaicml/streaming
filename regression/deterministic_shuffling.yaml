@@ -7,7 +7,7 @@ command: |-
   cd streaming
   pip install -e '.[dev]'
 
-  python regression/synthetic_dataset.py --create --out /tmp/streaming_dataset/ --num-samples 10000
+  python regression/synthetic_dataset.py --create --out /tmp/streaming_dataset/ --num-samples 10000 --size_limit 4096
 
   # Check sample order without shuffling
   composer -n 2 regression/iterate_data.py --num_canonical_nodes 128 --batch_size 32 --local /tmp/local_dataset/ --remote /tmp/streaming_dataset/ --sample-order-file /tmp/test_samples_0.txt
