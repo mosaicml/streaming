@@ -18,10 +18,6 @@ class TestDeltaMdsConverter:
                     mds_path=mds_path,
                     partition_size=2048,
                     merge_index=True,
-                    pandas_processing_fn=None,
                     sample_ratio=-1,
                     remote=remote,
-                    mds_kwargs=default_mds_kwargs,
-                    ppfn_kwargs={})
-
-
+                    mds_kwargs=default_mds_kwargs)

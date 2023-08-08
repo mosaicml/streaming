@@ -269,6 +269,7 @@ class DeltaMdsConverter(mlflow.pyfunc.PythonModel):
             mlflow.log_dict(default_mds_kwargs, 'default_mds_kwargs.json')
             mlflow.log_dict(default_ppfn_kwargs, 'default_ppfn_kwargs.json')
 
+
 if __name__ == '__main__':
 
     args = parse_args()
