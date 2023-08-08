@@ -60,6 +60,36 @@ def parse_args():
 
 class DeltaMdsConverter(mlflow.pyfunc.PythonModel):
 
+    """
+    A class for converting Delta Lake data into MDS format using PySpark and pandas.
+
+    This class provides methods to convert Delta Lake data into MDS (Model Deployment
+    Service) format, which is optimized for efficient model serving. The conversion
+    process involves processing the input data using a user-defined pandas processing
+    function and writing the results to MDS-compatible format.
+
+    Args:
+        mlflow.pyfunc.PythonModel: A base class for defining Python-based MLflow models.
+
+    Methods:
+        spark_jobs(self, proc_fn, ppfn_kwargs: Dict = {}, mds_kwargs: Dict = {}):
+            Converts the Delta Lake data into MDS format using PySpark and pandas.
+
+        execute(self, dataframe=None, delta_parquet_path: str = '', delta_table_path: str = '',
+                mds_path: str = '', partition_size: int = 1, merge_index: bool = True,
+                pandas_processing_fn: Callable = None, sample_ratio: float = -1.0,
+                remote: str = '', overwrite: bool = True, mds_kwargs: Dict = {},
+                ppfn_kwargs: Dict = {}):
+            Executes the Delta Lake to MDS conversion process.
+
+    Attributes:
+        spark: A SparkSession instance for managing Spark applications.
+        df_delta: A DataFrame containing the Delta Lake data.
+        result_schema: A schema for the results containing a single 'mds_path' column.
+        partition_size: The number of partitions to use during conversion.
+        merge_index: A boolean indicating whether to merge MDS index files.
+    """
+
     def spark_jobs(self, proc_fn, ppfn_kwargs: Dict = {}, mds_kwargs: Dict = {}):
 
         def write_mds(iterator):
@@ -134,6 +164,50 @@ class DeltaMdsConverter(mlflow.pyfunc.PythonModel):
 
         # Read data
 
+        """
+        Execute the Delta Lake to MDS conversion process.
+
+        This method orchestrates the conversion of Delta Lake data into MDS format by
+        processing the input data, applying a user-defined pandas processing function if
+        provided, and writing the results to MDS-compatible format. The converted data is
+        saved to the specified 'mds_path' location.
+
+        Args:
+            dataframe (pyspark.sql.DataFrame or None): A DataFrame containing Delta Lake data.
+                If provided, this DataFrame will be used for conversion.
+            delta_parquet_path (str): The path to the Delta Lake data in Parquet format.
+            delta_table_path (str): The path to the Delta Lake data as a SQL table.
+            mds_path (str): The path where the converted MDS data will be stored.
+            partition_size (int): The number of partitions to use during conversion. Default is 1.
+            merge_index (bool): Whether to merge MDS index files. Default is True.
+            pandas_processing_fn (Callable or None): A user-defined pandas processing function
+                to apply to the input data before conversion. Default is None.
+            sample_ratio (float): The fraction of data to randomly sample during conversion.
+                Should be in the range (0, 1). Default is -1.0 (no sampling).
+            remote (str): The remote location type (e.g., 'dbfs') if using a remote path.
+                Default is an empty string.
+            overwrite (bool): Whether to overwrite the existing 'mds_path' folder if it exists.
+                Default is True.
+            mds_kwargs (Dict): Additional keyword arguments to pass to the MDSWriter class
+                during conversion. Default is an empty dictionary.
+            ppfn_kwargs (Dict): Additional keyword arguments to pass to the pandas processing
+                function if provided. Default is an empty dictionary.
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If both 'delta_parquet_path' and 'delta_table_path' cannot be read.
+
+        Note:
+            - The method creates a SparkSession if not already available.
+            - If 'dataframe' is provided, it takes precedence over 'delta_parquet_path'
+              and 'delta_table_path'.
+            - If 'sample_ratio' is provided, the input data will be randomly sampled.
+            - The 'remote' argument can be used to specify different remote storage types.
+            - The 'mds_kwargs' and 'ppfn_kwargs' dictionaries can be used to pass additional
+              keyword arguments to the MDSWriter and pandas processing function, respectively.
+        """
         import pyspark
         self.spark = pyspark.sql.SparkSession.builder.getOrCreate()
 
