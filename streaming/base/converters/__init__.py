@@ -3,8 +3,7 @@
 
 """Base module for downloading/uploading files from/to cloud storage."""
 
-from streaming.base.converters.delta_to_mds import default_mds_kwargs, default_ppfn_kwargs, DeltaMdsConverter
+from streaming.base.converters.delta_to_mds import (DeltaMdsConverter, default_mds_kwargs,
+                                                    default_ppfn_kwargs)
 
-__all__ = [
-    'default_mds_kwargs', 'default_ppfn_kwargs', 'DeltaMdsConverter'
-]
+__all__ = ['default_mds_kwargs', 'default_ppfn_kwargs', 'DeltaMdsConverter']
