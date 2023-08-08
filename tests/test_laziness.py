@@ -1,7 +1,6 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-from shutil import rmtree
 from typing import Any, Tuple
 
 import pytest
@@ -36,7 +35,6 @@ def three(remote: str, local: str):
     for i in range(dataset.num_samples):
         sample = dataset[i]
         assert sample['value'] == i
-    rmtree(local)
 
 
 def four(remote: str, local: str):
