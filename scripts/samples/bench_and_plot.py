@@ -27,20 +27,91 @@ def parse_args() -> Namespace:
         Namespace: Command-line arguments.
     """
     args = ArgumentParser()
-    args.add_argument('--data', type=str, default='data')
-    args.add_argument('--mds_color', type=str, default='red')
-    args.add_argument('--jsonl_color', type=str, default='green')
-    args.add_argument('--csv_color', type=str, default='blue')
-    args.add_argument('--rounds', type=int, default=5)
-    args.add_argument('--dataset_size', type=int, default=200_000)
-    args.add_argument('--text_len', type=int, default=1024)
-    args.add_argument('--tokens_per_sample', type=int, default=2048)
-    args.add_argument('--token_dtype', type=str, default='uint16')
-    args.add_argument('--size_limit', type=int, default=1 << 25)
-    args.add_argument('--truncate_highest_frac', type=float, default=0.0001)
-    args.add_argument('--pad_lowest_frac', type=float, default=0.01)
-    args.add_argument('--plot_bins', type=int, default=500)
-    args.add_argument('--dpi', type=int, default=600)
+    args.add_argument(
+        '--data',
+        type=str,
+        default='data',
+        help='Data root directory',
+    )
+    args.add_argument(
+        '--mds_color',
+        type=str,
+        default='red',
+        help='Color of MDS curves',
+    )
+    args.add_argument(
+        '--jsonl_color',
+        type=str,
+        default='green',
+        help='Color of JSONL curves',
+    )
+    args.add_argument(
+        '--csv_color',
+        type=str,
+        default='blue',
+        help='Color of CSV curves',
+    )
+    args.add_argument(
+        '--rounds',
+        type=int,
+        default=5,
+        help='Number of rounds of benchmarking each dataset, used to get stable numbers',
+    )
+    args.add_argument(
+        '--dataset_size',
+        type=int,
+        default=200_000,
+        help='Dataset size in samples',
+    )
+    args.add_argument(
+        '--text_len',
+        type=int,
+        default=1024,
+        help='Length of each sample text field in ASCII characters',
+    )
+    args.add_argument(
+        '--tokens_per_sample',
+        type=int,
+        default=2048,
+        help='Length of each sample tokens field in tokens',
+    )
+    args.add_argument(
+        '--token_dtype',
+        type=str,
+        default='uint16',
+        help='Data type of each token',
+    )
+    args.add_argument(
+        '--shard_size_limit',
+        type=int,
+        default=1 << 25,
+        help='Shard size limit in bytes',
+    )
+    args.add_argument(
+        '--truncate_highest_frac',
+        type=float,
+        default=0.0001,
+        help='What fraction of sample access times to truncate on the high end when plotting',
+    )
+    args.add_argument(
+        '--pad_lowest_frac',
+        type=float,
+        default=0.01,
+        help='What fraction of the logarithmic range of truncated sample access latencies to ' +
+        'pad on the low end when plotting',
+    )
+    args.add_argument(
+        '--plot_bins',
+        type=int,
+        default=500,
+        help='Number of logarithmic buckets in which to gather sample access latencies',
+    )
+    args.add_argument(
+        '--dpi',
+        type=int,
+        default=600,
+        help='Dots per inch of plots',
+    )
     return args.parse_args()
 
 
@@ -106,7 +177,7 @@ def generate_tokens(dataset_size: int, tokens_per_sample: int, dtype: DTypeLike)
     return columns, samples
 
 
-def write(writer_class: type, dirname: str, columns: Dict[str, str], size_limit: int,
+def write(writer_class: type, dirname: str, columns: Dict[str, str], shard_size_limit: int,
           samples: List[Dict[str, Any]]) -> None:
     """Given a writer class and information to write, serialize a dataset in that format.
 
@@ -114,12 +185,12 @@ def write(writer_class: type, dirname: str, columns: Dict[str, str], size_limit:
         writer_class (type): Which writer to use (MDS, JSONL, etc.).
         dirname (str): Dataset directory.
         columns (Dict[str, str]): Dataset columns.
-        size_limit (int): Maximum shard size.
+        shard_size_limit (int): Maximum shard size.
         samples (List[Dict[str, str]]): Samples that will comprise the dataset.
     """
     if os.path.exists(dirname):
-        rmtree(dirname)
-    with writer_class(out=dirname, columns=columns, size_limit=size_limit) as out:
+        rmtree(dirname, ignore_errors=True)
+    with writer_class(out=dirname, columns=columns, size_limit=shard_size_limit) as out:
         for sample in samples:
             out.write(sample)
 
@@ -185,7 +256,7 @@ def bench(args: Namespace, bench_name: str, desc: str, generate: Callable,
     for format_name, writer_class, _ in format_infos:
         dirname = os.path.join(args.data, bench_name, format_name)
         with timed(f'    {format_name.upper()}'):
-            write(writer_class, dirname, columns, args.size_limit, samples)
+            write(writer_class, dirname, columns, args.shard_size_limit, samples)
 
     datasets = []
     for format_name, _, _ in format_infos:
