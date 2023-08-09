@@ -55,11 +55,11 @@ def convert_to_mds(**kwargs: Any):
     hashes = kwargs.get('hashes', None)
     size_limit = kwargs.get('size_limit', 1 << 8)
 
-    if(dataset_name == 'sequencedataset' and offset != 0):
+    if (dataset_name == 'sequencedataset' and offset != 0):
         dataset = dataset_mapping[dataset_name](num_samples, offset=offset)
     else:
         dataset = dataset_mapping[dataset_name](num_samples)
-        
+
     columns = dict(zip(dataset.column_names, dataset.column_encodings))
 
     with MDSWriter(out=out_root,

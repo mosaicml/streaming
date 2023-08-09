@@ -17,7 +17,12 @@ class SequenceDataset:
         offset: Offset to start the sequence from. Defaults to 0.
     """
 
-    def __init__(self, size: int = 100, column_names: List[str] = ['id', 'sample'], offset: int = 0,) -> None:
+    def __init__(
+        self,
+        size: int = 100,
+        column_names: List[str] = ['id', 'sample'],
+        offset: int = 0,
+    ) -> None:
         self.size = size
         self.column_encodings = ['str', 'int']
         self.column_sizes = [None, 8]

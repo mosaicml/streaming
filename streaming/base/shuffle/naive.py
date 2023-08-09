@@ -19,9 +19,10 @@ def get_shuffle_naive(shard_sizes: NDArray[np.int64],
                       epoch: int,
                       block_size: int = 1 << 18) -> NDArray[np.int64]:
     """Get the shuffled global ordering of samples for an epoch.
-m
-    The assignment of shards to nodes is fixed across epochs, but each grouping of shards is
-    processed concurrently in a different order by each node's workers each epoch.
+
+    The assignment of shards to nodes is fixed across epochs, but each grouping
+    of shards is processed concurrently in a different order by each node's
+    workers each epoch.
 
     Args:
         shard_sizes (NDArray[np.int64]): Number of samples contained in each shard, in order.
