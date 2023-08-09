@@ -1,6 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 import math
 import shutil
 from typing import Any, Tuple
@@ -8,7 +9,7 @@ from typing import Any, Tuple
 import pytest
 from torch.utils.data import DataLoader
 
-from streaming.base import StreamingDataLoader, StreamingDataset
+from streaming.base import StreamingDataLoader, StreamingDataset, Stream
 from tests.common.utils import convert_to_mds
 
 
@@ -56,6 +57,87 @@ def test_dataloader_epoch_size_no_streams(local_remote_dir: Tuple[str,
             assert samples_seen == epoch_size - (epoch_size % batch_size)
         else:
             assert samples_seen == epoch_size
+
+@pytest.mark.parametrize('batch_size', [4])
+@pytest.mark.parametrize('seed', [2222])
+@pytest.mark.parametrize('shuffle', [False])
+@pytest.mark.parametrize('drop_last', [False, True])
+@pytest.mark.parametrize('num_workers', [3, 6])
+@pytest.mark.parametrize('num_canonical_nodes', [4, 8])
+@pytest.mark.parametrize('epoch_size', [10, 200])
+@pytest.mark.usefixtures('local_remote_dir')
+def test_dataloader_epoch_size_multiple_streams_default(local_remote_dir: Tuple[str,
+                                                                  str], batch_size: int, seed: int,
+                                          shuffle: bool, drop_last: bool, num_workers: int,
+                                          num_canonical_nodes: int, epoch_size: int):
+    # create mock datasets for 2 streams. Second one has 1.5x the samples
+    local, remote = local_remote_dir
+    local1 = os.path.join(local, 'stream1')
+    local2 = os.path.join(local, 'stream2')
+    remote1 = os.path.join(remote, 'stream1')
+    remote2 = os.path.join(remote, 'stream2')
+
+    # stream 1 has samples 0->600
+    convert_to_mds(out_root=remote1,
+                   dataset_name='sequencedataset',
+                   num_samples=200,
+                   size_limit=1 << 8)
+    # stream 2 has samples 600 and above. This lets us differentiate between the samples from each stream
+    convert_to_mds(out_root=remote2,
+                   dataset_name='sequencedataset',
+                   num_samples=300,
+                   offset = 600,
+                   size_limit=1 << 8)
+    
+    stream1 = Stream(local=local1, remote=remote1)
+    stream2 = Stream(local=local2, remote=remote2)
+
+    # Build StreamingDataset
+    dataset = StreamingDataset(streams=[stream1, stream2],
+                               shuffle=shuffle,
+                               batch_size=batch_size,
+                               shuffle_seed=seed,
+                               num_canonical_nodes=num_canonical_nodes,
+                               epoch_size=epoch_size)
+
+    # Build DataLoader
+    dataloader = StreamingDataLoader(dataset=dataset,
+                                     batch_size=batch_size,
+                                     num_workers=num_workers,
+                                     drop_last=drop_last)
+
+    samples_seen_stream1 = 0
+    samples_seen_stream2 = 0
+    samples_seen = 0
+    for batch in dataloader:
+        samples = batch['sample']
+        samples_seen += samples.size(dim=0)
+        stream1_seen = (samples < 600).sum().item()
+        stream2_seen = (samples > 600).sum().item()
+        samples_seen_stream1 += stream1_seen
+        samples_seen_stream2 += stream2_seen
+        print(samples)
+        print(stream1_seen)
+        print(stream2_seen)
+
+    print("FINAL TOTAL")
+    print(samples_seen)
+    print(samples_seen_stream1)
+    print(samples_seen_stream2)
+
+    if epoch_size % num_canonical_nodes != 0:
+        assert samples_seen == (math.ceil(epoch_size / num_canonical_nodes) * num_canonical_nodes)
+        assert samples_seen_stream1 == int(samples_seen*0.4) or samples_seen_stream1 == int(samples_seen*0.4)+1
+        assert samples_seen_stream2 == int(samples_seen*0.6) or samples_seen_stream2 == int(samples_seen*0.6)+1
+    else:
+        if drop_last:
+            assert samples_seen == epoch_size - (epoch_size % batch_size)
+            assert samples_seen_stream1 == int(samples_seen*0.4) or samples_seen_stream1 == int(samples_seen*0.4)+1
+            assert samples_seen_stream2 == int(samples_seen*0.6) or samples_seen_stream2 == int(samples_seen*0.6)+1
+        else:
+            assert samples_seen == epoch_size
+            assert samples_seen_stream1 == int(samples_seen*0.4) or samples_seen_stream1 == int(samples_seen*0.4)+1
+            assert samples_seen_stream2 == int(samples_seen*0.6) or samples_seen_stream2 == int(samples_seen*0.6)+1
 
 
 @pytest.mark.parametrize('batch_size', [4])
