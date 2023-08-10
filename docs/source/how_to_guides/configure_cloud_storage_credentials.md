@@ -98,21 +98,6 @@ export S3_ENDPOINT_URL='https://<accountid>.r2.cloudflarestorage.com'
 For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [Google Cloud Storage](https://mcli.docs.mosaicml.com/en/latest/secrets/gcp.html) MCLI doc on how to configure the cloud provider credentials.
 
 
-###  GCP Service Account Credentials Mounted as Environment Variables
-
-Users must set their GCP `account credentials` to point to their credentials file in the run environment.
-
-````{tabs}
-```{code-tab} py
-import os
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'KEY_FILE'
-```
-
-```{code-tab} sh
-export GOOGLE_APPLICATION_CREDENTIALS='KEY_FILE'
-```
-````
-
 ### GCP User Auth Credentials Mounted as Environment Variables
 
 Streaming dataset supports [GCP user credentials](https://cloud.google.com/storage/docs/authentication#user_accounts) or [HMAC keys for User account](https://cloud.google.com/storage/docs/authentication/hmackeys).  Users must set their GCP `user access key` and GCP `user access secret` in the run environment.
@@ -131,6 +116,34 @@ export GCS_KEY='AKIAIOSFODNN7EXAMPLE'
 export GCS_SECRET='wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
 ```
 ````
+
+
+###  GCP Application Default Credentials
+
+Streaming dataset supports the use of Application Default Credentials (ADC) to authenticate you with Google Cloud. When
+no HMAC keys are given (see above), it will attempt to authenticate using ADC. This will, in order, check
+
+1. a key-file whose path is given in the `GOOGLE_APPLICATION_CREDENTIALS` environment variable.
+2. a key-file in the Google cloud configuration directory.
+3. the Google App Engine credentials.
+4. the GCE Metadata Service credentials.
+
+See the [Google Cloud Docs](https://cloud.google.com/docs/authentication/provide-credentials-adc) for more details.
+
+To explicitly use the `GOOGLE_APPLICATION_CREDENTIALS` (point 1 above), users must set their GCP `account credentials`
+to point to their credentials file in the run environment.
+
+````{tabs}
+```{code-tab} py
+import os
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'KEY_FILE'
+```
+
+```{code-tab} sh
+export GOOGLE_APPLICATION_CREDENTIALS='KEY_FILE'
+```
+````
+
 
 ## Oracle Cloud Storage
 
