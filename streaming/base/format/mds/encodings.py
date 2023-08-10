@@ -122,7 +122,7 @@ class NDArray(Encoding):
     }
 
     # Shape dtype -> integer <4.
-    _shape_dtype2int = dict((v, k) for k, v in _int2shape_dtype.items())
+    _shape_dtype2int = {v: k for k, v in _int2shape_dtype.items()}
 
     # Integer <256 -> value dtype.
     _int2value_dtype = {
@@ -140,7 +140,7 @@ class NDArray(Encoding):
     }
 
     # Value dtype -> integer <256.
-    _value_dtype2int = dict((v, k) for k, v in _int2value_dtype.items())
+    _value_dtype2int = {v: k for k, v in _int2value_dtype.items()}
 
     @classmethod
     def _get_static_size(cls, dtype: Optional[str], shape: Optional[Tuple[int]]) -> Optional[int]:
