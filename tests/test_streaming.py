@@ -107,6 +107,11 @@ def test_dataloader_epoch_size_multiple_streams_default(local_remote_dir: Tuple[
                                      num_workers=num_workers,
                                      drop_last=drop_last)
 
+    # track the number of samples seen overall in the epoch,
+    # and also track the number of samples seen from each stream.
+    # we expect the number of samples from each stream in the epoch
+    # to be proportional to the number of total samples in the stream,
+    # in the case when proportion, repeat, and choose are all unspecified.
     samples_seen_stream1 = 0
     samples_seen_stream2 = 0
     samples_seen = 0
@@ -117,15 +122,11 @@ def test_dataloader_epoch_size_multiple_streams_default(local_remote_dir: Tuple[
         stream2_seen = (samples > 600).sum().item()
         samples_seen_stream1 += stream1_seen
         samples_seen_stream2 += stream2_seen
-        print(samples)
-        print(stream1_seen)
-        print(stream2_seen)
 
-    print('FINAL TOTAL')
-    print(samples_seen)
-    print(samples_seen_stream1)
-    print(samples_seen_stream2)
-
+    # if epoch size is not divisible by canonical nodes the partition algorithm will have some repeated samples
+    # so the number of samples seen will be within some tolerance of the epoch size
+    # in all cases though, stream 1 and stream 2 samples should be approximately in a 2:3 ratio
+    # in accordance with the number of samples each stream has (stream 1: 200, stream 2: 300)
     if epoch_size % num_canonical_nodes != 0:
         assert samples_seen == (math.ceil(epoch_size / num_canonical_nodes) * num_canonical_nodes)
         assert samples_seen_stream1 == int(
@@ -133,12 +134,16 @@ def test_dataloader_epoch_size_multiple_streams_default(local_remote_dir: Tuple[
         assert samples_seen_stream2 == int(
             samples_seen * 0.6) or samples_seen_stream2 == int(samples_seen * 0.6) + 1
     else:
+        # if drop_last is True, we will drop incomplete batches, so samples_seen can
+        # be less than epoch_size
         if drop_last:
             assert samples_seen == epoch_size - (epoch_size % batch_size)
             assert samples_seen_stream1 == int(
                 samples_seen * 0.4) or samples_seen_stream1 == int(samples_seen * 0.4) + 1
             assert samples_seen_stream2 == int(
                 samples_seen * 0.6) or samples_seen_stream2 == int(samples_seen * 0.6) + 1
+        # drop_last is false, and epoch_size is divisible by num_canonical_nodes, so samples_seen
+        # should be the same as epoch_size
         else:
             assert samples_seen == epoch_size
             assert samples_seen_stream1 == int(
