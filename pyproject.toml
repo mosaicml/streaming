@@ -482,6 +482,25 @@ split_penalty_logical_operator = 300
 # Use the Tab character for indentation.
 use_tabs = false
 
+[tool.ruff]
+select = [
+    "C4",
+    # TODO port pydocstyle
+    # "D", # pydocstyle
+    "PERF",
+]
+
+ignore = [
+    "C408",
+    "PERF2",
+    "PERF4",
+]
+exclude = [
+    "build/**",
+    "docs/**",
+    "node_modules/**",
+]
+
 # Ignore directories
 [tool.yapfignore]
 ignore_patterns = [
