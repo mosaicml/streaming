@@ -74,9 +74,9 @@ extra_deps['dev'] = [
     'toml==0.10.2',
     'yamllint==1.32.0',
     'moto>=4.0,<5',
-    'fastapi==0.100.0',
-    'pydantic==1.10.11',
-    'uvicorn==0.23.1',
+    'fastapi==0.101.0',
+    'pydantic==2.1.1',
+    'uvicorn==0.23.2',
     'pytest-split==0.8.1',
 ]
 

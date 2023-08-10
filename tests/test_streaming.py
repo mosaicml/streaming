@@ -382,7 +382,7 @@ def test_multiple_dataset_instantiation(local_remote_dir: Any, shuffle_seed: tup
     for batch in train_dataloader:
         train_sample_order.extend(batch['id'][:])
 
-    shutil.rmtree(local_dir)
+    shutil.rmtree(local_dir, ignore_errors=True)
     del train_dataloader
     del train_dataset
 
