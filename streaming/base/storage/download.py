@@ -13,6 +13,12 @@ __all__ = ['download_or_wait']
 
 BOTOCORE_CLIENT_ERROR_CODES = {'403', '404', 'NoSuchKey'}
 
+GCS_ERROR_NO_AUTHENTICATION = """\
+Either set the environment variables `GCS_KEY` and `GCS_SECRET` or use any of the methods in \
+https://cloud.google.com/docs/authentication/external/set-up-adc to set up Application Default Credentials. See also \
+https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/gcp.html.
+"""
+
 
 def download_from_s3(remote: str, local: str, timeout: float) -> None:
     """Download a file from remote AWS S3 (or any S3 compatible object store) to local.
@@ -169,12 +175,8 @@ def download_from_gcs(remote: str, local: str) -> None:
     else:
         try:
             _gcs_with_service_account(local, obj)
-        except DefaultCredentialsError:
-            raise ValueError(
-                f'Either set the environment variables `GCS_KEY` and `GCS_SECRET` or ' +
-                f'use any of the methods in https://cloud.google.com/docs/authentication/external/set-up-adc '
-                + f'to set up Application Default Credentials. See also ' +
-                f'https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/gcp.html.')
+        except (DefaultCredentialsError, EnvironmentError):
+            raise ValueError(GCS_ERROR_NO_AUTHENTICATION)
 
 
 def _gcs_with_hmac(remote: str, local: str, obj: urllib.parse.ParseResult) -> None:

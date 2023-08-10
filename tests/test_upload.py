@@ -220,31 +220,37 @@ class TestGCSUploader:
         assert uploader.authentication == GCSAuthentication.HMAC
 
     @patch('streaming.base.storage.upload.GCSUploader.check_bucket_exists')
-    @patch('google.cloud.storage.Client.from_service_account_json')
+    @patch('google.auth.default')
+    @patch('google.cloud.storage.Client')
     @pytest.mark.usefixtures('gcs_service_account_credentials')
     @pytest.mark.parametrize('out', ['gs://bucket/dir'])
-    def test_service_account_authentication(self, mocked_requests: Mock, mock_client: Mock,
-                                            out: str):
+    def test_service_account_authentication(self, mocked_requests: Mock, mock_default: Mock,
+                                            mock_client: Mock, out: str):
+        mock_default.return_value = Mock(), None
         uploader = GCSUploader(out=out)
         assert uploader.authentication == GCSAuthentication.SERVICE_ACCOUNT
 
     @patch('streaming.base.storage.upload.GCSUploader.check_bucket_exists')
-    @patch('google.cloud.storage.Client.from_service_account_json')
+    @patch('google.auth.default')
+    @patch('google.cloud.storage.Client')
     @pytest.mark.usefixtures('gcs_service_account_credentials', 'gcs_hmac_credentials')
     @pytest.mark.parametrize('out', ['gs://bucket/dir'])
     def test_service_account_and_hmac_authentication(self, mocked_requests: Mock,
-                                                     mock_client: Mock, out: str):
+                                                     mock_default: Mock, mock_client: Mock,
+                                                     out: str):
+        mock_default.return_value = Mock(), None
         uploader = GCSUploader(out=out)
-        assert uploader.authentication == GCSAuthentication.SERVICE_ACCOUNT
+        assert uploader.authentication == GCSAuthentication.HMAC
 
     @pytest.mark.parametrize('out', ['gs://bucket/dir'])
     def test_no_authentication(self, out: str):
         with pytest.raises(
                 ValueError,
-                match=(f'Either GOOGLE_APPLICATION_CREDENTIALS needs to be set for'
-                       f' service level accounts or GCS_KEY and GCS_SECRET needs to be'
-                       f' set for HMAC authentication'),
-        ):
+                match=
+            (f'Either set the environment variables `GCS_KEY` and `GCS_SECRET` or use any of the methods in '
+             f'https://cloud.google.com/docs/authentication/external/set-up-adc to set up Application Default '
+             f'Credentials. See also https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/'
+             f'gcp.html.')):
             _ = GCSUploader(out=out)
 
 
