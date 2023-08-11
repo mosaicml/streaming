@@ -4,6 +4,12 @@ default_language_version:
 # a consistency with the official tfrecord preprocessing scripts
 exclude: "^(streaming/text/convert/enwiki/)"
 repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version.
+    rev: v0.0.282
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
   - repo: https://github.com/google/yapf
     rev: v0.32.0
     hooks:
