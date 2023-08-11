@@ -22,10 +22,7 @@ mark_times = [
 ]
 
 algo_colors = {
-    'naive': 'black',
-    'py2s': 'purple',
-    'py1s': 'red',
-    'py1b': 'orange',
+    'orig': 'red',
 }
 
 
@@ -36,8 +33,8 @@ def parse_args() -> Namespace:
         Namespace: Command-line arguments.
     """
     args = ArgumentParser()
-    args.add_argument('--in', type=str, required=True, help='Shuffle benchmarking results')
-    args.add_argument('--out', type=str, required=True, help='Shuffle benchmarking plot')
+    args.add_argument('--in', type=str, required=True, help='Partition benchmarking results')
+    args.add_argument('--out', type=str, required=True, help='Partition benchmarking plot')
     return args.parse_args()
 
 
@@ -87,14 +84,16 @@ def main(args: Namespace) -> None:
 
     for key in sorted(key2times):
         times = key2times[key]
+        times = list(filter(lambda t: 0 < t, times))
+        sub_sizes = sizes[:len(times)]
         color = algo_colors[key]
-        plt.plot(sizes, times, c=color, label=key)
+        plt.plot(sub_sizes, times, c=color, label=key)
 
     plt.xscale('log')
     plt.yscale('log')
-    plt.title('Shuffle Time vs Dataset Size')
+    plt.title('Partition Time vs Dataset Size')
     plt.xlabel('Dataset size (samples)')
-    plt.ylabel('Shuffle time (seconds)')
+    plt.ylabel('Partition time (seconds)')
     plt.legend()
     plt.grid(which='major', ls='--', c='#ddd')
     plt.grid(which='minor', ls=':', c='#eee')

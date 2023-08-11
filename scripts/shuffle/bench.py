@@ -11,7 +11,8 @@ from typing import Callable
 import numpy as np
 from numpy.typing import NDArray
 
-from streaming.base.shuffle import get_shuffle_py1s, get_shuffle_py2s
+from streaming.base.shuffle import (get_shuffle_naive, get_shuffle_py1b, get_shuffle_py1s,
+                                    get_shuffle_py2s)
 
 
 def parse_args() -> Namespace:
@@ -23,7 +24,7 @@ def parse_args() -> Namespace:
     args = ArgumentParser()
     args.add_argument('--num_canonical_nodes',
                       type=int,
-                      default=1,
+                      default=8,
                       help='Number of canonical nodes')
     args.add_argument('--seed', type=int, default=9186, help='Shuffle seed')
     args.add_argument('--epoch', type=int, default=0, help='Current epoch')
@@ -102,8 +103,8 @@ def main(args: Namespace) -> None:
     Args:
         args (Namespace): Command-line arguments.
     """
-    names = 'py1x', 'py2x'
-    get_shuffles = get_shuffle_py1s, get_shuffle_py2s
+    names = 'naive', 'py2s', 'py1s', 'py1b'
+    get_shuffles = get_shuffle_naive, get_shuffle_py2s, get_shuffle_py1s, get_shuffle_py1b
 
     def wrap(func: Callable):
         return Caller(func, args.num_canonical_nodes, args.seed, args.epoch, args.timeout)
