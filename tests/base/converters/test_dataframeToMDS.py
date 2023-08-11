@@ -4,17 +4,19 @@
 import os
 from tempfile import mkdtemp
 
-from SparkSession.builder import appName
-from sql.types import IntegerType, StringType, StructField, StructType
+from pyspark.sql.types import IntegerType, StringType, StructField, StructType
+
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
+from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 
 from streaming.base.converters import dataframeToMDS
-from streaming.base.converters.dataframeToMDS import dataframeToMDS
 
 
 class TestDataFrameToMDS:
 
     def test_end_to_end_conversion(self):
-        spark = appName('SparkByExamples.com').getOrCreate()
+        spark = SparkSession.build.appName('SparkByExamples.com').getOrCreate()
         data = [('36636', 'Finance', (3000, 'USA')), ('40288', 'Finance', (5000, 'IND')),
                 ('42114', 'Sales', (3900, 'USA')), ('39192', 'Marketing', (2500, 'CAN')),
                 ('34534', 'Sales', (6500, 'USA'))]

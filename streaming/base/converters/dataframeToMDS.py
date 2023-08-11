@@ -6,14 +6,14 @@
 import json
 import os
 import urllib.parse
-from argparse import ArgumentParser, Namespace
+from argparse import ArgumentParser
 from collections.abc import Iterable
 from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import pandas as pd
 from pyspark import TaskContext
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.SparkSession import builder
+from pyspark.sql import SparkSession
 from pyspark.sql.types import StringType, StructField, StructType
 
 from streaming import MDSWriter
@@ -169,8 +169,7 @@ def dataframeToMDS(dataframe: DataFrame,
                     mds_writer.write(row)
         yield pd.DataFrame(pd.Series([out_file_path], name='mds_path'))
 
-    spark = builder.getOrCreate()
-
+    spark = SparkSession.builder.getOrCreate()
     if not dataframe:
         raise ValueError(f'input dataframe is none!')
 
