@@ -37,10 +37,12 @@ class Stream:
       * ``remote``
       * ``local``
 
-    * At most one of ``proportion``, ``repeat``, or ``choose`` may exist. If none are provided,
-      each sample is seen once per epoch. If provided one of these, we derive the others.
-      Note that ``proportion`` (relative) and ``repeat``/``choose`` (absolute) are mutually
-      incompatible -- you must entirely use one or the other (or neither) for all sub-datasets.
+    * At most one of ``proportion``, ``repeat``, or ``choose`` may exist. If provided one of these,
+      we derive the others. Note that ``proportion`` (relative) and ``repeat``/``choose`` (absolute)
+      are mutually incompatible -- you must entirely use one or the other (or neither) for all
+      sub-datasets.If none are provided for all streams and epoch_size is unspecified, then each
+      sample from each stream is seen once per epoch. If none are provided for all streams and
+      epoch_size is specified, then streams are sampled in proportion to their size.
 
       * ``proportion``
       * ``repeat``
