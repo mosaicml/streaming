@@ -87,8 +87,10 @@ def main(args: Namespace) -> None:
 
     for key in sorted(key2times):
         times = key2times[key]
+        times = list(filter(lambda t: 0 < t, times))
+        sub_sizes = sizes[:len(times)]
         color = algo_colors[key]
-        plt.plot(sizes, times, c=color, label=key)
+        plt.plot(sub_sizes, times, c=color, label=key)
 
     plt.xscale('log')
     plt.yscale('log')
