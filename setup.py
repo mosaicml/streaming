@@ -78,6 +78,7 @@ extra_deps['dev'] = [
     'pydantic==2.1.1',
     'uvicorn==0.23.1',
     'pytest-split==0.8.1',
+    'pyspark==3.4.1'
 ]
 
 extra_deps['docs'] = [
@@ -93,8 +94,6 @@ extra_deps['docs'] = [
     'sphinx==6.2.1',
     'sphinx-tabs==3.4.1',
 ]
-
-extra_deps['databricks'] = ['databricks-sdk==0.3.1']
 
 extra_deps['all'] = sorted(set(dep for deps in extra_deps.values() for dep in deps))
 
