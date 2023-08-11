@@ -14,8 +14,8 @@ from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 import pandas as pd
 from pyspark import TaskContext
 from pyspark.sql.dataframe import DataFrame
+from pyspark.sql.SparkSession import builder
 from pyspark.sql.types import StringType, StructField, StructType
-from pyspark.sql.SparkSession.builder import getOrCreate
 
 from streaming import MDSWriter
 
@@ -140,10 +140,11 @@ def dataframeToMDS(dataframe: DataFrame,
     def write_mds(iterator):
 
         id = TaskContext.get().taskAttemptId()
+        mds_path = out
         if type(out) == tuple:
-            out_file_path = os.path.join(out[0], f'{id}')
-        else:
-            out_file_path = os.path.join(out, f'{id}')
+            mds_path = out[0]
+        out_file_path = os.path.join(mds_path, f'{id}')
+
         mds_kwargs = {
             'out': out_file_path,
             'columns': columns,
@@ -169,7 +170,7 @@ def dataframeToMDS(dataframe: DataFrame,
                     mds_writer.write(row)
         yield pd.DataFrame(pd.Series([out_file_path], name='mds_path'))
 
-    spark = getOrCreate()
+    spark = builder.getOrCreate()
 
     if not dataframe:
         raise ValueError(f'input dataframe is none!')

@@ -4,11 +4,11 @@
 import os
 from tempfile import NamedTemporaryFile, mkdtemp
 
-from streaming.base.converters import jsonToMDS
-
-from SparkSession.builder import appName
 from pyspark import sql
+from SparkSession.builder import appName
 from sql.types import IntegerType, StringType, StructField, StructType
+
+from streaming.base.converters import jsonToMDS
 
 
 class TestJsonToMDS:
