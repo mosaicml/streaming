@@ -22,23 +22,54 @@ def parse_args() -> Namespace:
         Namespace: Command-line arguments.
     """
     args = ArgumentParser()
-    args.add_argument('--num_canonical_nodes',
-                      type=int,
-                      default=8,
-                      help='Number of canonical nodes')
-    args.add_argument('--seed', type=int, default=9186, help='Shuffle seed')
-    args.add_argument('--epoch', type=int, default=0, help='Current epoch')
-    args.add_argument('--timeout',
-                      type=float,
-                      default=120,
-                      help='The longest that we are willing to wait for results, in seconds')
-    args.add_argument('--samples_per_shard', type=float, default=50_000, help='Samples per shard')
-    args.add_argument('--min_power', type=int, default=10, help='Min dataset size as a power of 2')
-    args.add_argument('--max_power', type=int, default=34, help='Max dataset size as a power of 2')
-    args.add_argument('--power_interval',
-                      type=int,
-                      default=4,
-                      help='Dataset size step as a power of 2')
+    args.add_argument(
+        '--num_canonical_nodes',
+        type=int,
+        default=8,
+        help='Number of canonical nodes',
+    )
+    args.add_argument(
+        '--seed',
+        type=int,
+        default=9186,
+        help='Shuffle seed',
+    )
+    args.add_argument(
+        '--epoch',
+        type=int,
+        default=0,
+        help='Current epoch',
+    )
+    args.add_argument(
+        '--timeout',
+        type=float,
+        default=120,
+        help='The longest that we are willing to wait for results, in seconds',
+    )
+    args.add_argument(
+        '--samples_per_shard',
+        type=float,
+        default=50_000,
+        help='Samples per shard',
+    )
+    args.add_argument(
+        '--min_power',
+        type=int,
+        default=10,
+        help='Minimum dataset size as a power of 2',
+    )
+    args.add_argument(
+        '--max_power',
+        type=int,
+        default=34,
+        help='Maximum dataset size as a power of 2',
+    )
+    args.add_argument(
+        '--power_interval',
+        type=int,
+        default=4,
+        help='Dataset size step as a power of 2',
+    )
     return args.parse_args()
 
 

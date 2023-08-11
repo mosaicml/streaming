@@ -16,16 +16,66 @@ def parse_args() -> Namespace:
         Namespace: Command-line arguments.
     """
     args = ArgumentParser()
-    args.add_argument('--num_canonical_nodes', type=int, default=8)
-    args.add_argument('--num_nodes', type=int, default=8)
-    args.add_argument('--ranks_per_node', type=int, default=8)
-    args.add_argument('--workers_per_rank', type=int, default=8)
-    args.add_argument('--batch_size', type=int, default=16)
-    args.add_argument('--sample_in_epoch', type=int, default=0)
-    args.add_argument('--min_power', type=int, default=10)
-    args.add_argument('--max_power', type=int, default=34)
-    args.add_argument('--power_interval', type=int, default=4)
-    args.add_argument('--timeout', type=float, default=120)
+    args.add_argument(
+        '--num_canonical_nodes',
+        type=int,
+        default=8,
+        help='Number of canonical nodes',
+    )
+    args.add_argument(
+        '--num_nodes',
+        type=int,
+        default=8,
+        help='Number of physical nodes',
+    )
+    args.add_argument(
+        '--ranks_per_node',
+        type=int,
+        default=8,
+        help='Ranks per node',
+    )
+    args.add_argument(
+        '--workers_per_rank',
+        type=int,
+        default=8,
+        help='Workers per rank',
+    )
+    args.add_argument(
+        '--batch_size',
+        type=int,
+        default=16,
+        help='Batch size per rank',
+    )
+    args.add_argument(
+        '--sample_in_epoch',
+        type=int,
+        default=0,
+        help='Sample offset in epoch',
+    )
+    args.add_argument(
+        '--min_power',
+        type=int,
+        default=10,
+        help='Minimum dataset size as a power of 2',
+    )
+    args.add_argument(
+        '--max_power',
+        type=int,
+        default=34,
+        help='Maximum dataset size as a power of 2',
+    )
+    args.add_argument(
+        '--power_interval',
+        type=int,
+        default=4,
+        help='Dataset size step as a power of 2',
+    )
+    args.add_argument(
+        '--timeout',
+        type=float,
+        default=120,
+        help='Maximum time to wait for partitioning to complete',
+    )
     return args.parse_args()
 
 
