@@ -48,6 +48,7 @@ def is_iterable(obj):
 
 
 def do_merge_index(partitions, mds_out, skip=False):
+    """Merge index.json from partitions into one for streaming"""
     if not partitions or skip:
         return
 
@@ -139,7 +140,10 @@ def dataframeToMDS(dataframe: DataFrame,
     def write_mds(iterator):
 
         id = TaskContext.get().taskAttemptId()
-        out_file_path = os.path.join(out, f'{id}')
+        if type(out) == tuple:
+            out_file_path = os.path.join(out[0], f'{id}')
+        else:
+            out_file_path = os.path.join(out, f'{id}')
         mds_kwargs = {
             'out': out_file_path,
             'columns': columns,
@@ -194,6 +198,9 @@ def dataframeToMDS(dataframe: DataFrame,
 
 
 if __name__ == '__main__':
+
+    import pyspark
+    spark = pyspark.sql.SparkSession.builder.getOrCreate()
 
     def parse_args():
         """Parse commandline arguments."""

@@ -4,14 +4,7 @@
 import os
 import shutil
 from tempfile import NamedTemporaryFile, mkdtemp
-from typing import Any, List, Tuple
-from unittest.mock import Mock, patch
-
-import pytest
-
 from streaming.base.converters import csvToMDS
-from streaming.base.converters.dataframeToMDS import dataframeToMDS
-from tests.conftest import R2_URL
 
 
 class TestCSVToMDS:
