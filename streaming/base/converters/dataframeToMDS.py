@@ -5,17 +5,17 @@
 
 import json
 import os
-import shutil
 import urllib.parse
 import uuid
 from argparse import ArgumentParser, Namespace
 from collections.abc import Iterable
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import pandas as pd
 from pyspark import TaskContext
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import StringType, StructField, StructType
+from pyspark.sql.SparkSession.builder import getOrCreate
 
 from streaming import MDSWriter
 
@@ -48,7 +48,7 @@ def is_iterable(obj):
 
 
 def do_merge_index(partitions, mds_out, skip=False):
-    """Merge index.json from partitions into one for streaming"""
+    """Merge index.json from partitions into one for streaming."""
     if not partitions or skip:
         return
 
@@ -169,8 +169,7 @@ def dataframeToMDS(dataframe: DataFrame,
                     mds_writer.write(row)
         yield pd.DataFrame(pd.Series([out_file_path], name='mds_path'))
 
-    import pyspark
-    spark = pyspark.sql.SparkSession.builder.getOrCreate()
+    spark = getOrCreate()
 
     if not dataframe:
         raise ValueError(f'input dataframe is none!')

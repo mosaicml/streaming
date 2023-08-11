@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import shutil
 from tempfile import mkdtemp
 from typing import Any, List, Tuple
 from unittest.mock import Mock, patch
@@ -13,13 +12,15 @@ from streaming.base.converters import dataframeToMDS
 from streaming.base.converters.dataframeToMDS import dataframeToMDS
 from tests.conftest import R2_URL
 
+from SparkSession.builder import appName
+from pyspark import sql
+from sql.types import IntegerType, StringType, StructField, StructType
+
 
 class TestDataFrameToMDS:
 
     def test_end_to_end_conversion(self):
-        from pyspark.sql import SparkSession
-        from pyspark.sql.types import IntegerType, StringType, StructField, StructType
-        spark = SparkSession.builder.appName('SparkByExamples.com').getOrCreate()
+        spark = appName('SparkByExamples.com').getOrCreate()
         data = [('36636', 'Finance', (3000, 'USA')), ('40288', 'Finance', (5000, 'IND')),
                 ('42114', 'Sales', (3900, 'USA')), ('39192', 'Marketing', (2500, 'CAN')),
                 ('34534', 'Sales', (6500, 'USA'))]

@@ -2,9 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import shutil
 from tempfile import NamedTemporaryFile, mkdtemp
+
 from streaming.base.converters import jsonToMDS
+
+from SparkSession.builder import appName
+from pyspark import sql
+from sql.types import IntegerType, StringType, StructField, StructType
 
 
 class TestJsonToMDS:
