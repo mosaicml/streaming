@@ -271,9 +271,7 @@ def main(args: Namespace, kwargs: dict[str, str]) -> None:
         if args.name.lower() not in _DATASET_MAP:
             raise ValueError(f'Unsupported dataset {args.name}. Supported: {_DATASET_MAP.keys()}')
         dataset = getattr(sys.modules[__name__], _DATASET_MAP[args.name.lower()])(**dataset_params)
-        columns = {
-            name: dtype for name, dtype in zip(dataset.column_names, dataset.column_encodings)
-        }
+        columns = dict(zip(dataset.column_names, dataset.column_encodings))
 
         with MDSWriter(out=args.out, columns=columns, **writer_params) as out:
             for sample in dataset:
