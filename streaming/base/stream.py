@@ -7,7 +7,7 @@ import hashlib
 import json
 import os
 import tempfile
-from typing import List, Optional, Sequence
+from typing import List, Optional, Sequence, Tuple
 
 import numpy as np
 from numpy.typing import NDArray
@@ -193,7 +193,7 @@ class Stream:
             self.safe_keep_zip = default['keep_zip'] or self.remote in {None, self.local}
 
     @classmethod
-    def validate_weights(cls, streams: Sequence[Self]) -> bool:
+    def validate_weights(cls, streams: Sequence[Self]) -> Tuple[bool, bool]:
         """Validate stream weights, returning whether relative or absolute weighting was used.
 
         Args:
@@ -204,6 +204,7 @@ class Stream:
         """
         # Validate stream weights ("proportion", "repeat", "choose", or none).
         is_proportional = hasattr(streams[0], 'proportion')
+        is_unspecified = True
         for stream_id, stream in enumerate(streams):
             has_proportion = hasattr(stream, 'proportion')
             has_repeat = hasattr(stream, 'repeat')
@@ -215,7 +216,9 @@ class Stream:
                 raise ValueError(f'Relative (`proportion`) and absolute (`repeat`, `choose`, ' +
                                  f'none) stream weights are incompatible with each other (error ' +
                                  f'in stream {stream_id})')
-        return is_proportional
+            if has_proportion or has_repeat or has_choose:
+                is_unspecified = False
+        return is_proportional, is_unspecified
 
     @classmethod
     def apply_weights(cls, streams: Sequence[Self], samples_per_stream: NDArray[np.int64],
@@ -234,7 +237,7 @@ class Stream:
             int: Number of samples to draw per epoch.
         """
         # Validate provided weights, determining whether they are relative or absolute.
-        are_weights_relative = cls.validate_weights(streams)
+        are_weights_relative, are_weights_unspecified = cls.validate_weights(streams)
 
         # Derive weights.
         if are_weights_relative:
@@ -242,6 +245,17 @@ class Stream:
             if not choose_per_epoch:
                 choose_per_epoch = sum(samples_per_stream)
             proportion_per_stream = np.array([stream.proportion for stream in streams], np.float64)
+            proportion_per_stream /= proportion_per_stream.sum()
+            choose_per_stream = (choose_per_epoch * proportion_per_stream).astype(np.int64)
+            shortfall = choose_per_epoch - choose_per_stream.sum()
+            rng = np.random.default_rng(seed)
+            indices = rng.choice(len(streams), shortfall, False)
+            choose_per_stream[indices] += 1
+            repeat_per_stream = choose_per_stream / samples_per_stream
+        elif are_weights_unspecified and choose_per_epoch:
+            # weights are unspecified, but epoch size (choose_per_epoch) is provided.
+            # sample from each stream in proportion stream's samples
+            proportion_per_stream = samples_per_stream.copy().astype(np.float64)
             proportion_per_stream /= proportion_per_stream.sum()
             choose_per_stream = (choose_per_epoch * proportion_per_stream).astype(np.int64)
             shortfall = choose_per_epoch - choose_per_stream.sum()
