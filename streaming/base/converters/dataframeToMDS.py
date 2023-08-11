@@ -6,16 +6,16 @@
 import json
 import os
 import shutil
+import urllib.parse
 import uuid
 from argparse import ArgumentParser, Namespace
 from collections.abc import Iterable
-from typing import Any, Callable, Dict, Iterable, Union, Tuple, Optional, List
-import urllib.parse
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import pandas as pd
 from pyspark import TaskContext
-from pyspark.sql.types import StringType, StructField, StructType
 from pyspark.sql.dataframe import DataFrame
+from pyspark.sql.types import StringType, StructField, StructType
 
 from streaming import MDSWriter
 
@@ -46,8 +46,10 @@ def is_iterable(obj):
     """Check if obj is iterable."""
     return issubclass(type(obj), Iterable)
 
-def do_merge_index(partitions, mds_out, skip = False):
-    if not partitions or skip: return
+
+def do_merge_index(partitions, mds_out, skip=False):
+    if not partitions or skip:
+        return
 
     shards = []
 
@@ -60,8 +62,8 @@ def do_merge_index(partitions, mds_out, skip = False):
             for key in ['raw_data', 'zip_data']:
                 if shard.get(key):
                     basename = shard[key]['basename']
-                    obj['shards'][i][key]['basename'] = os.path.join(
-                        mds_partition_basename, basename)
+                    obj['shards'][i][key]['basename'] = os.path.join(mds_partition_basename,
+                                                                     basename)
         shards += obj['shards']
 
     obj = {
@@ -75,7 +77,7 @@ def do_merge_index(partitions, mds_out, skip = False):
         json.dump(obj, out)
 
 
-def dataframeToMDS(dataframe : DataFrame,
+def dataframeToMDS(dataframe: DataFrame,
                    out: Union[str, Tuple[str, str]],
                    columns: Dict[str, str],
                    partition_size: int = -1,
@@ -133,19 +135,20 @@ def dataframeToMDS(dataframe : DataFrame,
         - The 'ppfn_kwargs' dictionaries can be used to pass additional
           keyword arguments to the udf_iterable.
     """
+
     def write_mds(iterator):
 
         id = TaskContext.get().taskAttemptId()
         out_file_path = os.path.join(out, f'{id}')
         mds_kwargs = {
-                'out': out_file_path,
-                'columns': columns,
-                'keep_local': keep_local,
-                'compression': compression,
-                'hashes': hashes,
-                'size_limit': size_limit
+            'out': out_file_path,
+            'columns': columns,
+            'keep_local': keep_local,
+            'compression': compression,
+            'hashes': hashes,
+            'size_limit': size_limit
         }
-        for k,v in mds_kwargs.items():
+        for k, v in mds_kwargs.items():
             if v is None:
                 del mds_kwargs[k]
 
@@ -156,8 +159,7 @@ def dataframeToMDS(dataframe : DataFrame,
                 else:
                     d = pdf.to_dict('records')
                 assert is_iterable(
-                    d
-                ), f'pandas_processing_fn needs to return an iterable instead of a {type(d)}'
+                    d), f'pandas_processing_fn needs to return an iterable instead of a {type(d)}'
 
                 for row in d:
                     mds_writer.write(row)
@@ -177,15 +179,19 @@ def dataframeToMDS(dataframe : DataFrame,
     if partition_size > 0:
         df = df.repartition(partition_size)
 
-    if urllib.parse.urlparse(out).scheme == '' and  os.path.exists(out) and len(os.listdir(out)) != 0:
-        raise ValueError('Looks like {out} is local folder and it is not empty. MDSwriter needs an empty local folder to proceed.')
+    if urllib.parse.urlparse(out).scheme == '' and os.path.exists(out) and len(
+            os.listdir(out)) != 0:
+        raise ValueError(
+            'Looks like {out} is local folder and it is not empty. MDSwriter needs an empty local folder to proceed.'
+        )
         return
 
     # Prepare partition schema
     result_schema = StructType([StructField('mds_path', StringType(), False)])
     partitions = df.mapInPandas(func=write_mds, schema=result_schema).collect()
 
-    do_merge_index(partitions, out, skip = not merge_index)
+    do_merge_index(partitions, out, skip=not merge_index)
+
 
 if __name__ == '__main__':
 
@@ -202,7 +208,6 @@ if __name__ == '__main__':
 
         parsed = parser.parse_args()
         return parsed
-
 
     args = parse_args()
 

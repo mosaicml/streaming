@@ -1,8 +1,14 @@
-from typing import Any, Callable, Dict, Iterable, Union, Tuple, Optional, List
-from streaming.base.converters.dataframeToMDS import dataframeToMDS, default_mds_kwargs
-from pyspark.sql.types import StringType, StructField, StructType
+# Copyright 2023 MosaicML Streaming authors
+# SPDX-License-Identifier: Apache-2.0
+
 import functools
 import os.path
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
+
+from pyspark.sql.types import StringType, StructField, StructType
+
+from streaming.base.converters.dataframeToMDS import dataframeToMDS, default_mds_kwargs
+
 
 def csvToMDS(input_path: str,
              schema: StructType,
@@ -25,14 +31,13 @@ def csvToMDS(input_path: str,
 
     dataframeToMDS(dataframe,
                    partition_size=partition_size,
-                   merge_index = merge_index,
-                   sample_ratio = sample_ratio,
-                   out = out,
-                   columns = columns,
-                   keep_local = keep_local,
-                   compression = compression,
-                   hashes = hashes,
-                   size_limit = size_limit,
-                   udf_iterable = udf_iterable,
-                   udf_kwargs = udf_kwargs)
-
+                   merge_index=merge_index,
+                   sample_ratio=sample_ratio,
+                   out=out,
+                   columns=columns,
+                   keep_local=keep_local,
+                   compression=compression,
+                   hashes=hashes,
+                   size_limit=size_limit,
+                   udf_iterable=udf_iterable,
+                   udf_kwargs=udf_kwargs)
