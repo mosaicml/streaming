@@ -1,6 +1,8 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+"""A utility to convert a csv dataset to MDS."""
+
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
 from pyspark.sql.types import StructType
@@ -55,7 +57,6 @@ def csvToMDS(input_path: str,
     Returns:
         None
     """
-
     import pyspark
     spark = pyspark.sql.SparkSession.builder.getOrCreate()
 

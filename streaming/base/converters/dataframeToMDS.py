@@ -6,7 +6,6 @@
 import json
 import os
 import urllib.parse
-import uuid
 from argparse import ArgumentParser, Namespace
 from collections.abc import Iterable
 from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
@@ -199,8 +198,7 @@ def dataframeToMDS(dataframe: DataFrame,
 
 if __name__ == '__main__':
 
-    import pyspark
-    spark = pyspark.sql.SparkSession.builder.getOrCreate()
+    spark = builder.getOrCreate()
 
     def parse_args():
         """Parse commandline arguments."""
@@ -219,11 +217,10 @@ if __name__ == '__main__':
     args = parse_args()
 
     df = spark.read.table(args.delta_table_path)
-    default_mds_kwargs['out'] = args.mds_path
     dataframeToMDS(df,
+                   out=args.mds_path,
                    partition_size=args.partition_size,
                    merge_index=args.merge_index,
                    sample_ratio=args.sample_ratio,
-                   mds_kwargs=default_mds_kwargs,
                    udf_iterable=None,
                    udf_kwargs=None)

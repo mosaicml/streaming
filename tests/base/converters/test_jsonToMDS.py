@@ -4,9 +4,10 @@
 import os
 from tempfile import NamedTemporaryFile, mkdtemp
 
-from pyspark import sql
+from pyspark.sql import SparkSession
 from SparkSession.builder import appName
-from sql.types import IntegerType, StringType, StructField, StructType
+from pyspark.sql.functions import col
+from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 
 from streaming.base.converters import jsonToMDS
 
@@ -14,10 +15,7 @@ from streaming.base.converters import jsonToMDS
 class TestJsonToMDS:
 
     def test_end_to_end_conversion(self):
-        from pyspark.sql import SparkSession
-        from pyspark.sql.functions import col
-        from pyspark.sql.types import IntegerType, StringType, StructField, StructType
-        spark = SparkSession.builder.appName('SparkByExamples.com').getOrCreate()
+        spark = appName('SparkByExamples.com').getOrCreate()
         data = [('36636', 'Finance', (3000, 'USA')), ('40288', 'Finance', (5000, 'IND')),
                 ('42114', 'Sales', (3900, 'USA')), ('39192', 'Marketing', (2500, 'CAN')),
                 ('34534', 'Sales', (6500, 'USA'))]
