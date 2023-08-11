@@ -332,10 +332,12 @@ def download_from_dbfs(remote: str, local: str) -> None:
     client = WorkspaceClient()
     file_path = remote.lstrip('dbfs:')
     dbfs_file = client.dbfs.download(file_path)
-    with open(local, 'wb') as f:
+    local_tmp = local + '.tmp'
+    with open(local_tmp, 'wb') as f:
         for chunk in iter(lambda: dbfs_file.read(4096), b''):
             f.write(chunk)
     dbfs_file.close()
+    os.rename(local_tmp, local)
 
 
 def download_from_local(remote: str, local: str) -> None:
