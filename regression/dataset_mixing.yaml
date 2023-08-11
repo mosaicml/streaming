@@ -2,71 +2,83 @@ name: streaming-regression-test-dataset-mixing
 compute:
   gpus: 8 # Number of GPUs to use
   # cluster: TODO # Name of the cluster to use for this run
-command: |-
-  pip uninstall -y mosaicml-streaming
-  cd streaming
+command:
+  "pip uninstall -y mosaicml-streaming &&
+  cd streaming &&
   pip install -e '.[dev]'
 
-  python regression/synthetic_dataset.py --create --name numberandsaydataset --out /tmp/streaming_dataset/stream_0/ --num-samples 5000 --size_limit 4096 --seed 0
-  python regression/synthetic_dataset.py --create --name numberandsaydataset --out /tmp/streaming_dataset/stream_1/ --num-samples 5000 --size_limit 4096 --seed 1
-  python regression/synthetic_dataset.py --create --name numberandsaydataset --out /tmp/streaming_dataset/stream_2/ --num-samples 5000 --size_limit 4096 --seed 2
-  python regression/synthetic_dataset.py --create --name numberandsaydataset --out /tmp/streaming_dataset/stream_3/ --num-samples 5000 --size_limit 4096 --seed 3
-  python regression/synthetic_dataset.py --create --name numberandsaydataset --out /tmp/streaming_dataset/stream_4/ --num-samples 5000 --size_limit 4096 --seed 4
-  python regression/synthetic_dataset.py --create --name numberandsaydataset --out /tmp/streaming_dataset/stream_5/ --num-samples 5000 --size_limit 4096 --seed 5
-  python regression/synthetic_dataset.py --create --name numberandsaydataset --out /tmp/streaming_dataset/stream_6/ --num-samples 5000 --size_limit 4096 --seed 6
-  python regression/synthetic_dataset.py --create --name numberandsaydataset --out /tmp/streaming_dataset/stream_7/ --num-samples 5000 --size_limit 4096 --seed 7
-  python regression/synthetic_dataset.py --create --name numberandsaydataset --out /tmp/streaming_dataset/stream_8/ --num-samples 5000 --size_limit 4096 --seed 8
-  python regression/synthetic_dataset.py --create --name numberandsaydataset --out /tmp/streaming_dataset/stream_9/ --num-samples 5000 --size_limit 4096 --seed 9
+  python regression/synthetic_dataset.py --create --name numberandsaydataset --out /tmp/streaming_dataset/stream_0/ --num-samples 5000 --size_limit 4096 --seed 0 &&
+  python regression/synthetic_dataset.py --create --name numberandsaydataset --out /tmp/streaming_dataset/stream_1/ --num-samples 5000 --size_limit 4096 --seed 1 &&
+  python regression/synthetic_dataset.py --create --name numberandsaydataset --out /tmp/streaming_dataset/stream_2/ --num-samples 5000 --size_limit 4096 --seed 2 &&
+  python regression/synthetic_dataset.py --create --name numberandsaydataset --out /tmp/streaming_dataset/stream_3/ --num-samples 5000 --size_limit 4096 --seed 3 &&
+  python regression/synthetic_dataset.py --create --name numberandsaydataset --out /tmp/streaming_dataset/stream_4/ --num-samples 5000 --size_limit 4096 --seed 4 &&
+  python regression/synthetic_dataset.py --create --name numberandsaydataset --out /tmp/streaming_dataset/stream_5/ --num-samples 5000 --size_limit 4096 --seed 5 &&
+  python regression/synthetic_dataset.py --create --name numberandsaydataset --out /tmp/streaming_dataset/stream_6/ --num-samples 5000 --size_limit 4096 --seed 6 &&
+  python regression/synthetic_dataset.py --create --name numberandsaydataset --out /tmp/streaming_dataset/stream_7/ --num-samples 5000 --size_limit 4096 --seed 7 &&
+  python regression/synthetic_dataset.py --create --name numberandsaydataset --out /tmp/streaming_dataset/stream_8/ --num-samples 5000 --size_limit 4096 --seed 8 &&
+  python regression/synthetic_dataset.py --create --name numberandsaydataset --out /tmp/streaming_dataset/stream_9/ --num-samples 5000 --size_limit 4096 --seed 9 &&
 
   # Check sample order with stream choose
-  "composer -n 1 regression/iterate_data.py --num_canonical_nodes 128 --batch_size 32
+
+  composer -n 1 regression/iterate_data.py --num_canonical_nodes 128 --batch_size 32
     --local-streams /tmp/streaming_dataset/stream_0/,/tmp/streaming_dataset/stream_1/,/tmp/streaming_dataset/stream_2/,/tmp/streaming_dataset/stream_3/,\
     /tmp/streaming_dataset/stream_4/,/tmp/streaming_dataset/stream_5/,/tmp/streaming_dataset/stream_6/,/tmp/streaming_dataset/stream_7/,\
     /tmp/streaming_dataset/stream_8/,/tmp/streaming_dataset/stream_9/
-    --choose 1250,1250,1250,1250,1250,1250,1250,1250,1250,1250 --sample-order-file /tmp/test_samples_0.txt"
-  "composer -n 8 regression/iterate_data.py --num_canonical_nodes 128 --batch_size 1
+    --choose 1250,1250,1250,1250,1250,1250,1250,1250,1250,1250 --sample-order-file /tmp/test_samples_0.txt
+
+  composer -n 8 regression/iterate_data.py --num_canonical_nodes 128 --batch_size 1
     --local-streams /tmp/streaming_dataset/stream_0/,/tmp/streaming_dataset/stream_1/,/tmp/streaming_dataset/stream_2/,/tmp/streaming_dataset/stream_3/,\
     /tmp/streaming_dataset/stream_4/,/tmp/streaming_dataset/stream_5/,/tmp/streaming_dataset/stream_6/,/tmp/streaming_dataset/stream_7/,\
     /tmp/streaming_dataset/stream_8/,/tmp/streaming_dataset/stream_9/
-    --choose 1250,1250,1250,1250,1250,1250,1250,1250,1250,1250 --sample-order-file /tmp/test_samples_1.txt"
+    --choose 1250,1250,1250,1250,1250,1250,1250,1250,1250,1250 --sample-order-file /tmp/test_samples_1.txt
+
   cmp --silent /tmp/test_samples_0.txt /tmp/test_samples_1.txt || exit 1
 
   rm -Rf /tmp/test_samples_0.txt
+
   rm -Rf /tmp/test_samples_1.txt
 
   # Check sample order with stream repeat
-  "composer -n 1 regression/iterate_data.py --num_canonical_nodes 128 --batch_size 32
+
+  composer -n 1 regression/iterate_data.py --num_canonical_nodes 128 --batch_size 32
     --local-streams /tmp/streaming_dataset/stream_0/,/tmp/streaming_dataset/stream_1/,/tmp/streaming_dataset/stream_2/,/tmp/streaming_dataset/stream_3/,\
     /tmp/streaming_dataset/stream_4/,/tmp/streaming_dataset/stream_5/,/tmp/streaming_dataset/stream_6/,/tmp/streaming_dataset/stream_7/,\
     /tmp/streaming_dataset/stream_8/,/tmp/streaming_dataset/stream_9/
-    --repeat 0,1,2,0.5,0,0,0,1,1,3 --sample-order-file /tmp/test_samples_0.txt"
-  "composer -n 8 regression/iterate_data.py --num_canonical_nodes 128 --batch_size 1
+    --repeat 0,1,2,0.5,0,0,0,1,1,3 --sample-order-file /tmp/test_samples_0.txt
+
+  composer -n 8 regression/iterate_data.py --num_canonical_nodes 128 --batch_size 1
     --local-streams /tmp/streaming_dataset/stream_0/,/tmp/streaming_dataset/stream_1/,/tmp/streaming_dataset/stream_2/,/tmp/streaming_dataset/stream_3/,\
     /tmp/streaming_dataset/stream_4/,/tmp/streaming_dataset/stream_5/,/tmp/streaming_dataset/stream_6/,/tmp/streaming_dataset/stream_7/,\
     /tmp/streaming_dataset/stream_8/,/tmp/streaming_dataset/stream_9/
-    --repeat 0,1,2,0.5,0,0,0,1,1,3 --sample-order-file /tmp/test_samples_1.txt"
+    --repeat 0,1,2,0.5,0,0,0,1,1,3 --sample-order-file /tmp/test_samples_1.txt
+
   cmp --silent /tmp/test_samples_0.txt /tmp/test_samples_1.txt || exit 1
 
   rm -Rf /tmp/test_samples_0.txt
+
   rm -Rf /tmp/test_samples_1.txt
 
   # Check sample order with stream proportion
-  "composer -n 1 regression/iterate_data.py --num_canonical_nodes 128 --batch_size 32
+
+  composer -n 1 regression/iterate_data.py --num_canonical_nodes 128 --batch_size 32
     --local-streams /tmp/streaming_dataset/stream_0/,/tmp/streaming_dataset/stream_1/,/tmp/streaming_dataset/stream_2/,/tmp/streaming_dataset/stream_3/,\
     /tmp/streaming_dataset/stream_4/,/tmp/streaming_dataset/stream_5/,/tmp/streaming_dataset/stream_6/,/tmp/streaming_dataset/stream_7/,\
     /tmp/streaming_dataset/stream_8/,/tmp/streaming_dataset/stream_9/
-    --proportion 0.1,0.05,0.05,0.2,0.1,0.15,0.05,0.02,0.18,0.1 --sample-order-file /tmp/test_samples_0.txt"
-  "composer -n 8 regression/iterate_data.py --num_canonical_nodes 128 --batch_size 1
+    --proportion 0.1,0.05,0.05,0.2,0.1,0.15,0.05,0.02,0.18,0.1 --sample-order-file /tmp/test_samples_0.txt
+
+  composer -n 8 regression/iterate_data.py --num_canonical_nodes 128 --batch_size 1
     --local-streams /tmp/streaming_dataset/stream_0/,/tmp/streaming_dataset/stream_1/,/tmp/streaming_dataset/stream_2/,/tmp/streaming_dataset/stream_3/,\
     /tmp/streaming_dataset/stream_4/,/tmp/streaming_dataset/stream_5/,/tmp/streaming_dataset/stream_6/,/tmp/streaming_dataset/stream_7/,\
     /tmp/streaming_dataset/stream_8/,/tmp/streaming_dataset/stream_9/
-    --proportion 0.1,0.05,0.05,0.2,0.1,0.15,0.05,0.02,0.18,0.1 --sample-order-file /tmp/test_samples_1.txt"
+    --proportion 0.1,0.05,0.05,0.2,0.1,0.15,0.05,0.02,0.18,0.1 --sample-order-file /tmp/test_samples_1.txt
+
   cmp --silent /tmp/test_samples_0.txt /tmp/test_samples_1.txt || exit 1
 
   rm -Rf /tmp/test_samples_0.txt
+
   rm -Rf /tmp/test_samples_1.txt
 
-  python regression/synthetic_dataset.py --delete --out /tmp/streaming_dataset/
+  python regression/synthetic_dataset.py --delete --out /tmp/streaming_dataset/"
 
 image: mosaicml/composer:latest
 scheduling:
