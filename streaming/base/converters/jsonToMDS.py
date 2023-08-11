@@ -21,7 +21,7 @@ def jsonToMDS(input_path: str,
               compression: Optional[str] = None,
               hashes: Optional[List[str]] = None,
               size_limit: Optional[Union[int, str]] = 1 << 26,
-              udf_iterable: Callable = None,
+              udf_iterable: Optional[Callable] = None,
               udf_kwargs: Dict = None):
     """Execute a json to MDS conversion process.
 

@@ -12,8 +12,8 @@ from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import pandas as pd
 from pyspark import TaskContext
-from pyspark.sql.dataframe import DataFrame
 from pyspark.sql import SparkSession
+from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import StringType, StructField, StructType
 
 from streaming import MDSWriter
@@ -41,7 +41,7 @@ default_udf_kwargs = {
 }
 
 
-def is_iterable(obj):
+def is_iterable(obj: Any) -> bool:
     """Check if obj is iterable."""
     return issubclass(type(obj), Iterable)
 
@@ -87,7 +87,7 @@ def dataframeToMDS(dataframe: DataFrame,
                    compression: Optional[str] = None,
                    hashes: Optional[List[str]] = None,
                    size_limit: Optional[Union[int, str]] = 1 << 26,
-                   udf_iterable: Callable = None,
+                   udf_iterable: Optional[Callable] = None,
                    udf_kwargs: Dict = None):
     """Execute a spark dataframe to MDS conversion process.
 
@@ -139,8 +139,9 @@ def dataframeToMDS(dataframe: DataFrame,
     def write_mds(iterator):
 
         id = TaskContext.get().taskAttemptId()
-        mds_path = out
-        if type(out) == tuple:
+        if isinstance(out, str):
+            mds_path = out
+        else:
             mds_path = out[0]
         out_file_path = os.path.join(mds_path, f'{id}')
 
@@ -181,8 +182,13 @@ def dataframeToMDS(dataframe: DataFrame,
     if partition_size > 0:
         df = df.repartition(partition_size)
 
-    if urllib.parse.urlparse(out).scheme == '' and os.path.exists(out) and len(
-            os.listdir(out)) != 0:
+    local = ''
+    if isinstance(out, str):
+        if urllib.parse.urlparse(out).scheme == '':
+            local = out
+    else:
+        local = out[0]
+    if os.path.exists(local) and len(os.listdir(local)) != 0:
         raise ValueError(
             'Looks like {out} is local folder and it is not empty. MDSwriter needs an empty local folder to proceed.'
         )
@@ -197,7 +203,7 @@ def dataframeToMDS(dataframe: DataFrame,
 
 if __name__ == '__main__':
 
-    spark = builder.getOrCreate()
+    spark = SparkSession.builder.getOrCreate()
 
     def parse_args():
         """Parse commandline arguments."""
@@ -218,6 +224,7 @@ if __name__ == '__main__':
     df = spark.read.table(args.delta_table_path)
     dataframeToMDS(df,
                    out=args.mds_path,
+                   columns = {'tokens':'bytes'},
                    partition_size=args.partition_size,
                    merge_index=args.merge_index,
                    sample_ratio=args.sample_ratio,
