@@ -1,4 +1,4 @@
-name: streaming-regression-test-deterministic-shuffling
+name: streaming-regression-test-dataset-mixing
 compute:
   gpus: 8 # Number of GPUs to use
   # cluster: TODO # Name of the cluster to use for this run
