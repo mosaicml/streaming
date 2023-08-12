@@ -9,11 +9,12 @@ import pytest
 from pyspark.sql import SparkSession
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 
-from streaming.base.converters import dataframeToMDS
 from streaming import MDSWriter
+from streaming.base.converters import dataframeToMDS
+from tests.conftest import MY_BUCKET
 
-from tests.conftest import GCS_URL, MY_BUCKET
 MY_PREFIX = 'train'
+
 
 @pytest.fixture(scope='function')
 def remote_local_dir() -> Any:
@@ -25,6 +26,7 @@ def remote_local_dir() -> Any:
         return mock_local_dir, mock_remote_dir
 
     return _method
+
 
 class TestDataFrameToMDS:
 
@@ -48,7 +50,7 @@ class TestDataFrameToMDS:
         df = spark.createDataFrame(data=data, schema=schema)
         yield df
 
-    def test_end_to_end_conversion_local(self, dataframe):
+    def test_end_to_end_conversion_local(self, dataframe: Any):
         out = mkdtemp()
         dataframeToMDS(dataframe,
                        out=out,
@@ -75,8 +77,12 @@ class TestDataFrameToMDS:
     @pytest.mark.parametrize('keep_local', [True, False])
     @pytest.mark.parametrize('merge_index', [True, False])
     @pytest.mark.usefixtures('remote_local_dir')
-    def test_patch_conversion_local_and_remote(self, dataframe, scheme: str, merge_index: bool, keep_local: bool, remote_local_dir: Any):
-        pytest.skip('Overlap with integration tests. But better figure out how to run this test suite with Mock.')
+    def test_patch_conversion_local_and_remote(self, dataframe: Any, scheme: str,
+                                               merge_index: bool, keep_local: bool,
+                                               remote_local_dir: Any):
+        pytest.skip(
+            'Overlap with integration tests. But better figure out how to run this test suite with Mock.'
+        )
         mock_local, mock_remote = remote_local_dir(cloud_prefix='s3://')
         out = (mock_local, mock_remote)
         mds_path = dataframeToMDS(dataframe,
@@ -93,10 +99,10 @@ class TestDataFrameToMDS:
                                   hashes=['sha1', 'xxh64'],
                                   size_limit=1 << 26)
 
-        assert out == mds_path, f"returned mds_path: {mds_path} is not the same as out: {out}"
+        assert out == mds_path, f'returned mds_path: {mds_path} is not the same as out: {out}'
 
         if keep_local == False:
-            assert(not os.path.exists(mds_path[0])), "local folder were not removed"
+            assert (not os.path.exists(mds_path[0])), 'local folder were not removed'
             return
 
         assert (len(os.listdir(mds_path[0])) > 0), f'{mds_path[0]} is empty'
@@ -106,20 +112,17 @@ class TestDataFrameToMDS:
                     mds_path[0], d, 'index.json'))), f'No index.json found in subdirectory {d}'
 
         if merge_index == True:
-            assert (os.path.exists(os.path.join(mds_path[0], 'index.json'))), 'No merged index found'
+            assert (os.path.exists(os.path.join(mds_path[0],
+                                                'index.json'))), 'No merged index found'
         else:
-            assert not (os.path.exists(os.path.join(mds_path[0], 'index.json'))), 'merged index is created when merge_index=False'
+            assert not (os.path.exists(os.path.join(
+                mds_path[0], 'index.json'))), 'merged index is created when merge_index=False'
 
-        #from google.cloud.storage import Client
-        #client = Client.from_service_account_json(os.environ['GOOGLE_APPLICATION_CREDENTIALS'])
-        #blobs = client.list_blobs(bucket_name, prefix="test_df2mds_v2")
-        #assert(len([o for o in blobs]) == len(os.listdir(mds_path[0])))
-
-
-    @pytest.mark.parametrize('remote', ["gs://mosaicml-composer-tests/test_df2mds_v2"])
+    @pytest.mark.parametrize('remote', ['gs://mosaicml-composer-tests/test_df2mds_v2'])
     @pytest.mark.parametrize('keep_local', [True, False])
     @pytest.mark.parametrize('merge_index', [True, False])
-    def test_integration_conversion_local_and_remote(self, dataframe, remote: str, merge_index: bool, keep_local: bool):
+    def test_integration_conversion_local_and_remote(self, dataframe: Any, remote: str,
+                                                     merge_index: bool, keep_local: bool):
 
         local = mkdtemp()
         out = (local, remote)
@@ -138,10 +141,10 @@ class TestDataFrameToMDS:
                                   hashes=['sha1', 'xxh64'],
                                   size_limit=1 << 26)
 
-        assert out == mds_path, f"returned mds_path: {mds_path} is not the same as out: {out}"
+        assert out == mds_path, f'returned mds_path: {mds_path} is not the same as out: {out}'
 
         if keep_local == False:
-            assert(not os.path.exists(mds_path[0])), "local folder were not removed"
+            assert (not os.path.exists(mds_path[0])), 'local folder were not removed'
             return
 
         assert (len(os.listdir(mds_path[0])) > 0), f'{mds_path[0]} is empty'
@@ -151,18 +154,15 @@ class TestDataFrameToMDS:
                     mds_path[0], d, 'index.json'))), f'No index.json found in subdirectory {d}'
 
         if merge_index == True:
-            assert (os.path.exists(os.path.join(mds_path[0], 'index.json'))), 'No merged index found'
+            assert (os.path.exists(os.path.join(mds_path[0],
+                                                'index.json'))), 'No merged index found'
         else:
-            assert not (os.path.exists(os.path.join(mds_path[0], 'index.json'))), f'merged index is created at {mds_path[0]} when merge_index={merge_index} and keep_local={keep_local}'
+            assert not (
+                os.path.exists(os.path.join(mds_path[0], 'index.json'))
+            ), f'merged index is created at {mds_path[0]} when merge_index={merge_index} and keep_local={keep_local}'
 
-        #from google.cloud.storage import Client
-        #client = Client.from_service_account_json(os.environ['GOOGLE_APPLICATION_CREDENTIALS'])
-        #blobs = client.list_blobs(bucket_name, prefix="test_df2mds_v2")
-        #assert(len([o for o in blobs]) == len(os.listdir(mds_path[0])))
-
-
-    @pytest.mark.parametrize('remote', ["gs://mosaicml-composer-tests/test_df2mds_v2"])
-    def test_integration_conversion_remote_only(self, dataframe, remote: str):
+    @pytest.mark.parametrize('remote', ['gs://mosaicml-composer-tests/test_df2mds_v2'])
+    def test_integration_conversion_remote_only(self, dataframe: Any, remote: str):
         # bucket_name = 'mosaicml-composer-tests'
         mds_path = dataframeToMDS(dataframe,
                                   out=remote,
@@ -178,7 +178,7 @@ class TestDataFrameToMDS:
                                   hashes=['sha1', 'xxh64'],
                                   size_limit=1 << 26)
 
-        assert len(mds_path) == 2, "returned mds is a str but should be a tuple (local, remote)"
+        assert len(mds_path) == 2, 'returned mds is a str but should be a tuple (local, remote)'
         assert (os.path.exists(os.path.join(mds_path[0], 'index.json'))), 'No merged index found'
         assert (len(os.listdir(mds_path[0])) > 0), f'{mds_path[0]} is empty'
         for d in os.listdir(mds_path[0]):
@@ -186,23 +186,11 @@ class TestDataFrameToMDS:
                 assert (os.path.exists(os.path.join(
                     mds_path[0], d, 'index.json'))), f'No index.json found in subdirectory {d}'
 
-        #from google.cloud.storage import Client
-        #client = Client.from_service_account_json(os.environ['GOOGLE_APPLICATION_CREDENTIALS'])
-        #blobs = client.list_blobs(bucket_name, prefix="test_df2mds_v2")
-        #assert(len([o for o in blobs]) == len(os.listdir(mds_path[0])))
+    def test_simple_remote(self, dataframe: Any):
 
+        out = 'gs://mosaicml-composer-tests/test_df2mds'
 
-    def test_simple_remote(self, dataframe):
-
-        bucket_name = 'mosaicml-composer-tests'
-        out = "gs://mosaicml-composer-tests/test_df2mds"
-
-        with MDSWriter(out=out,columns={'id': 'str', 'dept': 'str'}) as mds_writer:
+        with MDSWriter(out=out, columns={'id': 'str', 'dept': 'str'}) as mds_writer:
             d = dataframe.toPandas().to_dict('records')
             for row in d:
                 mds_writer.write(row)
-
-        #from google.cloud.storage import Client
-        #client = Client.from_service_account_json(os.environ['GOOGLE_APPLICATION_CREDENTIALS'])
-        #blobs = client.list_blobs(bucket_name, prefix="test_df2mds")
-

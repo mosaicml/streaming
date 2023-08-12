@@ -5,11 +5,10 @@
 
 import json
 import os
-import urllib.parse
+import shutil
 from argparse import ArgumentParser
 from collections.abc import Iterable
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
-import shutil
 
 import pandas as pd
 from pyspark import TaskContext
@@ -48,10 +47,11 @@ def is_iterable(obj: Any) -> bool:
     return issubclass(type(obj), Iterable)
 
 
-def do_merge_index(partitions: Iterable, mds_path: Union[str, Tuple[str, str]], keep_local: bool = True, skip: bool = False):
-    """
-    Merge index.json from partitions into one for streaming.
-    """
+def do_merge_index(partitions: Iterable,
+                   mds_path: Union[str, Tuple[str, str]],
+                   keep_local: bool = True,
+                   skip: bool = False):
+    """Merge index.json from partitions into one for streaming."""
     print('I am here 1', skip)
     if not partitions or skip:
         return
@@ -144,10 +144,10 @@ def dataframeToMDS(dataframe: DataFrame,
           keyword arguments to the udf_iterable.
     """
 
-    def write_mds(iterator):
+    def write_mds(iterator: Iterable):
 
         id = TaskContext.get().taskAttemptId()
-        if isinstance(mds_path, str): # local
+        if isinstance(mds_path, str):  # local
             output = os.path.join(mds_path, f'{id}')
             out_file_path = output
         else:
@@ -179,7 +179,6 @@ def dataframeToMDS(dataframe: DataFrame,
                     mds_writer.write(row)
         yield pd.DataFrame(pd.Series([out_file_path], name='mds_path'))
 
-    spark = SparkSession.builder.getOrCreate()
     if not dataframe:
         raise ValueError(f'input dataframe is none!')
 
@@ -209,7 +208,7 @@ def dataframeToMDS(dataframe: DataFrame,
     partitions = df.mapInPandas(func=write_mds, schema=result_schema).collect()
 
     print('I am here 2', merge_index)
-    do_merge_index(partitions, mds_path, keep_local = keep_local, skip=not merge_index)
+    do_merge_index(partitions, mds_path, keep_local=keep_local, skip=not merge_index)
 
     if cu.remote is not None:
         if merge_index == True:
@@ -218,7 +217,6 @@ def dataframeToMDS(dataframe: DataFrame,
             shutil.rmtree(cu.local, ignore_errors=True)
 
     return mds_path
-
 
 
 if __name__ == '__main__':
