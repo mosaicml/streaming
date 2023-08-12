@@ -331,16 +331,11 @@ class StreamingDataset(Array, IterableDataset):
             default = Stream(remote=remote,
                              local=local,
                              split=split,
-                             choose=epoch_size_value,
                              download_retry=download_retry,
                              download_timeout=download_timeout,
                              validate_hash=validate_hash,
                              keep_zip=keep_zip)
             streams = [default]
-            # reset `epoch_size_value` to None when we initialize StreamingDataset with no
-            # streams so that when we `apply_weights` over this single stream we use the
-            # epoch size to absolutely weight the single stream.
-            epoch_size_value = None
 
         # Validate the stream weighting scheme (relative or absolute) to catch errors before we go
         # to the trouble of loading them.
@@ -385,7 +380,7 @@ class StreamingDataset(Array, IterableDataset):
         if self.cache_limit:
             if isinstance(self.cache_limit, str):
                 self.cache_limit = bytes_to_int(self.cache_limit)
-            min_cache_usage = sum(map(lambda stream: stream.get_index_size(), streams))
+            min_cache_usage = sum((stream.get_index_size() for stream in streams))
             if self.cache_limit <= min_cache_usage:
                 raise ValueError(f'Minimum cache usage ({min_cache_usage} bytes) is larger than ' +
                                  f'the cache limit ({self.cache_limit} bytes). Please raise ' +
