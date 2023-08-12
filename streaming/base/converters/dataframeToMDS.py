@@ -146,7 +146,7 @@ def dataframeToMDS(dataframe: DataFrame,
 
     def write_mds(iterator: Iterable):
 
-        id = TaskContext.get().taskAttemptId()
+        id = TaskContext.get().taskAttemptId()  # pyright: ignore
         if isinstance(mds_path, str):  # local
             output = os.path.join(mds_path, f'{id}')
             out_file_path = output
@@ -169,7 +169,7 @@ def dataframeToMDS(dataframe: DataFrame,
         with MDSWriter(**mds_kwargs) as mds_writer:
             for pdf in iterator:
                 if udf_iterable is not None:
-                    d = udf_iterable(pdf, **udf_kwargs)
+                    d = udf_iterable(pdf, **udf_kwargs)  # pyright: ignore
                 else:
                     d = pdf.to_dict('records')
                 assert is_iterable(
@@ -221,7 +221,7 @@ def dataframeToMDS(dataframe: DataFrame,
 
 if __name__ == '__main__':
 
-    spark = SparkSession.builder.getOrCreate()
+    spark = SparkSession.builder.getOrCreate()  # pyright: ignore
 
     def parse_args():
         """Parse commandline arguments."""

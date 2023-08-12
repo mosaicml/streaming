@@ -14,7 +14,7 @@ from streaming.base.converters import jsonToMDS
 class TestJsonToMDS:
 
     def test_end_to_end_conversion(self):
-        spark = SparkSession.builder.appName('SparkByExamples.com').getOrCreate()
+        spark = SparkSession.builder.appName('spark').getOrCreate()  # pyright: ignore
         data = [('36636', 'Finance', (3000, 'USA')), ('40288', 'Finance', (5000, 'IND')),
                 ('42114', 'Sales', (3900, 'USA')), ('39192', 'Marketing', (2500, 'CAN')),
                 ('34534', 'Sales', (6500, 'USA'))]

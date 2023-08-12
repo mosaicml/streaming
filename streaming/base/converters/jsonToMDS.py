@@ -5,6 +5,7 @@
 
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
+from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType
 
 from streaming.base.converters.dataframeToMDS import dataframeToMDS
@@ -57,8 +58,7 @@ def jsonToMDS(input_path: str,
     Returns:
         None
     """
-    import pyspark
-    spark = pyspark.sql.SparkSession.builder.getOrCreate()
+    spark = SparkSession.builder.getOrCreate()  # pyright: ignore
 
     dataframe = spark.read.schema(schema).json(input_path)
 
