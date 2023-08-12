@@ -123,7 +123,9 @@ class TestDataFrameToMDS:
     @pytest.mark.parametrize('merge_index', [True, False])
     def test_integration_conversion_local_and_remote(self, dataframe: Any, remote: str,
                                                      merge_index: bool, keep_local: bool):
-
+        pytest.skip(
+            'run local only. CI cluster does not have GCS service acct set up.'
+        )
         local = mkdtemp()
         out = (local, remote)
         # bucket_name = 'mosaicml-composer-tests'
@@ -163,6 +165,9 @@ class TestDataFrameToMDS:
 
     @pytest.mark.parametrize('remote', ['gs://mosaicml-composer-tests/test_df2mds_v2'])
     def test_integration_conversion_remote_only(self, dataframe: Any, remote: str):
+        pytest.skip(
+            'run local only. CI cluster does not have GCS service acct set up.'
+        )
         # bucket_name = 'mosaicml-composer-tests'
         mds_path = dataframeToMDS(dataframe,
                                   out=remote,
@@ -187,6 +192,9 @@ class TestDataFrameToMDS:
                     mds_path[0], d, 'index.json'))), f'No index.json found in subdirectory {d}'
 
     def test_simple_remote(self, dataframe: Any):
+        pytest.skip(
+            'run local only. CI cluster does not have GCS service acct set up.'
+        )
 
         out = 'gs://mosaicml-composer-tests/test_df2mds'
 
