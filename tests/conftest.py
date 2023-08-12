@@ -41,6 +41,10 @@ def azure_credentials():
     os.environ['AZURE_ACCOUNT_NAME'] = 'testing'
     os.environ['AZURE_ACCOUNT_ACCESS_KEY'] = 'testing'
 
+@pytest.fixture(scope='class', autouse=True)
+def gcs_credentials():
+    """Mocked gcs Credentials."""
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '~/.mosaic/mosaicml-research-nonprod-027345ddbdfd.json'
 
 @pytest.fixture(scope='class', autouse=True)
 def aws_credentials():

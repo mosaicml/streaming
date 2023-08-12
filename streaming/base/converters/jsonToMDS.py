@@ -22,7 +22,7 @@ def jsonToMDS(input_path: str,
               hashes: Optional[List[str]] = None,
               size_limit: Optional[Union[int, str]] = 1 << 26,
               udf_iterable: Optional[Callable] = None,
-              udf_kwargs: Dict = None):
+              udf_kwargs: Optional[Dict] = None):
     """Execute a json to MDS conversion process.
 
     Args:

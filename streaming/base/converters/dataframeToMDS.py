@@ -8,7 +8,8 @@ import os
 import urllib.parse
 from argparse import ArgumentParser
 from collections.abc import Iterable
-from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
+import shutil
 
 import pandas as pd
 from pyspark import TaskContext
@@ -17,6 +18,7 @@ from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import StringType, StructField, StructType
 
 from streaming import MDSWriter
+from streaming.base.storage.upload import CloudUploader
 
 default_mds_kwargs = {
     'compression': 'zstd:7',
@@ -46,8 +48,11 @@ def is_iterable(obj: Any) -> bool:
     return issubclass(type(obj), Iterable)
 
 
-def do_merge_index(partitions, mds_out, skip=False):
-    """Merge index.json from partitions into one for streaming."""
+def do_merge_index(partitions: Iterable, mds_path: Union[str, Tuple[str, str]], keep_local: bool = True, skip: bool = False):
+    """
+    Merge index.json from partitions into one for streaming.
+    """
+    print('I am here 1', skip)
     if not partitions or skip:
         return
 
@@ -71,7 +76,10 @@ def do_merge_index(partitions, mds_out, skip=False):
         'shards': shards,
     }
 
-    mds_index = os.path.join(mds_out, 'index.json')
+    if isinstance(mds_path, str):
+        mds_index = os.path.join(mds_path, 'index.json')
+    else:
+        mds_index = os.path.join(mds_path[0], 'index.json')
 
     with open(mds_index, 'w') as out:
         json.dump(obj, out)
@@ -88,7 +96,7 @@ def dataframeToMDS(dataframe: DataFrame,
                    hashes: Optional[List[str]] = None,
                    size_limit: Optional[Union[int, str]] = 1 << 26,
                    udf_iterable: Optional[Callable] = None,
-                   udf_kwargs: Dict = None):
+                   udf_kwargs: Optional[Dict] = None):
     """Execute a spark dataframe to MDS conversion process.
 
     This method orchestrates the conversion of a spark dataframe into MDS format by
@@ -139,16 +147,17 @@ def dataframeToMDS(dataframe: DataFrame,
     def write_mds(iterator):
 
         id = TaskContext.get().taskAttemptId()
-        if isinstance(out, str):
-            mds_path = out
+        if isinstance(mds_path, str): # local
+            output = os.path.join(mds_path, f'{id}')
+            out_file_path = output
         else:
-            mds_path = out[0]
-        out_file_path = os.path.join(mds_path, f'{id}')
+            output = (os.path.join(mds_path[0], f'{id}'), os.path.join(mds_path[1], f'{id}'))
+            out_file_path = output[0]
 
         mds_kwargs = {
-            'out': out_file_path,
+            'out': output,
             'columns': columns,
-            'keep_local': keep_local,
+            'keep_local': True,
             'compression': compression,
             'hashes': hashes,
             'size_limit': size_limit
@@ -182,23 +191,34 @@ def dataframeToMDS(dataframe: DataFrame,
     if partition_size > 0:
         df = df.repartition(partition_size)
 
-    local = ''
-    if isinstance(out, str):
-        if urllib.parse.urlparse(out).scheme == '':
-            local = out
-    else:
-        local = out[0]
-    if os.path.exists(local) and len(os.listdir(local)) != 0:
+    cu = CloudUploader.get(out, keep_local=keep_local)
+    if os.path.exists(cu.local) and len(os.listdir(cu.local)) != 0:
         raise ValueError(
             'Looks like {out} is local folder and it is not empty. MDSwriter needs an empty local folder to proceed.'
         )
         return
 
+    # Fix output format as mds_path: Tuple => remote Str => local only
+    if cu.remote is None:
+        mds_path = cu.local
+    else:
+        mds_path = (cu.local, cu.remote)
+
     # Prepare partition schema
     result_schema = StructType([StructField('mds_path', StringType(), False)])
     partitions = df.mapInPandas(func=write_mds, schema=result_schema).collect()
 
-    do_merge_index(partitions, out, skip=not merge_index)
+    print('I am here 2', merge_index)
+    do_merge_index(partitions, mds_path, keep_local = keep_local, skip=not merge_index)
+
+    if cu.remote is not None:
+        if merge_index == True:
+            cu.upload_file('index.json')
+        if keep_local == False:
+            shutil.rmtree(cu.local, ignore_errors=True)
+
+    return mds_path
+
 
 
 if __name__ == '__main__':
@@ -224,7 +244,7 @@ if __name__ == '__main__':
     df = spark.read.table(args.delta_table_path)
     dataframeToMDS(df,
                    out=args.mds_path,
-                   columns = {'tokens':'bytes'},
+                   columns={'tokens': 'bytes'},
                    partition_size=args.partition_size,
                    merge_index=args.merge_index,
                    sample_ratio=args.sample_ratio,
