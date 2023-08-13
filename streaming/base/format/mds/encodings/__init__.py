@@ -8,9 +8,9 @@ from typing import Any, Optional, Set
 from streaming.base.format.mds.encodings.base import Encoding
 from streaming.base.format.mds.encodings.complex import JSON, Pickle
 from streaming.base.format.mds.encodings.image import JPEG, PIL, PNG
-from streaming.base.format.mds.encodings.scalar import (Float16, Float32, Float64, Int, Int8,
-                                                        Int16, Int32, Int64, UInt8, UInt16, UInt32,
-                                                        UInt64)
+from streaming.base.format.mds.encodings.scalar import (Float, Float16, Float32, Float64, Int,
+                                                        Int8, Int16, Int32, Int64, UInt8, UInt16,
+                                                        UInt32, UInt64)
 from streaming.base.format.mds.encodings.sequence import Bytes, Str
 from streaming.base.format.mds.encodings.tensor import NDArray
 
@@ -19,6 +19,7 @@ _encodings = {
     'bytes': Bytes,
     'str': Str,
     'int': Int,
+    'float': Float,
     'ndarray': NDArray,
     'uint8': UInt8,
     'uint16': UInt16,
