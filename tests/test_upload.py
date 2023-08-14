@@ -219,13 +219,11 @@ class TestGCSUploader:
         uploader = GCSUploader(out=out)
         assert uploader.authentication == GCSAuthentication.HMAC
 
-    @patch('streaming.base.storage.upload.GCSUploader.check_bucket_exists')
     @patch('google.auth.default')
     @patch('google.cloud.storage.Client')
     @pytest.mark.usefixtures('gcs_service_account_credentials')
     @pytest.mark.parametrize('out', ['gs://bucket/dir'])
-    def test_service_account_authentication(self, mocked_requests: Mock, mock_default: Mock,
-                                            mock_client: Mock, out: str):
+    def test_service_account_authentication(self, mock_client: Mock, mock_default: Mock, out: str):
         mock_default.return_value = Mock(), None
         uploader = GCSUploader(out=out)
         assert uploader.authentication == GCSAuthentication.SERVICE_ACCOUNT

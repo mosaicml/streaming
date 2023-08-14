@@ -98,6 +98,16 @@ class TestGCSClient:
             download_from_gcs(mock_remote_filepath, tmp.name)
             assert os.path.isfile(tmp.name)
 
+    @patch('google.auth.default')
+    @patch('google.cloud.storage.Client')
+    @pytest.mark.usefixtures('gcs_service_account_credentials')
+    @pytest.mark.parametrize('out', ['gs://bucket/dir'])
+    def test_download_service_account(self, mock_client: Mock, mock_default: Mock, out: str):
+        with tempfile.NamedTemporaryFile(delete=True, suffix='.txt') as tmp:
+            mock_default.return_value = Mock(), None
+            download_from_gcs('gs://bucket_file', tmp.name)
+            assert os.path.isfile(tmp.name)
+
     @pytest.mark.usefixtures('gcs_hmac_client', 'gcs_test', 'remote_local_file')
     def test_filenotfound_exception(self, remote_local_file: Any):
         with pytest.raises(FileNotFoundError):
