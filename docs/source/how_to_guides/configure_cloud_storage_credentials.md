@@ -95,7 +95,7 @@ export S3_ENDPOINT_URL='https://<accountid>.r2.cloudflarestorage.com'
 
 ### MosaicML platform
 
-For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [Google Cloud Storage](https://mcli.docs.mosaicml.com/en/latest/secrets/gcp.html) MCLI doc on how to configure the cloud provider credentials.
+For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [Google Cloud Storage](https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/gcp.html) MCLI doc on how to configure the cloud provider credentials.
 
 
 ### GCP User Auth Credentials Mounted as Environment Variables
