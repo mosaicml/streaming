@@ -179,7 +179,7 @@ def dataframeToMDS(dataframe: DataFrame,
                     mds_writer.write(row)
         yield pd.DataFrame(pd.Series([out_file_path], name='mds_path'))
 
-    if not dataframe:
+    if dataframe is None:
         raise ValueError(f'input dataframe is none!')
 
     df = dataframe
