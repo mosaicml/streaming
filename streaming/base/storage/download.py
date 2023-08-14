@@ -334,8 +334,7 @@ def download_from_dbfs(remote: str, local: str) -> None:
     dbfs_file = client.dbfs.download(file_path)
     local_tmp = local + '.tmp'
     with open(local_tmp, 'wb') as f:
-        for chunk in iter(lambda: dbfs_file.read(4096), b''):
-            f.write(chunk)
+        f.write(dbfs_file.read())
     dbfs_file.close()
     os.rename(local_tmp, local)
 
