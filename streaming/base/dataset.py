@@ -331,16 +331,11 @@ class StreamingDataset(Array, IterableDataset):
             default = Stream(remote=remote,
                              local=local,
                              split=split,
-                             choose=epoch_size_value,
                              download_retry=download_retry,
                              download_timeout=download_timeout,
                              validate_hash=validate_hash,
                              keep_zip=keep_zip)
             streams = [default]
-            # reset `epoch_size_value` to None when we initialize StreamingDataset with no
-            # streams so that when we `apply_weights` over this single stream we use the
-            # epoch size to absolutely weight the single stream.
-            epoch_size_value = None
 
         # Validate the stream weighting scheme (relative or absolute) to catch errors before we go
         # to the trouble of loading them.
