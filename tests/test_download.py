@@ -104,8 +104,10 @@ class TestGCSClient:
     @pytest.mark.parametrize('out', ['gs://bucket/dir'])
     def test_download_service_account(self, mock_client: Mock, mock_default: Mock, out: str):
         with tempfile.NamedTemporaryFile(delete=True, suffix='.txt') as tmp:
-            mock_default.return_value = Mock(), None
+            credentials_mock = Mock()
+            mock_default.return_value = credentials_mock, None
             download_from_gcs('gs://bucket_file', tmp.name)
+            mock_client.assert_called_once_with(credentials=credentials_mock)
             assert os.path.isfile(tmp.name)
 
     @pytest.mark.usefixtures('gcs_hmac_client', 'gcs_test', 'remote_local_file')
