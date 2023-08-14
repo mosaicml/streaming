@@ -110,6 +110,12 @@ class TestGCSClient:
             mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='s3://')
             download_from_gcs(mock_remote_filepath, mock_local_filepath)
 
+    def test_no_credentials_error(self, remote_local_file: Any):
+        """Ensure we raise a value error correctly if we have no credentials available."""
+        with pytest.raises(ValueError):
+            mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='gs://')
+            download_from_gcs(mock_remote_filepath, mock_local_filepath)
+
 
 def test_download_from_local():
     mock_remote_dir = tempfile.TemporaryDirectory()
