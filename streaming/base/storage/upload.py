@@ -617,7 +617,12 @@ class DBFSUploader(CloudUploader):
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False) -> None:
+        from databricks.sdk import WorkspaceClient
+
         super().__init__(out, keep_local, progress_bar)
+        self.client = WorkspaceClient()
+        self.dbfs_path = self.remote.lstrip('dbfs:')  # pyright: ignore
+        self.check_folder_exists()
 
     def upload_file(self, filename: str):
         """Upload file from local instance to DBFS. Does not overwrite.
@@ -625,15 +630,21 @@ class DBFSUploader(CloudUploader):
         Args:
             filename (str): Relative filepath to copy.
         """
-        from databricks.sdk import WorkspaceClient
-
         local_filename = os.path.join(self.local, filename)
         local_filename = local_filename.replace('\\', '/')
-        remote_filename = os.path.join(self.remote, filename)  # pyright: ignore
+        remote_filename = os.path.join(self.dbfs_path, filename)
         remote_filename = remote_filename.replace('\\', '/')
-        client = WorkspaceClient()
         with open(local_filename, 'rb') as f:
-            client.dbfs.upload(remote_filename, f)
+            self.client.dbfs.upload(remote_filename, f)
+
+    def check_folder_exists(self):
+        """Raise an exception if the DBFS folder does not exist.
+
+        Raises:
+            error: Folder does not exist.
+        """
+        if not self.client.dbfs.exists(self.dbfs_path):
+            raise FileNotFoundError(f'DBFS path {self.dbfs_path} not found')
 
 
 class LocalUploader(CloudUploader):
