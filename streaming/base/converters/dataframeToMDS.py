@@ -166,9 +166,9 @@ def dataframeToMDS(dataframe: DataFrame,
             'hashes': hashes,
             'size_limit': size_limit
         }
-        for k, v in mds_kwargs.items():
-            if v is None:
-                del mds_kwargs[k]
+        keys_to_remove = [k for k, v in mds_kwargs.items() if v is None]
+        for key in keys_to_remove:
+            del mds_kwargs[key]
 
         with MDSWriter(**mds_kwargs) as mds_writer:
             for pdf in iterator:
