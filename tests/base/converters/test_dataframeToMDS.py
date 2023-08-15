@@ -1,6 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+import json
 import os
 from tempfile import mkdtemp
 from typing import Any, Tuple
@@ -12,8 +13,6 @@ from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 from streaming import MDSWriter
 from streaming.base.converters import dataframeToMDS
 from tests.conftest import MY_BUCKET
-
-import json
 
 MY_PREFIX = 'train'
 
@@ -56,7 +55,8 @@ class TestDataFrameToMDS:
     @pytest.mark.parametrize('keep_local', [True, False])
     @pytest.mark.parametrize('merge_index', [True, False])
     @pytest.mark.parametrize('psize', [1, 2, 4])
-    def test_end_to_end_conversion_local(self, dataframe: Any, keep_local: bool, merge_index: bool, psize: int):
+    def test_end_to_end_conversion_local(self, dataframe: Any, keep_local: bool, merge_index: bool,
+                                         psize: int):
         out = mkdtemp()
         dataframeToMDS(dataframe,
                        out=out,
@@ -72,28 +72,26 @@ class TestDataFrameToMDS:
                        hashes=['sha1', 'xxh64'],
                        size_limit=1 << 26)
 
-        assert (len(os.listdir(out)) > 0), f'{mds_path[0]} is empty'
+        assert (len(os.listdir(out)) > 0), f'{out} is empty'
         for d in os.listdir(out):
             if os.path.isdir(os.path.join(out, d)):
                 assert (os.path.exists(os.path.join(
                     out, d, 'index.json'))), f'No index.json found in subdirectory {d}'
 
         if merge_index == True:
-            assert (os.path.exists(os.path.join(out,
-                                                'index.json'))), 'No merged index found'
-            mgi = json.load(open(os.path.join(out, "index.json"), 'r'))
+            assert (os.path.exists(os.path.join(out, 'index.json'))), 'No merged index found'
+            mgi = json.load(open(os.path.join(out, 'index.json'), 'r'))
             nsamples = 0
             for d in os.listdir(out):
                 sub_dir = os.path.join(out, d)
                 if os.path.isdir(sub_dir):
-                    shards = json.load(open(os.path.join(sub_dir, "index.json"), 'r'))['shards']
+                    shards = json.load(open(os.path.join(sub_dir, 'index.json'), 'r'))['shards']
                     if shards:
                         nsamples += shards[0]['samples']
-            assert(nsamples == sum([a['samples'] for a in mgi['shards']]))
+            assert (nsamples == sum([a['samples'] for a in mgi['shards']]))
         else:
             assert not (os.path.exists(os.path.join(
                 out, 'index.json'))), 'merged index is created when merge_index=False'
-
 
     @pytest.mark.parametrize('scheme', ['s3', 'oci', 'gs'])
     @pytest.mark.parametrize('keep_local', [True, False])
