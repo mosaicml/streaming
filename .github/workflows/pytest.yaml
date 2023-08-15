@@ -20,7 +20,7 @@ jobs:
         python_version:
           - "3.9"
         install_version:
-          - "[dev]"
+          - "[all]"
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4

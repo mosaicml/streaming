@@ -16,6 +16,7 @@ import tqdm
 
 from streaming.base.storage.download import (BOTOCORE_CLIENT_ERROR_CODES,
                                              GCS_ERROR_NO_AUTHENTICATION)
+from streaming.base.util import get_import_exception_message
 
 __all__ = [
     'CloudUploader',
@@ -617,7 +618,11 @@ class DBFSUploader(CloudUploader):
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False) -> None:
-        from databricks.sdk import WorkspaceClient
+        try:
+            from databricks.sdk import WorkspaceClient
+        except ImportError as e:
+            e.msg = get_import_exception_message(e.name)  # pyright: ignore
+            raise e
 
         super().__init__(out, keep_local, progress_bar)
         self.client = WorkspaceClient()

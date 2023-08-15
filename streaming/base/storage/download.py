@@ -9,6 +9,8 @@ import urllib.parse
 from time import sleep, time
 from typing import Any, Dict, Optional
 
+from streaming.base.util import get_import_exception_message
+
 __all__ = ['download_or_wait']
 
 BOTOCORE_CLIENT_ERROR_CODES = {'403', '404', 'NoSuchKey'}
@@ -327,7 +329,11 @@ def download_from_dbfs(remote: str, local: str) -> None:
         remote (str): Remote path (dbfs).
         local (str): Local path (local filesystem).
     """
-    from databricks.sdk import WorkspaceClient
+    try:
+        from databricks.sdk import WorkspaceClient
+    except ImportError as e:
+        e.msg = get_import_exception_message(e.name)  # pyright: ignore
+        raise e
 
     client = WorkspaceClient()
     file_path = remote.lstrip('dbfs:')
