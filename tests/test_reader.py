@@ -327,3 +327,16 @@ def test_accidental_shard_delete(local_remote_dir: Any):
             is_removed = True
     assert os.path.exists(filename), f'{basename} is missing'
     shutil.rmtree(local_dir, ignore_errors=True)
+
+
+@pytest.mark.usefixtures('local_remote_dir')
+def test_predownload_batch_size_warning(local_remote_dir: Any):
+    remote_dir, local_dir = local_remote_dir
+    convert_to_mds(out_root=remote_dir,
+                   dataset_name='sequencedataset',
+                   num_samples=117,
+                   size_limit=1 << 8)
+    with pytest.warns(UserWarning,
+                      match='predownload < batch_size.*This may result in slower ' +
+                      'batch time. Recommendation is to set'):
+        _ = StreamingDataset(local=local_dir, remote=remote_dir, predownload=4, batch_size=8)

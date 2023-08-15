@@ -5,6 +5,7 @@
 
 import json
 import os
+import warnings
 from concurrent.futures import ThreadPoolExecutor, wait
 from concurrent.futures._base import Future
 from enum import IntEnum
@@ -228,9 +229,11 @@ class StreamingDataset(Array, IterableDataset):
             Provide this field if you are weighting streams relatively to target a larger or
             smaller epoch size. Defaults to ``None``. Can also take in human-readable number
             abbreviations (e.g., ``"100k"``, ``"64M"``, ``"77b"``, and so on). Defaults to ``None``.
-        predownload (int, optional): Target number of samples ahead to download the shards per
-            number of workers provided in a dataloader while iterating. If ``None``, its value
-            gets derived using batch size and number of canonical nodes
+        predownload (int, optional): Target number of samples to download the shards per
+            number of workers provided in a dataloader while iterating. Recommendation is to
+            provide a value greater than per device batch size to ensure at-least per device
+            batch size number of samples resides locally. If ``None``, its value gets derived
+            using per device batch size and number of canonical nodes
             ``max(batch_size, 256 * batch_size // num_canonical_nodes)``. Defaults to ``None``.
         cache_limit (Union[int, str], optional): Maximum size in bytes of this StreamingDataset's
             shard cache. Before downloading a shard, the least recently used resident shard(s)
@@ -304,6 +307,13 @@ class StreamingDataset(Array, IterableDataset):
             raise ValueError(
                 f'Invalid sampling method: {sampling_method}. Must be one of `balanced` or `fixed`.'
             )
+
+        # Check that predownload is at least per device batch size.
+        if self.predownload is not None and self.batch_size is not None and \
+            self.predownload < self.batch_size:
+            warnings.warn(f'predownload < batch_size ({self.predownload} < {self.batch_size}).' +
+                          f'This may result in slower batch time. Recommendation is to set ' +
+                          f'predownload to at-least batch_size.')
         # Convert epoch size from string to int, if needed. Cannot be negative.
         epoch_size_value = None
         if epoch_size:
@@ -1159,7 +1169,7 @@ class StreamingDataset(Array, IterableDataset):
             # downloaded already, we wait and check again later.
             if self.predownload is not None:
                 samples_ahead = it.prepare_index - it.yield_index
-                if self.predownload <= samples_ahead:
+                if self.predownload < samples_ahead:
                     sleep(TICK)
                     continue
 
@@ -1211,7 +1221,7 @@ class StreamingDataset(Array, IterableDataset):
             # downloaded already, we wait and check again later.
             if self.predownload is not None:
                 samples_ahead = it.ready_index - it.yield_index
-                if self.predownload <= samples_ahead:
+                if self.predownload < samples_ahead:
                     sleep(TICK)
                     continue
 
