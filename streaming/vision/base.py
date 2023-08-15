@@ -70,12 +70,13 @@ class StreamingVisionDataset(StreamingDataset, VisionDataset):
             streams. If ``None``, takes its value from the total number of underlying samples.
             Provide this field if you are weighting streams relatively to target a larger or
             smaller epoch size. Defaults to ``None``.
-        predownload (int, optional): Target number of samples to download the shards per
-            number of workers provided in a dataloader while iterating. Recommendation is to
-            provide a value greater than per device batch size to ensure at-least per device
-            batch size number of samples resides locally. If ``None``, its value gets derived
-            using per device batch size and number of canonical nodes
-            ``max(batch_size, 256 * batch_size // num_canonical_nodes)``. Defaults to ``None``.
+        predownload (int, optional): Target number of samples to download per worker in advance
+            of current sample. Workers will attempt to download ahead by this many samples during,
+            but not before, training. Recommendation is to provide a value greater than per device
+            batch size to ensure at-least per device batch size number of samples cached locally.
+            If ``None``, its value gets derived using per device batch size and number of
+            canonical nodes ``max(batch_size, 256 * batch_size // num_canonical_nodes)``.
+            Defaults to ``None``.
         cache_limit (int, optional): Maximum size in bytes of this StreamingDataset's shard cache.
             Before downloading a shard, the least recently used resident shard(s) may be evicted
             (deleted from the local cache) in order to stay under the limit. Set to ``None`` to
