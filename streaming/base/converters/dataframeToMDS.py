@@ -52,7 +52,6 @@ def do_merge_index(partitions: Iterable,
                    keep_local: bool = True,
                    skip: bool = False):
     """Merge index.json from partitions into one for streaming."""
-    print('I am here 1', skip)
     if not partitions or skip:
         return
 
@@ -212,7 +211,6 @@ def dataframeToMDS(dataframe: DataFrame,
     result_schema = StructType([StructField('mds_path', StringType(), False)])
     partitions = df.mapInPandas(func=write_mds, schema=result_schema).collect()
 
-    print('I am here 2', merge_index)
     do_merge_index(partitions, mds_path, keep_local=keep_local, skip=not merge_index)
 
     if cu.remote is not None:
