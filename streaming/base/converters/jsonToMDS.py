@@ -3,7 +3,8 @@
 
 """A utility to convert a json dataset to MDS."""
 
-from typing import Callable, Dict, List, Optional, Tuple, Union
+import collections
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType
@@ -23,7 +24,7 @@ def jsonToMDS(input_path: str,
               hashes: Optional[List[str]] = None,
               size_limit: Optional[Union[int, str]] = 1 << 26,
               udf_iterable: Optional[Callable] = None,
-              udf_kwargs: Optional[Dict] = None):
+              udf_kwargs: Dict[str, Any] = collections.defaultdict(str)):
     """Execute a json to MDS conversion process.
 
     Args:

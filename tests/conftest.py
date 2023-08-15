@@ -43,12 +43,6 @@ def azure_credentials():
 
 
 @pytest.fixture(scope='class', autouse=True)
-def gcs_credentials():
-    """Mocked gcs Credentials."""
-    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'testing'
-
-
-@pytest.fixture(scope='class', autouse=True)
 def aws_credentials():
     """Mocked AWS Credentials for moto."""
     os.environ['AWS_ACCESS_KEY_ID'] = 'testing'

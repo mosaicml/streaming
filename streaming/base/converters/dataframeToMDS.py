@@ -3,6 +3,7 @@
 
 """A utility to convert databricks' tables to MDS."""
 
+import collections
 import json
 import os
 import shutil
@@ -96,7 +97,7 @@ def dataframeToMDS(dataframe: DataFrame,
                    hashes: Optional[List[str]] = None,
                    size_limit: Optional[Union[int, str]] = 1 << 26,
                    udf_iterable: Optional[Callable] = None,
-                   udf_kwargs: Optional[Dict] = None):
+                   udf_kwargs: Dict[str, Any] = collections.defaultdict(str)):
     """Execute a spark dataframe to MDS conversion process.
 
     This method orchestrates the conversion of a spark dataframe into MDS format by
@@ -146,7 +147,12 @@ def dataframeToMDS(dataframe: DataFrame,
 
     def write_mds(iterator: Iterable):
 
-        id = TaskContext.get().taskAttemptId()  # pyright: ignore
+        context = TaskContext.get()
+        if context is not None:
+            id = context.taskAttemptId()
+        else:
+            raise ValueError('None TaskContext')
+
         if isinstance(mds_path, str):  # local
             output = os.path.join(mds_path, f'{id}')
             out_file_path = output
@@ -169,7 +175,7 @@ def dataframeToMDS(dataframe: DataFrame,
         with MDSWriter(**mds_kwargs) as mds_writer:
             for pdf in iterator:
                 if udf_iterable is not None:
-                    d = udf_iterable(pdf, **udf_kwargs)  # pyright: ignore
+                    d = udf_iterable(pdf, **udf_kwargs)
                 else:
                     d = pdf.to_dict('records')
                 assert is_iterable(
@@ -245,6 +251,4 @@ if __name__ == '__main__':
                    columns={'tokens': 'bytes'},
                    partition_size=args.partition_size,
                    merge_index=args.merge_index,
-                   sample_ratio=args.sample_ratio,
-                   udf_iterable=None,
-                   udf_kwargs=None)
+                   sample_ratio=args.sample_ratio)

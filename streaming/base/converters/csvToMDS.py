@@ -3,7 +3,8 @@
 
 """A utility to convert a csv dataset to MDS."""
 
-from typing import Callable, Dict, List, Optional, Tuple, Union
+import collections
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType
@@ -11,19 +12,21 @@ from pyspark.sql.types import StructType
 from streaming.base.converters.dataframeToMDS import dataframeToMDS
 
 
-def csvToMDS(input_path: str,
-             schema: StructType,
-             out: Union[str, Tuple[str, str]],
-             columns: Dict[str, str],
-             partition_size: int = -1,
-             merge_index: bool = True,
-             sample_ratio: float = -1.0,
-             keep_local: bool = False,
-             compression: Optional[str] = None,
-             hashes: Optional[List[str]] = None,
-             size_limit: Optional[Union[int, str]] = 1 << 26,
-             udf_iterable: Optional[Callable] = None,
-             udf_kwargs: Optional[Dict] = None) -> None:
+def csvToMDS(
+    input_path: str,
+    schema: StructType,
+    out: Union[str, Tuple[str, str]],
+    columns: Dict[str, str],
+    partition_size: int = -1,
+    merge_index: bool = True,
+    sample_ratio: float = -1.0,
+    keep_local: bool = False,
+    compression: Optional[str] = None,
+    hashes: Optional[List[str]] = None,
+    size_limit: Optional[Union[int, str]] = 1 << 26,
+    udf_iterable: Optional[Callable] = None,
+    udf_kwargs: Dict[str, Any] = collections.defaultdict(str)
+) -> None:
     """Execute a csv to MDS conversion process.
 
     Args:
