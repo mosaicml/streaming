@@ -107,12 +107,12 @@ From the Google Cloud console, navigate to `Google Storage` > `Settings (Left ve
 ````{tabs}
 ```{code-tab} py
 import os
-os.environ['GCS_KEY'] = 'AKIAIOSFODNN7EXAMPLE'
+os.environ['GCS_KEY'] = 'EXAMPLEFODNN7EXAMPLE'
 os.environ['GCS_SECRET'] = 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
 ```
 
 ```{code-tab} sh
-export GCS_KEY='AKIAIOSFODNN7EXAMPLE'
+export GCS_KEY='EXAMPLEFODNN7EXAMPLE'
 export GCS_SECRET='wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
 ```
 ````
