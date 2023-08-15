@@ -3,7 +3,6 @@
 
 """A utility to convert databricks' tables to MDS."""
 
-import collections
 import json
 import os
 import shutil
@@ -97,7 +96,7 @@ def dataframeToMDS(dataframe: DataFrame,
                    hashes: Optional[List[str]] = None,
                    size_limit: Optional[Union[int, str]] = 1 << 26,
                    udf_iterable: Optional[Callable] = None,
-                   udf_kwargs: Dict[str, Any] = collections.defaultdict(str)):
+                   udf_kwargs: Dict[str, Any] = {}):
     """Execute a spark dataframe to MDS conversion process.
 
     This method orchestrates the conversion of a spark dataframe into MDS format by
@@ -175,7 +174,7 @@ def dataframeToMDS(dataframe: DataFrame,
         with MDSWriter(**mds_kwargs) as mds_writer:
             for pdf in iterator:
                 if udf_iterable is not None:
-                    d = udf_iterable(pdf, **udf_kwargs)
+                    d = udf_iterable(pdf, **udf_kwargs or {})
                 else:
                     d = pdf.to_dict('records')
                 assert is_iterable(
