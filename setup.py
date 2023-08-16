@@ -59,6 +59,7 @@ install_requires = [
     'azure-storage-blob>=12.0.0,<13',
     'azure-storage-file-datalake>=12.11.0,<13',
     'azure-identity>=1.13.0',
+    'pyspark==3.4.1',
 ]
 
 extra_deps = {}
@@ -67,7 +68,7 @@ extra_deps['dev'] = [
     'datasets>=2.4.0,<3', 'docformatter>=1.4', 'jupyter==1.0.0', 'pre-commit>=2.18.1,<4',
     'pytest==7.4.0', 'pytest_codeblocks==0.16.1', 'pytest-cov>=4,<5', 'toml==0.10.2',
     'yamllint==1.32.0', 'moto>=4.0,<5', 'fastapi==0.101.0', 'pydantic==2.1.1', 'uvicorn==0.23.2',
-    'pytest-split==0.8.1', 'pyspark==3.4.1'
+    'pytest-split==0.8.1',
 ]
 
 extra_deps['docs'] = [
