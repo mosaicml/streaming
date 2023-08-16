@@ -14,13 +14,11 @@ import pandas as pd
 from pyspark import TaskContext
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.types import StringType, IntegerType, DoubleType, StructField, StructType
-
+from pyspark.sql.types import DoubleType, IntegerType, StringType, StructField, StructType
 
 from streaming import MDSWriter
-from streaming.base.storage.upload import CloudUploader
-
 from streaming.base.format.mds.encodings import _encodings
+from streaming.base.storage.upload import CloudUploader
 
 default_mds_kwargs = {
     'compression': 'zstd:7',
@@ -53,9 +51,8 @@ def is_iterable(obj: Any) -> bool:
 
 
 def infer_dataframe_schema(dataframe: DataFrame) -> Dict:
-    """
-    Takes a pyspark dataframe and retrives the schema information, constructing a dictionary
-    """
+    """Takes a pyspark dataframe and retrives the schema information, constructing a dictionary."""
+
     def map_spark_dtype(spark_data_type):
         if isinstance(spark_data_type, StringType):
             return 'str'
@@ -75,9 +72,10 @@ def infer_dataframe_schema(dataframe: DataFrame) -> Dict:
             schema_dict[field.name] = dtype
         else:
             print(_encodings)
-            raise ValueError(f"{dtype} is not supported by MDSwrite")
+            raise ValueError(f'{dtype} is not supported by MDSwrite')
 
     return schema_dict
+
 
 def do_merge_index(partitions: Iterable,
                    mds_path: Union[str, Tuple[str, str]],
