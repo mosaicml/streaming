@@ -20,13 +20,13 @@ command:
 
   # Check sample order with stream choose
 
-  composer -n 1 regression/iterate_data.py --num_canonical_nodes 128 --batch_size 1
+  composer -n 1 regression/iterate_data.py --num_canonical_nodes 64 --batch_size 32
     --local-streams /tmp/streaming_dataset/stream_0/,/tmp/streaming_dataset/stream_1/,/tmp/streaming_dataset/stream_2/,/tmp/streaming_dataset/stream_3/,\
     /tmp/streaming_dataset/stream_4/,/tmp/streaming_dataset/stream_5/,/tmp/streaming_dataset/stream_6/,/tmp/streaming_dataset/stream_7/,\
     /tmp/streaming_dataset/stream_8/,/tmp/streaming_dataset/stream_9/
     --choose 1250,1250,1250,1250,1250,1250,1250,1250,1250,1250 --sample-order-file /tmp/test_samples_0.txt
 
-  composer -n 8 regression/iterate_data.py --num_canonical_nodes 128 --batch_size 1
+  composer -n 8 regression/iterate_data.py --num_canonical_nodes 64 --batch_size 32
     --local-streams /tmp/streaming_dataset/stream_0/,/tmp/streaming_dataset/stream_1/,/tmp/streaming_dataset/stream_2/,/tmp/streaming_dataset/stream_3/,\
     /tmp/streaming_dataset/stream_4/,/tmp/streaming_dataset/stream_5/,/tmp/streaming_dataset/stream_6/,/tmp/streaming_dataset/stream_7/,\
     /tmp/streaming_dataset/stream_8/,/tmp/streaming_dataset/stream_9/
@@ -40,13 +40,13 @@ command:
 
   # Check sample order with stream repeat
 
-  composer -n 1 regression/iterate_data.py --num_canonical_nodes 128 --batch_size 1
+  composer -n 1 regression/iterate_data.py --num_canonical_nodes 32 --batch_size 16
     --local-streams /tmp/streaming_dataset/stream_0/,/tmp/streaming_dataset/stream_1/,/tmp/streaming_dataset/stream_2/,/tmp/streaming_dataset/stream_3/,\
     /tmp/streaming_dataset/stream_4/,/tmp/streaming_dataset/stream_5/,/tmp/streaming_dataset/stream_6/,/tmp/streaming_dataset/stream_7/,\
     /tmp/streaming_dataset/stream_8/,/tmp/streaming_dataset/stream_9/
     --repeat 0,1,2,0.5,0,0,0,1,1,3 --sample-order-file /tmp/test_samples_0.txt
 
-  composer -n 8 regression/iterate_data.py --num_canonical_nodes 128 --batch_size 1
+  composer -n 8 regression/iterate_data.py --num_canonical_nodes 32 --batch_size 16
     --local-streams /tmp/streaming_dataset/stream_0/,/tmp/streaming_dataset/stream_1/,/tmp/streaming_dataset/stream_2/,/tmp/streaming_dataset/stream_3/,\
     /tmp/streaming_dataset/stream_4/,/tmp/streaming_dataset/stream_5/,/tmp/streaming_dataset/stream_6/,/tmp/streaming_dataset/stream_7/,\
     /tmp/streaming_dataset/stream_8/,/tmp/streaming_dataset/stream_9/
@@ -60,13 +60,13 @@ command:
 
   # Check sample order with stream proportion
 
-  composer -n 1 regression/iterate_data.py --num_canonical_nodes 128 --batch_size 1
+  composer -n 1 regression/iterate_data.py --num_canonical_nodes 128 --batch_size 8
     --local-streams /tmp/streaming_dataset/stream_0/,/tmp/streaming_dataset/stream_1/,/tmp/streaming_dataset/stream_2/,/tmp/streaming_dataset/stream_3/,\
     /tmp/streaming_dataset/stream_4/,/tmp/streaming_dataset/stream_5/,/tmp/streaming_dataset/stream_6/,/tmp/streaming_dataset/stream_7/,\
     /tmp/streaming_dataset/stream_8/,/tmp/streaming_dataset/stream_9/
     --proportion 0.1,0.05,0.05,0.2,0.1,0.15,0.05,0.02,0.18,0.1 --sample-order-file /tmp/test_samples_0.txt
 
-  composer -n 8 regression/iterate_data.py --num_canonical_nodes 128 --batch_size 1
+  composer -n 8 regression/iterate_data.py --num_canonical_nodes 128 --batch_size 8
     --local-streams /tmp/streaming_dataset/stream_0/,/tmp/streaming_dataset/stream_1/,/tmp/streaming_dataset/stream_2/,/tmp/streaming_dataset/stream_3/,\
     /tmp/streaming_dataset/stream_4/,/tmp/streaming_dataset/stream_5/,/tmp/streaming_dataset/stream_6/,/tmp/streaming_dataset/stream_7/,\
     /tmp/streaming_dataset/stream_8/,/tmp/streaming_dataset/stream_9/
