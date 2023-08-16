@@ -4,6 +4,7 @@
 """A utility to convert databricks' tables to MDS."""
 
 import json
+import logging
 import os
 import shutil
 from argparse import ArgumentParser
@@ -19,6 +20,8 @@ from pyspark.sql.types import DoubleType, IntegerType, StringType, StructField, 
 from streaming import MDSWriter
 from streaming.base.format.mds.encodings import _encodings
 from streaming.base.storage.upload import CloudUploader
+
+logger = logging.getLogger(__name__)
 
 default_mds_kwargs = {
     'compression': 'zstd:7',
@@ -213,6 +216,9 @@ def dataframeToMDS(dataframe: DataFrame,
         raise ValueError(f'out and columns need to be specified in mds_kwargs')
 
     if 'columns' not in mds_kwargs:
+        logger.warning(
+            "User's discretion required: columns arg is missing from mds_kwargs. Will be auto inferred"
+        )
         mds_kwargs['columns'] = infer_dataframe_schema(dataframe)
 
     if 0 < sample_ratio < 1:
