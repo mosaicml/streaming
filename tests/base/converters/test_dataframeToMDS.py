@@ -16,7 +16,9 @@ from streaming.base.converters import dataframeToMDS
 MY_PREFIX = 'train'
 MY_BUCKET = 'mosaicml-composer-tests'
 LOCAL_MANUAL_TEST = False
-os.environ['OBJC_DISABLE_INITIALIZE_FORK_SAFETY']='YES' # set to yes to all fork process in spark calls
+os.environ[
+    'OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'  # set to yes to all fork process in spark calls
+
 
 @pytest.fixture(scope='class', autouse=True)
 def remote_local_dir() -> Any:
