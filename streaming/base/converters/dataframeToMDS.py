@@ -53,7 +53,7 @@ def is_iterable(obj: Any) -> bool:
 def infer_dataframe_schema(dataframe: DataFrame) -> Dict:
     """Takes a pyspark dataframe and retrives the schema information, constructing a dictionary."""
 
-    def map_spark_dtype(spark_data_type):
+    def map_spark_dtype(spark_data_type: Any):
         if isinstance(spark_data_type, StringType):
             return 'str'
         elif isinstance(spark_data_type, IntegerType):
