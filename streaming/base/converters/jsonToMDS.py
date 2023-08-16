@@ -3,7 +3,7 @@
 
 """A utility to convert a json dataset to MDS."""
 
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Optional
 
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType
@@ -41,7 +41,6 @@ def jsonToMDS(input_path: str,
     dataframeToMDS(dataframe,
                    merge_index=merge_index,
                    sample_ratio=sample_ratio,
-                   mds_kwargs = mds_kwargs,
+                   mds_kwargs=mds_kwargs,
                    udf_iterable=udf_iterable,
                    udf_kwargs=udf_kwargs)
-

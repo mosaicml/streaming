@@ -15,13 +15,16 @@ from streaming.base.converters import dataframeToMDS
 
 MY_PREFIX = 'train'
 MY_BUCKET = 'mosaicml-composer-tests'
-LOCAL_MANUAL_TEST = True
+LOCAL_MANUAL_TEST = False
+
 
 @pytest.fixture(scope='class', autouse=True)
 def remote_local_dir() -> Any:
     """Creates a temporary directory and then deletes it when the calling function is done."""
 
-    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/Users/xiaohan.zhang/.mosaic/mosaicml-research-nonprod-027345ddbdfd.json'
+    os.environ[
+        'GOOGLE_APPLICATION_CREDENTIALS'] = '/Users/xiaohan.zhang/.mosaic/mosaicml-research-nonprod-027345ddbdfd.json'
+
     def _method(cloud_prefix: str = 'gs://') -> Tuple[str, str]:
         mock_local_dir = mkdtemp()
         mock_remote_dir = os.path.join(cloud_prefix, MY_BUCKET, MY_PREFIX)
@@ -55,25 +58,25 @@ class TestDataFrameToMDS:
 
     @pytest.mark.parametrize('keep_local', [True, False])
     @pytest.mark.parametrize('merge_index', [True, False])
-    def test_end_to_end_conversion_local(self, dataframe: Any, keep_local: bool, merge_index: bool):
+    def test_end_to_end_conversion_local(self, dataframe: Any, keep_local: bool,
+                                         merge_index: bool):
         out = mkdtemp()
         mds_kwargs = {
-                'out':out,
-                'columns':{
-                          'id': 'str',
-                          'dept': 'str'
-                      },
-                'keep_local':keep_local,
-                'compression':'zstd:7',
-                'hashes':['sha1', 'xxh64'],
-                'size_limit': 1 << 26
+            'out': out,
+            'columns': {
+                'id': 'str',
+                'dept': 'str'
+            },
+            'keep_local': keep_local,
+            'compression': 'zstd:7',
+            'hashes': ['sha1', 'xxh64'],
+            'size_limit': 1 << 26
         }
 
-        mds_path = dataframeToMDS(dataframe,
-                                  merge_index=merge_index,
-                                  sample_ratio=-1.0,
-                                  mds_kwargs=mds_kwargs)
-
+        _ = dataframeToMDS(dataframe,
+                           merge_index=merge_index,
+                           sample_ratio=-1.0,
+                           mds_kwargs=mds_kwargs)
 
         assert (len(os.listdir(out)) > 0), f'{out} is empty'
         for d in os.listdir(out):
@@ -104,26 +107,27 @@ class TestDataFrameToMDS:
                                                merge_index: bool, keep_local: bool,
                                                remote_local_dir: Any):
         if not LOCAL_MANUAL_TEST:
-            pytest.skip('Overlap with integration tests. But better figure out how to run this test suite with Mock.')
+            pytest.skip(
+                'Overlap with integration tests. But better figure out how to run this test suite with Mock.'
+            )
         mock_local, mock_remote = remote_local_dir(cloud_prefix='gs://')
         out = (mock_local, mock_remote)
         mds_kwargs = {
-                'out':out,
-                'columns':{
-                          'id': 'str',
-                          'dept': 'str'
-                      },
-                'keep_local':keep_local,
-                'compression':'zstd:7',
-                'hashes':['sha1', 'xxh64'],
-                'size_limit': 1 << 26
+            'out': out,
+            'columns': {
+                'id': 'str',
+                'dept': 'str'
+            },
+            'keep_local': keep_local,
+            'compression': 'zstd:7',
+            'hashes': ['sha1', 'xxh64'],
+            'size_limit': 1 << 26
         }
 
         mds_path = dataframeToMDS(dataframe,
                                   merge_index=merge_index,
                                   sample_ratio=-1.0,
                                   mds_kwargs=mds_kwargs)
-
 
         assert out == mds_path, f'returned mds_path: {mds_path} is not the same as out: {out}'
 
@@ -154,15 +158,15 @@ class TestDataFrameToMDS:
         out = remote_local_dir(cloud_prefix='gs://')
         # bucket_name = 'mosaicml-composer-tests'
         mds_kwargs = {
-                'out':out,
-                'columns':{
-                          'id': 'str',
-                          'dept': 'str'
-                      },
-                'keep_local':keep_local,
-                'compression':'zstd:7',
-                'hashes':['sha1', 'xxh64'],
-                'size_limit': 1 << 26
+            'out': out,
+            'columns': {
+                'id': 'str',
+                'dept': 'str'
+            },
+            'keep_local': keep_local,
+            'compression': 'zstd:7',
+            'hashes': ['sha1', 'xxh64'],
+            'size_limit': 1 << 26
         }
 
         mds_path = dataframeToMDS(dataframe,
@@ -194,13 +198,13 @@ class TestDataFrameToMDS:
     def test_integration_conversion_remote_only(self, dataframe: Any, remote_local_dir: Any):
         if not LOCAL_MANUAL_TEST:
             pytest.skip('run local only. CI cluster does not have GCS service acct set up.')
-        local, remote = remote_local_dir(cloud_prefix='gs://')
+        _, remote = remote_local_dir(cloud_prefix='gs://')
         mds_kwargs = {
-                'out':remote,
-                'columns':{
-                          'id': 'str',
-                          'dept': 'str'
-                      },
+            'out': remote,
+            'columns': {
+                'id': 'str',
+                'dept': 'str'
+            },
         }
 
         mds_path = dataframeToMDS(dataframe,
@@ -209,7 +213,8 @@ class TestDataFrameToMDS:
                                   mds_kwargs=mds_kwargs)
 
         assert len(mds_path) == 2, 'returned mds is a str but should be a tuple (local, remote)'
-        assert not (os.path.exists(os.path.join(mds_path[0], 'index.json'))), 'Local merged index was not removed successfully'
+        assert not (os.path.exists(os.path.join(
+            mds_path[0], 'index.json'))), 'Local merged index was not removed successfully'
         assert (len(os.listdir(mds_path[0])) > 0), f'{mds_path[0]} is not empty'
 
     def test_simple_remote(self, dataframe: Any):

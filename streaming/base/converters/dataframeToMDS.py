@@ -8,7 +8,7 @@ import os
 import shutil
 from argparse import ArgumentParser
 from collections.abc import Iterable
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union
 
 import pandas as pd
 from pyspark import TaskContext
@@ -43,6 +43,7 @@ default_udf_kwargs = {
 
 MDS_META = 'index.json'
 
+
 def is_iterable(obj: Any) -> bool:
     """Check if obj is iterable."""
     return issubclass(type(obj), Iterable)
@@ -52,10 +53,11 @@ def do_merge_index(partitions: Iterable,
                    mds_path: Union[str, Tuple[str, str]],
                    skip: bool = False):
     """Merge index.json from partitions into one for streaming.
-       Args:
-           partitions (Iterable): partitions that contain pd.DataFrame
-           mds_path (Tuple or str): (str,str)=(local,remote), str = local or remote based on parse_uri(url) result
-           skip (bool): whether to merge index from partitions
+
+    Args:
+        partitions (Iterable): partitions that contain pd.DataFrame
+        mds_path (Tuple or str): (str,str)=(local,remote), str = local or remote based on parse_uri(url) result
+        skip (bool): whether to merge index from partitions
     """
     if not partitions or skip:
         return
@@ -161,7 +163,7 @@ def dataframeToMDS(dataframe: DataFrame,
         kwargs = mds_kwargs.copy()
         kwargs['out'] = output
         if merge_index:
-            kwargs['keep_local'] = True # need to keep local to do merge
+            kwargs['keep_local'] = True  # need to keep local to do merge
 
         with MDSWriter(**kwargs) as mds_writer:
             for pdf in iterator:
@@ -176,7 +178,7 @@ def dataframeToMDS(dataframe: DataFrame,
                     mds_writer.write(sample)
         yield pd.DataFrame(pd.Series([out_file_path], name='mds_path'))
 
-    if dataframe is None or dataframe.count()==0:
+    if dataframe is None or dataframe.count() == 0:
         raise ValueError(f'input dataframe is none or empty!')
 
     if 'out' not in mds_kwargs or 'columns' not in mds_kwargs:
@@ -237,8 +239,11 @@ if __name__ == '__main__':
 
     df = spark.read.table(args.delta_table_path)
     dataframeToMDS(df,
-                   out=args.mds_path,
-                   columns={'tokens': 'bytes'},
-                   partition_size=args.partition_size,
+                   mds_kwargs={
+                       'out': args.mds_path,
+                       'columns': {
+                           'tokens': 'bytes'
+                       }
+                   },
                    merge_index=args.merge_index,
                    sample_ratio=args.sample_ratio)
