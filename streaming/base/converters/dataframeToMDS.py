@@ -14,10 +14,13 @@ import pandas as pd
 from pyspark import TaskContext
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.types import StringType, StructField, StructType
+from pyspark.sql.types import StringType, IntegerType, DoubleType, StructField, StructType
+
 
 from streaming import MDSWriter
 from streaming.base.storage.upload import CloudUploader
+
+from streaming.base.format.mds.encodings import _encodings
 
 default_mds_kwargs = {
     'compression': 'zstd:7',
@@ -48,6 +51,33 @@ def is_iterable(obj: Any) -> bool:
     """Check if obj is iterable."""
     return issubclass(type(obj), Iterable)
 
+
+def infer_dataframe_schema(dataframe: DataFrame) -> Dict:
+    """
+    Takes a pyspark dataframe and retrives the schema information, constructing a dictionary
+    """
+    def map_spark_dtype(spark_data_type):
+        if isinstance(spark_data_type, StringType):
+            return 'str'
+        elif isinstance(spark_data_type, IntegerType):
+            return 'int64'
+        elif isinstance(spark_data_type, DoubleType):
+            return 'float64'
+        else:
+            return 'json'
+
+    schema = dataframe.schema
+    schema_dict = {}
+
+    for field in schema:
+        dtype = map_spark_dtype(field.dataType)
+        if dtype in _encodings:
+            schema_dict[field.name] = dtype
+        else:
+            print(_encodings)
+            raise ValueError(f"{dtype} is not supported by MDSwrite")
+
+    return schema_dict
 
 def do_merge_index(partitions: Iterable,
                    mds_path: Union[str, Tuple[str, str]],
@@ -117,7 +147,7 @@ def dataframeToMDS(dataframe: DataFrame,
                location. At the end, the temp directory is deleted once shards are uploaded.
             3. If ``out`` is a tuple of ``(local_dir, remote_dir)``, shard files are saved in the
                `local_dir` and also uploaded to a remote location.
-        columns (Dict[str, str]): Sample columns.
+        columns (Dict[str, str]): Sample columns. If not specified, use all cols and inferred dtype from dataframe.
         keep_local (bool): If the dataset is uploaded, whether to keep the local dataset directory
             or remove it after uploading. Defaults to ``False``.
         compression (str, optional): Optional compression or compression:level. Defaults to
@@ -181,8 +211,11 @@ def dataframeToMDS(dataframe: DataFrame,
     if dataframe is None or dataframe.count() == 0:
         raise ValueError(f'input dataframe is none or empty!')
 
-    if 'out' not in mds_kwargs or 'columns' not in mds_kwargs:
+    if 'out' not in mds_kwargs:
         raise ValueError(f'out and columns need to be specified in mds_kwargs')
+
+    if 'columns' not in mds_kwargs:
+        mds_kwargs['columns'] = infer_dataframe_schema(dataframe)
 
     if 0 < sample_ratio < 1:
         dataframe = dataframe.sample(sample_ratio)

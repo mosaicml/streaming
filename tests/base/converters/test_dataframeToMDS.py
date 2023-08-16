@@ -9,6 +9,7 @@ from typing import Any, Tuple
 import pytest
 from pyspark.sql import SparkSession
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType
+from pyspark.sql.functions import col
 
 from streaming import MDSWriter
 from streaming.base.converters import dataframeToMDS
@@ -57,6 +58,45 @@ class TestDataFrameToMDS:
 
         df = spark.createDataFrame(data=data, schema=schema).repartition(2)
         yield df
+
+    @pytest.mark.parametrize('keep_local', [True, False])
+    @pytest.mark.parametrize('merge_index', [True, False])
+    def test_end_to_end_conversion_local_nocolumns(self, dataframe: Any, keep_local: bool,
+                                                   merge_index: bool):
+        out = mkdtemp()
+        mds_kwargs = {
+            'out': out,
+            'keep_local': keep_local,
+            'compression': 'zstd:7',
+            'hashes': ['sha1', 'xxh64'],
+            'size_limit': 1 << 26
+        }
+
+        _ = dataframeToMDS(dataframe.select(col('id'), col('dept'), col('properties')),
+                           merge_index=merge_index,
+                           sample_ratio=-1.0,
+                           mds_kwargs=mds_kwargs)
+
+        assert (len(os.listdir(out)) > 0), f'{out} is empty'
+        for d in os.listdir(out):
+            if os.path.isdir(os.path.join(out, d)):
+                assert (os.path.exists(os.path.join(
+                    out, d, 'index.json'))), f'No index.json found in subdirectory {d}'
+
+        if merge_index == True:
+            assert (os.path.exists(os.path.join(out, 'index.json'))), 'No merged index found'
+            mgi = json.load(open(os.path.join(out, 'index.json'), 'r'))
+            nsamples = 0
+            for d in os.listdir(out):
+                sub_dir = os.path.join(out, d)
+                if os.path.isdir(sub_dir):
+                    shards = json.load(open(os.path.join(sub_dir, 'index.json'), 'r'))['shards']
+                    if shards:
+                        nsamples += shards[0]['samples']
+            assert (nsamples == sum([a['samples'] for a in mgi['shards']]))
+        else:
+            assert not (os.path.exists(os.path.join(
+                out, 'index.json'))), 'merged index is created when merge_index=False'
 
     @pytest.mark.parametrize('keep_local', [True, False])
     @pytest.mark.parametrize('merge_index', [True, False])
@@ -161,10 +201,6 @@ class TestDataFrameToMDS:
         # bucket_name = 'mosaicml-composer-tests'
         mds_kwargs = {
             'out': out,
-            'columns': {
-                'id': 'str',
-                'dept': 'str'
-            },
             'keep_local': keep_local,
             'compression': 'zstd:7',
             'hashes': ['sha1', 'xxh64'],
