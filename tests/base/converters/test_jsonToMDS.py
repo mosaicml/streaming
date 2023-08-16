@@ -39,20 +39,22 @@ class TestJsonToMDS:
             StructField('dept', StringType(), True),
         ])
         out = mkdtemp()
+        mds_kwargs = {
+                'out':out,
+                'columns':{
+                          'id': 'str',
+                          'dept': 'str'
+                      },
+                'keep_local':True,
+                'compression':'zstd:7',
+                'hashes':['sha1', 'xxh64'],
+                'size_limit': 1 << 26
+        }
         jsonToMDS(temp_json_file.name,
                   schema=schema,
-                  out=out,
-                  columns={
-                      'id': 'str',
-                      'dept': 'str'
-                  },
-                  partition_size=2,
                   merge_index=True,
                   sample_ratio=-1.0,
-                  keep_local=False,
-                  compression='zstd:7',
-                  hashes=['sha1', 'xxh64'],
-                  size_limit=1 << 26)
+                  mds_kwargs = mds_kwargs)
 
         assert (os.path.exists(os.path.join(out, 'index.json'))), 'No merged index found'
         assert (len(os.listdir(out)) > 0), f'{out} is empty'

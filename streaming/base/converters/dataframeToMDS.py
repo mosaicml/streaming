@@ -41,6 +41,7 @@ default_udf_kwargs = {
     'key': 'content',
 }
 
+MDS_META = 'index.json'
 
 def is_iterable(obj: Any) -> bool:
     """Check if obj is iterable."""
@@ -49,16 +50,20 @@ def is_iterable(obj: Any) -> bool:
 
 def do_merge_index(partitions: Iterable,
                    mds_path: Union[str, Tuple[str, str]],
-                   keep_local: bool = True,
                    skip: bool = False):
-    """Merge index.json from partitions into one for streaming."""
+    """Merge index.json from partitions into one for streaming.
+       Args:
+           partitions (Iterable): partitions that contain pd.DataFrame
+           mds_path (Tuple or str): (str,str)=(local,remote), str = local or remote based on parse_uri(url) result
+           skip (bool): whether to merge index from partitions
+    """
     if not partitions or skip:
         return
 
     shards = []
 
     for row in partitions:
-        mds_partition_index = f'{row.mds_path}/index.json'
+        mds_partition_index = f'{row.mds_path}/{MDS_META}'
         mds_partition_basename = os.path.basename(row.mds_path)
         obj = json.load(open(mds_partition_index))
         for i in range(len(obj['shards'])):
@@ -76,24 +81,18 @@ def do_merge_index(partitions: Iterable,
     }
 
     if isinstance(mds_path, str):
-        mds_index = os.path.join(mds_path, 'index.json')
+        mds_index = os.path.join(mds_path, MDS_META)
     else:
-        mds_index = os.path.join(mds_path[0], 'index.json')
+        mds_index = os.path.join(mds_path[0], MDS_META)
 
     with open(mds_index, 'w') as out:
         json.dump(obj, out)
 
 
 def dataframeToMDS(dataframe: DataFrame,
-                   out: Union[str, Tuple[str, str]],
-                   columns: Dict[str, str],
-                   partition_size: int = -1,
                    merge_index: bool = True,
                    sample_ratio: float = -1.0,
-                   keep_local: bool = False,
-                   compression: Optional[str] = None,
-                   hashes: Optional[List[str]] = None,
-                   size_limit: Optional[Union[int, str]] = 1 << 26,
+                   mds_kwargs: Dict[str, Any] = {},
                    udf_iterable: Optional[Callable] = None,
                    udf_kwargs: Dict[str, Any] = {}):
     """Execute a spark dataframe to MDS conversion process.
@@ -104,6 +103,11 @@ def dataframeToMDS(dataframe: DataFrame,
 
     Args:
         dataframe (pyspark.sql.DataFrame or None): A DataFrame containing Delta Lake data.
+        merge_index (bool): Whether to merge MDS index files. Default is True.
+        sample_ratio (float): The fraction of data to randomly sample during conversion.
+            Should be in the range (0, 1). Default is -1.0 (no sampling).
+
+        mds_kwargs: arguments for MDSwrite.
         out (str | Tuple[str, str]): Output dataset directory to save shard files.
             1. If ``out`` is a local directory, shard files are saved locally.
             2. If ``out`` is a remote directory, a local temporary directory is created to
@@ -111,10 +115,6 @@ def dataframeToMDS(dataframe: DataFrame,
                location. At the end, the temp directory is deleted once shards are uploaded.
             3. If ``out`` is a tuple of ``(local_dir, remote_dir)``, shard files are saved in the
                `local_dir` and also uploaded to a remote location.
-        partition_size (int): The number of partitions to use during conversion. Default is -1, which does not do repartition.
-        merge_index (bool): Whether to merge MDS index files. Default is True.
-        sample_ratio (float): The fraction of data to randomly sample during conversion.
-            Should be in the range (0, 1). Default is -1.0 (no sampling).
         columns (Dict[str, str]): Sample columns.
         keep_local (bool): If the dataset is uploaded, whether to keep the local dataset directory
             or remove it after uploading. Defaults to ``False``.
@@ -149,7 +149,7 @@ def dataframeToMDS(dataframe: DataFrame,
         if context is not None:
             id = context.taskAttemptId()
         else:
-            raise ValueError('None TaskContext')
+            raise Exception('TaskContext.get() returns None')
 
         if isinstance(mds_path, str):  # local
             output = os.path.join(mds_path, f'{id}')
@@ -158,19 +158,12 @@ def dataframeToMDS(dataframe: DataFrame,
             output = (os.path.join(mds_path[0], f'{id}'), os.path.join(mds_path[1], f'{id}'))
             out_file_path = output[0]
 
-        mds_kwargs = {
-            'out': output,
-            'columns': columns,
-            'keep_local': True,
-            'compression': compression,
-            'hashes': hashes,
-            'size_limit': size_limit
-        }
-        keys_to_remove = [k for k, v in mds_kwargs.items() if v is None]
-        for key in keys_to_remove:
-            del mds_kwargs[key]
+        kwargs = mds_kwargs.copy()
+        kwargs['out'] = output
+        if merge_index:
+            kwargs['keep_local'] = True # need to keep local to do merge
 
-        with MDSWriter(**mds_kwargs) as mds_writer:
+        with MDSWriter(**kwargs) as mds_writer:
             for pdf in iterator:
                 if udf_iterable is not None:
                     d = udf_iterable(pdf, **udf_kwargs or {})
@@ -179,21 +172,21 @@ def dataframeToMDS(dataframe: DataFrame,
                 assert is_iterable(
                     d), f'pandas_processing_fn needs to return an iterable instead of a {type(d)}'
 
-                for row in d:
-                    mds_writer.write(row)
+                for sample in d:
+                    mds_writer.write(sample)
         yield pd.DataFrame(pd.Series([out_file_path], name='mds_path'))
 
-    if dataframe is None:
-        raise ValueError(f'input dataframe is none!')
+    if dataframe is None or dataframe.count()==0:
+        raise ValueError(f'input dataframe is none or empty!')
 
-    df = dataframe
+    if 'out' not in mds_kwargs or 'columns' not in mds_kwargs:
+        raise ValueError(f'out and columns need to be specified in mds_kwargs')
 
     if 0 < sample_ratio < 1:
-        df = dataframe.sample(sample_ratio)
+        dataframe = dataframe.sample(sample_ratio)
 
-    if partition_size > 0:
-        df = df.repartition(partition_size)
-
+    out = mds_kwargs['out']
+    keep_local = False if 'keep_local' not in mds_kwargs else mds_kwargs['keep_local']
     cu = CloudUploader.get(out, keep_local=keep_local)
     if os.path.exists(cu.local) and len(os.listdir(cu.local)) != 0:
         raise ValueError(
@@ -209,14 +202,14 @@ def dataframeToMDS(dataframe: DataFrame,
 
     # Prepare partition schema
     result_schema = StructType([StructField('mds_path', StringType(), False)])
-    partitions = df.mapInPandas(func=write_mds, schema=result_schema).collect()
+    partitions = dataframe.mapInPandas(func=write_mds, schema=result_schema).collect()
 
-    do_merge_index(partitions, mds_path, keep_local=keep_local, skip=not merge_index)
+    do_merge_index(partitions, mds_path, skip=not merge_index)
 
     if cu.remote is not None:
         if merge_index == True:
-            cu.upload_file('index.json')
-        if keep_local == False:
+            cu.upload_file(MDS_META)
+        if 'keep_local' in mds_kwargs and mds_kwargs['keep_local'] == False:
             shutil.rmtree(cu.local, ignore_errors=True)
 
     return mds_path
