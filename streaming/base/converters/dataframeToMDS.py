@@ -57,14 +57,31 @@ def infer_dataframe_schema(dataframe: DataFrame) -> Dict:
     """Takes a pyspark dataframe and retrives the schema information, constructing a dictionary."""
 
     def map_spark_dtype(spark_data_type: Any):
-        if isinstance(spark_data_type, StringType):
-            return 'str'
-        elif isinstance(spark_data_type, IntegerType):
-            return 'int64'
-        elif isinstance(spark_data_type, DoubleType):
-            return 'float64'
-        else:
-            return 'json'
+        dtype_mapping = {
+                ByteType              : 'bytes',
+                ShortType             : 'uint64',
+                IntegerType           : 'int',
+                LongType              : 'int64',
+                FloatType             : 'float32',
+                DoubleType            : 'float64',
+                DecimalType           : 'float64',
+                StringType	          : 'str',
+                BinaryType            : 'NOPE',
+                BooleanType           : 'str',
+                TimestampType	      : 'NOPE',
+                TimestampNTZType	  : 'NOPE',
+                DateType              : 'NOPE',
+                YearMonthIntervalType : 'NOPE',
+                DayTimeIntervalType	  : 'NOPE',
+                ArrayType             : 'andarray',
+                MapType	              : 'json',
+                StructType	          : 'NOPE',
+                StructField           : 'NOPE'
+        }
+        for k, v in dtype_mapping.items():
+            if isinstance(spark_data_type, k) and v != 'NOPE':
+                return v
+        raise ValueError(f'{spark_data_type} is not supported by MDSwrite')
 
     schema = dataframe.schema
     schema_dict = {}
@@ -75,7 +92,6 @@ def infer_dataframe_schema(dataframe: DataFrame) -> Dict:
             schema_dict[field.name] = dtype
         else:
             print(_encodings)
-            raise ValueError(f'{dtype} is not supported by MDSwrite')
 
     return schema_dict
 
