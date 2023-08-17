@@ -40,6 +40,7 @@ def simulate(shards: int,
     """Simulates step time and downloads using streaming for the specified input parameters.
 
     Key Notes and Assumptions:
+
        * assume that batch time is solely made up of two things: batch processing time and batch shard download wait time
        * loop through workers round-robin style for batches and for downloads
        * assume each node has a separate network bandwidth
@@ -76,7 +77,6 @@ def simulate(shards: int,
         step_times (NDArray): time taken by each step, calculated by simulation.
         shard_downloads (NDArray): amount of downloaded bytes at each step, calculated by simulation.
     """
-
     # simulation preparation...
 
     # we assume that each shard is going to be seen only once. Not handling up/down-sampling
@@ -385,7 +385,6 @@ def plot_simulation(step_times: NDArray,
     Returns:
         Optional[bytes]: bytes of plot image if ``web`` is ``True``, else plot is displayed, and returns ``None``.
     """
-
     import matplotlib
     if web:
         matplotlib.use('agg')

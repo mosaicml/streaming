@@ -14,15 +14,17 @@ Run:
 
 import os.path
 import sys
+
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
+import base64
+from typing import Optional
 
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from typing import Optional
-import base64
-from simulation.simulation_funcs import simulate, plot_simulation
+from simulation.simulation_funcs import plot_simulation, simulate
 
 INDEX = '''
 <!doctype html>
@@ -280,17 +282,19 @@ current_file = Path(__file__)
 current_file_dir = current_file.parent
 project_root = current_file_dir.parent
 project_root_absolute = project_root.resolve()
-static_root_absolute = project_root_absolute / "simulation/static"
+static_root_absolute = project_root_absolute / 'simulation/static'
 
 app = FastAPI()
 
 # mount static file directory for the nice loading gif :)
-app.mount("/static", StaticFiles(directory=static_root_absolute), name="static")
+app.mount('/static', StaticFiles(directory=static_root_absolute), name='static')
+
 
 @app.get('/')
 def get_root() -> HTMLResponse:
     """Get the index HTML file."""
     return HTMLResponse(INDEX)
+
 
 class GetSimulationRequest(BaseModel):
     """simulation input parameters."""
@@ -312,6 +316,7 @@ class GetSimulationRequest(BaseModel):
     shuffle_block_size: int = 1 << 18
     seed: int = 42
 
+
 @app.post('/api/simulate')
 def post_api_simulate(req: GetSimulationRequest) -> dict:
     """Serve a POST request to simulate a run.
@@ -322,15 +327,17 @@ def post_api_simulate(req: GetSimulationRequest) -> dict:
     Returns:
         dict: JSON object containing the base64 image string for the simulation plots.
     """
-    step_times, shard_downloads = simulate(req.shards, req.samples_per_shard, req.avg_shard_size, req.device_batch_size,
-                        req.avg_batch_time, req.batches_per_epoch, req.epochs, req.physical_nodes, req.devices,
-                        req.node_network_bandwidth, req.workers, req.canonical_nodes, req.predownload,
-                        req.cache_limit, req.shuffle_algo, req.shuffle_block_size, req.seed)
-    
+    step_times, shard_downloads = simulate(req.shards, req.samples_per_shard, req.avg_shard_size,
+                                           req.device_batch_size, req.avg_batch_time,
+                                           req.batches_per_epoch, req.epochs, req.physical_nodes,
+                                           req.devices, req.node_network_bandwidth, req.workers,
+                                           req.canonical_nodes, req.predownload, req.cache_limit,
+                                           req.shuffle_algo, req.shuffle_block_size, req.seed)
+
     plots_buffer = plot_simulation(step_times, shard_downloads)
 
     if plots_buffer is not None:
-      base64_encoded_image = base64.b64encode(plots_buffer).decode("utf-8")
-      return {"image": base64_encoded_image}
+        base64_encoded_image = base64.b64encode(plots_buffer).decode('utf-8')
+        return {'image': base64_encoded_image}
     else:
-        raise ValueError("plot_simulation returned None. Set web=True to return bytes.")
+        raise ValueError('plot_simulation returned None. Set web=True to return bytes.')

@@ -26,10 +26,9 @@ class LastUsedOrderedSet(OrderedDict):
         self.move_to_end(key, last=move_to_end)
 
     def popLRU(self):
-        """Pop the least recently used item (located at the front).
-        """
+        """Pop the least recently used item (located at the front)."""
         self.popitem(last=False)[0]
-    
+
     def setuse(self, key: Any):
         """Mark an item as used, moving it to the end.
 
