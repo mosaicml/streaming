@@ -72,7 +72,13 @@ class TestDataFrameToMDS:
             'size_limit': 1 << 26
         }
 
-        _ = dataframeToMDS(dataframe.select(col('id'), col('dept'), col('properties')),
+        with pytest.raises(ValueError):
+            _ = dataframeToMDS(dataframe.select(col('id'), col('dept'), col('properties')),
+                               merge_index=merge_index,
+                               sample_ratio=-1.0,
+                               mds_kwargs=mds_kwargs)
+
+        _ = dataframeToMDS(dataframe.select(col('id'), col('dept')),
                            merge_index=merge_index,
                            sample_ratio=-1.0,
                            mds_kwargs=mds_kwargs)

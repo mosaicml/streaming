@@ -15,7 +15,10 @@ import pandas as pd
 from pyspark import TaskContext
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.types import DoubleType, IntegerType, StringType, StructField, StructType
+from pyspark.sql.types import (ArrayType, BinaryType, BooleanType, ByteType, DateType,
+                               DayTimeIntervalType, DecimalType, DoubleType, FloatType,
+                               IntegerType, LongType, MapType, ShortType, StringType, StructField,
+                               StructType, TimestampNTZType, TimestampType)
 
 from streaming import MDSWriter
 from streaming.base.format.mds.encodings import _encodings
@@ -58,25 +61,24 @@ def infer_dataframe_schema(dataframe: DataFrame) -> Dict:
 
     def map_spark_dtype(spark_data_type: Any):
         dtype_mapping = {
-                ByteType              : 'bytes',
-                ShortType             : 'uint64',
-                IntegerType           : 'int',
-                LongType              : 'int64',
-                FloatType             : 'float32',
-                DoubleType            : 'float64',
-                DecimalType           : 'float64',
-                StringType	          : 'str',
-                BinaryType            : 'NOPE',
-                BooleanType           : 'str',
-                TimestampType	      : 'NOPE',
-                TimestampNTZType	  : 'NOPE',
-                DateType              : 'NOPE',
-                YearMonthIntervalType : 'NOPE',
-                DayTimeIntervalType	  : 'NOPE',
-                ArrayType             : 'andarray',
-                MapType	              : 'json',
-                StructType	          : 'NOPE',
-                StructField           : 'NOPE'
+            ByteType: 'bytes',
+            ShortType: 'uint64',
+            IntegerType: 'int',
+            LongType: 'int64',
+            FloatType: 'float32',
+            DoubleType: 'float64',
+            DecimalType: 'float64',
+            StringType: 'str',
+            BinaryType: 'NOPE',
+            BooleanType: 'str',
+            TimestampType: 'NOPE',
+            TimestampNTZType: 'NOPE',
+            DateType: 'NOPE',
+            DayTimeIntervalType: 'NOPE',
+            ArrayType: 'andarray',
+            MapType: 'json',
+            StructType: 'NOPE',
+            StructField: 'NOPE'
         }
         for k, v in dtype_mapping.items():
             if isinstance(spark_data_type, k) and v != 'NOPE':
