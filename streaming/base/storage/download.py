@@ -13,6 +13,12 @@ __all__ = ['download_or_wait']
 
 BOTOCORE_CLIENT_ERROR_CODES = {'403', '404', 'NoSuchKey'}
 
+GCS_ERROR_NO_AUTHENTICATION = """\
+Either set the environment variables `GCS_KEY` and `GCS_SECRET` or use any of the methods in \
+https://cloud.google.com/docs/authentication/external/set-up-adc to set up Application Default Credentials. See also \
+https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/gcp.html.
+"""
+
 
 def download_from_s3(remote: str, local: str, timeout: float) -> None:
     """Download a file from remote AWS S3 (or any S3 compatible object store) to local.
@@ -158,19 +164,19 @@ def download_from_gcs(remote: str, local: str) -> None:
         remote (str): Remote path (GCS).
         local (str): Local path (local filesystem).
     """
+    from google.auth.exceptions import DefaultCredentialsError
     obj = urllib.parse.urlparse(remote)
     if obj.scheme != 'gs':
         raise ValueError(
             f'Expected obj.scheme to be `gs`, instead, got {obj.scheme} for remote={remote}')
 
-    if 'GOOGLE_APPLICATION_CREDENTIALS' in os.environ:
-        _gcs_with_service_account(local, obj)
-    elif 'GCS_KEY' in os.environ and 'GCS_SECRET' in os.environ:
+    if 'GCS_KEY' in os.environ and 'GCS_SECRET' in os.environ:
         _gcs_with_hmac(remote, local, obj)
     else:
-        raise ValueError(f'Either GOOGLE_APPLICATION_CREDENTIALS needs to be set for ' +
-                         f'service level accounts or GCS_KEY and GCS_SECRET needs to be ' +
-                         f'set for HMAC authentication')
+        try:
+            _gcs_with_service_account(local, obj)
+        except (DefaultCredentialsError, EnvironmentError):
+            raise ValueError(GCS_ERROR_NO_AUTHENTICATION)
 
 
 def _gcs_with_hmac(remote: str, local: str, obj: urllib.parse.ParseResult) -> None:
@@ -215,11 +221,11 @@ def _gcs_with_service_account(local: str, obj: urllib.parse.ParseResult) -> None
         local (str): Local path (local filesystem).
         obj (ParseResult): ParseResult object of remote path (GCS).
     """
+    from google.auth import default as default_auth
     from google.cloud.storage import Blob, Bucket, Client
 
-    service_account_path = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
-    gcs_client = Client.from_service_account_json(service_account_path)
-
+    credentials, _ = default_auth()
+    gcs_client = Client(credentials=credentials)
     blob = Blob(obj.path.lstrip('/'), Bucket(gcs_client, obj.netloc))
     blob.download_to_filename(local)
 
