@@ -78,6 +78,7 @@ extra_deps['dev'] = [
     'pydantic==2.1.1',
     'uvicorn==0.23.2',
     'pytest-split==0.8.1',
+    'sortedcollections==2.1.0',
 ]
 
 extra_deps['docs'] = [
