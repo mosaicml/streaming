@@ -28,4 +28,7 @@ test:
 web:
 	uvicorn scripts.partition.web:app --port 1337 --reload
 
+simulation:
+	uvicorn scripts.simulation.simulation_web:app --port 2000 --reload
+
 .PHONY: test lint style
