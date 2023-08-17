@@ -14,7 +14,8 @@ from typing import Any, Tuple, Union
 
 import tqdm
 
-from streaming.base.storage.download import BOTOCORE_CLIENT_ERROR_CODES
+from streaming.base.storage.download import (BOTOCORE_CLIENT_ERROR_CODES,
+                                             GCS_ERROR_NO_AUTHENTICATION)
 
 __all__ = [
     'CloudUploader',
@@ -270,14 +271,7 @@ class GCSUploader(CloudUploader):
                  keep_local: bool = False,
                  progress_bar: bool = False) -> None:
         super().__init__(out, keep_local, progress_bar)
-
-        if 'GOOGLE_APPLICATION_CREDENTIALS' in os.environ:
-            from google.cloud.storage import Client
-
-            service_account_path = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
-            self.gcs_client = Client.from_service_account_json(service_account_path)
-            self.authentication = GCSAuthentication.SERVICE_ACCOUNT
-        elif 'GCS_KEY' in os.environ and 'GCS_SECRET' in os.environ:
+        if 'GCS_KEY' in os.environ and 'GCS_SECRET' in os.environ:
             import boto3
 
             # Create a session and use it to make our client. Unlike Resources and Sessions,
@@ -292,9 +286,15 @@ class GCSUploader(CloudUploader):
             )
             self.authentication = GCSAuthentication.HMAC
         else:
-            raise ValueError(f'Either GOOGLE_APPLICATION_CREDENTIALS needs to be set for ' +
-                             f'service level accounts or GCS_KEY and GCS_SECRET needs to ' +
-                             f'be set for HMAC authentication')
+            from google.auth import default as default_auth
+            from google.auth.exceptions import DefaultCredentialsError
+            from google.cloud.storage import Client
+            try:
+                credentials, _ = default_auth()
+                self.gcs_client = Client(credentials=credentials)
+                self.authentication = GCSAuthentication.SERVICE_ACCOUNT
+            except (DefaultCredentialsError, EnvironmentError):
+                raise ValueError(GCS_ERROR_NO_AUTHENTICATION)
 
         self.check_bucket_exists(self.remote)  # pyright: ignore
 
