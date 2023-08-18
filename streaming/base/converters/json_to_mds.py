@@ -8,7 +8,7 @@ from typing import Any, Callable, Dict, Optional
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType
 
-from streaming.base.converters.dataframeToMDS import dataframeToMDS
+from streaming.base.converters.dataframe_to_mds import dataframeToMDS
 
 
 def jsonToMDS(input_path: str,
@@ -30,9 +30,6 @@ def jsonToMDS(input_path: str,
         udf_iterable (Callable or None): A user-defined function that returns an iterable over the dataframe. ppfn_kwargs is the k-v args for the method. Default is None.
         udf_kwargs (Dict): Additional keyword arguments to pass to the pandas processing
             function if provided. Default is an empty dictionary.
-
-    Returns:
-        None
     """
     spark = SparkSession.builder.getOrCreate()  # pyright: ignore
 

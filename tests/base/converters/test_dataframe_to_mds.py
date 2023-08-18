@@ -56,7 +56,7 @@ class TestDataFrameToMDS:
                 ]))
         ])
 
-        df = spark.createDataFrame(data=data, schema=schema).repartition(2)
+        df = spark.createDataFrame(data=data, schema=schema).repartition(3)
         yield df
 
     @pytest.mark.parametrize('keep_local', [True, False])
@@ -73,12 +73,12 @@ class TestDataFrameToMDS:
         }
 
         with pytest.raises(ValueError):
-            _ = dataframeToMDS(dataframe.select(col('id'), col('dept'), col('properties')),
+            _, _ = dataframeToMDS(dataframe.select(col('id'), col('dept'), col('properties')),
                                merge_index=merge_index,
                                sample_ratio=-1.0,
                                mds_kwargs=mds_kwargs)
 
-        _ = dataframeToMDS(dataframe.select(col('id'), col('dept')),
+        _, _ = dataframeToMDS(dataframe.select(col('id'), col('dept')),
                            merge_index=merge_index,
                            sample_ratio=-1.0,
                            mds_kwargs=mds_kwargs)
@@ -121,7 +121,7 @@ class TestDataFrameToMDS:
             'size_limit': 1 << 26
         }
 
-        _ = dataframeToMDS(dataframe,
+        _, _ = dataframeToMDS(dataframe,
                            merge_index=merge_index,
                            sample_ratio=-1.0,
                            mds_kwargs=mds_kwargs)
@@ -172,11 +172,12 @@ class TestDataFrameToMDS:
             'size_limit': 1 << 26
         }
 
-        mds_path = dataframeToMDS(dataframe,
-                                  merge_index=merge_index,
-                                  sample_ratio=-1.0,
-                                  mds_kwargs=mds_kwargs)
+        mds_path, fail_count = dataframeToMDS(dataframe,
+                                              merge_index=merge_index,
+                                              sample_ratio=-1.0,
+                                              mds_kwargs=mds_kwargs)
 
+        assert(fail_count == 0), "some records were not converted correctly"
         assert out == mds_path, f'returned mds_path: {mds_path} is not the same as out: {out}'
 
         if keep_local == False:
@@ -207,13 +208,17 @@ class TestDataFrameToMDS:
         # bucket_name = 'mosaicml-composer-tests'
         mds_kwargs = {
             'out': out,
+            'columns': {
+                'id': 'str',
+                'dept': 'str'
+            },
             'keep_local': keep_local,
             'compression': 'zstd:7',
             'hashes': ['sha1', 'xxh64'],
             'size_limit': 1 << 26
         }
 
-        mds_path = dataframeToMDS(dataframe,
+        mds_path, _ = dataframeToMDS(dataframe,
                                   merge_index=merge_index,
                                   sample_ratio=-1.0,
                                   mds_kwargs=mds_kwargs)
@@ -251,7 +256,7 @@ class TestDataFrameToMDS:
             },
         }
 
-        mds_path = dataframeToMDS(dataframe,
+        mds_path, _ = dataframeToMDS(dataframe,
                                   merge_index=True,
                                   sample_ratio=-1.0,
                                   mds_kwargs=mds_kwargs)

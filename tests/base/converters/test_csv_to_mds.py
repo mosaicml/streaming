@@ -9,6 +9,7 @@ from pyspark.sql.functions import col
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 
 from streaming.base.converters import csvToMDS
+from streaming.base.format.index import get_index_basename
 
 
 class TestCSVToMDS:
@@ -58,9 +59,9 @@ class TestCSVToMDS:
                  sample_ratio=-1.0,
                  mds_kwargs=mds_kwargs)
 
-        assert (os.path.exists(os.path.join(out, 'index.json'))), 'No merged index found'
+        assert (os.path.exists(os.path.join(out, get_index_basename()))), 'No merged index found'
         assert (len(os.listdir(out)) > 0), f'{out} is empty'
         for d in os.listdir(out):
             if os.path.isdir(os.path.join(out, d)):
                 assert (os.path.exists(os.path.join(
-                    out, d, 'index.json'))), f'No index.json found in subdirectory {d}'
+                    out, d, get_index_basename()))), f'No {get_index_basename()} found in subdirectory {d}'

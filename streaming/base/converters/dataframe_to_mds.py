@@ -1,13 +1,14 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""A utility to convert databricks' tables to MDS."""
+"""A utility to convert spark dataframe to MDS."""
 
 import json
 import logging
 import os
 import shutil
-from argparse import ArgumentParser
+import collections
+from argparse import ArgumentParser, Namespace
 from collections.abc import Iterable
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union
 
@@ -23,33 +24,9 @@ from pyspark.sql.types import (ArrayType, BinaryType, BooleanType, ByteType, Dat
 from streaming import MDSWriter
 from streaming.base.format.mds.encodings import _encodings
 from streaming.base.storage.upload import CloudUploader
+from streaming.base.format.index import get_index_basename
 
 logger = logging.getLogger(__name__)
-
-default_mds_kwargs = {
-    'compression': 'zstd:7',
-    'hashes': ['sha1', 'xxh64'],
-    'size_limit': 1 << 27,
-    'progress_bar': 1,
-    'columns': {
-        'tokens': 'bytes'
-    },
-    'keep_local': False
-}
-
-default_udf_kwargs = {
-    'concat_tokens': 2048,
-    'tokenizer': 'EleutherAI/gpt-neox-20b',
-    'eos_text': '<|endoftext|>',
-    'compression': 'zstd',
-    'split': 'train',
-    'no_wrap': False,
-    'bos_text': '',
-    'key': 'content',
-}
-
-MDS_META = 'index.json'
-
 
 def is_iterable(obj: Any) -> bool:
     """Check if obj is iterable."""
@@ -67,21 +44,21 @@ def infer_dataframe_schema(dataframe: DataFrame) -> Dict:
             LongType: 'int64',
             FloatType: 'float32',
             DoubleType: 'float64',
-            DecimalType: 'float64',
+            DecimalType: None,
             StringType: 'str',
-            BinaryType: 'NOPE',
-            BooleanType: 'str',
-            TimestampType: 'NOPE',
-            TimestampNTZType: 'NOPE',
-            DateType: 'NOPE',
-            DayTimeIntervalType: 'NOPE',
-            ArrayType: 'andarray',
-            MapType: 'json',
-            StructType: 'NOPE',
-            StructField: 'NOPE'
+            BinaryType: None,
+            BooleanType: None,
+            TimestampType: None,
+            TimestampNTZType: None,
+            DateType: None,
+            DayTimeIntervalType: None,
+            ArrayType: None,
+            MapType: None,
+            StructType: None,
+            StructField: None
         }
         for k, v in dtype_mapping.items():
-            if isinstance(spark_data_type, k) and v != 'NOPE':
+            if isinstance(spark_data_type, k) and v is not None:
                 return v
         raise ValueError(f'{spark_data_type} is not supported by MDSwrite')
 
@@ -114,7 +91,7 @@ def do_merge_index(partitions: Iterable,
     shards = []
 
     for row in partitions:
-        mds_partition_index = f'{row.mds_path}/{MDS_META}'
+        mds_partition_index = f'{row.mds_path}/{get_index_basename()}'
         mds_partition_basename = os.path.basename(row.mds_path)
         obj = json.load(open(mds_partition_index))
         for i in range(len(obj['shards'])):
@@ -132,9 +109,9 @@ def do_merge_index(partitions: Iterable,
     }
 
     if isinstance(mds_path, str):
-        mds_index = os.path.join(mds_path, MDS_META)
+        mds_index = os.path.join(mds_path, get_index_basename())
     else:
-        mds_index = os.path.join(mds_path[0], MDS_META)
+        mds_index = os.path.join(mds_path[0], get_index_basename())
 
     with open(mds_index, 'w') as out:
         json.dump(obj, out)
@@ -143,9 +120,9 @@ def do_merge_index(partitions: Iterable,
 def dataframeToMDS(dataframe: DataFrame,
                    merge_index: bool = True,
                    sample_ratio: float = -1.0,
-                   mds_kwargs: Dict[str, Any] = {},
+                   mds_kwargs: Optional[Dict[str, Any]] = None,
                    udf_iterable: Optional[Callable] = None,
-                   udf_kwargs: Dict[str, Any] = {}):
+                   udf_kwargs: Optional[Dict[str, Any]] = None) -> Tuple[Any, int]:
     """Execute a spark dataframe to MDS conversion process.
 
     This method orchestrates the conversion of a spark dataframe into MDS format by
@@ -158,7 +135,7 @@ def dataframeToMDS(dataframe: DataFrame,
         sample_ratio (float): The fraction of data to randomly sample during conversion.
             Should be in the range (0, 1). Default is -1.0 (no sampling).
 
-        mds_kwargs: arguments for MDSwrite.
+        mds_kwargs (dict): arguments for MDSwrite.
         out (str | Tuple[str, str]): Output dataset directory to save shard files.
             1. If ``out`` is a local directory, shard files are saved locally.
             2. If ``out`` is a remote directory, a local temporary directory is created to
@@ -181,9 +158,9 @@ def dataframeToMDS(dataframe: DataFrame,
         udf_kwargs (Dict): Additional keyword arguments to pass to the pandas processing
             function if provided. Default is an empty dictionary.
 
-    Returns:
-        None
-
+    Return:
+        mds_path: actual local and remote path were used
+        fail_count: number of records failed to be converted
     Raises:
         ValueError: If dataframe is not provided
 
@@ -209,26 +186,43 @@ def dataframeToMDS(dataframe: DataFrame,
             output = (os.path.join(mds_path[0], f'{id}'), os.path.join(mds_path[1], f'{id}'))
             out_file_path = output[0]
 
-        kwargs = mds_kwargs.copy()
-        kwargs['out'] = output
+        if mds_kwargs:
+            kwargs = mds_kwargs.copy()
+            kwargs['out'] = output
+        else:
+            kwargs = {}
+
         if merge_index:
             kwargs['keep_local'] = True  # need to keep local to do merge
+
+        count = 0
 
         with MDSWriter(**kwargs) as mds_writer:
             for pdf in iterator:
                 if udf_iterable is not None:
-                    d = udf_iterable(pdf, **udf_kwargs or {})
+                    records = udf_iterable(pdf, **udf_kwargs or {})
                 else:
-                    d = pdf.to_dict('records')
+                    records = pdf.to_dict('records')
                 assert is_iterable(
-                    d), f'pandas_processing_fn needs to return an iterable instead of a {type(d)}'
+                    records), f'pandas_processing_fn needs to return an iterable instead of a {type(records)}'
 
-                for sample in d:
-                    mds_writer.write(sample)
-        yield pd.DataFrame(pd.Series([out_file_path], name='mds_path'))
+                for sample in records:
+                    try:
+                        mds_writer.write(sample)
+                    except:
+                        logger.debug(f'failed to write sample: {sample}')
+                        count += 1
+
+        yield pd.concat([pd.Series([out_file_path], name='mds_path'), pd.Series([count], name='fail_count')], axis=1)
 
     if dataframe is None or dataframe.count() == 0:
         raise ValueError(f'input dataframe is none or empty!')
+
+    if not mds_kwargs:
+        mds_kwargs = collections.defaultdict(str)
+
+    if not udf_kwargs:
+        udf_kwargs = collections.defaultdict(str)
 
     if 'out' not in mds_kwargs:
         raise ValueError(f'out and columns need to be specified in mds_kwargs')
@@ -258,26 +252,34 @@ def dataframeToMDS(dataframe: DataFrame,
         mds_path = (cu.local, cu.remote)
 
     # Prepare partition schema
-    result_schema = StructType([StructField('mds_path', StringType(), False)])
+    result_schema = StructType([StructField('mds_path', StringType(), False), StructField('fail_count', IntegerType(), False)])
     partitions = dataframe.mapInPandas(func=write_mds, schema=result_schema).collect()
 
     do_merge_index(partitions, mds_path, skip=not merge_index)
 
     if cu.remote is not None:
         if merge_index == True:
-            cu.upload_file(MDS_META)
+            cu.upload_file(get_index_basename())
         if 'keep_local' in mds_kwargs and mds_kwargs['keep_local'] == False:
             shutil.rmtree(cu.local, ignore_errors=True)
 
-    return mds_path
+    summ_fail_count = 0
+    for row in partitions:
+        summ_fail_count += row['fail_count']
+
+    if summ_fail_count > 0:
+        logger.warning(f'Total failed records = {summ_fail_count}\nOverall records {dataframe.count()}')
+    return mds_path, summ_fail_count
 
 
 if __name__ == '__main__':
 
     spark = SparkSession.builder.getOrCreate()  # pyright: ignore
 
-    def parse_args():
-        """Parse commandline arguments."""
+    def parse_args() -> Namespace:
+        """
+        Parse commandline arguments.
+        """
         parser = ArgumentParser(
             description=
             'Convert dataset into MDS format. Running from command line does not support optionally processing functions!'
