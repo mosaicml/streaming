@@ -4,7 +4,7 @@
 import json
 import os
 from tempfile import mkdtemp
-from typing import Any, Tuple
+from typing import Any, Dict, Tuple
 
 import pytest
 from pyspark.sql import SparkSession
@@ -74,14 +74,14 @@ class TestDataFrameToMDS:
 
         with pytest.raises(ValueError):
             _, _ = dataframeToMDS(dataframe.select(col('id'), col('dept'), col('properties')),
-                               merge_index=merge_index,
-                               sample_ratio=-1.0,
-                               mds_kwargs=mds_kwargs)
+                                  merge_index=merge_index,
+                                  sample_ratio=-1.0,
+                                  mds_kwargs=mds_kwargs)
 
         _, _ = dataframeToMDS(dataframe.select(col('id'), col('dept')),
-                           merge_index=merge_index,
-                           sample_ratio=-1.0,
-                           mds_kwargs=mds_kwargs)
+                              merge_index=merge_index,
+                              sample_ratio=-1.0,
+                              mds_kwargs=mds_kwargs)
 
         assert (len(os.listdir(out)) > 0), f'{out} is empty'
         for d in os.listdir(out):
@@ -104,6 +104,29 @@ class TestDataFrameToMDS:
             assert not (os.path.exists(os.path.join(
                 out, 'index.json'))), 'merged index is created when merge_index=False'
 
+    @pytest.mark.parametrize('user_defined_columns', [{
+        'idd': 'str',
+        'dept': 'str'
+    }, {
+        'id': 'strr',
+        'dept': 'str'
+    }])
+    def test_user_defined_columns(self, dataframe: Any, user_defined_columns: Dict):
+        out = mkdtemp()
+        mds_kwargs = {
+            'out': out,
+            'columns': user_defined_columns,
+            'keep_local': True,
+            'compression': 'zstd:7',
+            'hashes': ['sha1', 'xxh64'],
+            'size_limit': 1 << 26
+        }
+        with pytest.raises(ValueError):
+            _, _ = dataframeToMDS(dataframe,
+                                  merge_index=False,
+                                  sample_ratio=-1.0,
+                                  mds_kwargs=mds_kwargs)
+
     @pytest.mark.parametrize('keep_local', [True, False])
     @pytest.mark.parametrize('merge_index', [True, False])
     def test_end_to_end_conversion_local(self, dataframe: Any, keep_local: bool,
@@ -122,9 +145,9 @@ class TestDataFrameToMDS:
         }
 
         _, _ = dataframeToMDS(dataframe,
-                           merge_index=merge_index,
-                           sample_ratio=-1.0,
-                           mds_kwargs=mds_kwargs)
+                              merge_index=merge_index,
+                              sample_ratio=-1.0,
+                              mds_kwargs=mds_kwargs)
 
         assert (len(os.listdir(out)) > 0), f'{out} is empty'
         for d in os.listdir(out):
@@ -177,7 +200,7 @@ class TestDataFrameToMDS:
                                               sample_ratio=-1.0,
                                               mds_kwargs=mds_kwargs)
 
-        assert(fail_count == 0), "some records were not converted correctly"
+        assert (fail_count == 0), 'some records were not converted correctly'
         assert out == mds_path, f'returned mds_path: {mds_path} is not the same as out: {out}'
 
         if keep_local == False:
@@ -219,9 +242,9 @@ class TestDataFrameToMDS:
         }
 
         mds_path, _ = dataframeToMDS(dataframe,
-                                  merge_index=merge_index,
-                                  sample_ratio=-1.0,
-                                  mds_kwargs=mds_kwargs)
+                                     merge_index=merge_index,
+                                     sample_ratio=-1.0,
+                                     mds_kwargs=mds_kwargs)
 
         assert out == mds_path, f'returned mds_path: {mds_path} is not the same as out: {out}'
 
@@ -257,9 +280,9 @@ class TestDataFrameToMDS:
         }
 
         mds_path, _ = dataframeToMDS(dataframe,
-                                  merge_index=True,
-                                  sample_ratio=-1.0,
-                                  mds_kwargs=mds_kwargs)
+                                     merge_index=True,
+                                     sample_ratio=-1.0,
+                                     mds_kwargs=mds_kwargs)
 
         assert len(mds_path) == 2, 'returned mds is a str but should be a tuple (local, remote)'
         assert not (os.path.exists(os.path.join(

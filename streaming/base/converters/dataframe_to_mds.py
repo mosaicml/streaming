@@ -3,11 +3,11 @@
 
 """A utility to convert spark dataframe to MDS."""
 
+import collections
 import json
 import logging
 import os
 import shutil
-import collections
 from argparse import ArgumentParser, Namespace
 from collections.abc import Iterable
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union
@@ -22,45 +22,56 @@ from pyspark.sql.types import (ArrayType, BinaryType, BooleanType, ByteType, Dat
                                StructType, TimestampNTZType, TimestampType)
 
 from streaming import MDSWriter
+from streaming.base.format.index import get_index_basename
 from streaming.base.format.mds.encodings import _encodings
 from streaming.base.storage.upload import CloudUploader
-from streaming.base.format.index import get_index_basename
 
 logger = logging.getLogger(__name__)
+
 
 def is_iterable(obj: Any) -> bool:
     """Check if obj is iterable."""
     return issubclass(type(obj), Iterable)
 
 
-def infer_dataframe_schema(dataframe: DataFrame) -> Dict:
+def infer_dataframe_schema(dataframe: DataFrame,
+                           user_defined_cols: Optional[Dict[str, Any]] = None) -> Optional[Dict]:
     """Takes a pyspark dataframe and retrives the schema information, constructing a dictionary."""
+    dtype_mapping = {
+        ByteType: 'bytes',
+        ShortType: 'uint64',
+        IntegerType: 'int',
+        LongType: 'int64',
+        FloatType: 'float32',
+        DoubleType: 'float64',
+        DecimalType: None,
+        StringType: 'str',
+        BinaryType: None,
+        BooleanType: None,
+        TimestampType: None,
+        TimestampNTZType: None,
+        DateType: None,
+        DayTimeIntervalType: None,
+        ArrayType: None,
+        MapType: None,
+        StructType: None,
+        StructField: None
+    }
 
     def map_spark_dtype(spark_data_type: Any):
-        dtype_mapping = {
-            ByteType: 'bytes',
-            ShortType: 'uint64',
-            IntegerType: 'int',
-            LongType: 'int64',
-            FloatType: 'float32',
-            DoubleType: 'float64',
-            DecimalType: None,
-            StringType: 'str',
-            BinaryType: None,
-            BooleanType: None,
-            TimestampType: None,
-            TimestampNTZType: None,
-            DateType: None,
-            DayTimeIntervalType: None,
-            ArrayType: None,
-            MapType: None,
-            StructType: None,
-            StructField: None
-        }
         for k, v in dtype_mapping.items():
             if isinstance(spark_data_type, k) and v is not None:
                 return v
         raise ValueError(f'{spark_data_type} is not supported by MDSwrite')
+
+    if user_defined_cols is not None:  # user has provided schema, we just check if mds supports the dtype
+        mds_supported_dtypes = list(dtype_mapping.values())
+        for k, v in user_defined_cols.items():
+            if k not in dataframe.columns:
+                raise ValueError(f'{k} is not a column of input dataframe')
+            if v not in mds_supported_dtypes:
+                raise ValueError(f'{v} is not supported by MDSwrite')
+        return None
 
     schema = dataframe.schema
     schema_dict = {}
@@ -204,7 +215,8 @@ def dataframeToMDS(dataframe: DataFrame,
                 else:
                     records = pdf.to_dict('records')
                 assert is_iterable(
-                    records), f'pandas_processing_fn needs to return an iterable instead of a {type(records)}'
+                    records
+                ), f'pandas_processing_fn needs to return an iterable instead of a {type(records)}'
 
                 for sample in records:
                     try:
@@ -213,7 +225,10 @@ def dataframeToMDS(dataframe: DataFrame,
                         logger.debug(f'failed to write sample: {sample}')
                         count += 1
 
-        yield pd.concat([pd.Series([out_file_path], name='mds_path'), pd.Series([count], name='fail_count')], axis=1)
+        yield pd.concat(
+            [pd.Series([out_file_path], name='mds_path'),
+             pd.Series([count], name='fail_count')],
+            axis=1)
 
     if dataframe is None or dataframe.count() == 0:
         raise ValueError(f'input dataframe is none or empty!')
@@ -232,6 +247,8 @@ def dataframeToMDS(dataframe: DataFrame,
             "User's discretion required: columns arg is missing from mds_kwargs. Will be auto inferred"
         )
         mds_kwargs['columns'] = infer_dataframe_schema(dataframe)
+    else:
+        infer_dataframe_schema(dataframe, mds_kwargs['columns'])
 
     if 0 < sample_ratio < 1:
         dataframe = dataframe.sample(sample_ratio)
@@ -252,7 +269,10 @@ def dataframeToMDS(dataframe: DataFrame,
         mds_path = (cu.local, cu.remote)
 
     # Prepare partition schema
-    result_schema = StructType([StructField('mds_path', StringType(), False), StructField('fail_count', IntegerType(), False)])
+    result_schema = StructType([
+        StructField('mds_path', StringType(), False),
+        StructField('fail_count', IntegerType(), False)
+    ])
     partitions = dataframe.mapInPandas(func=write_mds, schema=result_schema).collect()
 
     do_merge_index(partitions, mds_path, skip=not merge_index)
@@ -268,7 +288,8 @@ def dataframeToMDS(dataframe: DataFrame,
         summ_fail_count += row['fail_count']
 
     if summ_fail_count > 0:
-        logger.warning(f'Total failed records = {summ_fail_count}\nOverall records {dataframe.count()}')
+        logger.warning(
+            f'Total failed records = {summ_fail_count}\nOverall records {dataframe.count()}')
     return mds_path, summ_fail_count
 
 
@@ -277,9 +298,7 @@ if __name__ == '__main__':
     spark = SparkSession.builder.getOrCreate()  # pyright: ignore
 
     def parse_args() -> Namespace:
-        """
-        Parse commandline arguments.
-        """
+        """Parse commandline arguments."""
         parser = ArgumentParser(
             description=
             'Convert dataset into MDS format. Running from command line does not support optionally processing functions!'

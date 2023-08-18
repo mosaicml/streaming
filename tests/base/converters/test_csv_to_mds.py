@@ -64,4 +64,5 @@ class TestCSVToMDS:
         for d in os.listdir(out):
             if os.path.isdir(os.path.join(out, d)):
                 assert (os.path.exists(os.path.join(
-                    out, d, get_index_basename()))), f'No {get_index_basename()} found in subdirectory {d}'
+                    out, d,
+                    get_index_basename()))), f'No {get_index_basename()} found in subdirectory {d}'
