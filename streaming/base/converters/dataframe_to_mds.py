@@ -222,7 +222,7 @@ def dataframeToMDS(dataframe: DataFrame,
                     try:
                         mds_writer.write(sample)
                     except:
-                        logger.debug(f'failed to write sample: {sample}')
+                        logger.warning(f'failed to write sample: {sample}')
                         count += 1
 
         yield pd.concat(
