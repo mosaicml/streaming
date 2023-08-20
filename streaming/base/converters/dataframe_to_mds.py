@@ -224,6 +224,7 @@ def dataframeToMDS(dataframe: DataFrame,
                     except:
                         logger.warning(f'failed to write sample: {sample}')
                         count += 1
+                        raise Exception(f'failed to write sample: {sample}')
 
         yield pd.concat(
             [pd.Series([out_file_path], name='mds_path'),
