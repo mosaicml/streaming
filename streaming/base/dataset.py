@@ -27,6 +27,7 @@ from streaming.base.constant import (BARRIER, BARRIER_FILELOCK, CACHE_FILELOCK, 
 from streaming.base.distributed import maybe_init_dist
 from streaming.base.format import get_index_basename
 from streaming.base.partition import get_partitions
+from streaming.base.sampling import get_shard_sampling
 from streaming.base.shared import (SharedArray, SharedBarrier, SharedMemory, SharedScalar,
                                    _get_path, get_shm_prefix)
 from streaming.base.shuffle import get_shuffle
@@ -202,6 +203,7 @@ class StreamingDataset(Array, IterableDataset):
       * Sampling:
 
         * ``sampling_method``
+        * ``sampling_diversity``
 
 
     Args:
@@ -263,6 +265,10 @@ class StreamingDataset(Array, IterableDataset):
         shuffle_block_size (int): Unit of shuffle. Defaults to ``1 << 18``.
         sampling_method (str): Which sampling method to use, either ``balanced`` or ``fixed``.
             Defaults to ``balanced``.
+        sampling_diversity (int): When picking samples for a stream's final partial repeat, how
+            many parts to break each shard into for sampling: from ``1`` (exhaust one shard at a
+            time; best downloading) to very many (evenly balanced sampling across all shards of the
+            same stream; best diversity). Defaults to ``3``.
     """
 
     def __init__(self,
@@ -285,7 +291,8 @@ class StreamingDataset(Array, IterableDataset):
                  shuffle_algo: str = 'py1s',
                  shuffle_seed: int = 9176,
                  shuffle_block_size: int = 1 << 18,
-                 sampling_method: str = 'balanced') -> None:
+                 sampling_method: str = 'balanced',
+                 sampling_diversity: int = 3) -> None:
         # Global arguments (which do not live in Streams).
         self.predownload = predownload
         self.cache_limit = cache_limit
@@ -297,6 +304,7 @@ class StreamingDataset(Array, IterableDataset):
         self.shuffle_seed = shuffle_seed
         self.shuffle_block_size = shuffle_block_size
         self.sampling_method = sampling_method.lower().strip()
+        self.sampling_diversity = sampling_diversity
 
         # Check streams vs remote/local.
         if bool(streams) == (bool(remote) or bool(local)):
@@ -703,17 +711,10 @@ class StreamingDataset(Array, IterableDataset):
 
             # Calculate choose per stream shard.
             samples_per_stream_shard = self.samples_per_shard[stream_shard_ids]
-            stream_samples = sum(samples_per_stream_shard)
             # the number of items to choose from each stream (calculated during dataset initialization)
             stream_choose = self.streams[stream_id].choose
-            if stream_choose == stream_samples:
-                choose_per_stream_shard = samples_per_stream_shard
-            else:
-                choose_per_stream_shard = \
-                    samples_per_stream_shard * stream_choose // stream_samples
-                shortfall = stream_choose - choose_per_stream_shard.sum()
-                indices = rng.choice(num_stream_shards, shortfall, False)
-                choose_per_stream_shard[indices] += 1
+            choose_per_stream_shard = get_shard_sampling(samples_per_stream_shard, stream_choose,
+                                                         self.sampling_diversity)
 
             # Iterate over each shard of this stream.
             for shard_id, shard_samples, shard_choose in zip(stream_shard_ids,
