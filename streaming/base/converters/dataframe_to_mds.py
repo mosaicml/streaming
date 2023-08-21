@@ -73,16 +73,16 @@ def infer_dataframe_schema(dataframe: DataFrame,
     def map_spark_dtype(spark_data_type: Any):
         for sparkDtype, mdsDtype in dtype_mapping.items():
             if isinstance(spark_data_type, sparkDtype) and mdsDtype is not None:
-                return v
+                return mdsDtype
         raise ValueError(f'{spark_data_type} is not supported by MDSwriter')
 
     if user_defined_cols is not None:  # user has provided schema, we just check if mds supports the dtype
         mds_supported_dtypes = list(dtype_mapping.values())
         for col_name, mdsDtype in user_defined_cols.items():
-            if k not in dataframe.columns:
-                raise ValueError(f'{k} is not a column of input dataframe: {dataframe.columns}')
-            if v not in mds_supported_dtypes:
-                raise ValueError(f'{v} is not supported by MDSwriter')
+            if col_name not in dataframe.columns:
+                raise ValueError(f'{col_name} is not a column of input dataframe: {dataframe.columns}')
+            if mdsDtype not in mds_supported_dtypes:
+                raise ValueError(f'{mdsDtype} is not supported by MDSwriter')
         return None
 
     schema = dataframe.schema
