@@ -36,7 +36,19 @@ def is_iterable(obj: Any) -> bool:
 
 def infer_dataframe_schema(dataframe: DataFrame,
                            user_defined_cols: Optional[Dict[str, Any]] = None) -> Optional[Dict]:
-    """Takes a pyspark dataframe and retrives the schema information, constructing a dictionary."""
+    """
+    If user_defined_cols is none, retrieve schema from dataframe to construct a dictionary that can be used as MDSWriter columns arguments.
+    Else, sanity check user_defined_cols to make sure all types are supported by MDSWriter
+
+    Args:
+        dataframe (spark dataframe): dataframe to inspect schema
+        user_defined_cols (dict): user specified schema for MDSWriter
+    Return:
+        If user_defined_cols is None, return schema_dict (dict): column name and dtypes that supported by MDSWriter
+        Else, return None
+    Exceptions:
+        Any of the datatype found to be unsupported by MDSWriter, then raise ValueError
+    """
     dtype_mapping = {
         ByteType: 'bytes',
         ShortType: 'uint64',
@@ -59,18 +71,18 @@ def infer_dataframe_schema(dataframe: DataFrame,
     }
 
     def map_spark_dtype(spark_data_type: Any):
-        for k, v in dtype_mapping.items():
-            if isinstance(spark_data_type, k) and v is not None:
+        for sparkDtype, mdsDtype in dtype_mapping.items():
+            if isinstance(spark_data_type, sparkDtype) and mdsDtype is not None:
                 return v
-        raise ValueError(f'{spark_data_type} is not supported by MDSwrite')
+        raise ValueError(f'{spark_data_type} is not supported by MDSwriter')
 
     if user_defined_cols is not None:  # user has provided schema, we just check if mds supports the dtype
         mds_supported_dtypes = list(dtype_mapping.values())
-        for k, v in user_defined_cols.items():
+        for col_name, mdsDtype in user_defined_cols.items():
             if k not in dataframe.columns:
-                raise ValueError(f'{k} is not a column of input dataframe')
+                raise ValueError(f'{k} is not a column of input dataframe: {dataframe.columns}')
             if v not in mds_supported_dtypes:
-                raise ValueError(f'{v} is not supported by MDSwrite')
+                raise ValueError(f'{v} is not supported by MDSwriter')
         return None
 
     schema = dataframe.schema
@@ -142,46 +154,24 @@ def dataframeToMDS(dataframe: DataFrame,
 
     Args:
         dataframe (pyspark.sql.DataFrame or None): A DataFrame containing Delta Lake data.
-        merge_index (bool): Whether to merge MDS index files. Default is True.
+        merge_index (bool): Whether to merge MDS index files. Default to True.
         sample_ratio (float): The fraction of data to randomly sample during conversion.
-            Should be in the range (0, 1). Default is -1.0 (no sampling).
-
-        mds_kwargs (dict): arguments for MDSwrite.
-        out (str | Tuple[str, str]): Output dataset directory to save shard files.
-            1. If ``out`` is a local directory, shard files are saved locally.
-            2. If ``out`` is a remote directory, a local temporary directory is created to
-               cache the shard files and then the shard files are uploaded to a remote
-               location. At the end, the temp directory is deleted once shards are uploaded.
-            3. If ``out`` is a tuple of ``(local_dir, remote_dir)``, shard files are saved in the
-               `local_dir` and also uploaded to a remote location.
-        columns (Dict[str, str]): Sample columns. If not specified, use all cols and inferred dtype from dataframe.
-        keep_local (bool): If the dataset is uploaded, whether to keep the local dataset directory
-            or remove it after uploading. Defaults to ``False``.
-        compression (str, optional): Optional compression or compression:level. Defaults to
-            ``None``.
-        hashes (List[str], optional): Optional list of hash algorithms to apply to shard files.
-            Defaults to ``None``.
-        size_limit (Union[int, str], optional): Optional shard size limit, after which point to start a new
-            shard. If ``None``, puts everything in one shard. Can specify bytes
-            human-readable format as well, for example ``"100kb"`` for 100 kilobyte
-            (100*1024) and so on. Defaults to ``1 << 26``
-        udf_iterable (Callable or None): A user-defined function that returns an iterable over the dataframe. ppfn_kwargs is the k-v args for the method. Default is None.
+            Should be in the range (0, 1). Default to -1.0 (no sampling).
+        mds_kwargs (dict): Refer to https://docs.mosaicml.com/projects/streaming/en/stable/api_reference/generated/streaming.MDSWriter.html
+        udf_iterable (Callable or None): A user-defined function that returns an iterable over the dataframe. udf_kwargs is the k-v args for the method. Default to None.
         udf_kwargs (Dict): Additional keyword arguments to pass to the pandas processing
-            function if provided. Default is an empty dictionary.
+            function if provided. Default to an empty dictionary.
 
     Return:
-        mds_path: actual local and remote path were used
-        fail_count: number of records failed to be converted
-    Raises:
-        ValueError: If dataframe is not provided
+        mds_path (str or (str,str)): actual local and remote path were used
+        fail_count (int): number of records failed to be converted
 
     Note:
         - The method creates a SparkSession if not already available.
         - If 'sample_ratio' is provided, the input data will be randomly sampled.
-        - The 'ppfn_kwargs' dictionaries can be used to pass additional
+        - The 'udf_kwargs' dictionaries can be used to pass additional
           keyword arguments to the udf_iterable.
     """
-
     def write_mds(iterator: Iterable):
 
         context = TaskContext.get()
@@ -224,7 +214,6 @@ def dataframeToMDS(dataframe: DataFrame,
                     except:
                         logger.warning(f'failed to write sample: {sample}')
                         count += 1
-                        raise Exception(f'failed to write sample: {sample}')
 
         yield pd.concat(
             [pd.Series([out_file_path], name='mds_path'),
@@ -235,10 +224,10 @@ def dataframeToMDS(dataframe: DataFrame,
         raise ValueError(f'input dataframe is none or empty!')
 
     if not mds_kwargs:
-        mds_kwargs = collections.defaultdict(str)
+        mds_kwargs = {}
 
     if not udf_kwargs:
-        udf_kwargs = collections.defaultdict(str)
+        udf_kwargs = {}
 
     if 'out' not in mds_kwargs:
         raise ValueError(f'out and columns need to be specified in mds_kwargs')
@@ -257,11 +246,6 @@ def dataframeToMDS(dataframe: DataFrame,
     out = mds_kwargs['out']
     keep_local = False if 'keep_local' not in mds_kwargs else mds_kwargs['keep_local']
     cu = CloudUploader.get(out, keep_local=keep_local)
-    if os.path.exists(cu.local) and len(os.listdir(cu.local)) != 0:
-        raise ValueError(
-            'Looks like {out} is local folder and it is not empty. MDSwriter needs an empty local folder to proceed.'
-        )
-        return
 
     # Fix output format as mds_path: Tuple => remote Str => local only
     if cu.remote is None:
