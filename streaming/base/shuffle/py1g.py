@@ -1,0 +1,125 @@
+# Copyright 2023 MosaicML Streaming authors
+# SPDX-License-Identifier: Apache-2.0
+
+"""Shuffling algorithm that shuffles intra-shard in one place.
+
+This algorithm is roughly twice as fast as algorithm ``py2s``, and ever so slightly biased.
+
+Bias in this case merely refers to how we assign samples when we split shards at canonical node
+boundaries, which is non-random in this algorithm. In practice, we found this does not matter to
+convergence, while making us faster.
+"""
+
+from typing import List, Tuple
+
+import numpy as np
+from numpy.typing import NDArray
+
+from streaming.base.shuffle.py1s import divide_spans
+
+
+def get_shuffle_py1g(shard_sizes: NDArray[np.int64],
+                     num_canonical_nodes: int,
+                     seed: int,
+                     epoch: int,
+                     block_size: int = 1 << 18) -> NDArray[np.int64]:
+    """Get the shuffled global ordering of samples for an epoch.
+
+    The assignment of shards to nodes is fixed across epochs, but each grouping of shards is
+    processed concurrently in a different order by each node's workers each epoch.
+
+    Args:
+        shard_sizes (NDArray[np.int64]): Number of samples contained in each shard, in order.
+        num_canonical_nodes (int): Number of canonical nodes.
+        seed (int): Base random seed, which is held constant over an entire training run.
+        epoch (int): Current epoch, which is added to the seed to get a different deterministic
+            shuffle each epoch.
+        block_size (int): Unit of shuffle, used to set the std and clip length for the gaussian
+            noise to be added to each shard. Defaults to ``1 << 18``.
+
+    Returns:
+        NDArray[np.int64]: 1:1 mapping of sample ID to shuffled sample ID.
+    """
+    # Create each shard's sample ID span (begin, end excl).
+    # also get max shard size to calculate the
+    spans = []
+    num_samples = 0
+    max_shard_size = 0
+    for shard_size in shard_sizes:
+        span = num_samples, num_samples + shard_size
+        spans.append(span)
+        num_samples += shard_size
+        if shard_size > max_shard_size:
+            max_shard_size = shard_size
+
+    # Generate the initial ordering of shards, which is fixed over an entire training run.
+    run_rng = np.random.default_rng(seed)
+    run_rng.shuffle(spans)
+
+    # Break the shard spans at canonical node boundaries.
+    # super_spans are the indices of spans that correspond to each canonical node
+    spans, super_spans = divide_spans(spans, num_samples, num_canonical_nodes)
+
+    # Shuffle the span ordering within each canonical node uniquely to this epoch.
+    epoch_rng = np.random.default_rng(seed + epoch)
+    for begin, end in super_spans:
+        # retrieving the spans (shard parts) associated with this canonical node
+        part = spans[begin:end]
+        epoch_rng.shuffle(part)  # pyright: ignore
+        spans[begin:end] = part
+
+    # Populate the global sample ID mapping, shuffling within each span.
+    ids = np.empty(num_samples, np.int64)
+    offset = 0
+    # iterate through each canonical node's spans because we don't want samples crossing canonical node boundaries
+    for cn_begin, cn_end in super_spans:
+        cn_spans = spans[cn_begin:cn_end]
+        cn_span_sizes = np.array([end - begin for begin, end in cn_spans])
+        num_cn_samples = cn_span_sizes.sum()
+        # the spans of a canonical node are shuffled, so they have sample ids that are 
+        # not contiguous. need to get the correct sample ids for the current canonical node
+        cn_samples = np.empty(num_cn_samples, np.int64)
+        samples_inserted = 0
+        for begin, end in cn_spans:
+            # insert span samples into cn_samples array
+            cn_span_samples = np.arange(begin, end)
+            epoch_rng.shuffle(cn_span_samples)
+            cn_samples[samples_inserted:samples_inserted + (end - begin)] = cn_span_samples
+
+        cn_sample_idxs = np.arange(num_cn_samples)
+
+        # iterate over each span and shift sample indices by gaussian noise
+        cn_sample_offset = 0
+        shifted_samples = cn_sample_idxs.copy().astype(np.float64)
+        for span_size in cn_span_sizes:
+
+            span_std = (block_size * span_size) / (max_shard_size * 3)
+            # ~0.3% of samples will be clipped and stay where they are
+            cutoff = 3*span_std
+
+            # sample shifts from gaussian
+            shifts = epoch_rng.normal(loc=0, scale=span_std, size=span_size)
+            # if shift is greater than cutoff (outlier), set shift to 0
+            shifts = shifts * (np.absolute(shifts) < cutoff)
+
+            # add shifts to shard samples
+            shifted_samples[cn_sample_offset:cn_sample_offset+span_size] += shifts
+
+            # update offset for next shard
+            cn_sample_offset += span_size
+        
+        # get incides that would sort the shifted_samples array
+        sort_indices = np.argsort(shifted_samples)
+
+        # apply the sorting to the canonical node sample indices
+        cn_sample_idxs = cn_sample_idxs[sort_indices]
+
+        # use the shuffled indices to get the shuffled sample ids for the canonical node
+        cn_samples = cn_samples[cn_sample_idxs]
+
+        # assign the gaussian "shuffled" samples to the global ids array
+        ids[offset:offset + num_cn_samples] = cn_samples
+
+        offset += num_cn_samples
+
+    return ids

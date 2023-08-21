@@ -10,14 +10,15 @@ from streaming.base.shuffle.naive import get_shuffle_naive
 from streaming.base.shuffle.py1b import get_shuffle_py1b
 from streaming.base.shuffle.py1s import get_shuffle_py1s
 from streaming.base.shuffle.py2s import get_shuffle_py2s
+from streaming.base.shuffle.py1g import get_shuffle_py1g
 
 algos = {
     'py1b': get_shuffle_py1b,
     'py1s': get_shuffle_py1s,
     'py2s': get_shuffle_py2s,
+    'py1g': get_shuffle_py1g,
     'naive': get_shuffle_naive,
 }
-
 
 def get_shuffle(algo: str,
                 shard_sizes: NDArray[np.int64],
