@@ -35,9 +35,7 @@ def is_iterable(obj: Any) -> bool:
 
 def infer_dataframe_schema(dataframe: DataFrame,
                            user_defined_cols: Optional[Dict[str, Any]] = None) -> Optional[Dict]:
-    """If user_defined_cols is none, retrieve schema from dataframe to construct a dictionary that
-    can be used as MDSWriter columns arguments. Else, sanity check user_defined_cols to make sure
-    all types are supported by MDSWriter.
+    """Retrieve schema to construct a dictionary or do sanity check for MDSWriter.
 
     Args:
         dataframe (spark dataframe): dataframe to inspect schema
@@ -154,11 +152,11 @@ def dataframeToMDS(dataframe: DataFrame,
 
     Args:
         dataframe (pyspark.sql.DataFrame or None): A DataFrame containing Delta Lake data.
-        merge_index (bool): Whether to merge MDS index files. Default to True.
+        merge_index (bool): Whether to merge MDS index files. Default to ``True``.
         sample_ratio (float): The fraction of data to randomly sample during conversion.
-            Should be in the range (0, 1). Default to -1.0 (no sampling).
+            Should be in the range (0, 1). Default to ``-1.0`` (no sampling).
         mds_kwargs (dict): Refer to https://docs.mosaicml.com/projects/streaming/en/stable/api_reference/generated/streaming.MDSWriter.html
-        udf_iterable (Callable or None): A user-defined function that returns an iterable over the dataframe. udf_kwargs is the k-v args for the method. Default to None.
+        udf_iterable (Callable or None): A user-defined function that returns an iterable over the dataframe. udf_kwargs is the k-v args for the method. Default to ``None``.
         udf_kwargs (Dict): Additional keyword arguments to pass to the pandas processing
             function if provided. Default to an empty dictionary.
 
