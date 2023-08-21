@@ -422,8 +422,8 @@ class TestMDSEncodings:
 
     def test_get_mds_encodings(self):
         uints = {'uint8', 'uint16', 'uint32', 'uint64'}
-        ints = {'int8', 'int16', 'int32', 'int64'}
-        floats = {'float16', 'float32', 'float64'}
+        ints = {'int8', 'int16', 'int32', 'int64', 'str_int'}
+        floats = {'float16', 'float32', 'float64', 'str_float', 'str_decimal'}
         scalars = uints | ints | floats
         expected_encodings = {
             'int', 'bytes', 'json', 'ndarray', 'png', 'jpeg', 'str', 'pil', 'pkl'
