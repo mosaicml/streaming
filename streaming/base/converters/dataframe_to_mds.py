@@ -3,7 +3,6 @@
 
 """A utility to convert spark dataframe to MDS."""
 
-import collections
 import json
 import logging
 import os
@@ -36,9 +35,9 @@ def is_iterable(obj: Any) -> bool:
 
 def infer_dataframe_schema(dataframe: DataFrame,
                            user_defined_cols: Optional[Dict[str, Any]] = None) -> Optional[Dict]:
-    """
-    If user_defined_cols is none, retrieve schema from dataframe to construct a dictionary that can be used as MDSWriter columns arguments.
-    Else, sanity check user_defined_cols to make sure all types are supported by MDSWriter
+    """If user_defined_cols is none, retrieve schema from dataframe to construct a dictionary that
+    can be used as MDSWriter columns arguments. Else, sanity check user_defined_cols to make sure
+    all types are supported by MDSWriter.
 
     Args:
         dataframe (spark dataframe): dataframe to inspect schema
@@ -80,7 +79,8 @@ def infer_dataframe_schema(dataframe: DataFrame,
         mds_supported_dtypes = list(dtype_mapping.values())
         for col_name, mdsDtype in user_defined_cols.items():
             if col_name not in dataframe.columns:
-                raise ValueError(f'{col_name} is not a column of input dataframe: {dataframe.columns}')
+                raise ValueError(
+                    f'{col_name} is not a column of input dataframe: {dataframe.columns}')
             if mdsDtype not in mds_supported_dtypes:
                 raise ValueError(f'{mdsDtype} is not supported by MDSwriter')
         return None
@@ -172,6 +172,7 @@ def dataframeToMDS(dataframe: DataFrame,
         - The 'udf_kwargs' dictionaries can be used to pass additional
           keyword arguments to the udf_iterable.
     """
+
     def write_mds(iterator: Iterable):
 
         context = TaskContext.get()
