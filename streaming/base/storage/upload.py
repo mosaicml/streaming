@@ -618,16 +618,19 @@ class DBFSUploader(CloudUploader):
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False) -> None:
+        super().__init__(out, keep_local, progress_bar)
+        self.client = self._create_workspace_client()
+        self.dbfs_path = self.remote.lstrip('dbfs:')  # pyright: ignore
+        self.check_folder_exists()
+
+    def _create_workspace_client(self):
         try:
             from databricks.sdk import WorkspaceClient
         except ImportError as e:
             e.msg = get_import_exception_message(e.name)  # pyright: ignore
             raise e
 
-        super().__init__(out, keep_local, progress_bar)
-        self.client = WorkspaceClient()
-        self.dbfs_path = self.remote.lstrip('dbfs:')  # pyright: ignore
-        self.check_folder_exists()
+        return WorkspaceClient()
 
     def upload_file(self, filename: str):
         """Upload file from local instance to DBFS. Does not overwrite.
