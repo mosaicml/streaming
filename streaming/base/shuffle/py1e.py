@@ -10,15 +10,13 @@ boundaries, which is non-random in this algorithm. In practice, we found this do
 convergence, while making us faster.
 """
 
-from typing import List, Tuple
-
 import numpy as np
 from numpy.typing import NDArray
 
 from streaming.base.shuffle.py1s import divide_spans
 
 
-def get_shuffle_py1g(shard_sizes: NDArray[np.int64],
+def get_shuffle_py1e(shard_sizes: NDArray[np.int64],
                      num_canonical_nodes: int,
                      seed: int,
                      epoch: int,
@@ -78,13 +76,14 @@ def get_shuffle_py1g(shard_sizes: NDArray[np.int64],
         num_cn_samples = cn_span_sizes.sum()
         # the spans of a canonical node are shuffled, so they have sample ids that are 
         # not contiguous. need to get the correct sample ids for the current canonical node
-        cn_samples = np.empty(num_cn_samples, np.int64)
+        cn_samples = np.empty(num_cn_samples)
         samples_inserted = 0
         for begin, end in cn_spans:
             # insert span samples into cn_samples array
             cn_span_samples = np.arange(begin, end)
             epoch_rng.shuffle(cn_span_samples)
             cn_samples[samples_inserted:samples_inserted + (end - begin)] = cn_span_samples
+            samples_inserted += (end - begin)
 
         cn_sample_idxs = np.arange(num_cn_samples)
 
@@ -93,14 +92,13 @@ def get_shuffle_py1g(shard_sizes: NDArray[np.int64],
         shifted_samples = cn_sample_idxs.copy().astype(np.float64)
         for span_size in cn_span_sizes:
 
-            span_std = (block_size * span_size) / (max_shard_size * 3)
-            # ~0.3% of samples will be clipped and stay where they are
-            cutoff = 3*span_std
+            # cutoff is (block_size - span_size)/2, so the span samples
+            # are only found in a range of size block_size
+            cutoff = (block_size - span_size)/2
 
-            # sample shifts from gaussian
-            shifts = epoch_rng.normal(loc=0, scale=span_std, size=span_size)
-            # if shift is greater than cutoff (outlier), set shift to 0
-            shifts = shifts * (np.absolute(shifts) < cutoff)
+            # sample shifts from uniform distribution
+            #shifts = epoch_rng.normal(loc=0, scale=span_std, size=span_size)
+            shifts = epoch_rng.uniform(low=-cutoff, high=cutoff, size=span_size)
 
             # add shifts to shard samples
             shifted_samples[cn_sample_offset:cn_sample_offset+span_size] += shifts
