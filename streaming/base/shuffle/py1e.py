@@ -74,7 +74,7 @@ def get_shuffle_py1e(shard_sizes: NDArray[np.int64],
         cn_spans = spans[cn_begin:cn_end]
         cn_span_sizes = np.array([end - begin for begin, end in cn_spans])
         num_cn_samples = cn_span_sizes.sum()
-        # the spans of a canonical node are shuffled, so they have sample ids that are 
+        # the spans of a canonical node are shuffled, so they have sample ids that are
         # not contiguous. need to get the correct sample ids for the current canonical node
         cn_samples = np.empty(num_cn_samples)
         samples_inserted = 0
@@ -94,18 +94,18 @@ def get_shuffle_py1e(shard_sizes: NDArray[np.int64],
 
             # cutoff is (block_size - span_size)/2, so the span samples
             # are only found in a range of size block_size
-            cutoff = (block_size - span_size)/2
+            cutoff = (block_size - span_size) / 2
 
             # sample shifts from uniform distribution
             #shifts = epoch_rng.normal(loc=0, scale=span_std, size=span_size)
             shifts = epoch_rng.uniform(low=-cutoff, high=cutoff, size=span_size)
 
             # add shifts to shard samples
-            shifted_samples[cn_sample_offset:cn_sample_offset+span_size] += shifts
+            shifted_samples[cn_sample_offset:cn_sample_offset + span_size] += shifts
 
             # update offset for next shard
             cn_sample_offset += span_size
-        
+
         # get incides that would sort the shifted_samples array
         sort_indices = np.argsort(shifted_samples)
 
