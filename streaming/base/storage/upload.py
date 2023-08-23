@@ -603,6 +603,7 @@ class DatabricksUploader(CloudUploader):
 
     Args:
         out (str | Tuple[str, str]): Output dataset directory to save shard files.
+
             1. If ``out`` is a local directory, shard files are saved locally.
             2. If ``out`` is a remote directory, a local temporary directory is created to
                cache the shard files and then the shard files are uploaded to a remote
@@ -657,6 +658,7 @@ class DatabricksUnityCatalogUploader(DatabricksUploader):
 
     def upload_file(self, filename: str):
         """Upload file from local instance to Databricks Unity Catalog.
+
         Args:
             filename (str): Relative filepath to copy.
         """
@@ -697,6 +699,7 @@ class DBFSUploader(DatabricksUploader):
 
     def upload_file(self, filename: str):
         """Upload file from local instance to DBFS. Does not overwrite.
+
         Args:
             filename (str): Relative filepath to copy.
         """
@@ -709,6 +712,7 @@ class DBFSUploader(DatabricksUploader):
 
     def check_folder_exists(self):
         """Raise an exception if the DBFS folder does not exist.
+
         Raises:
             error: Folder does not exist.
         """
