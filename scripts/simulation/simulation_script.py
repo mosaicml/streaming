@@ -19,21 +19,21 @@ avg_shard_size = 15962700  # average shard size (bytes)
 
 # training
 epochs = 1
-batches_per_epoch = 5000
-device_batch_size = 4  # device batch size (samples)
+batches_per_epoch = 20000
+device_batch_size = 16  # device batch size (samples)
 avg_batch_time = 0.27  # average batch processing time (seconds)
 
 # streaming
 workers = 8  # number of workers per device
-canonical_nodes = 1  # number of canonical nodes
-predownload = 16  # number of samples to predownload per worker (samples)
-cache_limit = 399067500  # cache limit per node (bytes)
+canonical_nodes = 4  # number of canonical nodes
+predownload = 64  # number of samples to predownload per worker (samples)
+cache_limit = 800000000  # cache limit per node (bytes)
 shuffle_algo = 'py1b'  # shuffling algorithm
-shuffle_block_size = 102325  # shuffling block size (samples)
+shuffle_block_size = 100000  # shuffling block size (samples)
 seed = 17  # random seed
 
 # hardware and network
-physical_nodes = 1  # number of physical nodes
+physical_nodes = 2  # number of physical nodes
 devices = 8  # number of devices per node
 node_network_bandwidth = 1e8  # network bandwidth per node (bytes/s)
 
