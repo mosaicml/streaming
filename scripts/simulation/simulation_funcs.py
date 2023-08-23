@@ -138,8 +138,8 @@ def simulate(shards: int,
         worker_download_indices = np.array(
             [0] * physical_nodes
         )  # track which worker we are on for downloading, per node, round-robin style
-        node_partial_shards = np.array(
-            [0] * physical_nodes)  # track partial shard downloads at each node
+        node_partial_shards = np.array([0] * physical_nodes).astype(
+            np.float32)  # track partial shard downloads at each node
 
         # construct download shard OrderedSets for every worker
         # list of lists of OrderedSets. outer list is per node, inner list is per worker-device
@@ -174,7 +174,7 @@ def simulate(shards: int,
             # track how many shards we downloaded in this batch total
             num_downloads = 0
 
-            # get current samples and predownload samples for each node, for this batch
+            # get current samples and download samples for each node, for this batch
             for physical_node in range(physical_nodes):
                 curr_batch_samples = samples_per_worker[physical_node, :, curr_worker,
                                                         worker_sample_index:worker_sample_index +
@@ -260,6 +260,8 @@ def simulate(shards: int,
                                 physical_node] + avg_shard_size > cache_limit:
                             # evict the LRU shard
                             node_shards[physical_node].popLRU()
+                            # update the node cache usage
+                            node_cache_usage[physical_node] -= avg_shard_size
                         num_batch_shards += 1
                         num_downloads += 1
                         node_cache_usage[physical_node] += avg_shard_size
@@ -299,6 +301,7 @@ def simulate(shards: int,
 
                 # get number of bytes/shards/remainder we can download in predownload_time
                 download_bytes_left = node_network_bandwidth * download_time_left
+
                 # number of shards we can download right now --
                 # add in the fractional part of shard that may have been downloading from previous step
                 download_shards_left = (
@@ -336,6 +339,8 @@ def simulate(shards: int,
                                 physical_node] + avg_shard_size > cache_limit:
                             # evict the LRU shard
                             node_shards[physical_node].popLRU()
+                            # update the node cache usage
+                            node_cache_usage[physical_node] -= avg_shard_size
                         num_downloads += 1
                         node_cache_usage[physical_node] += avg_shard_size
                         # add this shard to node_shards for the node that the worker is on
