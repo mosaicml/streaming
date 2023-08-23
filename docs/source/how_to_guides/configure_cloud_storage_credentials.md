@@ -213,3 +213,23 @@ export AZURE_ACCOUNT_ACCESS_KEY='NN1KHxKKkj20ZO92EMiDQjx3wp2kZG4UUvfAGlgGWRn6sPR
 To upload data to and download data from the Databricks File System (DBFS), users must set their Databricks host (`DATABRICKS_HOST`) and access token (`DATABRICKS_TOKEN`) in the run environment.
 
 See the [Databricks documentation](https://docs.databricks.com/en/dev-tools/auth.html#databricks-personal-access-token-authentication) for instructions on how to create a personal access token.
+
+```{code-tab} py
+import os
+os.environ['DATABRICKS_HOST'] = 'hostname'
+os.environ['DATABRICKS_TOKEN'] = 'token key'
+```
+
+```{code-tab} sh
+export DATABRICKS_HOST='hostname'
+export DATABRICKS_TOKEN='token key'
+```
+
+### MosaicML platform
+
+For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [Environment Variables](https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/env.html) documentation on how to set the environment variables.
+
+```{code-tab} sh
+mcli create secret env DATABRICKS_HOST='hostname'
+mcli create secret env DATABRICKS_TOKEN='token key'
+```
