@@ -218,15 +218,15 @@ See the [Databricks documentation](https://docs.databricks.com/en/dev-tools/auth
 
 For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [Environment Variables](https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/env.html) documentation on how to set the environment variables.
 
-```{code-tab} sh
+```
 mcli create secret env DATABRICKS_HOST='hostname'
 mcli create secret env DATABRICKS_TOKEN='token key'
 ```
 
 ### Others
 
+````{tabs}
 ```{code-tab} py
-import os
 os.environ['DATABRICKS_HOST'] = 'hostname'
 os.environ['DATABRICKS_TOKEN'] = 'token key'
 ```
@@ -235,3 +235,4 @@ os.environ['DATABRICKS_TOKEN'] = 'token key'
 export DATABRICKS_HOST='hostname'
 export DATABRICKS_TOKEN='token key'
 ```
+````
