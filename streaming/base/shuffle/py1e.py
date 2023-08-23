@@ -85,20 +85,21 @@ def get_shuffle_py1e(shard_sizes: NDArray[np.int64],
             cn_samples[samples_inserted:samples_inserted + (end - begin)] = cn_span_samples
             samples_inserted += (end - begin)
 
-        cn_sample_idxs = np.arange(num_cn_samples)
-
         # iterate over each span and shift sample indices by gaussian noise
         cn_sample_offset = 0
-        shifted_samples = cn_sample_idxs.copy().astype(np.float64)
+        shifted_samples = np.arange(num_cn_samples).astype(np.float64)
         for span_size in cn_span_sizes:
 
             # cutoff is (block_size - span_size)/2, so the span samples
-            # are only found in a range of size block_size
+            # are only found in a range of maximum possible size block_size
             cutoff = (block_size - span_size) / 2
 
+            # make sure the lower bound doesn't cross the start of the canonical node
+            lower_bound = max(-cutoff, -cn_sample_offset)
+            # make sure the upper bound doesn't cross the end of the canonical node
+            upper_bound = min(cutoff, num_cn_samples - cn_sample_offset - span_size)
             # sample shifts from uniform distribution
-            #shifts = epoch_rng.normal(loc=0, scale=span_std, size=span_size)
-            shifts = epoch_rng.uniform(low=-cutoff, high=cutoff, size=span_size)
+            shifts = epoch_rng.uniform(low=lower_bound, high=upper_bound, size=span_size)
 
             # add shifts to shard samples
             shifted_samples[cn_sample_offset:cn_sample_offset + span_size] += shifts
@@ -109,11 +110,8 @@ def get_shuffle_py1e(shard_sizes: NDArray[np.int64],
         # get incides that would sort the shifted_samples array
         sort_indices = np.argsort(shifted_samples)
 
-        # apply the sorting to the canonical node sample indices
-        cn_sample_idxs = cn_sample_idxs[sort_indices]
-
-        # use the shuffled indices to get the shuffled sample ids for the canonical node
-        cn_samples = cn_samples[cn_sample_idxs]
+        # apply the sorting to the samples for our canonical node
+        cn_samples = cn_samples[sort_indices]
 
         # assign the gaussian "shuffled" samples to the global ids array
         ids[offset:offset + num_cn_samples] = cn_samples
