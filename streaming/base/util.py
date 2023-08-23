@@ -182,3 +182,15 @@ def clean_stale_shared_memory() -> None:
     # Delete the process group if Streaming initialized it.
     if destroy_dist:
         dist.destroy_process_group()
+
+
+def get_import_exception_message(package_name: str) -> str:
+    """Get import exception message.
+
+    Args:
+        package_name (str): Package name.
+
+    Returns:
+        str: Exception message.
+    """
+    return f'Streaming was installed without {package_name} support. To use {package_name} related packages with Streaming, run `pip install \'mosaicml-streaming[{package_name}]\'`.'

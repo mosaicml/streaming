@@ -9,6 +9,8 @@ import urllib.parse
 from time import sleep, time
 from typing import Any, Dict, Optional
 
+from streaming.base.util import get_import_exception_message
+
 __all__ = ['download_or_wait']
 
 BOTOCORE_CLIENT_ERROR_CODES = {'403', '404', 'NoSuchKey'}
@@ -320,6 +322,29 @@ def download_from_azure_datalake(remote: str, local: str) -> None:
         raise
 
 
+def download_from_dbfs(remote: str, local: str) -> None:
+    """Download a file from remote Databricks File System to local.
+
+    Args:
+        remote (str): Remote path (dbfs).
+        local (str): Local path (local filesystem).
+    """
+    try:
+        from databricks.sdk import WorkspaceClient
+    except ImportError as e:
+        e.msg = get_import_exception_message(e.name)  # pyright: ignore
+        raise e
+
+    client = WorkspaceClient()
+    file_path = remote.lstrip('dbfs:')
+    dbfs_file = client.dbfs.download(file_path)
+    local_tmp = local + '.tmp'
+    with open(local_tmp, 'wb') as f:
+        f.write(dbfs_file.read())
+    dbfs_file.close()
+    os.rename(local_tmp, local)
+
+
 def download_from_local(remote: str, local: str) -> None:
     """Download a file from remote to local.
 
@@ -368,6 +393,8 @@ def download_file(remote: Optional[str], local: str, timeout: float):
         download_from_azure(remote, local)
     elif remote.startswith('azure-dl://'):
         download_from_azure_datalake(remote, local)
+    elif remote.startswith('dbfs:/'):
+        download_from_dbfs(remote, local)
     else:
         download_from_local(remote, local)
 
