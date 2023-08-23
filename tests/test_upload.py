@@ -10,8 +10,9 @@ from unittest.mock import Mock, patch
 import pytest
 
 from streaming.base.storage.upload import (AzureDataLakeUploader, AzureUploader, CloudUploader,
-                                           DBFSUploader, GCSAuthentication, GCSUploader,
-                                           LocalUploader, S3Uploader)
+                                           DatabricksUnityCatalogUploader, DBFSUploader,
+                                           GCSAuthentication, GCSUploader, LocalUploader,
+                                           S3Uploader)
 from tests.conftest import R2_URL
 
 
@@ -317,9 +318,40 @@ class TestAzureDataLakeUploader:
             _ = AzureDataLakeUploader(out=local)
 
 
+class TestDatabricksUnityCatalogUploader:
+
+    @patch('streaming.base.storage.upload.DatabricksUploader._create_workspace_client')
+    @pytest.mark.parametrize('out', ['uc://container/dir', ('./dir1', 'uc://container/dir/')])
+    def test_instantiation(self, mock_create_client: Mock, out: Any):
+        mock_create_client.side_effect = None
+        _ = DatabricksUnityCatalogUploader(out=out)
+        if not isinstance(out, str):
+            shutil.rmtree(out[0], ignore_errors=True)
+
+    @patch('streaming.base.storage.upload.DatabricksUploader._create_workspace_client')
+    @pytest.mark.parametrize('out', ['ss4://bucket/dir', ('./dir1', 'gcs://bucket/dir/')])
+    def test_invalid_remote_list(self, mock_create_client: Mock, out: Any):
+        mock_create_client.side_effect = None
+        with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
+            _ = DatabricksUnityCatalogUploader(out=out)
+
+    @patch('streaming.base.storage.upload.DatabricksUploader._create_workspace_client')
+    def test_local_directory_is_empty(self, mock_create_client: Mock,
+                                      local_remote_dir: Tuple[str, str]):
+        mock_create_client.side_effect = None
+        with pytest.raises(FileExistsError, match=f'Directory is not empty.*'):
+            local, _ = local_remote_dir
+            os.makedirs(local, exist_ok=True)
+            local_file_path = os.path.join(local, 'file.txt')
+            # Creating an empty file at specified location
+            with open(local_file_path, 'w') as _:
+                pass
+            _ = DatabricksUnityCatalogUploader(out=local)
+
+
 class TestDBFSUploader:
 
-    @patch('streaming.base.storage.upload.DBFSUploader._create_workspace_client')
+    @patch('streaming.base.storage.upload.DatabricksUploader._create_workspace_client')
     @pytest.mark.parametrize('out', ['dbfs:/container/dir', ('./dir1', 'dbfs:/container/dir/')])
     def test_instantiation(self, mock_create_client: Mock, out: Any):
         mock_create_client.side_effect = None
@@ -327,14 +359,14 @@ class TestDBFSUploader:
         if not isinstance(out, str):
             shutil.rmtree(out[0], ignore_errors=True)
 
-    @patch('streaming.base.storage.upload.DBFSUploader._create_workspace_client')
+    @patch('streaming.base.storage.upload.DatabricksUploader._create_workspace_client')
     @pytest.mark.parametrize('out', ['ss4://bucket/dir', ('./dir1', 'gcs://bucket/dir/')])
     def test_invalid_remote_list(self, mock_create_client: Mock, out: Any):
         mock_create_client.side_effect = None
         with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
             _ = DBFSUploader(out=out)
 
-    @patch('streaming.base.storage.upload.DBFSUploader._create_workspace_client')
+    @patch('streaming.base.storage.upload.DatabricksUploader._create_workspace_client')
     def test_local_directory_is_empty(self, mock_create_client: Mock,
                                       local_remote_dir: Tuple[str, str]):
         with pytest.raises(FileExistsError, match=f'Directory is not empty.*'):
