@@ -24,7 +24,7 @@ def simulate(shards: int,
              samples_per_shard: int,
              avg_shard_size: float,
              device_batch_size: int,
-             avg_batch_time: float,
+             time_per_sample: float,
              batches_per_epoch: int,
              epochs: int,
              physical_nodes: int,
@@ -33,6 +33,7 @@ def simulate(shards: int,
              workers: int,
              canonical_nodes: int,
              predownload: int,
+             avg_compressed_shard_size: Optional[float] = None,
              cache_limit: Optional[int] = None,
              shuffle_algo: Optional[str] = None,
              shuffle_block_size: int = 1 << 18,
@@ -58,8 +59,9 @@ def simulate(shards: int,
         shards (int): number of shards
         samples_per_shard (int): number of samples per shard
         avg_shard_size (float): average shard size (bytes)
+        avg_compressed_shard_size (float): average compressed_shard size (bytes)
         device_batch_size (int): device batch size (samples)
-        avg_batch_time (float): average batch processing time (seconds)
+        time_per_sample (float): time to process one sample on one device (seconds)
         batches_per_epoch (int): number of batches per epoch
         epochs (int): number of epochs
         physical_nodes (int): number of physical nodes
@@ -93,6 +95,9 @@ def simulate(shards: int,
                                 workers_per_rank=workers,
                                 batch_size=device_batch_size,
                                 drop_first=0)
+    
+    # time for the global batch is just device batch size * time per sample, since all devices process their microbatch in parallel
+    avg_batch_time = device_batch_size * time_per_sample
 
     # simulate training!
 
@@ -371,6 +376,8 @@ def simulate(shards: int,
 
     step_times = np.array(step_times)
     shard_downloads = avg_shard_size * np.array(shard_downloads)
+    if avg_compressed_shard_size:
+        shard_downloads = shard_downloads * avg_compressed_shard_size / avg_shard_size
 
     return step_times, shard_downloads
 
