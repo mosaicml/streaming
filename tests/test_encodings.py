@@ -3,6 +3,7 @@
 
 import json
 import tempfile
+from decimal import Decimal
 from typing import Any, Tuple, Union
 
 import numpy as np
@@ -420,10 +421,44 @@ class TestMDSEncodings:
         assert isinstance(dec, np.floating)
         assert dec == decoded
 
+    @pytest.mark.parametrize(('decoded', 'encoded'), [(42, b'42'), (-42, b'-42')])
+    def test_mds_StrInt(self, decoded: int, encoded: bytes):
+        coder = mdsEnc.StrInt()
+        enc = coder.encode(decoded)
+        assert isinstance(enc, bytes)
+        assert enc == encoded
+
+        dec = coder.decode(encoded)
+        assert isinstance(dec, int)
+        assert dec == decoded
+
+    @pytest.mark.parametrize(('decoded', 'encoded'), [(42.0, b'42.0'), (-42.0, b'-42.0')])
+    def test_mds_StrFloat(self, decoded: float, encoded: bytes):
+        coder = mdsEnc.StrFloat()
+        enc = coder.encode(decoded)
+        assert isinstance(enc, bytes)
+        assert enc == encoded
+
+        dec = coder.decode(encoded)
+        assert isinstance(dec, float)
+        assert dec == decoded
+
+    @pytest.mark.parametrize(('decoded', 'encoded'), [(Decimal('4E15'), b'4E+15'),
+                                                      (Decimal('-4E15'), b'-4E+15')])
+    def test_mds_StrDecimal(self, decoded: Decimal, encoded: bytes):
+        coder = mdsEnc.StrDecimal()
+        enc = coder.encode(decoded)
+        assert isinstance(enc, bytes)
+        assert enc == encoded
+
+        dec = coder.decode(encoded)
+        assert isinstance(dec, Decimal)
+        assert dec == decoded
+
     def test_get_mds_encodings(self):
         uints = {'uint8', 'uint16', 'uint32', 'uint64'}
-        ints = {'int8', 'int16', 'int32', 'int64'}
-        floats = {'float16', 'float32', 'float64'}
+        ints = {'int8', 'int16', 'int32', 'int64', 'str_int'}
+        floats = {'float16', 'float32', 'float64', 'str_float', 'str_decimal'}
         scalars = uints | ints | floats
         expected_encodings = {
             'int', 'bytes', 'json', 'ndarray', 'png', 'jpeg', 'str', 'pil', 'pkl'
