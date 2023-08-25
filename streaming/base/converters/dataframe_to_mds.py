@@ -53,7 +53,7 @@ def infer_dataframe_schema(dataframe: DataFrame,
         LongType: 'int64',
         FloatType: 'float32',
         DoubleType: 'float64',
-        DecimalType: None,
+        DecimalType: 'str_decimal',
         StringType: 'str',
         BinaryType: None,
         BooleanType: None,
@@ -140,7 +140,6 @@ def do_merge_index(partitions: Iterable,
 
 def dataframeToMDS(dataframe: DataFrame,
                    merge_index: bool = True,
-                   sample_ratio: float = -1.0,
                    mds_kwargs: Optional[Dict[str, Any]] = None,
                    udf_iterable: Optional[Callable] = None,
                    udf_kwargs: Optional[Dict[str, Any]] = None) -> Tuple[Any, int]:
@@ -153,8 +152,6 @@ def dataframeToMDS(dataframe: DataFrame,
     Args:
         dataframe (pyspark.sql.DataFrame or None): A DataFrame containing Delta Lake data.
         merge_index (bool): Whether to merge MDS index files. Default to ``True``.
-        sample_ratio (float): The fraction of data to randomly sample during conversion.
-            Should be in the range (0, 1). Default to ``-1.0`` (no sampling).
         mds_kwargs (dict): Refer to https://docs.mosaicml.com/projects/streaming/en/stable/api_reference/generated/streaming.MDSWriter.html
         udf_iterable (Callable or None): A user-defined function that returns an iterable over the dataframe. udf_kwargs is the k-v args for the method. Default to ``None``.
         udf_kwargs (Dict): Additional keyword arguments to pass to the pandas processing
@@ -166,7 +163,6 @@ def dataframeToMDS(dataframe: DataFrame,
 
     Note:
         - The method creates a SparkSession if not already available.
-        - If 'sample_ratio' is provided, the input data will be randomly sampled.
         - The 'udf_kwargs' dictionaries can be used to pass additional
           keyword arguments to the udf_iterable.
     """
@@ -239,9 +235,6 @@ def dataframeToMDS(dataframe: DataFrame,
     else:
         infer_dataframe_schema(dataframe, mds_kwargs['columns'])
 
-    if 0 < sample_ratio < 1:
-        dataframe = dataframe.sample(sample_ratio)
-
     out = mds_kwargs['out']
     keep_local = False if 'keep_local' not in mds_kwargs else mds_kwargs['keep_local']
     cu = CloudUploader.get(out, keep_local=keep_local)
@@ -305,5 +298,4 @@ if __name__ == '__main__':
                            'tokens': 'bytes'
                        }
                    },
-                   merge_index=args.merge_index,
-                   sample_ratio=args.sample_ratio)
+                   merge_index=args.merge_index)

@@ -9,10 +9,12 @@ from typing import Any, Dict, Tuple
 import pytest
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
-from pyspark.sql.types import IntegerType, StringType, StructField, StructType
+from pyspark.sql.types import IntegerType, StringType, StructField, StructType, DecimalType
 
 from streaming import MDSWriter
 from streaming.base.converters import dataframeToMDS
+from decimal import Decimal
+
 
 MY_PREFIX = 'train'
 MY_BUCKET = 'mosaicml-composer-tests'
@@ -37,6 +39,23 @@ def remote_local_dir() -> Any:
 
 
 class TestDataFrameToMDS:
+
+    @pytest.fixture
+    def decimal_dataframe(self):
+        spark = SparkSession.builder.getOrCreate()  # pyright: ignore
+
+        schema = StructType([
+            StructField("id", IntegerType(), nullable=False),
+            StructField("name", StringType(), nullable=False),
+            StructField("amount", DecimalType(10, 2), nullable=False)
+        ])
+
+        data = [(1, "Alice", Decimal("123.45")),
+                (2, "Bob", Decimal("67.89")),
+                (3, "Charlie", Decimal("987.65"))]
+        df = spark.createDataFrame(data, schema)
+
+        yield df
 
     @pytest.fixture
     def dataframe(self):
@@ -75,12 +94,10 @@ class TestDataFrameToMDS:
         with pytest.raises(ValueError):
             _, _ = dataframeToMDS(dataframe.select(col('id'), col('dept'), col('properties')),
                                   merge_index=merge_index,
-                                  sample_ratio=-1.0,
                                   mds_kwargs=mds_kwargs)
 
         _, _ = dataframeToMDS(dataframe.select(col('id'), col('dept')),
                               merge_index=merge_index,
-                              sample_ratio=-1.0,
                               mds_kwargs=mds_kwargs)
 
         assert (len(os.listdir(out)) > 0), f'{out} is empty'
@@ -104,6 +121,33 @@ class TestDataFrameToMDS:
             assert not (os.path.exists(os.path.join(
                 out, 'index.json'))), 'merged index is created when merge_index=False'
 
+
+    @pytest.mark.parametrize('use_columns', [True, False])
+    def test_end_to_end_conversion_local_decimal(self, decimal_dataframe: Any, use_columns: bool):
+        out = mkdtemp()
+        user_defined_columns = {
+            'id': 'int',
+            'name': 'str',
+            'amount': 'str_decimal'
+        }
+        mds_kwargs = {
+            'out': out,
+            'columns': user_defined_columns,
+            'keep_local': True,
+            'compression': 'zstd:7',
+            'hashes': ['sha1', 'xxh64'],
+            'size_limit': 1 << 26
+        }
+
+        if use_columns:
+            mds_kwargs['columns'] = user_defined_columns
+
+        _, _ = dataframeToMDS(decimal_dataframe,
+                              merge_index=True,
+                              mds_kwargs=mds_kwargs)
+        assert (len(os.listdir(out)) > 0), f'{out} is empty'
+
+
     @pytest.mark.parametrize('user_defined_columns', [{
         'idd': 'str',
         'dept': 'str'
@@ -124,7 +168,6 @@ class TestDataFrameToMDS:
         with pytest.raises(ValueError):
             _, _ = dataframeToMDS(dataframe,
                                   merge_index=False,
-                                  sample_ratio=-1.0,
                                   mds_kwargs=mds_kwargs)
 
     @pytest.mark.parametrize('keep_local', [True, False])
@@ -146,7 +189,6 @@ class TestDataFrameToMDS:
 
         _, _ = dataframeToMDS(dataframe,
                               merge_index=merge_index,
-                              sample_ratio=-1.0,
                               mds_kwargs=mds_kwargs)
 
         assert (len(os.listdir(out)) > 0), f'{out} is empty'
@@ -197,7 +239,6 @@ class TestDataFrameToMDS:
 
         mds_path, fail_count = dataframeToMDS(dataframe,
                                               merge_index=merge_index,
-                                              sample_ratio=-1.0,
                                               mds_kwargs=mds_kwargs)
 
         assert (fail_count == 0), 'some records were not converted correctly'
@@ -243,7 +284,6 @@ class TestDataFrameToMDS:
 
         mds_path, _ = dataframeToMDS(dataframe,
                                      merge_index=merge_index,
-                                     sample_ratio=-1.0,
                                      mds_kwargs=mds_kwargs)
 
         assert out == mds_path, f'returned mds_path: {mds_path} is not the same as out: {out}'
@@ -281,13 +321,13 @@ class TestDataFrameToMDS:
 
         mds_path, _ = dataframeToMDS(dataframe,
                                      merge_index=True,
-                                     sample_ratio=-1.0,
                                      mds_kwargs=mds_kwargs)
 
         assert len(mds_path) == 2, 'returned mds is a str but should be a tuple (local, remote)'
         assert not (os.path.exists(os.path.join(
             mds_path[0], 'index.json'))), 'Local merged index was not removed successfully'
         assert (len(os.listdir(mds_path[0])) > 0), f'{mds_path[0]} is not empty'
+
 
     def test_simple_remote(self, dataframe: Any):
         if not LOCAL_MANUAL_TEST:
