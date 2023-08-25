@@ -13,6 +13,7 @@ import streaming.base.format.json.encodings as jsonEnc
 import streaming.base.format.mds.encodings as mdsEnc
 import streaming.base.format.xsv.encodings as xsvEnc
 
+from decimal import Decimal
 
 class TestMDSEncodings:
 
@@ -418,6 +419,39 @@ class TestMDSEncodings:
 
         dec = coder.decode(encoded)
         assert isinstance(dec, np.floating)
+        assert dec == decoded
+
+    @pytest.mark.parametrize(('decoded', 'encoded'), [(42, b'42')])
+    def test_mds_StrInt(self, decoded: Decimal, encoded: bytes):
+        coder = mdsEnc.StrInt()
+        enc = coder.encode(decoded)
+        assert isinstance(enc, bytes)
+        assert enc == encoded
+
+        dec = coder.decode(encoded)
+        assert isinstance(dec, int)
+        assert dec == decoded
+
+    @pytest.mark.parametrize(('decoded', 'encoded'), [(42.0, b'42.0')])
+    def test_mds_StrFloat(self, decoded: Decimal, encoded: bytes):
+        coder = mdsEnc.StrFloat()
+        enc = coder.encode(decoded)
+        assert isinstance(enc, bytes)
+        assert enc == encoded
+
+        dec = coder.decode(encoded)
+        assert isinstance(dec, float)
+        assert dec == decoded
+
+    @pytest.mark.parametrize(('decoded', 'encoded'), [(Decimal('4E15'), b'4E+15')])
+    def test_mds_StrDecimal(self, decoded: Decimal, encoded: bytes):
+        coder = mdsEnc.StrDecimal()
+        enc = coder.encode(decoded)
+        assert isinstance(enc, bytes)
+        assert enc == encoded
+
+        dec = coder.decode(encoded)
+        assert isinstance(dec, Decimal)
         assert dec == decoded
 
     def test_get_mds_encodings(self):

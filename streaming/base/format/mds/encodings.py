@@ -402,12 +402,10 @@ class StrInt(StrEncoding):
 
     def encode(self, obj: int) -> bytes:
         self._validate(obj, int)
-        text = str(obj)
-        return text.encode('utf-8')
+        return str(obj).encode('utf-8')
 
     def decode(self, data: bytes) -> int:
-        text = data.decode('utf-8')
-        return int(text)
+        return int(data.decode('utf-8'))
 
 
 class StrFloat(Encoding):
@@ -415,12 +413,10 @@ class StrFloat(Encoding):
 
     def encode(self, obj: float) -> bytes:
         self._validate(obj, float)
-        text = str(obj)
-        return text.encode('utf-8')
+        return str(obj).encode('utf-8')
 
     def decode(self, data: bytes) -> float:
-        text = data.decode('utf-8')
-        return float(text)
+        return float(data.decode('utf-8'))
 
 
 class StrDecimal(Encoding):
@@ -428,12 +424,10 @@ class StrDecimal(Encoding):
 
     def encode(self, obj: Decimal) -> bytes:
         self._validate(obj, Decimal)
-        text = str(obj)
-        return text.encode('utf-8')
+        return str(obj).encode('utf-8')
 
     def decode(self, data: bytes) -> Decimal:
-        text = data.decode('utf-8')
-        return Decimal(text)
+        return Decimal(data.decode('utf-8'))
 
 
 class PIL(Encoding):
