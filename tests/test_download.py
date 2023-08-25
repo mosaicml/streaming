@@ -98,6 +98,18 @@ class TestGCSClient:
             download_from_gcs(mock_remote_filepath, tmp.name)
             assert os.path.isfile(tmp.name)
 
+    @patch('google.auth.default')
+    @patch('google.cloud.storage.Client')
+    @pytest.mark.usefixtures('gcs_service_account_credentials')
+    @pytest.mark.parametrize('out', ['gs://bucket/dir'])
+    def test_download_service_account(self, mock_client: Mock, mock_default: Mock, out: str):
+        with tempfile.NamedTemporaryFile(delete=True, suffix='.txt') as tmp:
+            credentials_mock = Mock()
+            mock_default.return_value = credentials_mock, None
+            download_from_gcs('gs://bucket_file', tmp.name)
+            mock_client.assert_called_once_with(credentials=credentials_mock)
+            assert os.path.isfile(tmp.name)
+
     @pytest.mark.usefixtures('gcs_hmac_client', 'gcs_test', 'remote_local_file')
     def test_filenotfound_exception(self, remote_local_file: Any):
         with pytest.raises(FileNotFoundError):
@@ -108,6 +120,12 @@ class TestGCSClient:
     def test_invalid_cloud_prefix(self, remote_local_file: Any):
         with pytest.raises(ValueError):
             mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='s3://')
+            download_from_gcs(mock_remote_filepath, mock_local_filepath)
+
+    def test_no_credentials_error(self, remote_local_file: Any):
+        """Ensure we raise a value error correctly if we have no credentials available."""
+        with pytest.raises(ValueError):
+            mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='gs://')
             download_from_gcs(mock_remote_filepath, mock_local_filepath)
 
 
@@ -164,6 +182,23 @@ class TestDownload:
     @pytest.mark.usefixtures('remote_local_file')
     def test_download_from_sftp_gets_called(self, mocked_requests: Mock, remote_local_file: Any):
         mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='sftp://')
+        download_file(mock_remote_filepath, mock_local_filepath, 60)
+        mocked_requests.assert_called_once()
+        mocked_requests.assert_called_once_with(mock_remote_filepath, mock_local_filepath)
+
+    @patch('streaming.base.storage.download.download_from_databricks_unity_catalog')
+    @pytest.mark.usefixtures('remote_local_file')
+    def test_download_from_databricks_unity_catalog_gets_called(self, mocked_requests: Mock,
+                                                                remote_local_file: Any):
+        mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='uc://')
+        download_file(mock_remote_filepath, mock_local_filepath, 60)
+        mocked_requests.assert_called_once()
+        mocked_requests.assert_called_once_with(mock_remote_filepath, mock_local_filepath)
+
+    @patch('streaming.base.storage.download.download_from_dbfs')
+    @pytest.mark.usefixtures('remote_local_file')
+    def test_download_from_dbfs_gets_called(self, mocked_requests: Mock, remote_local_file: Any):
+        mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='dbfs:/')
         download_file(mock_remote_filepath, mock_local_filepath, 60)
         mocked_requests.assert_called_once()
         mocked_requests.assert_called_once_with(mock_remote_filepath, mock_local_filepath)

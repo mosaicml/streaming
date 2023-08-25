@@ -9,10 +9,14 @@ import urllib.parse
 from argparse import ArgumentParser, Namespace
 from typing import Union
 
+import torch
+from torch import distributed as dist
 from torch.utils.data import DataLoader
 from utils import get_dataloader_params, get_kwargs, get_streaming_dataset_params
 
 from streaming import StreamingDataset
+from streaming.base.distributed import (all_gather, barrier, get_rank, get_world_size,
+                                        maybe_init_dist)
 
 
 def parse_args() -> tuple[Namespace, dict[str, str]]:
@@ -27,6 +31,7 @@ def parse_args() -> tuple[Namespace, dict[str, str]]:
                       default=2,
                       help='Number of epochs to iterate over the data')
     args.add_argument('--validate-files', default=False, action='store_true', help='Verify files')
+    args.add_argument('--sample-order-file', type=str, help='File location to store sample order')
     args.add_argument('--validate-iter-time',
                       default=False,
                       action='store_true',
@@ -87,6 +92,11 @@ def main(args: Namespace, kwargs: dict[str, str]) -> None:
         args (Namespace): Command-line arguments.
         kwargs (dict): Named arguments.
     """
+    destroy_dist = False
+    if args.sample_order_file is not None:
+        # Initialize torch dist ourselves, if necessary.
+        destroy_dist = maybe_init_dist()
+
     dataset_params = get_streaming_dataset_params(kwargs)
     dataloader_params = get_dataloader_params(kwargs)
     dataset = StreamingDataset(**dataset_params)
@@ -96,8 +106,33 @@ def main(args: Namespace, kwargs: dict[str, str]) -> None:
     for epoch in range(args.epochs):
         if epoch > 0:
             start_time = time.time()
-        for _ in dataloader:
-            pass
+        for batch in dataloader:
+            if args.sample_order_file is not None:
+                key = None
+                if 'id' in batch:
+                    key = 'id'
+                elif 'number' in batch:
+                    key = 'number'
+                samples = [int(sample) for sample in batch[key]]
+                samples = torch.Tensor(samples).to(dtype=torch.int64)
+                # Only gather if more than 1 gpu
+                if destroy_dist:
+                    obj_gather_list = [
+                        torch.zeros(len(samples), dtype=torch.int64).cuda(get_rank())
+                        for _ in range(get_world_size())
+                    ]
+                    all_gather(obj_gather_list, samples.cuda(get_rank()))
+                    barrier()
+                else:
+                    obj_gather_list = [samples]
+                if get_rank() == 0:
+                    with open(args.sample_order_file, 'a') as f:
+                        all_samples = [
+                            str(sample) + '\n'
+                            for tensors in obj_gather_list
+                            for sample in tensors.tolist()
+                        ]
+                        f.writelines(all_samples)
         if epoch > 0:
             iter_time.append(time.time() - start_time)
 
@@ -112,6 +147,9 @@ def main(args: Namespace, kwargs: dict[str, str]) -> None:
     # TODO: Assert the iteration time is within a certain threshold
     if args.validate_iter_time:
         print(f'Average iter time: {sum(iter_time) / len(iter_time)} secs.')
+
+    if destroy_dist:
+        dist.destroy_process_group()
 
 
 if __name__ == '__main__':

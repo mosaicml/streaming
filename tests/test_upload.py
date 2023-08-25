@@ -10,6 +10,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from streaming.base.storage.upload import (AzureDataLakeUploader, AzureUploader, CloudUploader,
+                                           DatabricksUnityCatalogUploader, DBFSUploader,
                                            GCSAuthentication, GCSUploader, LocalUploader,
                                            S3Uploader)
 from tests.conftest import R2_URL
@@ -219,32 +220,36 @@ class TestGCSUploader:
         uploader = GCSUploader(out=out)
         assert uploader.authentication == GCSAuthentication.HMAC
 
-    @patch('streaming.base.storage.upload.GCSUploader.check_bucket_exists')
-    @patch('google.cloud.storage.Client.from_service_account_json')
+    @patch('google.auth.default')
+    @patch('google.cloud.storage.Client')
     @pytest.mark.usefixtures('gcs_service_account_credentials')
     @pytest.mark.parametrize('out', ['gs://bucket/dir'])
-    def test_service_account_authentication(self, mocked_requests: Mock, mock_client: Mock,
-                                            out: str):
+    def test_service_account_authentication(self, mock_client: Mock, mock_default: Mock, out: str):
+        mock_default.return_value = Mock(), None
         uploader = GCSUploader(out=out)
         assert uploader.authentication == GCSAuthentication.SERVICE_ACCOUNT
 
     @patch('streaming.base.storage.upload.GCSUploader.check_bucket_exists')
-    @patch('google.cloud.storage.Client.from_service_account_json')
+    @patch('google.auth.default')
+    @patch('google.cloud.storage.Client')
     @pytest.mark.usefixtures('gcs_service_account_credentials', 'gcs_hmac_credentials')
     @pytest.mark.parametrize('out', ['gs://bucket/dir'])
     def test_service_account_and_hmac_authentication(self, mocked_requests: Mock,
-                                                     mock_client: Mock, out: str):
+                                                     mock_default: Mock, mock_client: Mock,
+                                                     out: str):
+        mock_default.return_value = Mock(), None
         uploader = GCSUploader(out=out)
-        assert uploader.authentication == GCSAuthentication.SERVICE_ACCOUNT
+        assert uploader.authentication == GCSAuthentication.HMAC
 
     @pytest.mark.parametrize('out', ['gs://bucket/dir'])
     def test_no_authentication(self, out: str):
         with pytest.raises(
                 ValueError,
-                match=(f'Either GOOGLE_APPLICATION_CREDENTIALS needs to be set for'
-                       f' service level accounts or GCS_KEY and GCS_SECRET needs to be'
-                       f' set for HMAC authentication'),
-        ):
+                match=
+            (f'Either set the environment variables `GCS_KEY` and `GCS_SECRET` or use any of the methods in '
+             f'https://cloud.google.com/docs/authentication/external/set-up-adc to set up Application Default '
+             f'Credentials. See also https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/'
+             f'gcp.html.')):
             _ = GCSUploader(out=out)
 
 
@@ -311,6 +316,68 @@ class TestAzureDataLakeUploader:
             with open(local_file_path, 'w') as _:
                 pass
             _ = AzureDataLakeUploader(out=local)
+
+
+class TestDatabricksUnityCatalogUploader:
+
+    @patch('streaming.base.storage.upload.DatabricksUploader._create_workspace_client')
+    @pytest.mark.parametrize('out', ['uc://container/dir', ('./dir1', 'uc://container/dir/')])
+    def test_instantiation(self, mock_create_client: Mock, out: Any):
+        mock_create_client.side_effect = None
+        _ = DatabricksUnityCatalogUploader(out=out)
+        if not isinstance(out, str):
+            shutil.rmtree(out[0], ignore_errors=True)
+
+    @patch('streaming.base.storage.upload.DatabricksUploader._create_workspace_client')
+    @pytest.mark.parametrize('out', ['ss4://bucket/dir', ('./dir1', 'gcs://bucket/dir/')])
+    def test_invalid_remote_list(self, mock_create_client: Mock, out: Any):
+        mock_create_client.side_effect = None
+        with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
+            _ = DatabricksUnityCatalogUploader(out=out)
+
+    @patch('streaming.base.storage.upload.DatabricksUploader._create_workspace_client')
+    def test_local_directory_is_empty(self, mock_create_client: Mock,
+                                      local_remote_dir: Tuple[str, str]):
+        mock_create_client.side_effect = None
+        with pytest.raises(FileExistsError, match=f'Directory is not empty.*'):
+            local, _ = local_remote_dir
+            os.makedirs(local, exist_ok=True)
+            local_file_path = os.path.join(local, 'file.txt')
+            # Creating an empty file at specified location
+            with open(local_file_path, 'w') as _:
+                pass
+            _ = DatabricksUnityCatalogUploader(out=local)
+
+
+class TestDBFSUploader:
+
+    @patch('streaming.base.storage.upload.DatabricksUploader._create_workspace_client')
+    @pytest.mark.parametrize('out', ['dbfs:/container/dir', ('./dir1', 'dbfs:/container/dir/')])
+    def test_instantiation(self, mock_create_client: Mock, out: Any):
+        mock_create_client.side_effect = None
+        _ = DBFSUploader(out=out)
+        if not isinstance(out, str):
+            shutil.rmtree(out[0], ignore_errors=True)
+
+    @patch('streaming.base.storage.upload.DatabricksUploader._create_workspace_client')
+    @pytest.mark.parametrize('out', ['ss4://bucket/dir', ('./dir1', 'gcs://bucket/dir/')])
+    def test_invalid_remote_list(self, mock_create_client: Mock, out: Any):
+        mock_create_client.side_effect = None
+        with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
+            _ = DBFSUploader(out=out)
+
+    @patch('streaming.base.storage.upload.DatabricksUploader._create_workspace_client')
+    def test_local_directory_is_empty(self, mock_create_client: Mock,
+                                      local_remote_dir: Tuple[str, str]):
+        with pytest.raises(FileExistsError, match=f'Directory is not empty.*'):
+            mock_create_client.side_effect = None
+            local, _ = local_remote_dir
+            os.makedirs(local, exist_ok=True)
+            local_file_path = os.path.join(local, 'file.txt')
+            # Creating an empty file at specified location
+            with open(local_file_path, 'w') as _:
+                pass
+            _ = DBFSUploader(out=local)
 
 
 class TestLocalUploader:

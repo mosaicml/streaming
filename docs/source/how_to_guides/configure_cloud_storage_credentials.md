@@ -6,6 +6,7 @@ Streaming dataset supports the following cloud storage providers to stream your 
 - Google Cloud Storage
 - Oracle Cloud Storage
 - Azure Blob Storage
+- Databricks
 
 ## Amazon S3
 
@@ -13,7 +14,7 @@ For an S3 bucket with public access, no additional setup is required, simply spe
 
 ### MosaicML platform
 
-For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [AWS S3](https://mcli.docs.mosaicml.com/en/latest/secrets/s3.html) MCLI doc on how to configure the cloud provider credentials.
+For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [AWS S3](https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/s3.html) MCLI doc on how to configure the cloud provider credentials.
 
 ### Others
 
@@ -95,12 +96,43 @@ export S3_ENDPOINT_URL='https://<accountid>.r2.cloudflarestorage.com'
 
 ### MosaicML platform
 
-For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [Google Cloud Storage](https://mcli.docs.mosaicml.com/en/latest/secrets/gcp.html) MCLI doc on how to configure the cloud provider credentials.
+For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [Google Cloud Storage](https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/gcp.html) MCLI doc on how to configure the cloud provider credentials.
 
 
-###  GCP Service Account Credentials Mounted as Environment Variables
+### GCP User Auth Credentials Mounted as Environment Variables
 
-Users must set their GCP `account credentials` to point to their credentials file in the run environment.
+Streaming dataset supports [GCP user credentials](https://cloud.google.com/storage/docs/authentication#user_accounts) or [HMAC keys for User account](https://cloud.google.com/storage/docs/authentication/hmackeys).  Users must set their GCP `user access key` and GCP `user access secret` in the run environment.
+
+From the Google Cloud console, navigate to `Google Storage` > `Settings (Left vertical pane)` > `Interoperability` > `Service account HMAC` > `User account HMAC` > `Access keys for your user account` > `Create a key`.
+
+````{tabs}
+```{code-tab} py
+import os
+os.environ['GCS_KEY'] = 'EXAMPLEFODNN7EXAMPLE'
+os.environ['GCS_SECRET'] = 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
+```
+
+```{code-tab} sh
+export GCS_KEY='EXAMPLEFODNN7EXAMPLE'
+export GCS_SECRET='wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
+```
+````
+
+
+###  GCP Application Default Credentials
+
+Streaming dataset supports the use of Application Default Credentials (ADC) to authenticate you with Google Cloud. When
+no HMAC keys are given (see above), it will attempt to authenticate using ADC. This will, in order, check
+
+1. a key-file whose path is given in the `GOOGLE_APPLICATION_CREDENTIALS` environment variable.
+2. a key-file in the Google cloud configuration directory.
+3. the Google App Engine credentials.
+4. the GCE Metadata Service credentials.
+
+See the [Google Cloud Docs](https://cloud.google.com/docs/authentication/provide-credentials-adc) for more details.
+
+To explicitly use the `GOOGLE_APPLICATION_CREDENTIALS` (point 1 above), users must set their GCP `account credentials`
+to point to their credentials file in the run environment.
 
 ````{tabs}
 ```{code-tab} py
@@ -113,30 +145,12 @@ export GOOGLE_APPLICATION_CREDENTIALS='KEY_FILE'
 ```
 ````
 
-### GCP User Auth Credentials Mounted as Environment Variables
-
-Streaming dataset supports [GCP user credentials](https://cloud.google.com/storage/docs/authentication#user_accounts) or [HMAC keys for User account](https://cloud.google.com/storage/docs/authentication/hmackeys).  Users must set their GCP `user access key` and GCP `user access secret` in the run environment.
-
-From the Google Cloud console, navigate to `Google Storage` > `Settings (Left vertical pane)` > `Interoperability` > `Service account HMAC` > `User account HMAC` > `Access keys for your user account` > `Create a key`.
-
-````{tabs}
-```{code-tab} py
-import os
-os.environ['GCS_KEY'] = 'AKIAIOSFODNN7EXAMPLE'
-os.environ['GCS_SECRET'] = 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
-```
-
-```{code-tab} sh
-export GCS_KEY='AKIAIOSFODNN7EXAMPLE'
-export GCS_SECRET='wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
-```
-````
 
 ## Oracle Cloud Storage
 
 ### MosaicML platform
 
-For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [Oracle Cloud Storage](https://mcli.docs.mosaicml.com/en/latest/secrets/oci.html) MCLI doc on how to configure the cloud provider credentials.
+For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [Oracle Cloud Storage](https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/oci.html) MCLI doc on how to configure the cloud provider credentials.
 
 ### Others
 
@@ -191,5 +205,34 @@ os.environ['AZURE_ACCOUNT_ACCESS_KEY'] = 'NN1KHxKKkj20ZO92EMiDQjx3wp2kZG4UUvfAGl
 ```{code-tab} sh
 export AZURE_ACCOUNT_NAME='test'
 export AZURE_ACCOUNT_ACCESS_KEY='NN1KHxKKkj20ZO92EMiDQjx3wp2kZG4UUvfAGlgGWRn6sPRmGY/TEST/Dri+ExAmPlEExAmPlExA+ExAmPlExA=='
+```
+````
+
+## Databricks
+
+To authenticate Databricks access for both Unity Catalog and Databricks File System (DBFS), users must set their Databricks host (`DATABRICKS_HOST`) and access token (`DATABRICKS_TOKEN`) in the run environment.
+
+See the [Databricks documentation](https://docs.databricks.com/en/dev-tools/auth.html#databricks-personal-access-token-authentication) for instructions on how to create a personal access token.
+
+### MosaicML platform
+
+For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [Environment Variables](https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/env.html) documentation on how to set the environment variables.
+
+```
+mcli create secret env DATABRICKS_HOST='hostname'
+mcli create secret env DATABRICKS_TOKEN='token key'
+```
+
+### Others
+
+````{tabs}
+```{code-tab} py
+os.environ['DATABRICKS_HOST'] = 'hostname'
+os.environ['DATABRICKS_TOKEN'] = 'token key'
+```
+
+```{code-tab} sh
+export DATABRICKS_HOST='hostname'
+export DATABRICKS_TOKEN='token key'
 ```
 ````

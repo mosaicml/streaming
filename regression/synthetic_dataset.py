@@ -8,7 +8,7 @@ import shutil
 import sys
 import urllib.parse
 from argparse import ArgumentParser, Namespace
-from typing import Any, Dict, List, Sequence
+from typing import Any, Sequence
 
 import numpy as np
 import torch
@@ -28,10 +28,10 @@ class SequenceDataset:
 
     Args:
         num_samples (int): number of samples. Defaults to 100.
-        column_names List[str]: A list of features' and target name. Defaults to ['id', 'sample'].
+        column_names list[str]: A list of features' and target name. Defaults to ['id', 'sample'].
     """
 
-    def __init__(self, num_samples: int = 100, column_names: List[str] = ['id', 'sample']) -> None:
+    def __init__(self, num_samples: int = 100, column_names: list[str] = ['id', 'sample']) -> None:
         self.num_samples = num_samples
         self.column_encodings = ['str', 'int']
         self.column_sizes = [None, 8]
@@ -41,7 +41,7 @@ class SequenceDataset:
     def __len__(self) -> int:
         return self.num_samples
 
-    def __getitem__(self, index: int) -> Dict[str, Any]:
+    def __getitem__(self, index: int) -> dict[str, Any]:
         if index < self.num_samples:
             return {
                 self.column_names[0]: f'{index:06}',
@@ -52,7 +52,7 @@ class SequenceDataset:
     def __iter__(self):
         return self
 
-    def __next__(self) -> Dict[str, Any]:
+    def __next__(self) -> dict[str, Any]:
         if self._index >= self.num_samples:
             raise StopIteration
         id = f'{self._index:06}'
@@ -63,7 +63,7 @@ class SequenceDataset:
             self.column_names[1]: data,
         }
 
-    def get_sample_in_bytes(self, index: int) -> Dict[str, Any]:
+    def get_sample_in_bytes(self, index: int) -> dict[str, Any]:
         sample = self.__getitem__(index)
         sample[self.column_names[0]] = sample[self.column_names[0]].encode('utf-8')
         sample[self.column_names[1]] = np.int64(sample[self.column_names[1]]).tobytes()
@@ -79,7 +79,7 @@ class NumberAndSayDataset:
 
     Args:
         num_samples (int): number of samples. Defaults to 100.
-        column_names List[str]: A list of features' and target name. Defaults to ['number',
+        column_names list[str]: A list of features' and target name. Defaults to ['number',
             'words'].
         seed (int): seed value for deterministic randomness.
     """
@@ -92,7 +92,7 @@ class NumberAndSayDataset:
 
     def __init__(self,
                  num_samples: int = 100,
-                 column_names: List[str] = ['number', 'words'],
+                 column_names: list[str] = ['number', 'words'],
                  seed: int = 987) -> None:
         self.num_samples = num_samples
         self.column_encodings = ['int', 'str']
@@ -104,7 +104,7 @@ class NumberAndSayDataset:
     def __len__(self) -> int:
         return self.num_samples
 
-    def _say(self, i: int) -> List[str]:
+    def _say(self, i: int) -> list[str]:
         if i < 0:
             return ['negative'] + self._say(-i)
         elif i <= 19:
@@ -130,7 +130,7 @@ class NumberAndSayDataset:
     def __iter__(self):
         return self
 
-    def __next__(self) -> Dict[str, Any]:
+    def __next__(self) -> dict[str, Any]:
         if self._index >= self.num_samples:
             raise StopIteration
         number = self._get_number()
@@ -156,7 +156,7 @@ class ImageDataset:
 
     Args:
         num_samples (int): number of samples. Defaults to 100.
-        column_names List[str]: A list of features' and target name. Defaults to ['x'].
+        column_names list[str]: A list of features' and target name. Defaults to ['x'].
         seed (int): seed value for deterministic randomness.
         shape (Sequence[int]): shape of the image. Defaults to (3, 32, 32).
     """
@@ -164,7 +164,7 @@ class ImageDataset:
     def __init__(
             self,
             num_samples: int = 100,
-            column_names: List[str] = ['x'],
+            column_names: list[str] = ['x'],
             seed: int = 987,
             shape: Sequence[int] = (3, 32, 32),
     ) -> None:
@@ -179,7 +179,7 @@ class ImageDataset:
     def __len__(self) -> int:
         return self.num_samples
 
-    def __getitem__(self, index: int) -> Dict[str, Any]:
+    def __getitem__(self, index: int) -> dict[str, Any]:
         if index < self.num_samples:
             return {
                 self.column_names[0]: torch.randn(self.num_samples, *self.shape),
@@ -189,7 +189,7 @@ class ImageDataset:
     def __iter__(self):
         return self
 
-    def __next__(self) -> Dict[str, Any]:
+    def __next__(self) -> dict[str, Any]:
         if self._index >= self.num_samples:
             raise StopIteration
         x = torch.randn(self.num_samples, *self.shape)
@@ -208,14 +208,14 @@ class ImageDataset:
         torch.manual_seed(self._seed)
 
 
-def get_dataset_params(kwargs: Dict[str, str]) -> Dict[str, Any]:
+def get_dataset_params(kwargs: dict[str, str]) -> dict[str, Any]:
     """Get the dataset parameters from command-line arguments.
 
     Args:
-        kwargs (Dict[str, str]): Command-line arguments.
+        kwargs (dict[str, str]): Command-line arguments.
 
     Returns:
-        Dict[str, Any]: Dataset parameters.
+        dict[str, Any]: Dataset parameters.
     """
     dataset_params = {}
     if 'num_samples' in kwargs:
@@ -258,24 +258,25 @@ def parse_args() -> tuple[Namespace, dict[str, str]]:
     return args, kwargs
 
 
-def main(args: Namespace, kwargs: Dict[str, str]) -> None:
+def main(args: Namespace, kwargs: dict[str, str]) -> None:
     """Create and delete a dataset.
 
     Args:
         args (Namespace): Arguments.
-        kwargs (Dict[str, str]): Named arguments.
+        kwargs (dict[str, str]): Named arguments.
     """
-    dataset_params = get_dataset_params(kwargs)
-    writer_params = get_writer_params(kwargs)
-    if args.name.lower() not in _DATASET_MAP:
-        raise ValueError(f'Unsupported dataset {args.name}. Supported: {_DATASET_MAP.keys()}')
-    dataset = getattr(sys.modules[__name__], _DATASET_MAP[args.name.lower()])(**dataset_params)
-    columns = {name: dtype for name, dtype in zip(dataset.column_names, dataset.column_encodings)}
-
     if args.create:
+        dataset_params = get_dataset_params(kwargs)
+        writer_params = get_writer_params(kwargs)
+        if args.name.lower() not in _DATASET_MAP:
+            raise ValueError(f'Unsupported dataset {args.name}. Supported: {_DATASET_MAP.keys()}')
+        dataset = getattr(sys.modules[__name__], _DATASET_MAP[args.name.lower()])(**dataset_params)
+        columns = dict(zip(dataset.column_names, dataset.column_encodings))
+
         with MDSWriter(out=args.out, columns=columns, **writer_params) as out:
             for sample in dataset:
                 out.write(sample)
+
     if args.delete:
         shutil.rmtree(args.out, ignore_errors=True)
         obj = urllib.parse.urlparse(args.out)

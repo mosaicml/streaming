@@ -110,7 +110,7 @@ def main(args: Namespace) -> None:
 
     callers = list(map(wrap, get_shuffles))
 
-    text = ' '.join(map(lambda s: s.rjust(10), names))
+    text = ' '.join((s.rjust(10) for s in names))
 
     print(f'{"power".rjust(5)} {"samples".rjust(14)} ' + text)
     for mul_power in range(args.min_power * args.power_interval,
