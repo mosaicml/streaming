@@ -3,6 +3,7 @@
 
 import json
 import tempfile
+from decimal import Decimal
 from typing import Any, Tuple, Union
 
 import numpy as np
@@ -13,7 +14,6 @@ import streaming.base.format.json.encodings as jsonEnc
 import streaming.base.format.mds.encodings as mdsEnc
 import streaming.base.format.xsv.encodings as xsvEnc
 
-from decimal import Decimal
 
 class TestMDSEncodings:
 
@@ -422,7 +422,7 @@ class TestMDSEncodings:
         assert dec == decoded
 
     @pytest.mark.parametrize(('decoded', 'encoded'), [(42, b'42')])
-    def test_mds_StrInt(self, decoded: Decimal, encoded: bytes):
+    def test_mds_StrInt(self, decoded: int, encoded: bytes):
         coder = mdsEnc.StrInt()
         enc = coder.encode(decoded)
         assert isinstance(enc, bytes)
@@ -433,7 +433,7 @@ class TestMDSEncodings:
         assert dec == decoded
 
     @pytest.mark.parametrize(('decoded', 'encoded'), [(42.0, b'42.0')])
-    def test_mds_StrFloat(self, decoded: Decimal, encoded: bytes):
+    def test_mds_StrFloat(self, decoded: float, encoded: bytes):
         coder = mdsEnc.StrFloat()
         enc = coder.encode(decoded)
         assert isinstance(enc, bytes)
