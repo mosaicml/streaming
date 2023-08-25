@@ -6,7 +6,9 @@
 import logging
 import os
 import urllib.parse
-from typing import Any, Dict
+from typing import Any
+
+from streaming import Stream
 
 logger = logging.getLogger(__name__)
 
@@ -26,16 +28,41 @@ def get_kwargs(kwargs: str) -> str:
     return kwargs
 
 
-def get_streaming_dataset_params(kwargs: Dict[str, str]) -> Dict[str, Any]:
+def get_stream_params(kwargs: dict[str, str]) -> list[dict[str, Any]]:
+    """Get the stream parameters from command-line arguments.
+
+    Args:
+        kwargs (dict[str, str]): Command-line arguments.
+
+    Returns:
+        list[dict[str, Any]]: Stream parameters.
+    """
+    stream_params = {}
+    stream_params['local'] = kwargs['local_streams'].split(',')
+    if 'proportion' in kwargs:
+        stream_params['proportion'] = [float(arg) for arg in kwargs['proportion'].split(',')]
+    if 'repeat' in kwargs:
+        stream_params['repeat'] = [float(arg) for arg in kwargs['repeat'].split(',')]
+    if 'choose' in kwargs:
+        stream_params['choose'] = [int(arg) for arg in kwargs['choose'].split(',')]
+    stream_params = [dict(zip(stream_params, t)) for t in zip(*stream_params.values())]
+    logger.debug(f'stream_params: {stream_params}')
+    return stream_params
+
+
+def get_streaming_dataset_params(kwargs: dict[str, str]) -> dict[str, Any]:
     """Get the streaming dataset parameters from command-line arguments.
 
     Args:
-        kwargs (Dict[str, str]): Command-line arguments.
+        kwargs (dict[str, str]): Command-line arguments.
 
     Returns:
-        Dict[str, Any]: Dataset parameters.
+        dict[str, Any]: Dataset parameters.
     """
     dataset_params = {}
+    if 'local_streams' in kwargs:
+        stream_params = get_stream_params(kwargs)
+        dataset_params['streams'] = [Stream(**stream_param) for stream_param in stream_params]
     if 'remote' in kwargs:
         dataset_params['remote'] = kwargs['remote']
     if 'local' in kwargs:
@@ -72,24 +99,18 @@ def get_streaming_dataset_params(kwargs: Dict[str, str]) -> Dict[str, Any]:
         dataset_params['shuffle_block_size'] = int(kwargs['shuffle_block_size'])
     if 'sampling_method' in kwargs:
         dataset_params['sampling_method'] = kwargs['sampling_method']
-    if 'proportion' in kwargs:
-        dataset_params['proportion'] = float(kwargs['proportion'])
-    if 'repeat' in kwargs:
-        dataset_params['repeat'] = float(kwargs['repeat'])
-    if 'choose' in kwargs:
-        dataset_params['choose'] = int(kwargs['choose'])
     logger.debug(f'dataset_params: {dataset_params}')
     return dataset_params
 
 
-def get_dataloader_params(kwargs: Dict[str, str]) -> Dict[str, Any]:
+def get_dataloader_params(kwargs: dict[str, str]) -> dict[str, Any]:
     """Get the dataloader parameters from command-line arguments.
 
     Args:
-        kwargs (Dict[str, str]): Command-line arguments.
+        kwargs (dict[str, str]): Command-line arguments.
 
     Returns:
-        Dict[str, Any]: Dataloader parameters.
+        dict[str, Any]: Dataloader parameters.
     """
     dataloader_params = {}
     if 'num_workers' in kwargs:
@@ -105,14 +126,14 @@ def get_dataloader_params(kwargs: Dict[str, str]) -> Dict[str, Any]:
     return dataloader_params
 
 
-def get_writer_params(kwargs: Dict[str, str]) -> Dict[str, Any]:
+def get_writer_params(kwargs: dict[str, str]) -> dict[str, Any]:
     """Get the writer parameters from command-line arguments.
 
     Args:
-        kwargs (Dict[str, str]): Command-line arguments.
+        kwargs (dict[str, str]): Command-line arguments.
 
     Returns:
-        Dict[str, Any]: Writer parameters.
+        dict[str, Any]: Writer parameters.
     """
     writer_params = {}
     if 'keep_local' in kwargs:
