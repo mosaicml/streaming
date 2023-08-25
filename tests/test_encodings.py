@@ -421,7 +421,7 @@ class TestMDSEncodings:
         assert isinstance(dec, np.floating)
         assert dec == decoded
 
-    @pytest.mark.parametrize(('decoded', 'encoded'), [(42, b'42')])
+    @pytest.mark.parametrize(('decoded', 'encoded'), [(42, b'42'), (-42, b'-42')])
     def test_mds_StrInt(self, decoded: int, encoded: bytes):
         coder = mdsEnc.StrInt()
         enc = coder.encode(decoded)
@@ -432,7 +432,7 @@ class TestMDSEncodings:
         assert isinstance(dec, int)
         assert dec == decoded
 
-    @pytest.mark.parametrize(('decoded', 'encoded'), [(42.0, b'42.0')])
+    @pytest.mark.parametrize(('decoded', 'encoded'), [(42.0, b'42.0'), (-42.0, b'-42.0')])
     def test_mds_StrFloat(self, decoded: float, encoded: bytes):
         coder = mdsEnc.StrFloat()
         enc = coder.encode(decoded)
@@ -443,7 +443,8 @@ class TestMDSEncodings:
         assert isinstance(dec, float)
         assert dec == decoded
 
-    @pytest.mark.parametrize(('decoded', 'encoded'), [(Decimal('4E15'), b'4E+15')])
+    @pytest.mark.parametrize(('decoded', 'encoded'), [(Decimal('4E15'), b'4E+15'),
+                                                      (Decimal('-4E15'), b'-4E+15')])
     def test_mds_StrDecimal(self, decoded: Decimal, encoded: bytes):
         coder = mdsEnc.StrDecimal()
         enc = coder.encode(decoded)
