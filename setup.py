@@ -79,6 +79,8 @@ extra_deps['dev'] = [
     'uvicorn==0.23.2',
     'pytest-split==0.8.1',
     'sortedcollections==2.1.0',
+    'streamlit==1.26.0',
+    'altair==5.0.1',
 ]
 
 extra_deps['docs'] = [

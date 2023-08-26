@@ -9,7 +9,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from io import BytesIO
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -18,26 +18,27 @@ from sortedcollections import OrderedSet
 
 from streaming.base.partition import get_partitions
 from streaming.base.shuffle import get_shuffle
+from streaming.base.util import bytes_to_int, number_abbrev_to_int
 
 
 def simulate(shards: int,
-             samples_per_shard: int,
-             avg_shard_size: float,
+             samples_per_shard: Union[int, str],
+             avg_shard_size: Union[float, str],
              device_batch_size: int,
              time_per_sample: float,
-             batches_per_epoch: int,
+             batches_per_epoch: Union[int, str],
              epochs: int,
              physical_nodes: int,
              devices: int,
-             node_network_bandwidth: float,
+             node_network_bandwidth: Union[float,str],
              workers: int,
              canonical_nodes: int,
-             predownload: int,
-             avg_compressed_shard_size: Optional[float] = None,
-             cache_limit: Optional[int] = None,
+             predownload: Union[int, str],
+             cache_limit: Union[int, str, None] = None,
              shuffle_algo: Optional[str] = None,
-             shuffle_block_size: int = 1 << 18,
-             seed: int = 42) -> Tuple[NDArray, NDArray]:
+             shuffle_block_size: Union[int, str] = 1 << 18,
+             seed: int = 42,
+             generator: bool = False) -> Union[Tuple[int, int], Tuple[NDArray, NDArray]]:
     """Simulates step time and downloads using streaming for the specified input parameters.
 
     Key Notes and Assumptions:
@@ -57,23 +58,23 @@ def simulate(shards: int,
 
     Args:
         shards (int): number of shards
-        samples_per_shard (int): number of samples per shard
-        avg_shard_size (float): average shard size (bytes)
-        avg_compressed_shard_size (float): average compressed_shard size (bytes)
+        samples_per_shard (Union[int, str]): number of samples per shard
+        avg_shard_size (Union[float, str]): average shard size (bytes)
         device_batch_size (int): device batch size (samples)
         time_per_sample (float): time to process one sample on one device (seconds)
-        batches_per_epoch (int): number of batches per epoch
+        batches_per_epoch (Union[int, str]): number of batches per epoch
         epochs (int): number of epochs
         physical_nodes (int): number of physical nodes
         devices (int): number of devices per node
-        node_network_bandwidth (float): network bandwidth per node (bytes/s)
+        node_network_bandwidth (Union[float, str]): network bandwidth per node (bytes/s)
         workers (int): number of workers per device
         canonical_nodes (int): number of canonical nodes
-        predownload (int): number of samples to predownload per worker (samples)
-        cache_limit (int, optional): cache limit per node (bytes). Defaults to ``None``.
+        predownload (Union[int, str]): number of samples to predownload per worker (samples)
+        cache_limit (Union[int, str, None]): cache limit per node (bytes). Defaults to ``None``.
         shuffle_algo (str, optional): shuffling algorithm. Defaults to ``None``.
-        shuffle_block_size (int): shuffling block size (samples). Defaults to ``1 << 18``.
+        shuffle_block_size (Union[int, str]): shuffling block size (samples). Defaults to ``1 << 18``.
         seed (int): shuffling seed. Defaults to ``42``.
+        generator (bool): True if we yield throughput and shard_download one step at a time.
 
     Returns:
         step_times (NDArray): time taken by each step, calculated by simulation.
@@ -81,13 +82,23 @@ def simulate(shards: int,
     """
     # simulation preparation...
 
+    # make sure potential string args are usable
+    samples_per_shard = number_abbrev_to_int(samples_per_shard)
+    avg_shard_size = bytes_to_int(avg_shard_size)
+    batches_per_epoch = number_abbrev_to_int(batches_per_epoch)
+    node_network_bandwidth = bytes_to_int(node_network_bandwidth)
+    predownload = number_abbrev_to_int(predownload)
+    shuffle_block_size = number_abbrev_to_int(shuffle_block_size)
+    if cache_limit:
+        cache_limit = bytes_to_int(cache_limit)
+
     # we assume that each shard is going to be seen only once. Not handling up/down-sampling
     # or multiple streams for now.
     shard_sizes = np.array([samples_per_shard] * shards)
 
     # get partition of sample ids
     # structured as (physical nodes, ranks per node, workers per rank, batches per worker, batch size)
-    partitions = get_partitions(algo='orig',
+    orig_partitions = get_partitions(algo='orig',
                                 num_samples=shards * samples_per_shard,
                                 num_canonical_nodes=canonical_nodes,
                                 num_physical_nodes=physical_nodes,
@@ -124,6 +135,9 @@ def simulate(shards: int,
 
     for epoch in range(epochs):
 
+        print("shards in node 0:", len(node_shards[0]))
+        print("shards in node 1:", len(node_shards[1]))
+
         if shuffle_algo is not None:
             # get shuffle of sample ids
             shuffle = get_shuffle(algo=shuffle_algo,
@@ -133,11 +147,14 @@ def simulate(shards: int,
                                   epoch=epoch,
                                   block_size=shuffle_block_size)
             # index into the shuffle to get the new sample at each index
-            partitions = np.where(partitions != -1, shuffle[partitions], -1)
+            partitions = np.where(orig_partitions != -1, shuffle[orig_partitions], -1)
 
         # handle initial predownload
         # reshape shuffled_partition to get samples, in order, per worker
         samples_per_worker = partitions.reshape(physical_nodes, devices, workers, -1)
+
+        print("shards needed for node 0:", set(sample_to_shard[partitions[0]].flatten()))
+        print("shards needed for node 1:", set(sample_to_shard[partitions[1]].flatten()))
 
         worker_sample_index = 0  # track which sample we are on. is an index per worker.
         worker_download_indices = np.array(
@@ -367,19 +384,20 @@ def simulate(shards: int,
                 # update worker download index for this node
                 worker_download_indices[physical_node] = curr_worker_download_index
 
-            step_times.append(slowest_download_time + avg_batch_time)
-            shard_downloads.append(num_downloads)
+            if generator:
+                yield (slowest_download_time + avg_batch_time, avg_shard_size*num_downloads)
+            else:
+                step_times.append(slowest_download_time + avg_batch_time)
+                shard_downloads.append(avg_shard_size*num_downloads)
 
             # if we are at last worker, then the sample_index per worker should shift ahead by device_batch_size
             if curr_worker == workers - 1:
                 worker_sample_index += device_batch_size
-
-    step_times = np.array(step_times)
-    shard_downloads = avg_shard_size * np.array(shard_downloads)
-    if avg_compressed_shard_size:
-        shard_downloads = shard_downloads * avg_compressed_shard_size / avg_shard_size
-
-    return step_times, shard_downloads
+    
+    if not generator:
+        step_times = np.array(step_times)
+        shard_downloads = np.array(shard_downloads)
+        yield step_times, shard_downloads
 
 
 def plot_simulation(step_times: NDArray,
