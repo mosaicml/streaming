@@ -122,7 +122,7 @@ with col1.form("my_form"):
     epochs = col4.number_input('number of epochs', step=1, value=1, help="number of epochs for this run.")
     batches_per_epoch = col4.text_input('batches per epoch', value="3k", help="number of batches per epoch for this run.")
     batches_per_epoch = number_abbrev_to_int(batches_per_epoch)
-    device_batch_size = col4.number_input('device batch size (samples)', step=1, value=16, help="number of samples per device (GPU) per batch. the global batch size is `device_batch_size * devices_per_node * physical_nodes`")
+    device_batch_size = col4.number_input('device batch size', step=1, value=16, help="number of samples per device (GPU) per batch. the global batch size is `device_batch_size * devices_per_node * physical_nodes`")
     col4.text("")
 
     # hardware and network
@@ -137,7 +137,7 @@ with col1.form("my_form"):
     col4.write("**Streaming Parameters**")
     workers = col4.number_input('workers per device', step=1, value=8, help="number of dataloader workers per device (GPU).")
     canonical_nodes = col4.number_input('number of canonical nodes', step=1, value=8, help="number of canonical nodes to split your dataset into. a canonical node is a bucket of shards that is assigned to a particular physical node.")
-    predownload = col4.text_input('samples to download ahead per worker', value=64, help="number of samples ahead each worker should download. predownload does not occur before the first batch; rather, it occurs while training is ongoing.")
+    predownload = col4.text_input('predownload per worker (samples)', value=64, help="number of samples ahead each worker should download. predownload does not occur before the first batch; rather, it occurs while training is ongoing.")
     #shuffle_algo = col4.text_input('shuffling algorithm', value="py1b", help="shuffling algorithm to use for this run. your shuffle parameters may affect model training.")
     shuffle_algo = col4.selectbox('shuffling algorithm', ["py1b", "py1br", "py1e", "py1s", "py2s", "naive", "None"], help="shuffling algorithm to use for this run. your shuffle parameters may affect model training.")
     if shuffle_algo == "None":
