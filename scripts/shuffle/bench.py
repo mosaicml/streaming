@@ -23,6 +23,12 @@ def parse_args() -> Namespace:
     """
     args = ArgumentParser()
     args.add_argument(
+        '--algos',
+        type=str,
+        default='',
+        help='List of algos to benchmark',
+    )
+    args.add_argument(
         '--num_canonical_nodes',
         type=int,
         default=8,
@@ -136,6 +142,13 @@ def main(args: Namespace) -> None:
     """
     names = 'naive', 'py2s', 'py1s', 'py1b'
     get_shuffles = get_shuffle_naive, get_shuffle_py2s, get_shuffle_py1s, get_shuffle_py1b
+
+    if args.algos:
+        algos = args.algos.split(',') if args.algos else []
+        algos = set(algos)
+        pairs = zip(names, get_shuffles)
+        pairs = filter(lambda p: p[0] in algos, pairs)
+        names, get_shuffles = zip(*pairs)
 
     def wrap(func: Callable):
         return Caller(func, args.num_canonical_nodes, args.seed, args.epoch, args.timeout)
