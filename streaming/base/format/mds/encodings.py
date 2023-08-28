@@ -6,6 +6,7 @@
 import json
 import pickle
 from abc import ABC, abstractmethod
+from decimal import Decimal
 from io import BytesIO
 from typing import Any, Optional, Set, Tuple
 
@@ -385,6 +386,50 @@ class Float64(Scalar):
         super().__init__(np.float64)
 
 
+class StrEncoding(Encoding):
+    """Base class for stringified types.
+
+    Using variable-length strings allows us to store scalars with arbitrary precision.
+
+    The encode/decode methods of subclasses are the same except for typing specializations.
+    """
+
+    pass
+
+
+class StrInt(StrEncoding):
+    """Store int as variable-length digits str."""
+
+    def encode(self, obj: int) -> bytes:
+        self._validate(obj, int)
+        return str(obj).encode('utf-8')
+
+    def decode(self, data: bytes) -> int:
+        return int(data.decode('utf-8'))
+
+
+class StrFloat(Encoding):
+    """Store float as variable-length digits str."""
+
+    def encode(self, obj: float) -> bytes:
+        self._validate(obj, float)
+        return str(obj).encode('utf-8')
+
+    def decode(self, data: bytes) -> float:
+        return float(data.decode('utf-8'))
+
+
+class StrDecimal(Encoding):
+    """Store decimal as variable-length digits str."""
+
+    def encode(self, obj: Decimal) -> bytes:
+        self._validate(obj, Decimal)
+        return str(obj).encode('utf-8')
+
+    def decode(self, data: bytes) -> Decimal:
+        return Decimal(data.decode('utf-8'))
+
+
 class PIL(Encoding):
     """Store PIL image raw.
 
@@ -488,6 +533,9 @@ _encodings = {
     'float16': Float16,
     'float32': Float32,
     'float64': Float64,
+    'str_int': StrInt,
+    'str_float': StrFloat,
+    'str_decimal': StrDecimal,
     'pil': PIL,
     'jpeg': JPEG,
     'png': PNG,
