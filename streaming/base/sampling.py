@@ -36,8 +36,9 @@ def get_shard_sampling(samples_per_shard: NDArray[np.int64], choose: int,
     # Get sample size of each visit of each shard.
     x = np.arange(visits_per_shard)
     x = np.expand_dims(x, 0)
-    begins = samples_per_shard * x // visits_per_shard
-    ends = samples_per_shard * (x + 1) // visits_per_shard
+    samples_per_shard_rows = np.expand_dims(samples_per_shard, 1)
+    begins = samples_per_shard_rows * x // visits_per_shard
+    ends = samples_per_shard_rows * (x + 1) // visits_per_shard
     samples_per_visit = (ends - begins).flatten()
 
     # Start choose per shard with the full repeats.
