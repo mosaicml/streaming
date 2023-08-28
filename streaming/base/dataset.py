@@ -420,8 +420,12 @@ class StreamingDataset(Array, IterableDataset):
         self.length = ceil(self.epoch_size / world.num_ranks)
 
         # Register/lookup our shared memory prefix and filelock root directory.
-        my_locals = [os.path.abspath(os.path.join(x.local, x.split)) for x in streams]
-        self._shm_prefix_int, self._locals_shm = get_shm_prefix(my_locals, world)
+        streams_local = [os.path.abspath(os.path.join(x.local, x.split)) for x in streams]
+        streams_remote = [
+            os.path.join(x.remote, x.split) if x.remote is not None else None for x in streams
+        ]
+        self._shm_prefix_int, self._locals_shm = get_shm_prefix(streams_local, streams_remote,
+                                                                world)
         self._filelock_root = os.path.join(os.path.sep, 'tmp', 'streaming')
         os.makedirs(self._filelock_root, exist_ok=True)
 
