@@ -77,11 +77,13 @@ for run_id in project_runs_list[skip:]:
 
     # simulate throughput and network use given the inputs
 
-    step_times, shard_downloads = simulate(shards, samples_per_shard, avg_shard_size,
+    result = simulate(shards, samples_per_shard, avg_shard_size,
                                        device_batch_size, time_per_sample, batches_per_epoch,
                                        epochs, physical_nodes, devices, node_network_bandwidth,
                                        workers, canonical_nodes, predownload, cache_limit,
                                        shuffle_algo, shuffle_block_size, seed)
+    
+    step_times, shard_downloads = next(result)
     
     immediate_batch_throughput = 1 / step_times
 

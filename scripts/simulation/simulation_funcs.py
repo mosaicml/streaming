@@ -135,9 +135,6 @@ def simulate(shards: int,
 
     for epoch in range(epochs):
 
-        print("shards in node 0:", len(node_shards[0]))
-        print("shards in node 1:", len(node_shards[1]))
-
         if shuffle_algo is not None:
             # get shuffle of sample ids
             shuffle = get_shuffle(algo=shuffle_algo,
@@ -152,9 +149,6 @@ def simulate(shards: int,
         # handle initial predownload
         # reshape shuffled_partition to get samples, in order, per worker
         samples_per_worker = partitions.reshape(physical_nodes, devices, workers, -1)
-
-        print("shards needed for node 0:", set(sample_to_shard[partitions[0]].flatten()))
-        print("shards needed for node 1:", set(sample_to_shard[partitions[1]].flatten()))
 
         worker_sample_index = 0  # track which sample we are on. is an index per worker.
         worker_download_indices = np.array(
