@@ -138,7 +138,6 @@ with col1.form("my_form"):
     workers = col4.number_input('workers per device', step=1, value=8, help="number of dataloader workers per device (GPU).")
     canonical_nodes = col4.number_input('number of canonical nodes', step=1, value=8, help="number of canonical nodes to split your dataset into. a canonical node is a bucket of shards that is assigned to a particular physical node.")
     predownload = col4.text_input('predownload per worker (samples)', value=64, help="number of samples ahead each worker should download. predownload does not occur before the first batch; rather, it occurs while training is ongoing.")
-    #shuffle_algo = col4.text_input('shuffling algorithm', value="py1b", help="shuffling algorithm to use for this run. your shuffle parameters may affect model training.")
     shuffle_algo = col4.selectbox('shuffling algorithm', ["py1b", "py1br", "py1e", "py1s", "py2s", "naive", "None"], help="shuffling algorithm to use for this run. your shuffle parameters may affect model training.")
     if shuffle_algo == "None":
         shuffle_algo = None
