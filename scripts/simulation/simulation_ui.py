@@ -4,7 +4,7 @@ import streamlit as st
 import numpy as np
 import altair as alt
 import pandas as pd
-from simulation_funcs import simulate
+from simulation_funcs import simulate, get_simulation_stats
 from streaming.base.util import number_abbrev_to_int, bytes_to_int
 
 
@@ -22,19 +22,27 @@ network_plot = col2.empty()
 throughput_window = 10
 
 def get_chart(data, throughput=True):
-        hover = alt.selection_single(
+        hover = alt.selection_point(
             fields=["step"],
             nearest=True,
             on="mouseover",
-            empty="none",
+            empty=False,
         )
 
         lines = (
-            alt.Chart(data, title="Throughput" if throughput else "Network Usage")
+            alt.Chart(data, title="Throughput (per step and " + str(throughput_window) + "-step rolling average)")
             .mark_line()
             .encode(
                 x="step",
-                y="throughput (batches/s)" if throughput else "cumulative network usage (bytes)"
+                y="throughput (batches/s)",
+                color="measurement"
+            )
+        ) if throughput else (
+            alt.Chart(data, title="Cumulative Network Usage")
+            .mark_line()
+            .encode(
+                x="step",
+                y="cumulative network usage (bytes)"
             )
         )
 
@@ -54,7 +62,7 @@ def get_chart(data, throughput=True):
                     alt.Tooltip("throughput (batches/s)" if throughput else "cumulative network usage (bytes)", title="Throughput" if throughput else "Network Usage"),
                 ],
             )
-            .add_selection(hover)
+            .add_params(hover)
         )
         return (lines + points + tooltips).interactive()
 
@@ -69,39 +77,64 @@ def submit_simulation(shards, samples_per_shard, avg_shard_size, epochs, batches
 
     gen_step_times = []
     gen_shard_downloads = []
-    throughput_data = []
+    rolling_throughput_data = []
+    immediate_throughput_data = []
     network_data = []
-    throughput_steps = []
-    network_steps = []
-    new_throughput_data = []
-    new_network_data = []
-    for i, (step_time, shard_download) in enumerate(gen_sim):
-        if step_time is not None and shard_download is not None:
+    steps = []
+    time_to_first_batch = 0
+    for i, result in enumerate(gen_sim):
+        # if result length is 2, then we have (step_time, shard_download). otherwise is just returning startup time.
+        if type(result) != np.float64:
+            step_time, shard_download = result
             gen_step_times.append(step_time)
             gen_shard_downloads.append(shard_download)
             # plot throughput once we have enough samples for the window 
             if i >= throughput_window - 1:
                 step_time_window = np.array(gen_step_times[-throughput_window:])
                 throughput = 1/np.mean((step_time_window))
-                throughput_steps.append(i+1)
-                throughput_data.append(throughput)
-                new_throughput_data.append(throughput)
+                rolling_throughput_data.append(throughput)
+            else:
+                rolling_throughput_data.append(0)
+            immediate_throughput_data.append(1/step_time)
             # plot network usage
             cumulative_shard_download = np.sum(np.array(gen_shard_downloads))
-            network_steps.append(i+1)
             network_data.append(cumulative_shard_download)
-            new_network_data.append(cumulative_shard_download)
+            steps.append(i+1)
+        else:
+            time_to_first_batch = result
         
-        # update plots and percentages once every 500 batches
-        if i == 1 or i % 500 == 0 or i == batches_per_epoch * epochs - 1:
-            throughput_df = pd.DataFrame({"step": throughput_steps, "throughput (batches/s)": throughput_data})
-            network_df = pd.DataFrame({"step": network_steps, "cumulative network usage (bytes)": network_data})
+        # update plots and percentages at regular intervals
+        interval = (batches_per_epoch*epochs) // 10
+        if i == 1 or i % interval == 0 or i == batches_per_epoch * epochs - 1:
+            rolling_throughput_df = pd.DataFrame({"step": steps, "measurement": [" rolling avg"]*len(rolling_throughput_data),  "throughput (batches/s)": rolling_throughput_data})
+            immediate_throughput_df = pd.DataFrame({"step": steps, "measurement": ["per step"]*len(immediate_throughput_data),  "throughput (batches/s)": immediate_throughput_data})
+            throughput_df = pd.concat([immediate_throughput_df, rolling_throughput_df])
+            network_df = pd.DataFrame({"step": steps, "cumulative network usage (bytes)": network_data})
             throughput_plot.altair_chart(get_chart(throughput_df, True), use_container_width=True)
             network_plot.altair_chart(get_chart(network_df, False), use_container_width=True)
             # update progress bar and text
             percentage = int(100*(i+1) / (batches_per_epoch * epochs))
             status_text.text("%i%% Complete" % percentage)
             progress_bar.progress(percentage)
+
+    gen_step_times = np.array(gen_step_times)
+    gen_shard_downloads = np.array(gen_shard_downloads)
+
+    all_throughput_drops, warmup_time, warmup_step, post_warmup_throughput_drops = get_simulation_stats(gen_step_times, gen_shard_downloads, time_per_sample, device_batch_size)
+
+    if warmup_step == batches_per_epoch*epochs:
+        # display error if the warmup phase is the whole run, meaning that we never hit peak throughput.
+        col2.error('This configuration is severely bottlenecked by downloading. The run will not be performant.', icon="🚨")
+    elif post_warmup_throughput_drops:
+        # display warning if post-warmup throughput drops are more than 10% of the run.
+        col2.warning('This configuration experiences some downloading-related slowdowns even after warmup.', icon="⚠️")
+    col2.write("**{0} steps**, or **{1:.1f}%** of all steps, waited for shard downloads.".format(all_throughput_drops, 100*all_throughput_drops/(batches_per_epoch*epochs)))
+    if warmup_step != batches_per_epoch*epochs:
+        # only display post-warmup throughput drop info if we actually ended the warmup period (i.e. we hit peak throughput at some point)
+        col2.write("There were **{} steps** that waited for shard downloads after the warmup period.".format(post_warmup_throughput_drops))
+    col2.write("Estimated time to first batch: **{0:.2f} s**".format(time_to_first_batch))
+    col2.write("Estimated warmup time: **{0:.2f} s**".format(warmup_time))
+    
 
 with col1.form("my_form"):
 

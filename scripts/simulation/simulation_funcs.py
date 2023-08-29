@@ -15,6 +15,7 @@ import numpy as np
 from numpy.typing import NDArray
 from simulation.last_used_ordered_set import LastUsedOrderedSet
 from sortedcollections import OrderedSet
+import time
 
 from streaming.base.partition import get_partitions
 from streaming.base.shuffle import get_shuffle
@@ -38,7 +39,7 @@ def simulate(shards: int,
              shuffle_algo: Optional[str] = None,
              shuffle_block_size: Union[int, str] = 1 << 18,
              seed: int = 42,
-             generator: bool = False) -> Union[Tuple[int, int], Tuple[NDArray, NDArray]]:
+             generator: bool = False) -> Union[Tuple[int, int], Tuple[NDArray, NDArray], np.float64]:
     """Simulates step time and downloads using streaming for the specified input parameters.
 
     Key Notes and Assumptions:
@@ -81,6 +82,10 @@ def simulate(shards: int,
         shard_downloads (NDArray): amount of downloaded bytes at each step, calculated by simulation.
     """
     # simulation preparation...
+
+    # tracking startup time
+    start_time = time.time()
+    startup_time = 0
 
     # make sure potential string args are usable
     samples_per_shard = number_abbrev_to_int(samples_per_shard)
@@ -174,6 +179,10 @@ def simulate(shards: int,
                     download_shards = OrderedSet(sample_to_shard[download_samples])
                     worker_downloads.append(download_shards)
             node_worker_downloads.append(worker_downloads)
+
+        # if first epoch, add time so far to startup time
+        if epoch == 0:
+            startup_time += time.time() - start_time
 
         for batch_num in range(batches_per_epoch):
 
@@ -309,6 +318,11 @@ def simulate(shards: int,
             # over all nodes. And that means the download_time_left for nodes that finish earlier will be longer
             # and only the slowest node will have a download_time_left of avg_batch_time.
             slowest_download_time = np.max(node_batch_download_times)
+
+            # if we are on the first step, add slowest_download_time to startup time
+            if epoch == 0 and batch_num == 0:
+                startup_time += slowest_download_time
+            
             for physical_node in range(physical_nodes):
 
                 # we will always have the avg_batch_time to do more downloads, plus whatever amount of time this node finished early
@@ -391,7 +405,16 @@ def simulate(shards: int,
     if not generator:
         step_times = np.array(step_times)
         shard_downloads = np.array(shard_downloads)
-        yield step_times, shard_downloads
+        yield step_times, shard_downloads, startup_time
+    else:
+        yield startup_time
+
+def get_rolling_avg_throughput(step_times: NDArray, window: int = 10) -> NDArray:
+    step_times_rolling_avg = np.convolve(step_times, np.ones(window) / window, mode='valid')
+    batch_throughput_rolling_avg = 1 / step_times_rolling_avg
+    batch_throughput_rolling_avg = np.concatenate((np.array([0] * (window-1)), batch_throughput_rolling_avg))
+
+    return batch_throughput_rolling_avg
 
 
 def plot_simulation(step_times: NDArray,
@@ -418,10 +441,7 @@ def plot_simulation(step_times: NDArray,
 
     shard_downloads_cumulative = np.cumsum(shard_downloads)
 
-    step_times_rolling_avg = np.convolve(step_times, np.ones(window) / window, mode='valid')
-    batch_throughput_rolling_avg = 1 / step_times_rolling_avg
-    batch_throughput_rolling_avg = np.concatenate(
-        (np.array([0] * 9), batch_throughput_rolling_avg))
+    batch_throughput_rolling_avg = get_rolling_avg_throughput(step_times, window)
 
     # matplotlib plot with 2 vertically stacked subplots
     fig, (ax1, ax2) = plt.subplots(2, 1)
@@ -461,3 +481,43 @@ def plot_simulation(step_times: NDArray,
     else:
         plt.show()
         return None
+    
+
+def get_simulation_stats(step_times, shard_downloads, time_per_sample, device_batch_size):
+    """Gets simulation stats for web UI.
+
+    Args:
+        step_times (NDArray): time per step, as calculated by simulation
+        shard_downloads (NDArray): download size (bytes) per step, as calculated by simulation
+
+    Returns:
+        Tuple[float, float, float]: percent of download-limited steps, warmup time
+    """
+    
+    # calculate percent of download-limited steps
+    min_step_time = time_per_sample * device_batch_size
+    all_throughput_drops = np.count_nonzero(step_times > (min_step_time))
+
+    # calculate warmup time (time to first max possible rolling average throughput)
+    max_throughput = 1 / min_step_time
+    rolling_avg_throughput = get_rolling_avg_throughput(step_times)
+    if np.max(rolling_avg_throughput) == max_throughput:
+        warmup_step = np.argmax(rolling_avg_throughput >= (max_throughput)) + 1
+        warmup_time = np.sum(step_times[:warmup_step])
+    else:
+        # we never hit the max possible throughput
+        warmup_step = rolling_avg_throughput.shape[0]
+        warmup_time = np.sum(step_times)
+    
+    # see if there are throughput drops after warmup so we can notify users
+    if warmup_step != rolling_avg_throughput.shape[0]:
+        # if we did hit the max throughput then we check for later drops
+        post_warmup_throughput_drops = np.count_nonzero(step_times[warmup_step:] > min_step_time)
+    else:
+        # since warmup was the whole time, there are no post-warmup throughput drops
+        post_warmup_throughput_drops = 0
+    
+    return all_throughput_drops, warmup_time, warmup_step, post_warmup_throughput_drops
+
+
+    
