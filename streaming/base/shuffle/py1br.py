@@ -76,9 +76,9 @@ def get_shuffle_py1br(shard_sizes: NDArray[np.int64],
         node_stagger = stagger[node]
         while blocks_end < node_stop_sample:
             rand_block_size = epoch_rng.integers(int(0.75 * block_size), int(1.25 * block_size))
-            # don't want the block to start before the first sample of the node
+            # We don't want the block to start before the first sample of the node.
             staggered_block_start = max(blocks_end - node_stagger, node_start_sample)
-            # don't want the block to stop after the last sample of the node
+            # We don't want the block to stop after the last sample of the node.
             staggered_block_stop = min(blocks_end + rand_block_size - node_stagger,
                                        node_stop_sample)
             block_staggered_ranges.append((staggered_block_start, staggered_block_stop))

@@ -61,16 +61,16 @@ def get_shuffle_py1b(shard_sizes: NDArray[np.int64],
     # Populate the global sample ID mapping, shuffling within each block within each super-span.
     ids = np.empty(num_samples, np.int64)
     offset = 0
-    # loop over each canonical node
+    # Loop over each canonical node.
     for super_begin, super_end in super_spans:
-        # super_offset is the offset of the first sample in the canonical node
+        # The super_offset is the offset of the first sample in the canonical node.
         super_offset = offset
-        # loop over each span contained in the canonical node
+        # Loop over each span contained in the canonical node.
         for begin, end in spans[super_begin:super_end]:
             span_size = end - begin
             ids[offset:offset + span_size] = np.arange(begin, end)
             offset += span_size
-        # shuffle within each block, but don't shuffle past the canonical node boundary
+        # Shuffle within each block, but don't shuffle past the canonical node boundary.
         for start in range(super_offset, offset, block_size):
             stop = min(start + block_size, offset)
             epoch_rng.shuffle(ids[start:stop])
