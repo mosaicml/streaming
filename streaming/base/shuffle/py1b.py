@@ -34,7 +34,6 @@ def get_shuffle_py1b(shard_sizes: NDArray[np.int64],
     Returns:
         NDArray[np.int64]: 1:1 mapping of sample ID to shuffled sample ID.
     """
-    block_size = int(block_size)
     # Create each shard's sample ID span (begin, end excl).
     spans = []
     num_samples = 0
