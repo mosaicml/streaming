@@ -153,7 +153,7 @@ def main(args: Namespace) -> None:
     def wrap(func: Callable):
         return Caller(func, args.num_canonical_nodes, args.seed, args.epoch, args.timeout)
 
-    callers = list(map(wrap, get_shuffles))
+    callers = list(map(wrap, get_shuffles))  # pyright: ignore
 
     text = ' '.join((s.rjust(10) for s in names))
 
