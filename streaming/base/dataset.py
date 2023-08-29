@@ -13,6 +13,7 @@ from math import ceil
 from threading import Event, Lock
 from time import sleep, time_ns
 from typing import Any, Dict, Iterator, Optional, Sequence, Tuple, Union
+from warnings import warn
 
 import numpy as np
 from filelock import FileLock
@@ -262,7 +263,8 @@ class StreamingDataset(Array, IterableDataset):
             ``False``.
         shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1s``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
-        shuffle_block_size (int): Unit of shuffle. Defaults to ``1 << 18``.
+        shuffle_block_size (int): Unit of shuffle. A canonical node's samples are split into blocks
+            of this size, and samples within each block are shuffled. Defaults to ``1 << 18``.
         sampling_method (str): Which sampling method to use, either ``balanced`` or ``fixed``.
             Defaults to ``balanced``.
         sampling_diversity (int): When picking samples for a stream's final partial repeat, how
@@ -316,6 +318,13 @@ class StreamingDataset(Array, IterableDataset):
             raise ValueError(
                 f'Invalid sampling method: {sampling_method}. Must be one of `balanced` or `fixed`.'
             )
+
+        # issue deprecation warning for py1b shuffle algorithm.
+        if self.shuffle_algo == 'py1b':
+            warn(
+                'The \'py1b\' shuffle algorithm will soon be deprecated. Please use the more performant \'py1br\' algorithm instead.',
+                DeprecationWarning,
+                stacklevel=2)
 
         # Check that predownload is at least per device batch size.
         if self.predownload is not None and self.batch_size is not None and \

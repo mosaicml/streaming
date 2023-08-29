@@ -38,19 +38,28 @@ def divide_spans(spans: List[Tuple[int, int]], num_samples: int, num_parts: int)
     super_spans = []
 
     for part in range(num_parts):
+        # note that the size of a part (canonical node) is num_samples // num_parts.
         part_end = num_samples * (part + 1) // num_parts
 
+        # loop over spans until we've filled up our part (canonical node) completely
         while True:
             if span_index == len(spans):
                 break
 
+            # input spans are the shard spans. these can be unequally sized and may cross
+            # part (canonical node) boundaries.
             span = spans[span_index]
+            # spans are (begin, end excl)
             samples_this_span = span[1] - span[0]
+            # check if the shard span contains more samples than the part (canonical node) can fit
             if part_end < samples_so_far + samples_this_span:
+                # if there is space left in the part, split the span
                 if samples_so_far < part_end:
                     split = part_end - samples_so_far
+                    # create a span, filling up with as many samples as possible from shard span
                     new_span = span[0], span[0] + split
                     out_spans.append(new_span)
+                    # modify the old shard span to reflect that it's been split
                     spans[span_index] = span[0] + split, span[1]
                     samples_so_far += split
                 break
@@ -59,6 +68,8 @@ def divide_spans(spans: List[Tuple[int, int]], num_samples: int, num_parts: int)
             span_index += 1
             samples_so_far += samples_this_span
 
+        # super spans are tell us which new spans belong to each part (canonical node)
+        # as a tuple of (begin span index, end span index excl)
         super_span = begin_part, len(out_spans)
         super_spans.append(super_span)
         begin_part = len(out_spans)
