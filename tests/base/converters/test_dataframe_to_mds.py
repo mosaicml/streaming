@@ -5,7 +5,7 @@ import json
 import os
 from decimal import Decimal
 from tempfile import mkdtemp
-from typing import Any, Dict, Tuple
+from typing import Any, Tuple
 
 import pytest
 from pyspark.sql import SparkSession
@@ -21,6 +21,7 @@ LOCAL_MANUAL_TEST = False
 os.environ[
     'OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'  # set to yes to all fork process in spark calls
 
+
 @pytest.fixture(scope='class', autouse=True)
 def remote_local_dir() -> Any:
     """Creates a temporary directory and then deletes it when the calling function is done."""
@@ -34,6 +35,7 @@ def remote_local_dir() -> Any:
         return mock_local_dir, mock_remote_dir
 
     return _method
+
 
 class TestDataFrameToMDS:
 
@@ -84,7 +86,7 @@ class TestDataFrameToMDS:
             'keep_local': keep_local,
         }
 
-        with pytest.raises(ValueError): # , match=f'* is not supported by MDSwriter'):
+        with pytest.raises(ValueError):  # , match=f'* is not supported by MDSwriter'):
             _, _ = dataframeToMDS(dataframe.select(col('id'), col('dept'), col('properties')),
                                   merge_index=merge_index,
                                   mds_kwargs=mds_kwargs)
@@ -131,27 +133,21 @@ class TestDataFrameToMDS:
 
     def test_user_defined_columns(self, dataframe: Any):
         out = mkdtemp()
-        user_defined_columns = {
-            'idd': 'str',
-            'dept': 'str'
-        }
+        user_defined_columns = {'idd': 'str', 'dept': 'str'}
         mds_kwargs = {
             'out': out,
             'columns': user_defined_columns,
         }
-        with pytest.raises(ValueError): # ,match=f'*is not a column of input dataframe*'):
+        with pytest.raises(ValueError):  # ,match=f'*is not a column of input dataframe*'):
             _, _ = dataframeToMDS(dataframe, merge_index=False, mds_kwargs=mds_kwargs)
 
-        user_defined_columns = {
-            'id': 'strr',
-            'dept': 'str'
-         }
+        user_defined_columns = {'id': 'strr', 'dept': 'str'}
 
         mds_kwargs = {
             'out': out,
             'columns': user_defined_columns,
         }
-        with pytest.raises(ValueError): # , match=f'* is not supported by MDSwriter'):
+        with pytest.raises(ValueError):  # , match=f'* is not supported by MDSwriter'):
             _, _ = dataframeToMDS(dataframe, merge_index=False, mds_kwargs=mds_kwargs)
 
     @pytest.mark.parametrize('keep_local', [True, False])

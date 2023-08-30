@@ -7,13 +7,11 @@ import json
 import logging
 import os
 import shutil
-from argparse import ArgumentParser, Namespace
 from collections.abc import Iterable
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union
 
 import pandas as pd
 from pyspark import TaskContext
-from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import (ArrayType, BinaryType, BooleanType, ByteType, DateType,
                                DayTimeIntervalType, DecimalType, DoubleType, FloatType,
@@ -28,9 +26,9 @@ from streaming.base.storage.upload import CloudUploader
 logger = logging.getLogger(__name__)
 
 
-def is_iterable(obj: Any) -> bool:
-    """
-    Check if obj is iterable.
+def is_iterable(obj: object) -> bool:
+    """Check if obj is iterable.
+
     Args:
         obj: python object
     Return:
@@ -53,8 +51,8 @@ def infer_dataframe_schema(dataframe: DataFrame,
         Any of the datatype found to be unsupported by MDSWriter, then raise ValueError
     """
     mapping_spark_to_mds = {
-        ByteType: 'bytes',
-        ShortType: 'uint64',
+        ByteType: 'uint8',
+        ShortType: 'uint16',
         IntegerType: 'int',
         LongType: 'int64',
         FloatType: 'float32',
@@ -73,14 +71,16 @@ def infer_dataframe_schema(dataframe: DataFrame,
         StructField: None
     }
 
-    def map_spark_dtype(spark_data_type: Any):
-        for spark_dtype, mds_dtype in mapping_spark_to_mds.items():
-            if isinstance(spark_data_type, spark_dtype) and mds_dtype is not None:
-                return mds_dtype
-        raise ValueError(f'{spark_data_type} is not supported by MDSwriter')
+    def map_spark_dtype(spark_data_type: Any) -> str:
+        mds_type = mapping_spark_to_mds.get(type(spark_data_type), None)
+        if mds_type is None:
+            raise ValueError(f'{spark_data_type} is not supported by MDSwriter')
+        return mds_type
 
     if user_defined_cols is not None:  # user has provided schema, we just check if mds supports the dtype
-        mds_supported_dtypes = set(mapping_spark_to_mds.values())
+        mds_supported_dtypes = {
+            mds_type for mds_type in mapping_spark_to_mds.values() if mds_type is not None
+        }
         for col_name, user_dtype in user_defined_cols.items():
             if col_name not in dataframe.columns:
                 raise ValueError(
@@ -91,7 +91,9 @@ def infer_dataframe_schema(dataframe: DataFrame,
             actual_spark_dtype = dataframe.schema[col_name].dataType
             mapped_mds_dtype = map_spark_dtype(actual_spark_dtype)
             if user_dtype != mapped_mds_dtype:
-                raise ValueError(f"Mismatched types: {col_name} is {mapped_mds_dtype} in DataFrame but {user_dtype} in user_defined_cols")
+                raise ValueError(
+                    f'Mismatched types: {col_name} is {mapped_mds_dtype} in DataFrame but {user_dtype} in user_defined_cols'
+                )
         return None
 
     schema = dataframe.schema
@@ -102,12 +104,11 @@ def infer_dataframe_schema(dataframe: DataFrame,
         if dtype in _encodings:
             schema_dict[field.name] = dtype
         else:
-            raise ValueError(f'{mds_dtype} is not supported by MDSwriter')
+            raise ValueError(f'{dtype} is not supported by MDSwriter')
     return schema_dict
 
 
-def do_merge_index(partitions: Iterable,
-                   mds_path: Union[str, Tuple[str, str]]):
+def do_merge_index(partitions: Iterable, mds_path: Union[str, Tuple[str, str]]):
     """Merge index.json from partitions into one for streaming.
 
     Args:
@@ -117,7 +118,7 @@ def do_merge_index(partitions: Iterable,
         None
     """
     if not partitions:
-        logger.warning("No partitions exist, no mergei index")
+        logger.warning('No partitions exist, no index merged')
         return
 
     shards = []
@@ -128,7 +129,7 @@ def do_merge_index(partitions: Iterable,
         obj = json.load(open(mds_partition_index))
         for i in range(len(obj['shards'])):
             shard = obj['shards'][i]
-            for key in ['raw_data', 'zip_data']:
+            for key in ('raw_data', 'zip_data'):
                 if shard.get(key):
                     basename = shard[key]['basename']
                     obj['shards'][i][key]['basename'] = os.path.join(mds_partition_basename,
@@ -181,6 +182,7 @@ def dataframeToMDS(dataframe: DataFrame,
     def write_mds(iterator: Iterable):
 
         context = TaskContext.get()
+
         if context is not None:
             id = context.taskAttemptId()
         else:
@@ -218,7 +220,7 @@ def dataframeToMDS(dataframe: DataFrame,
                     try:
                         mds_writer.write(sample)
                     except:
-                        logger.warning(f'failed to write sample: {sample}')
+                        raise RuntimeError(f'failed to write sample: {sample}')
                         count += 1
 
         yield pd.concat(
@@ -243,6 +245,7 @@ def dataframeToMDS(dataframe: DataFrame,
             "User's discretion required: columns arg is missing from mds_kwargs. Will be auto inferred"
         )
         mds_kwargs['columns'] = infer_dataframe_schema(dataframe)
+        logger.warning(f"Auto inferred schema: {mds_kwargs['columns']}")
     else:
         infer_dataframe_schema(dataframe, mds_kwargs['columns'])
 
@@ -280,4 +283,3 @@ def dataframeToMDS(dataframe: DataFrame,
         logger.warning(
             f'Total failed records = {summ_fail_count}\nOverall records {dataframe.count()}')
     return mds_path, summ_fail_count
-

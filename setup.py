@@ -59,7 +59,6 @@ install_requires = [
     'azure-storage-blob>=12.0.0,<13',
     'azure-storage-file-datalake>=12.11.0,<13',
     'azure-identity>=1.13.0',
-    'pyspark==3.4.1',
 ]
 
 extra_deps = {}
@@ -95,7 +94,7 @@ extra_deps['docs'] = [
     'sphinx-tabs==3.4.1',
 ]
 
-extra_deps['databricks'] = ['databricks-sdk==0.3.1']
+extra_deps['databricks'] = ['databricks-sdk==0.3.1', 'pyspark>=3,<4']
 
 extra_deps['all'] = sorted({dep for deps in extra_deps.values() for dep in deps})
 
