@@ -21,13 +21,12 @@ LOCAL_MANUAL_TEST = False
 os.environ[
     'OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'  # set to yes to all fork process in spark calls
 
-
 @pytest.fixture(scope='class', autouse=True)
 def remote_local_dir() -> Any:
     """Creates a temporary directory and then deletes it when the calling function is done."""
 
     os.environ[
-        'GOOGLE_APPLICATION_CREDENTIALS'] = '/Users/xiaohan.zhang/.mosaic/mosaicml-research-nonprod-027345ddbdfd.json'
+        'GOOGLE_APPLICATION_CREDENTIALS'] = '~/.mosaic/mosaicml-research-nonprod-027345ddbdfd.json'
 
     def _method(cloud_prefix: str = 'gs://') -> Tuple[str, str]:
         mock_local_dir = mkdtemp()
@@ -35,7 +34,6 @@ def remote_local_dir() -> Any:
         return mock_local_dir, mock_remote_dir
 
     return _method
-
 
 class TestDataFrameToMDS:
 
@@ -84,12 +82,9 @@ class TestDataFrameToMDS:
         mds_kwargs = {
             'out': out,
             'keep_local': keep_local,
-            'compression': 'zstd:7',
-            'hashes': ['sha1', 'xxh64'],
-            'size_limit': 1 << 26
         }
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError): # , match=f'* is not supported by MDSwriter'):
             _, _ = dataframeToMDS(dataframe.select(col('id'), col('dept'), col('properties')),
                                   merge_index=merge_index,
                                   mds_kwargs=mds_kwargs)
@@ -104,8 +99,8 @@ class TestDataFrameToMDS:
                 assert (os.path.exists(os.path.join(
                     out, d, 'index.json'))), f'No index.json found in subdirectory {d}'
 
-        if merge_index == True:
-            assert (os.path.exists(os.path.join(out, 'index.json'))), 'No merged index found'
+        if merge_index:
+            assert (os.path.exists(os.path.join(out, 'index.json'))), 'No merged index.json found'
             mgi = json.load(open(os.path.join(out, 'index.json'), 'r'))
             nsamples = 0
             for d in os.listdir(out):
@@ -126,10 +121,6 @@ class TestDataFrameToMDS:
         mds_kwargs = {
             'out': out,
             'columns': user_defined_columns,
-            'keep_local': True,
-            'compression': 'zstd:7',
-            'hashes': ['sha1', 'xxh64'],
-            'size_limit': 1 << 26
         }
 
         if use_columns:
@@ -138,24 +129,29 @@ class TestDataFrameToMDS:
         _, _ = dataframeToMDS(decimal_dataframe, merge_index=True, mds_kwargs=mds_kwargs)
         assert (len(os.listdir(out)) > 0), f'{out} is empty'
 
-    @pytest.mark.parametrize('user_defined_columns', [{
-        'idd': 'str',
-        'dept': 'str'
-    }, {
-        'id': 'strr',
-        'dept': 'str'
-    }])
-    def test_user_defined_columns(self, dataframe: Any, user_defined_columns: Dict):
+    def test_user_defined_columns(self, dataframe: Any):
         out = mkdtemp()
+        user_defined_columns = {
+            'idd': 'str',
+            'dept': 'str'
+        }
         mds_kwargs = {
             'out': out,
             'columns': user_defined_columns,
-            'keep_local': True,
-            'compression': 'zstd:7',
-            'hashes': ['sha1', 'xxh64'],
-            'size_limit': 1 << 26
         }
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError): # ,match=f'*is not a column of input dataframe*'):
+            _, _ = dataframeToMDS(dataframe, merge_index=False, mds_kwargs=mds_kwargs)
+
+        user_defined_columns = {
+            'id': 'strr',
+            'dept': 'str'
+         }
+
+        mds_kwargs = {
+            'out': out,
+            'columns': user_defined_columns,
+        }
+        with pytest.raises(ValueError): # , match=f'* is not supported by MDSwriter'):
             _, _ = dataframeToMDS(dataframe, merge_index=False, mds_kwargs=mds_kwargs)
 
     @pytest.mark.parametrize('keep_local', [True, False])
@@ -184,7 +180,7 @@ class TestDataFrameToMDS:
                     out, d, 'index.json'))), f'No index.json found in subdirectory {d}'
 
         if merge_index == True:
-            assert (os.path.exists(os.path.join(out, 'index.json'))), 'No merged index found'
+            assert (os.path.exists(os.path.join(out, 'index.json'))), 'No merged index.json found'
             mgi = json.load(open(os.path.join(out, 'index.json'), 'r'))
             nsamples = 0
             for d in os.listdir(out):
@@ -230,7 +226,7 @@ class TestDataFrameToMDS:
         assert (fail_count == 0), 'some records were not converted correctly'
         assert out == mds_path, f'returned mds_path: {mds_path} is not the same as out: {out}'
 
-        if keep_local == False:
+        if not keep_local:
             assert (not os.path.exists(mds_path[0])), 'local folder were not removed'
             return
 
@@ -242,7 +238,7 @@ class TestDataFrameToMDS:
 
         if merge_index == True:
             assert (os.path.exists(os.path.join(mds_path[0],
-                                                'index.json'))), 'No merged index found'
+                                                'index.json'))), 'No merged index.json found'
         else:
             assert not (os.path.exists(os.path.join(
                 mds_path[0], 'index.json'))), 'merged index is created when merge_index=False'
@@ -255,7 +251,6 @@ class TestDataFrameToMDS:
         if not LOCAL_MANUAL_TEST:
             pytest.skip('run local only. CI cluster does not have GCS service acct set up.')
         out = remote_local_dir(cloud_prefix='gs://')
-        # bucket_name = 'mosaicml-composer-tests'
         mds_kwargs = {
             'out': out,
             'columns': {
@@ -272,7 +267,7 @@ class TestDataFrameToMDS:
 
         assert out == mds_path, f'returned mds_path: {mds_path} is not the same as out: {out}'
 
-        if keep_local == False:
+        if not keep_local:
             assert (not os.path.exists(mds_path[0])), 'local folder were not removed'
             return
 
@@ -284,7 +279,7 @@ class TestDataFrameToMDS:
 
         if merge_index == True:
             assert (os.path.exists(os.path.join(mds_path[0],
-                                                'index.json'))), 'No merged index found'
+                                                'index.json'))), 'No merged index.json found'
         else:
             assert not (
                 os.path.exists(os.path.join(mds_path[0], 'index.json'))

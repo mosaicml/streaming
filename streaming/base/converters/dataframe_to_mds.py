@@ -29,7 +29,13 @@ logger = logging.getLogger(__name__)
 
 
 def is_iterable(obj: Any) -> bool:
-    """Check if obj is iterable."""
+    """
+    Check if obj is iterable.
+    Args:
+        obj: python object
+    Return:
+        bool: true if obj is iterable false otherwise
+    """
     return issubclass(type(obj), Iterable)
 
 
@@ -39,14 +45,14 @@ def infer_dataframe_schema(dataframe: DataFrame,
 
     Args:
         dataframe (spark dataframe): dataframe to inspect schema
-        user_defined_cols (dict): user specified schema for MDSWriter
+        user_defined_cols (Optional[Dict[str, Any]]): user specified schema for MDSWriter
     Return:
         If user_defined_cols is None, return schema_dict (dict): column name and dtypes that supported by MDSWriter
         Else, return None
     Exceptions:
         Any of the datatype found to be unsupported by MDSWriter, then raise ValueError
     """
-    dtype_mapping = {
+    mapping_spark_to_mds = {
         ByteType: 'bytes',
         ShortType: 'uint64',
         IntegerType: 'int',
@@ -55,7 +61,7 @@ def infer_dataframe_schema(dataframe: DataFrame,
         DoubleType: 'float64',
         DecimalType: 'str_decimal',
         StringType: 'str',
-        BinaryType: None,
+        BinaryType: 'bytes',
         BooleanType: None,
         TimestampType: None,
         TimestampNTZType: None,
@@ -68,19 +74,24 @@ def infer_dataframe_schema(dataframe: DataFrame,
     }
 
     def map_spark_dtype(spark_data_type: Any):
-        for sparkDtype, mdsDtype in dtype_mapping.items():
-            if isinstance(spark_data_type, sparkDtype) and mdsDtype is not None:
-                return mdsDtype
+        for spark_dtype, mds_dtype in mapping_spark_to_mds.items():
+            if isinstance(spark_data_type, spark_dtype) and mds_dtype is not None:
+                return mds_dtype
         raise ValueError(f'{spark_data_type} is not supported by MDSwriter')
 
     if user_defined_cols is not None:  # user has provided schema, we just check if mds supports the dtype
-        mds_supported_dtypes = list(dtype_mapping.values())
-        for col_name, mdsDtype in user_defined_cols.items():
+        mds_supported_dtypes = set(mapping_spark_to_mds.values())
+        for col_name, user_dtype in user_defined_cols.items():
             if col_name not in dataframe.columns:
                 raise ValueError(
                     f'{col_name} is not a column of input dataframe: {dataframe.columns}')
-            if mdsDtype not in mds_supported_dtypes:
-                raise ValueError(f'{mdsDtype} is not supported by MDSwriter')
+            if user_dtype not in mds_supported_dtypes:
+                raise ValueError(f'{user_dtype} is not supported by MDSwriter')
+
+            actual_spark_dtype = dataframe.schema[col_name].dataType
+            mapped_mds_dtype = map_spark_dtype(actual_spark_dtype)
+            if user_dtype != mapped_mds_dtype:
+                raise ValueError(f"Mismatched types: {col_name} is {mapped_mds_dtype} in DataFrame but {user_dtype} in user_defined_cols")
         return None
 
     schema = dataframe.schema
@@ -91,22 +102,22 @@ def infer_dataframe_schema(dataframe: DataFrame,
         if dtype in _encodings:
             schema_dict[field.name] = dtype
         else:
-            print(_encodings)
-
+            raise ValueError(f'{mds_dtype} is not supported by MDSwriter')
     return schema_dict
 
 
 def do_merge_index(partitions: Iterable,
-                   mds_path: Union[str, Tuple[str, str]],
-                   skip: bool = False):
+                   mds_path: Union[str, Tuple[str, str]]):
     """Merge index.json from partitions into one for streaming.
 
     Args:
         partitions (Iterable): partitions that contain pd.DataFrame
-        mds_path (Tuple or str): (str,str)=(local,remote), str = local or remote based on parse_uri(url) result
-        skip (bool): whether to merge index from partitions
+        mds_path (Union[str, Tuple[str, str]]): (str,str)=(local,remote), str = local or remote based on parse_uri(url) result
+    Return:
+        None
     """
-    if not partitions or skip:
+    if not partitions:
+        logger.warning("No partitions exist, no mergei index")
         return
 
     shards = []
@@ -150,12 +161,12 @@ def dataframeToMDS(dataframe: DataFrame,
     provided, and writing the results to MDS-compatible format. The converted data is saved to mds_path.
 
     Args:
-        dataframe (pyspark.sql.DataFrame or None): A DataFrame containing Delta Lake data.
-        merge_index (bool): Whether to merge MDS index files. Default to ``True``.
+        dataframe (pyspark.sql.DataFrame): A DataFrame containing Delta Lake data.
+        merge_index (bool): Whether to merge MDS index files. Defaults to ``True``.
         mds_kwargs (dict): Refer to https://docs.mosaicml.com/projects/streaming/en/stable/api_reference/generated/streaming.MDSWriter.html
-        udf_iterable (Callable or None): A user-defined function that returns an iterable over the dataframe. udf_kwargs is the k-v args for the method. Default to ``None``.
+        udf_iterable (Callable or None): A user-defined function that returns an iterable over the dataframe. udf_kwargs is the k-v args for the method. Defaults to ``None``.
         udf_kwargs (Dict): Additional keyword arguments to pass to the pandas processing
-            function if provided. Default to an empty dictionary.
+            function if provided. Defaults to an empty dictionary.
 
     Return:
         mds_path (str or (str,str)): actual local and remote path were used
@@ -173,7 +184,7 @@ def dataframeToMDS(dataframe: DataFrame,
         if context is not None:
             id = context.taskAttemptId()
         else:
-            raise Exception('TaskContext.get() returns None')
+            raise RuntimeError('TaskContext.get() returns None')
 
         if isinstance(mds_path, str):  # local
             output = os.path.join(mds_path, f'{id}')
@@ -252,10 +263,11 @@ def dataframeToMDS(dataframe: DataFrame,
     ])
     partitions = dataframe.mapInPandas(func=write_mds, schema=result_schema).collect()
 
-    do_merge_index(partitions, mds_path, skip=not merge_index)
+    if merge_index:
+        do_merge_index(partitions, mds_path)
 
     if cu.remote is not None:
-        if merge_index == True:
+        if merge_index:
             cu.upload_file(get_index_basename())
         if 'keep_local' in mds_kwargs and mds_kwargs['keep_local'] == False:
             shutil.rmtree(cu.local, ignore_errors=True)
@@ -269,33 +281,3 @@ def dataframeToMDS(dataframe: DataFrame,
             f'Total failed records = {summ_fail_count}\nOverall records {dataframe.count()}')
     return mds_path, summ_fail_count
 
-
-if __name__ == '__main__':
-
-    spark = SparkSession.builder.getOrCreate()  # pyright: ignore
-
-    def parse_args() -> Namespace:
-        """Parse commandline arguments."""
-        parser = ArgumentParser(
-            description=
-            'Convert dataset into MDS format. Running from command line does not support optionally processing functions!'
-        )
-        parser.add_argument('--delta_table_path', type=str, required=True)
-        parser.add_argument('--mds_path', type=str, required=True)
-        parser.add_argument('--partition_size', type=int, required=True)
-        parser.add_argument('--merge_index', type=bool, required=True)
-
-        parsed = parser.parse_args()
-        return parsed
-
-    args = parse_args()
-
-    df = spark.read.table(args.delta_table_path)
-    dataframeToMDS(df,
-                   mds_kwargs={
-                       'out': args.mds_path,
-                       'columns': {
-                           'tokens': 'bytes'
-                       }
-                   },
-                   merge_index=args.merge_index)
