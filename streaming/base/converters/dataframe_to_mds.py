@@ -11,12 +11,19 @@ from collections.abc import Iterable
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union
 
 import pandas as pd
-from pyspark import TaskContext
-from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.types import (ArrayType, BinaryType, BooleanType, ByteType, DateType,
-                               DayTimeIntervalType, DecimalType, DoubleType, FloatType,
-                               IntegerType, LongType, MapType, ShortType, StringType, StructField,
-                               StructType, TimestampNTZType, TimestampType)
+
+from streaming.base.util import get_import_exception_message
+
+try:
+    from pyspark import TaskContext
+    from pyspark.sql.dataframe import DataFrame
+    from pyspark.sql.types import (ArrayType, BinaryType, BooleanType, ByteType, DateType,
+                                   DayTimeIntervalType, DecimalType, DoubleType, FloatType,
+                                   IntegerType, LongType, MapType, ShortType, StringType,
+                                   StructField, StructType, TimestampNTZType, TimestampType)
+except ImportError as e:
+    e.msg = get_import_exception_message(e.name)  # pyright: ignore
+    raise e
 
 from streaming import MDSWriter
 from streaming.base.format.index import get_index_basename
