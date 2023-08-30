@@ -22,7 +22,7 @@ try:
                                    IntegerType, LongType, MapType, ShortType, StringType,
                                    StructField, StructType, TimestampNTZType, TimestampType)
 except ImportError as e:
-    e.msg = get_import_exception_message(e.name)  # pyright: ignore
+    e.msg = get_import_exception_message(e.name, extra_deps='spark')  # pyright: ignore
     raise e
 
 from streaming import MDSWriter
