@@ -821,7 +821,8 @@ class StreamingDataset(Array, IterableDataset):
                     # same as the ratio of the stream's samples to overall samples.
                     # This ensures that the overall training shuffle block size is still approximately
                     # equal to what is set by the user, and allows for reasoning about cache_limit as well.
-                    shuffle_block_portion = int(self.shuffle_block_size * (samples_in_stream / overall_num_samples))
+                    shuffle_block_portion = int(self.shuffle_block_size *
+                                                (samples_in_stream / overall_num_samples))
                     stream_shuffle = get_shuffle(self.shuffle_algo, shuffle_units,
                                                  self.num_canonical_nodes, self.shuffle_seed,
                                                  epoch, shuffle_block_portion)
@@ -886,6 +887,17 @@ class StreamingDataset(Array, IterableDataset):
             # Discard previous batches that may have already finished
             resumption_batch = sample_in_epoch // global_batch_size
             all_partition_batches = all_partition_batches[resumption_batch:]
+
+            # Add padding batches if necessary to ensure that we have an even number of batches per worker/rank/node
+            current_samples = all_partition_batches.size
+            divisibility_requirement = world.num_nodes * world.ranks_per_node * world.workers_per_rank * batch_size
+            if current_samples % divisibility_requirement != 0:
+                samples_needed = divisibility_requirement - (current_samples %
+                                                             divisibility_requirement)
+                padding_batches_needed = samples_needed // global_batch_size
+                all_partition_batches = np.concatenate(
+                    (all_partition_batches, np.full((padding_batches_needed, global_batch_size),
+                                                    -1)))
 
             # Reverse the transposition and reshape from earlier.
             # Final result is (physical nodes, ranks per node, workers per rank, batches per worker, batch size), as desired.
