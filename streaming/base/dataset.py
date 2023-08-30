@@ -263,7 +263,7 @@ class StreamingDataset(Array, IterableDataset):
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
         shuffle_block_size (int): Unit of shuffle. A canonical node's samples are split into blocks
             of this size, and samples within each block are shuffled. Defaults to ``1 << 18``.
-        sampling_method (str): Which sampling method to use, either ``balanced`` or ``fixed``.
+        sampling_method (str): Which sampling method to use, ``balanced``, ``fixed``, or ``uniform_batch``.
             Defaults to ``balanced``.
     """
 
@@ -306,9 +306,9 @@ class StreamingDataset(Array, IterableDataset):
                 'You must provide either `streams` or `remote`/`local`, but not both.')
 
         # Check sampling method is one of "balanced" or "fixed".
-        if self.sampling_method not in ['balanced', 'fixed']:
+        if self.sampling_method not in ['balanced', 'fixed', "uniform_batch"]:
             raise ValueError(
-                f'Invalid sampling method: {sampling_method}. Must be one of `balanced` or `fixed`.'
+                f'Invalid sampling method: {sampling_method}. Must be one of `balanced`, `fixed`, or `uniform_batch`.'
             )
 
         # issue deprecation warning for py1b shuffle algorithm.
@@ -686,11 +686,12 @@ class StreamingDataset(Array, IterableDataset):
         self._resume_shm = SharedMemory(name=name, size=len(data))
         self._resume_shm.buf[:len(data)] = data
 
-    def _resample_streams(self, epoch: int) -> Tuple[NDArray[np.int64], NDArray[np.int64]]:
+    def _resample_streams(self, epoch: int, stream_id: Optional[int]) -> Tuple[NDArray[np.int64], NDArray[np.int64]]:
         """Perform the up/down-sampling needed to generate the weighted epoch.
 
         Args:
             epoch (int): What epoch this is for. Used in seeding the sampling RNG.
+            stream_id (Optional[int]): Which stream to resample. If ``None``, resample all streams. Defaults to ``None``.
 
         Returns:
             Tuple[NDArray[np.int64], NDArray[np.int64]]: Sampled shard sizes and sample mapping.
@@ -703,8 +704,10 @@ class StreamingDataset(Array, IterableDataset):
         shuffle_units = []
         sample_ids = []
 
+        resampling_streams = range(self.num_streams) if stream_id is None else [stream_id]
+
         # Iterate over each stream.
-        for stream_id in range(self.num_streams):
+        for stream_id in resampling_streams:
             # stream's shard offset in list of all shards from all streams
             stream_shard_offset = self.shard_offset_per_stream[stream_id]
             num_stream_shards = self.shards_per_stream[stream_id]
@@ -779,28 +782,63 @@ class StreamingDataset(Array, IterableDataset):
         if self.num_canonical_nodes is None:
             raise RuntimeError(f'`num_canonical_nodes` can never be None. ' +
                                f'Provide a positive integer.')
+        
+        if self.sampling_method == 'uniform_batch':
+            # For the `uniform_batch` sampling method, we ensure that each batch consists of samples
+            # selected only from one particular stream. Otherwise, samples in a batch can come from
+            # many streams.
 
-        # Sample each shard of each stream according to their proportions/repeats/samples. This
-        # gives us the resampled size of each underlying shard, and a mapping from each fake "big"
-        # sample ID to its underlying "small" sample ID.
-        shuffle_units, small_per_big = self._resample_streams(epoch)
+            # First, for each stream, sample each shard of the stream according to proportions/repeats/samples.
+            # We obtain the resampled size of each shard in the stream and a mapping from the training "big" sample ID
+            # to the underlying shard "small" sample ID.
+            # Then, we also partition each stream's samples over nodes/devices/workers.
+            # We handle sample_in_epoch (for resumption) at the end.
+            shuffle_units_per_stream = []
+            small_per_big_per_stream = []
+            partition_per_stream = []
+            stream_sample_offset = 0
+            for stream_id in range(self.num_streams):
+                shuffle_units, small_per_big = self._resample_streams(epoch, stream_id)
+                shuffle_units_per_stream.append(shuffle_units)
+                small_per_big_per_stream.append(small_per_big)
+                samples_in_stream = len(small_per_big)
+                stream_partition = get_partitions(self.partition_algo, samples_in_stream, self.num_canonical_nodes,
+                                    world.num_nodes, world.ranks_per_node, world.workers_per_rank, self.batch_size, 0)
+                if self.shuffle:
+                    stream_shuffle = get_shuffle(self.shuffle_algo, shuffle_units, self.num_canonical_nodes,
+                                    self.shuffle_seed, epoch, self.shuffle_block_size)
+                    stream_partition = np.where(stream_partition != -1, stream_shuffle[stream_partition], -1)
+                # The small_per_big array already corresponds to indices of samples per shard of each stream.
+                # So each sample ID in the stream's partition already corresponds to the sample ID in the right shard.
+                partition_per_stream.append(np.where(stream_partition != -1, small_per_big[stream_partition], -1))
+                stream_sample_offset += samples_in_stream
+            
+            # TODO: combine these partitions in a smart way
 
-        # Partition the global sample space (of resampled "big" sample IDs) into a tensor of shape
-        # (num physical nodes, ranks per node, workers per rank, batches per worker, samples per
-        # batch) such that we have an elastically deterministic sample order.
-        big_ids = get_partitions(self.partition_algo, self.epoch_size, self.num_canonical_nodes,
-                                 world.num_nodes, world.ranks_per_node, world.workers_per_rank,
-                                 self.batch_size, sample_in_epoch)
+            # TODO: take care of sample_in_epoch for resumption!
+                
+        else:
+            # Sample each shard of each stream according to their proportions/repeats/samples. This
+            # gives us the resampled size of each underlying shard, and a mapping from each fake "big"
+            # sample ID to its underlying "small" sample ID.
+            shuffle_units, small_per_big = self._resample_streams(epoch)
 
-        # If we need to shuffle, shuffle in a node-aware and *underlying* shard-aware way.
-        if self.shuffle:
-            shuffle = get_shuffle(self.shuffle_algo, shuffle_units, self.num_canonical_nodes,
-                                  self.shuffle_seed, epoch, self.shuffle_block_size)
-            big_ids = np.where(big_ids != -1, shuffle[big_ids], -1)
+            # Partition the global sample space (of resampled "big" sample IDs) into a tensor of shape
+            # (num physical nodes, ranks per node, workers per rank, batches per worker, samples per
+            # batch) such that we have an elastically deterministic sample order.
+            big_ids = get_partitions(self.partition_algo, self.epoch_size, self.num_canonical_nodes,
+                                    world.num_nodes, world.ranks_per_node, world.workers_per_rank,
+                                    self.batch_size, sample_in_epoch)
 
-        # Now that we have partitioning and shuffled with hallucinated "big" sample IDs, we don't
-        # need them anymore, and can convert back to underlying "small" sample IDs.
-        return np.where(big_ids != -1, small_per_big[big_ids], -1)
+            # If we need to shuffle, shuffle in a node-aware and *underlying* shard-aware way.
+            if self.shuffle:
+                shuffle = get_shuffle(self.shuffle_algo, shuffle_units, self.num_canonical_nodes,
+                                    self.shuffle_seed, epoch, self.shuffle_block_size)
+                big_ids = np.where(big_ids != -1, shuffle[big_ids], -1)
+
+            # Now that we have partitioning and shuffled with hallucinated "big" sample IDs, we don't
+            # need them anymore, and can convert back to underlying "small" sample IDs.
+            return np.where(big_ids != -1, small_per_big[big_ids], -1)
 
     def _share_work(self, sample_ids: NDArray[np.int64]) -> Tuple[SharedMemory, SharedMemory]:
         """Put an epoch's sample ordering into shared memory.
