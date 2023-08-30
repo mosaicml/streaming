@@ -184,7 +184,7 @@ def dataframeToMDS(dataframe: DataFrame,
         - The method creates a SparkSession if not already available.
         - The 'udf_kwargs' dictionaries can be used to pass additional
           keyword arguments to the udf_iterable.
-        - If udf_iterable is set, schema check will be skipped because the user defined iterable can create new columns.
+        - If udf_iterable is set, schema check will be skipped because the user defined iterable can create new columns. User must make sure they provide correct mds_kwargs[columns]
     """
 
     def write_mds(iterator: Iterable):
@@ -248,7 +248,15 @@ def dataframeToMDS(dataframe: DataFrame,
     if 'out' not in mds_kwargs:
         raise ValueError(f'out and columns need to be specified in mds_kwargs')
 
-    if udf_iterable is None:
+    if udf_iterable is not None:
+        if 'columns' not in mds_kwargs:
+            raise ValueError(
+                f'If udf_iterable is specified, user must provide correct `columns` in the mds_kwargs'
+            )
+        logger.warning(
+            "With udf_iterable defined, it's up to the user's descretion to provide mds_kwargs[columns'"
+        )
+    else:
         if 'columns' not in mds_kwargs:
             logger.warning(
                 "User's discretion required: columns arg is missing from mds_kwargs. Will be auto inferred"
