@@ -6,6 +6,7 @@
 import json
 import os
 import warnings
+import logging
 from concurrent.futures import ThreadPoolExecutor, wait
 from concurrent.futures._base import Future
 from enum import IntEnum
@@ -13,7 +14,6 @@ from math import ceil
 from threading import Event, Lock
 from time import sleep, time_ns
 from typing import Any, Dict, Iterator, Optional, Sequence, Tuple, Union
-from warnings import warn
 
 import numpy as np
 from filelock import FileLock
@@ -38,6 +38,8 @@ from streaming.base.world import World
 
 # An arbitrary time in the future, used for cold shard eviction.
 NEVER = np.iinfo(np.uint64).max
+
+logger = logging.getLogger(__name__)
 
 
 class _ShardState(IntEnum):
@@ -313,7 +315,7 @@ class StreamingDataset(Array, IterableDataset):
 
         # issue deprecation warning for py1b shuffle algorithm.
         if self.shuffle_algo == 'py1b':
-            warn(
+            warnings.warn(
                 'The \'py1b\' shuffle algorithm will soon be deprecated. Please use the more performant \'py1br\' algorithm instead.',
                 DeprecationWarning,
                 stacklevel=2)
@@ -813,9 +815,62 @@ class StreamingDataset(Array, IterableDataset):
                 partition_per_stream.append(np.where(stream_partition != -1, small_per_big[stream_partition], -1))
                 stream_sample_offset += samples_in_stream
             
-            # TODO: combine these partitions in a smart way
+            # We now merge the partitions from each stream to get our final partition over all streams, where
+            # each global batch has samples only from a single stream.
+            # Partitions are arranged (physical nodes, ranks per node, workers per rank, batches per worker, batch size).
+            batches_per_stream = []
+            batches_from_partitions = []
+            for i, partition in enumerate(partition_per_stream):
+                # reshape the partition to be global batches in order of traversal, and count only batches without -1 in them.
+                global_batches_inorder = partition.transpose(3, 2, 0, 1, 4).reshape(-1, self.batch_size*world.ranks_per_node*world.num_nodes)
+                num_full_batches = np.count_nonzero(np.min(global_batches_inorder, axis=1) >= 0)
+                batches_per_stream.append(num_full_batches)
+                if num_full_batches != global_batches_inorder.shape[0]:
+                    logger.warning(
+                        'Because of the `uniform_batch` sampling method, some batches with an inadequate number of samples ' +
+                        'from stream with index ' + str(i) + ' are being dropped.'
+                    )
+                batches_from_partitions.append(global_batches_inorder[:num_full_batches])
+            
+            # Combine all global batches from all streams into one array.
+            all_partition_batches = np.concatenate(batches_from_partitions)
 
-            # TODO: take care of sample_in_epoch for resumption!
+            # Shuffle seed changes with every epoch so that the order of streams in our batches changes as well.
+            epoch_rng = np.random.default_rng(self.shuffle_seed + epoch)
+
+            # stream_origins is an array that tells us which stream each batch is using.
+            stream_origins = np.concatenate([np.full(n_batch, i) for i, n_batch in enumerate(batches_per_stream)])
+            epoch_rng.shuffle(stream_origins)
+            
+            # Now, we want the batch_indices array to correctly index into the all_partition_batches 
+            # array according to stream_origins in order to get our final batch order.
+            # For each stream, we want to traverse its batches in the same order as given in its partition.
+            batch_indices = np.zeros(stream_origins.shape[0]).astype(np.int64)
+            batch_offset = 0
+            for i, n_batch in enumerate(batches_per_stream):
+                # Update batch_indices for the one stream at a time.
+                batch_indices[stream_origins == i] += batch_offset + np.arange(n_batch)
+                batch_offset += n_batch
+
+            # Rearrange all_partition_batches by the batch_indices we have obtained.
+            all_partition_batches = all_partition_batches[batch_indices]
+
+            # If applicable we resume right after the most recently used full global batch.
+            global_batch_size = self.batch_size * world.num_nodes * world.ranks_per_node
+            if sample_in_epoch % global_batch_size != 0:
+                logger.warning(
+                    'Because of the `uniform_batch` sampling method, resumption may only occur on a sample that ' +
+                    'is a multiple of the current global batch size of ' + str(global_batch_size) + '. Resuming training ' +
+                    'after the most recently finished global batch.'
+                )
+            
+            # Discard previous batches that may have already finished
+            resumption_batch = sample_in_epoch // global_batch_size
+            all_partition_batches = all_partition_batches[resumption_batch:]
+
+            # Reverse the transposition and reshape from earlier.
+            # Final result is (physical nodes, ranks per node, workers per rank, batches per worker, batch size), as desired.
+            all_partition_batches = all_partition_batches.reshape(-1, world.workers_per_rank, world.num_nodes, world.ranks_per_node, self.batch_size).transpose(2, 3, 1, 0, 4)
                 
         else:
             # Sample each shard of each stream according to their proportions/repeats/samples. This
