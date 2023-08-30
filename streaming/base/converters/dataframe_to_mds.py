@@ -248,14 +248,14 @@ def dataframeToMDS(dataframe: DataFrame,
     if 'out' not in mds_kwargs:
         raise ValueError(f'out and columns need to be specified in mds_kwargs')
 
-    if 'columns' not in mds_kwargs:
-        logger.warning(
-            "User's discretion required: columns arg is missing from mds_kwargs. Will be auto inferred"
-        )
-        mds_kwargs['columns'] = infer_dataframe_schema(dataframe)
-        logger.warning(f"Auto inferred schema: {mds_kwargs['columns']}")
-    else:
-        if udf_iterable is not None:
+    if udf_iterable is not None:
+        if 'columns' not in mds_kwargs:
+            logger.warning(
+                "User's discretion required: columns arg is missing from mds_kwargs. Will be auto inferred"
+            )
+            mds_kwargs['columns'] = infer_dataframe_schema(dataframe)
+            logger.warning(f"Auto inferred schema: {mds_kwargs['columns']}")
+        else:
             infer_dataframe_schema(dataframe, mds_kwargs['columns'])
 
     out = mds_kwargs['out']
