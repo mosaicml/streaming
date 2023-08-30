@@ -248,7 +248,7 @@ def dataframeToMDS(dataframe: DataFrame,
     if 'out' not in mds_kwargs:
         raise ValueError(f'out and columns need to be specified in mds_kwargs')
 
-    if udf_iterable is not None:
+    if udf_iterable is None:
         if 'columns' not in mds_kwargs:
             logger.warning(
                 "User's discretion required: columns arg is missing from mds_kwargs. Will be auto inferred"
