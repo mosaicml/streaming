@@ -804,6 +804,8 @@ class StreamingDataset(Array, IterableDataset):
             stream_sample_offset = 0
 
             batch_size = self.batch_size or 1
+            _, overall_small_per_big = self._resample_streams(epoch)
+            overall_num_samples = len(overall_small_per_big)
 
             for stream_id in range(self.num_streams):
                 shuffle_units, small_per_big = self._resample_streams(epoch, stream_id)
@@ -815,9 +817,14 @@ class StreamingDataset(Array, IterableDataset):
                                                   world.ranks_per_node, world.workers_per_rank,
                                                   batch_size, 0)
                 if self.shuffle:
+                    # Ratio of stream's shuffle block size to overall shuffle block size should be the
+                    # same as the ratio of the stream's samples to overall samples.
+                    # This ensures that the overall training shuffle block size is still approximately
+                    # equal to what is set by the user, and allows for reasoning about cache_limit as well.
+                    shuffle_block_portion = int(self.shuffle_block_size * (samples_in_stream / overall_num_samples))
                     stream_shuffle = get_shuffle(self.shuffle_algo, shuffle_units,
                                                  self.num_canonical_nodes, self.shuffle_seed,
-                                                 epoch, self.shuffle_block_size)
+                                                 epoch, shuffle_block_portion)
                     stream_partition = np.where(stream_partition != -1,
                                                 stream_shuffle[stream_partition], -1)
                 # The small_per_big array already corresponds to indices of samples per shard of each stream.
