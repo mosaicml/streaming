@@ -99,7 +99,7 @@ def infer_dataframe_schema(dataframe: DataFrame,
             mapped_mds_dtype = map_spark_dtype(actual_spark_dtype)
             if user_dtype != mapped_mds_dtype:
                 raise ValueError(
-                    f'Mismatched types: {col_name} is {mapped_mds_dtype} in DataFrame but {user_dtype} in user_defined_cols'
+                    f'Mismatched types: column name `{col_name}` is `{mapped_mds_dtype}` in DataFrame but `{user_dtype}` in user_defined_cols'
                 )
         return None
 
@@ -184,6 +184,7 @@ def dataframeToMDS(dataframe: DataFrame,
         - The method creates a SparkSession if not already available.
         - The 'udf_kwargs' dictionaries can be used to pass additional
           keyword arguments to the udf_iterable.
+        - If udf_iterable is set, schema check will be skipped because the user defined iterable can create new columns.
     """
 
     def write_mds(iterator: Iterable):
@@ -254,7 +255,8 @@ def dataframeToMDS(dataframe: DataFrame,
         mds_kwargs['columns'] = infer_dataframe_schema(dataframe)
         logger.warning(f"Auto inferred schema: {mds_kwargs['columns']}")
     else:
-        infer_dataframe_schema(dataframe, mds_kwargs['columns'])
+        if udf_iterable is not None:
+            infer_dataframe_schema(dataframe, mds_kwargs['columns'])
 
     out = mds_kwargs['out']
     keep_local = False if 'keep_local' not in mds_kwargs else mds_kwargs['keep_local']
