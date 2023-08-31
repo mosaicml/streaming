@@ -74,8 +74,8 @@ extra_deps['dev'] = [
     'toml==0.10.2',
     'yamllint==1.32.0',
     'moto>=4.0,<5',
-    'fastapi==0.101.1',
-    'pydantic==2.2.1',
+    'fastapi==0.103.0',
+    'pydantic==2.3.0',
     'uvicorn==0.23.2',
     'pytest-split==0.8.1',
 ]
@@ -94,12 +94,10 @@ extra_deps['docs'] = [
     'sphinx-tabs==3.4.1',
 ]
 
-extra_deps['databricks'] = [
-    'databricks-sdk==0.3.1',
-]
 extra_deps['spark'] = [
     'pyspark>=3,<4',
-]
+
+extra_deps['databricks'] = ['databricks-sdk==0.6.0']
 
 extra_deps['all'] = sorted({dep for deps in extra_deps.values() for dep in deps})
 
