@@ -61,6 +61,66 @@ def test_dataloader_epoch_size_no_streams(local_remote_dir: Tuple[str,
 
 @pytest.mark.parametrize('batch_size', [4])
 @pytest.mark.parametrize('seed', [2222])
+@pytest.mark.parametrize('shuffle', [True])
+@pytest.mark.parametrize('drop_last', [False, True])
+@pytest.mark.parametrize('num_workers', [3, 6])
+@pytest.mark.parametrize('num_canonical_nodes', [4, 8])
+@pytest.mark.usefixtures('local_remote_dir')
+def test_dataloader_uniform_global_batch_sampling(local_remote_dir: Tuple[str,
+                                                                          str], batch_size: int,
+                                                  seed: int, shuffle: bool, drop_last: bool,
+                                                  num_workers: int, num_canonical_nodes: int):
+    # create mock datasets for 2 streams. Second one has 1.5x the samples
+    local, remote = local_remote_dir
+    local1 = os.path.join(local, 'stream1')
+    local2 = os.path.join(local, 'stream2')
+    remote1 = os.path.join(remote, 'stream1')
+    remote2 = os.path.join(remote, 'stream2')
+
+    # stream 1 has samples 0->600
+    convert_to_mds(out_root=remote1,
+                   dataset_name='sequencedataset',
+                   num_samples=200,
+                   size_limit=1 << 8)
+    # stream 2 has samples 600 and above. This lets us differentiate between the samples from each stream
+    convert_to_mds(out_root=remote2,
+                   dataset_name='sequencedataset',
+                   num_samples=300,
+                   offset=600,
+                   size_limit=1 << 8)
+
+    stream1 = Stream(local=local1, remote=remote1)
+    stream2 = Stream(local=local2, remote=remote2)
+
+    # Build StreamingDataset
+    dataset = StreamingDataset(streams=[stream1, stream2],
+                               shuffle=shuffle,
+                               batch_size=batch_size,
+                               shuffle_seed=seed,
+                               num_canonical_nodes=num_canonical_nodes,
+                               sampling_method='uniform_global_batch')
+
+    # Build DataLoader
+    dataloader = StreamingDataLoader(dataset=dataset,
+                                     batch_size=batch_size,
+                                     num_workers=num_workers,
+                                     drop_last=drop_last)
+
+    # Ensure that the samples seen in each batch are from the same stream.
+    # Stream 1 has samples 0 to 600, stream 2 has samples 600 and above.
+    for batch in dataloader:
+        samples = batch['sample']
+        first_sample = samples[0]
+        print(first_sample)
+        print(samples)
+        if first_sample >= 600:
+            assert (samples >= 600).all()
+        else:
+            assert (samples < 600).all()
+
+
+@pytest.mark.parametrize('batch_size', [4])
+@pytest.mark.parametrize('seed', [2222])
 @pytest.mark.parametrize('shuffle', [False])
 @pytest.mark.parametrize('drop_last', [False, True])
 @pytest.mark.parametrize('num_workers', [3, 6])
