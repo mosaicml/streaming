@@ -59,6 +59,81 @@ def test_dataloader_epoch_size_no_streams(local_remote_dir: Tuple[str,
             assert samples_seen == epoch_size
 
 
+# @pytest.mark.parametrize('drop_last', [False, True])
+# @pytest.mark.parametrize('num_workers', [3, 6])
+# @pytest.mark.parametrize('num_canonical_nodes', [4, 8])
+
+
+@pytest.mark.parametrize('batch_size', [4])
+@pytest.mark.parametrize('seed', [2222])
+@pytest.mark.parametrize('shuffle', [True])
+@pytest.mark.parametrize('drop_last', [True])
+@pytest.mark.parametrize('num_workers', [1])
+@pytest.mark.parametrize('num_canonical_nodes', [4])
+@pytest.mark.parametrize('num_stream_1_samples', [200, 255])
+@pytest.mark.parametrize('num_stream_2_samples', [342, 557])
+@pytest.mark.usefixtures('local_remote_dir')
+def test_dataloader_consistent_batch_composition_sampling(
+        local_remote_dir: Tuple[str, str], batch_size: int, seed: int, shuffle: bool,
+        drop_last: bool, num_workers: int, num_canonical_nodes: int, num_stream_1_samples: int,
+        num_stream_2_samples: int):
+    # create mock datasets for 2 streams. Second one has 1.5x the samples
+    local, remote = local_remote_dir
+    local1 = os.path.join(local, 'stream1')
+    local2 = os.path.join(local, 'stream2')
+    remote1 = os.path.join(remote, 'stream1')
+    remote2 = os.path.join(remote, 'stream2')
+
+    # stream 1 has samples 0->num_stream_1_samples*3
+    convert_to_mds(out_root=remote1,
+                   dataset_name='sequencedataset',
+                   num_samples=num_stream_1_samples,
+                   size_limit=1 << 8)
+    # stream 2 has samples num_stream_1_samples*3 and above. This lets us differentiate between the samples from each stream
+    convert_to_mds(out_root=remote2,
+                   dataset_name='sequencedataset',
+                   num_samples=num_stream_2_samples,
+                   offset=num_stream_1_samples * 3,
+                   size_limit=1 << 8)
+
+    stream1 = Stream(local=local1, remote=remote1)
+    stream2 = Stream(local=local2, remote=remote2)
+
+    # Build StreamingDataset
+    dataset = StreamingDataset(streams=[stream1, stream2],
+                               shuffle=shuffle,
+                               batch_size=batch_size,
+                               shuffle_seed=seed,
+                               num_canonical_nodes=num_canonical_nodes,
+                               sampling_method='consistent_batch_composition')
+
+    # Build DataLoader
+    dataloader = StreamingDataLoader(dataset=dataset,
+                                     batch_size=batch_size,
+                                     num_workers=num_workers,
+                                     drop_last=drop_last)
+
+    # Ensure that the samples seen in each batch are proportional to the stream sizes.
+    total_samples = num_stream_1_samples + num_stream_2_samples
+    stream_1_batch_part = round(batch_size * (num_stream_1_samples / total_samples))
+    stream_2_batch_part = batch_size - stream_1_batch_part
+    for batch in dataloader:
+        samples = batch['sample']
+        # Check if constructed batch is the correct size
+        assert len(samples) == batch_size
+        stream_1_samples = 0
+        stream_2_samples = 0
+        for sample in samples:
+            # stream 1 goes until num_stream_1_samples*3, stream 2 is everything after
+            if sample < num_stream_1_samples * 3:
+                stream_1_samples += 1
+            else:
+                stream_2_samples += 1
+        # check that the batch is consistently composed of the correct number of samples from each stream
+        assert stream_1_samples == stream_1_batch_part
+        assert stream_2_samples == stream_2_batch_part
+
+
 @pytest.mark.parametrize('batch_size', [4])
 @pytest.mark.parametrize('seed', [2222])
 @pytest.mark.parametrize('shuffle', [False])

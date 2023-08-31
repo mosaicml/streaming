@@ -688,11 +688,15 @@ class StreamingDataset(Array, IterableDataset):
         self._resume_shm = SharedMemory(name=name, size=len(data))
         self._resume_shm.buf[:len(data)] = data
 
-    def _resample_streams(self, epoch: int) -> Tuple[NDArray[np.int64], NDArray[np.int64]]:
+    def _resample_streams(
+            self,
+            epoch: int,
+            stream_id: Optional[int] = None) -> Tuple[NDArray[np.int64], NDArray[np.int64]]:
         """Perform the up/down-sampling needed to generate the weighted epoch.
 
         Args:
             epoch (int): What epoch this is for. Used in seeding the sampling RNG.
+            stream_id (Optional[int]): Which stream to resample. If ``None``, resample all streams. Defaults to ``None``.
 
         Returns:
             Tuple[NDArray[np.int64], NDArray[np.int64]]: Sampled shard sizes and sample mapping.
@@ -705,8 +709,10 @@ class StreamingDataset(Array, IterableDataset):
         shuffle_units = []
         sample_ids = []
 
+        resampling_streams = range(self.num_streams) if stream_id is None else [stream_id]
+
         # Iterate over each stream.
-        for stream_id in range(self.num_streams):
+        for stream_id in resampling_streams:
             # stream's shard offset in list of all shards from all streams
             stream_shard_offset = self.shard_offset_per_stream[stream_id]
             num_stream_shards = self.shards_per_stream[stream_id]
@@ -762,13 +768,13 @@ class StreamingDataset(Array, IterableDataset):
         shuffle_units = np.concatenate(shuffle_units).astype(np.int64)
         sample_ids = np.concatenate(sample_ids).astype(np.int64)
         return shuffle_units, sample_ids
-    
+
     def _generate_work_consistent_batch_composition(self, world: World, epoch: int,
-                                            sample_in_epoch: int) -> NDArray[np.int64]:
-        """Generate this epoch's arrangement of samples for ``consistent_batch_composition`` sampling.
+                                                    sample_in_epoch: int) -> NDArray[np.int64]:
+        """Generate the epoch's sample arrangement for ``consistent_batch_composition`` sampling.
 
         This is only called in local rank zero. When ``sampling_method`` is set to ``consistent_batch_composition``,
-        each batch consists of samples from only one stream.
+        every single batch is consistently composed of samples from streams in the same proportions.
 
         Args:
             world (World): World state.
@@ -789,26 +795,41 @@ class StreamingDataset(Array, IterableDataset):
         # to the underlying shard "small" sample ID.
         # Then, we also partition each stream's samples over nodes/devices/workers.
         # We handle sample_in_epoch (for resumption) at the end.
-        partition_per_stream = []
 
         batch_size = self.batch_size or 1
-        _, overall_small_per_big = self._resample_streams(epoch)
-        overall_num_samples = len(overall_small_per_big)
+        global_batch_size = batch_size * world.ranks_per_node * world.num_nodes
+        partition_per_stream = []
+        batch_portion_per_stream = []
+        stream_proportions = []
+        for stream_id, stream in enumerate(self.streams):
+            # find how many samples in each global batch are from each stream.
+            batch_portion = int(stream.proportion * global_batch_size)
+            stream_proportions.append(stream.proportion)
+            if batch_portion <= 0:
+                raise ValueError(
+                    f'Number of samples for stream {stream_id} is {batch_portion} because the portion '
+                    +
+                    f'of this stream in the global batch, which is of size {global_batch_size}, is '
+                    +
+                    f'too low. Please increase the global batch size or increase the porportion of '
+                    + f'total samples that come from stream {stream_id}.')
+            batch_portion_per_stream.append(batch_portion)
 
-        for stream_id in range(self.num_streams):
             shuffle_units, small_per_big = self._resample_streams(epoch, stream_id)
             samples_in_stream = len(small_per_big)
+            # The partition for each stream is constructed with batch size 1 in order to make sure that
+            # canonical nodes are still correctly distributed over nodes for each global batch.
+            # We later reshape these partitions to the correct batch size per stream.
+            # We also handle used samples (drop_first) at the end.
             stream_partition = get_partitions(self.partition_algo, samples_in_stream,
                                               self.num_canonical_nodes, world.num_nodes,
-                                              world.ranks_per_node, world.workers_per_rank,
-                                              batch_size, 0)
+                                              world.ranks_per_node, world.workers_per_rank, 1, 0)
             if self.shuffle:
                 # Ratio of stream's shuffle block size to overall shuffle block size should be the
                 # same as the ratio of the stream's samples to overall samples.
                 # This ensures that the overall training shuffle block size is still approximately
                 # equal to what is set by the user, and allows for reasoning about cache_limit as well.
-                shuffle_block_portion = int(self.shuffle_block_size *
-                                            (samples_in_stream / overall_num_samples))
+                shuffle_block_portion = int(self.shuffle_block_size * stream.proportion)
                 stream_shuffle = get_shuffle(self.shuffle_algo, shuffle_units,
                                              self.num_canonical_nodes, self.shuffle_seed, epoch,
                                              shuffle_block_portion)
@@ -819,52 +840,62 @@ class StreamingDataset(Array, IterableDataset):
             partition_per_stream.append(
                 np.where(stream_partition != -1, small_per_big[stream_partition], -1))
 
+        # The sum of batch portion sizes per stream might not equal the global batch size.
+        batch_portion_per_stream = np.array(batch_portion_per_stream)
+        batch_parts_sum = np.sum(batch_portion_per_stream)
+        if batch_parts_sum != global_batch_size:
+            missing_samples = global_batch_size - batch_parts_sum
+            # Select the streams that should get the extra samples by seeing which streams were "closest"
+            # to having an additional sample in the batch, but did not because int conversion rounds down.
+            leftover_batch_part_sizes = global_batch_size * np.array(
+                stream_proportions) - batch_portion_per_stream
+            # We have to flip the array since argsort is in ascending order, and we want to prioritize
+            # streams that were closest to getting a sample (highest leftover batch part size.)
+            # Then, only get the top missing_samples number of streams to add extra samples to their batch part sizes.
+            stream_size_increment_ids = np.flip(
+                np.argsort(leftover_batch_part_sizes))[:missing_samples]
+            batch_portion_per_stream[stream_size_increment_ids] += 1
+
         # We now merge the partitions from each stream to get our final partition over all streams, where
-        # each global batch has samples only from a single stream.
-        # Partitions are arranged (physical nodes, ranks per node, workers per rank, batches per worker, batch size).
-        batches_per_stream = []
+        # every single global batch has the same sample composition from the streams.
+        # The total number of batches we can make is constrained by the min batch parts available from any one stream.
+        min_batch_parts = np.inf
         batches_from_partitions = []
         for i, partition in enumerate(partition_per_stream):
-            # reshape the partition to be global batches in order of traversal, and count only batches without -1 in them.
-            global_batches_inorder = partition.transpose(3, 2, 0, 1, 4).reshape(
-                -1, batch_size * world.ranks_per_node * world.num_nodes)
-            num_full_batches = np.count_nonzero(np.min(global_batches_inorder, axis=1) >= 0)
-            batches_per_stream.append(num_full_batches)
-            if num_full_batches != global_batches_inorder.shape[0]:
+            # Reshape the partition to batch portion per stream in order of traversal, and count only batches without -1 in them.
+            # Before reshaping, make sure number of samples in each stream is divisible by the batch_portion_per_stream
+            batch_parts_inorder = partition.transpose(3, 2, 0, 1, 4).flatten()
+            samples_in_stream_partition = batch_parts_inorder.size
+            if samples_in_stream_partition % batch_portion_per_stream[i] != 0:
+                padding_samples = batch_portion_per_stream[i] - (samples_in_stream_partition %
+                                                                 batch_portion_per_stream[i])
+                batch_parts_inorder = np.concatenate(
+                    (batch_parts_inorder, np.full(padding_samples, -1)))
+            # Reshape to get batch portions from this stream, in order of traversal.
+            batch_parts_inorder = batch_parts_inorder.reshape(-1, batch_portion_per_stream[i])
+            num_full_batches = np.count_nonzero(np.min(batch_parts_inorder, axis=1) >= 0)
+            print(f'stream {i} num_full_batches {num_full_batches}')
+            print('size of batch portion:', batch_portion_per_stream[i])
+            if num_full_batches != batch_parts_inorder.shape[0]:
                 logger.warning(
-                    'Because of the `uniform_global_batch` sampling method, some batches with an inadequate number of samples '
+                    'Because of the `consistent_batch_composition` sampling method, some batches with an inadequate number of samples '
                     + 'from stream with index ' + str(i) + ' are being dropped.')
-            batches_from_partitions.append(global_batches_inorder[:num_full_batches])
+            if num_full_batches < min_batch_parts:
+                min_batch_parts = num_full_batches
+            batches_from_partitions.append(batch_parts_inorder)
 
-        # Combine all global batches from all streams into one array.
-        all_partition_batches = np.concatenate(batches_from_partitions)
+        # clip the partitions from all streams to only have min_batch_parts batch parts.
+        batches_from_partitions = [
+            batch_partition[:min_batch_parts] for batch_partition in batches_from_partitions
+        ]
 
-        # Shuffle seed changes with every epoch so that the order of streams in our batches changes as well.
-        epoch_rng = np.random.default_rng(self.shuffle_seed + epoch)
-
-        # stream_origins is an array that tells us which stream each batch is using.
-        stream_origins = np.concatenate(
-            [np.full(n_batch, i) for i, n_batch in enumerate(batches_per_stream)])
-        epoch_rng.shuffle(stream_origins)
-
-        # Now, we want the batch_indices array to correctly index into the all_partition_batches
-        # array according to stream_origins in order to get our final batch order.
-        # For each stream, we want to traverse its batches in the same order as given in its partition.
-        batch_indices = np.zeros(stream_origins.shape[0]).astype(np.int64)
-        batch_offset = 0
-        for i, n_batch in enumerate(batches_per_stream):
-            # Update batch_indices for the one stream at a time.
-            batch_indices[stream_origins == i] += batch_offset + np.arange(n_batch)
-            batch_offset += n_batch
-
-        # Rearrange all_partition_batches by the batch_indices we have obtained.
-        all_partition_batches = all_partition_batches[batch_indices]
+        # Concatenate the batch parts from every stream to form all the global batches
+        all_partition_batches = np.concatenate(batches_from_partitions, axis=1)
 
         # If applicable we resume right after the most recently used full global batch.
-        global_batch_size = batch_size * world.num_nodes * world.ranks_per_node
         if sample_in_epoch % global_batch_size != 0:
             logger.warning(
-                'Because of the `uniform_global_batch` sampling method, resumption may only occur on a sample that '
+                'Because of the `consistent_batch_composition` sampling method, resumption may only occur on a sample that '
                 + 'is a multiple of the current global batch size of ' + str(global_batch_size) +
                 '. Resuming training ' + 'after the most recently finished global batch.')
 
@@ -1001,7 +1032,7 @@ class StreamingDataset(Array, IterableDataset):
         # Do expensive work that may use a lot of cores/memory just once, in the local leader.
         if world.is_local_leader:
             if self.sampling_method == 'consistent_batch_composition':
-                # Partition has global batches that have a consistent composition -- 
+                # Partition has global batches that have a consistent composition --
                 # each batch contains a fixed number of samples from each stream.
                 epoch_sample_ids = self._generate_work_consistent_batch_composition(
                     world, epoch, sample_in_epoch)
