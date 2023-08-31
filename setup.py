@@ -96,8 +96,9 @@ extra_deps['docs'] = [
 
 extra_deps['spark'] = [
     'pyspark>=3,<4',
+]
 
-extra_deps['databricks'] = ['databricks-sdk==0.6.0']
+extra_deps['databricks'] = ['databricks-sdk==0.6.0',]
 
 extra_deps['all'] = sorted({dep for deps in extra_deps.values() for dep in deps})
 
