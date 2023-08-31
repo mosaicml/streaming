@@ -113,12 +113,16 @@ def _check_and_find(streams_local: List[str], streams_remote: List[Union[str, No
         except FileNotFoundError:
             break
         their_locals, _ = _unpack_locals(bytes(shm.buf))
-        # If all the remote directories are None in a streams, get the new prefix_int and break
-        # even if local directory matches between the StreamingDataset instantiation.
+        # Do not check for a conflicting local directories across existing shared memory if
+        # remote directories are None. Get the next prefix.
         if any(streams_remote):
+            # Get the indices of the local directories which matches with the current
+            # shared memory.
             matching_index = np.where(np.in1d(streams_local, their_locals))[0]
             if matching_index.size > 0:
                 for idx in matching_index:
+                    # If there is a conflicting local directory for a non-None remote directory,
+                    # raise an exception.
                     if streams_remote[idx] is not None:
                         raise ValueError(
                             f'Reused local directory: {streams_local} vs ' +
