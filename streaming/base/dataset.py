@@ -789,10 +789,7 @@ class StreamingDataset(Array, IterableDataset):
         # to the underlying shard "small" sample ID.
         # Then, we also partition each stream's samples over nodes/devices/workers.
         # We handle sample_in_epoch (for resumption) at the end.
-        shuffle_units_per_stream = []
-        small_per_big_per_stream = []
         partition_per_stream = []
-        stream_sample_offset = 0
 
         batch_size = self.batch_size or 1
         _, overall_small_per_big = self._resample_streams(epoch)
@@ -800,8 +797,6 @@ class StreamingDataset(Array, IterableDataset):
 
         for stream_id in range(self.num_streams):
             shuffle_units, small_per_big = self._resample_streams(epoch, stream_id)
-            shuffle_units_per_stream.append(shuffle_units)
-            small_per_big_per_stream.append(small_per_big)
             samples_in_stream = len(small_per_big)
             stream_partition = get_partitions(self.partition_algo, samples_in_stream,
                                               self.num_canonical_nodes, world.num_nodes,
@@ -823,7 +818,6 @@ class StreamingDataset(Array, IterableDataset):
             # So each sample ID in the stream's partition already corresponds to the sample ID in the right shard.
             partition_per_stream.append(
                 np.where(stream_partition != -1, small_per_big[stream_partition], -1))
-            stream_sample_offset += samples_in_stream
 
         # We now merge the partitions from each stream to get our final partition over all streams, where
         # each global batch has samples only from a single stream.
@@ -1007,7 +1001,8 @@ class StreamingDataset(Array, IterableDataset):
         # Do expensive work that may use a lot of cores/memory just once, in the local leader.
         if world.is_local_leader:
             if self.sampling_method == 'consistent_batch_composition':
-                # Partition has global batches that are uniform -- samples are from just one stream.
+                # Partition has global batches that have a consistent composition -- 
+                # each batch contains a fixed number of samples from each stream.
                 epoch_sample_ids = self._generate_work_consistent_batch_composition(
                     world, epoch, sample_in_epoch)
             else:
