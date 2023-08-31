@@ -7,8 +7,9 @@ The prefix is used by all workers using this StreamingDataset of this training j
 prevent shared resources like shared memory from colliding.
 """
 
+from collections import Counter
 from time import sleep
-from typing import Iterator, List, Set, Tuple, Union
+from typing import Iterator, List, Tuple, Union
 
 import numpy as np
 from torch import distributed as dist
@@ -43,55 +44,54 @@ def _get_path(prefix_int: int, name: str) -> str:
     return f'{prefix_int:06}_{name}'
 
 
-def _pack_locals(dirnames: Set[str], prefix_int: int) -> bytes:
+def _pack_locals(dirnames: List[str], prefix_int: int) -> bytes:
     """Pack local dirnames and prefix int.
 
     Args:
-        dirnames (Set[str]): Unpacked local dirnames.
+        dirnames (List[str]): Unpacked local dirnames.
         prefix_int (int): Prefix int.
 
     Returns:
         bytes: Packed local dirnames and prefix int.
     """
-    text = '\0'.join(sorted(dirnames)) + f'\0{prefix_int}'
+    text = '\0'.join(dirnames) + f'\0{prefix_int}'
     data = text.encode('utf-8')
     size = 4 + len(data)
     return b''.join([np.int32(size).tobytes(), data])
 
 
-def _unpack_locals(data: bytes) -> Tuple[Set[str], int]:
+def _unpack_locals(data: bytes) -> Tuple[List[str], int]:
     """Unpack local dirnames and prefix int.
 
     Args:
         data (bytes): Packed local dirnames and prefix int.
 
     Returns:
-        Set[str]: Unpacked local dirnames and prefix int.
+        List[str]: Unpacked local dirnames and prefix int.
     """
     size = np.frombuffer(data[:4], np.int32)[0]
     text = data[4:size].decode('utf-8')
     text = text.split('\0')
-    return set(text[:-1]), int(text[-1] or 0)
+    return text[:-1], int(text[-1] or 0)
 
 
-def _check_self(streams_local: List[str]) -> Set[str]:
+def _check_self(streams_local: List[str]) -> None:
     """Check our local working directories for overlap.
 
     Args:
         streams_local (List[str]): Local dirs.
 
-    Returns:
-        Set[str]: Local dirs as a set.
+    Raises:
+        ValueError: If there is overlap.
     """
-    streams_local_set = set()
-    for dirname in streams_local:
-        if dirname in streams_local_set:
-            raise ValueError(f'Reused local directory: {dirname}. Provide a different one.')
-        streams_local_set.add(dirname)
-    return streams_local_set
+    occurrences = Counter(streams_local)
+    duplicate_local_dirs = [dirname for dirname, count in occurrences.items() if count > 1]
+    if duplicate_local_dirs:
+        raise ValueError(
+            f'Reused local directory: {duplicate_local_dirs}. Provide a different one.')
 
 
-def _check_and_find(streams_local_set: Set[str], streams_remote: List[Union[str, None]]) -> int:
+def _check_and_find(streams_local: List[str], streams_remote: List[Union[str, None]]) -> int:
     """Find the next available prefix while checking existing local dirs for overlap.
 
     Local leader walks the existing shm prefixes starting from zero, verifying that there is no
@@ -99,7 +99,7 @@ def _check_and_find(streams_local_set: Set[str], streams_remote: List[Union[str,
     shm fails, we have reached the end of the existing shms. We will register the next one.
 
     Args:
-        streams_local_set (Set[str]): Our local working directories.
+        streams_local (List[str]): Our local working directories.
         streams_remote (List[Union[str, None]]): Our remote working directories.
 
     Returns:
@@ -112,23 +112,25 @@ def _check_and_find(streams_local_set: Set[str], streams_remote: List[Union[str,
             shm = SharedMemory(name, False)
         except FileNotFoundError:
             break
-        their_locals_set, _ = _unpack_locals(bytes(shm.buf))
+        their_locals, _ = _unpack_locals(bytes(shm.buf))
         # If all the remote directories are None in a streams, get the new prefix_int and break
         # even if local directory matches between the StreamingDataset instantiation.
         if any(streams_remote):
-            both = streams_local_set & their_locals_set
-            if both:
-                raise ValueError(
-                    f'Reused local directory: {sorted(streams_local_set)} vs ' +
-                    f'{sorted(their_locals_set)}. Provide a different one. If using ' +
-                    f'a unique local directory, try deleting the local directory and ' +
-                    f'call `streaming.base.util.clean_stale_shared_memory()` only once ' +
-                    f'in your script to clean up the stale shared memory before ' +
-                    f'instantiation of `StreamingDataset`.')
+            matching_index = np.where(np.in1d(streams_local, their_locals))[0]
+            if matching_index.size > 0:
+                for idx in matching_index:
+                    if streams_remote[idx] is not None:
+                        raise ValueError(
+                            f'Reused local directory: {streams_local} vs ' +
+                            f'{their_locals}. Provide a different one. If using ' +
+                            f'a unique local directory, try deleting the local directory and ' +
+                            f'call `streaming.base.util.clean_stale_shared_memory()` only once ' +
+                            f'in your script to clean up the stale shared memory before ' +
+                            f'instantiation of `StreamingDataset`.')
     return prefix_int
 
 
-def _check_and_find_retrying(streams_local_set: Set[str], streams_remote: List[Union[str, None]],
+def _check_and_find_retrying(streams_local: List[str], streams_remote: List[Union[str, None]],
                              retry: int) -> int:
     """Find the next available prefix while checking existing dirs for overlap.
 
@@ -137,7 +139,7 @@ def _check_and_find_retrying(streams_local_set: Set[str], streams_remote: List[U
     a numpy array appears to be racy.
 
     Args:
-        streams_local_set (Set[str]): Our local working directories.
+        streams_local (List[str]): Our local working directories.
         streams_remote (List[Union[str, None]]): Our remote working directories.
         retry (int): Number of retries upon failure before raising an exception.
 
@@ -149,7 +151,7 @@ def _check_and_find_retrying(streams_local_set: Set[str], streams_remote: List[U
     errs = []
     for _ in range(1 + retry):
         try:
-            return _check_and_find(streams_local_set, streams_remote)
+            return _check_and_find(streams_local, streams_remote)
         except ValueError as err:
             errs.append(err)
             sleep(TICK)
@@ -174,13 +176,13 @@ def get_shm_prefix(streams_local: List[str],
             short due to limitations of Python on Mac OSX.
     """
     # Check my locals for overlap.
-    streams_local_set = _check_self(streams_local)
+    _check_self(streams_local)
 
     # First, the local leader registers the first available shm prefix, recording its locals.
     if world.is_local_leader:
-        prefix_int = _check_and_find_retrying(streams_local_set, streams_remote, retry)
+        prefix_int = _check_and_find_retrying(streams_local, streams_remote, retry)
         name = _get_path(prefix_int, LOCALS)
-        data = _pack_locals(streams_local_set, prefix_int)
+        data = _pack_locals(streams_local, prefix_int)
         shm = SharedMemory(name, True, len(data))
         shm.buf[:len(data)] = data
 
@@ -196,8 +198,8 @@ def get_shm_prefix(streams_local: List[str],
             except FileNotFoundError:
                 raise RuntimeError(f'Internal error: shared memory prefix was not registered by ' +
                                    f'local leader')
-            their_locals_set, their_prefix_int = _unpack_locals(bytes(shm.buf))
-            if streams_local_set == their_locals_set and prefix_int == their_prefix_int:
+            their_locals, their_prefix_int = _unpack_locals(bytes(shm.buf))
+            if streams_local == their_locals and prefix_int == their_prefix_int:
                 break
 
     return prefix_int, shm  # pyright: ignore
