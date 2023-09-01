@@ -874,8 +874,6 @@ class StreamingDataset(Array, IterableDataset):
             # Reshape to get batch portions from this stream, in order of traversal.
             batch_parts_inorder = batch_parts_inorder.reshape(-1, batch_portion_per_stream[i])
             num_full_batches = np.count_nonzero(np.min(batch_parts_inorder, axis=1) >= 0)
-            print(f'stream {i} num_full_batches {num_full_batches}')
-            print('size of batch portion:', batch_portion_per_stream[i])
             if num_full_batches != batch_parts_inorder.shape[0]:
                 logger.warning(
                     'Because of the `consistent_batch_composition` sampling method, some batches with an inadequate number of samples '
