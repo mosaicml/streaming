@@ -81,7 +81,7 @@ def infer_dataframe_schema(dataframe: DataFrame,
     def map_spark_dtype(spark_data_type: Any) -> str:
         mds_type = mapping_spark_to_mds.get(type(spark_data_type), None)
         if mds_type is None:
-            raise ValueError(f'{spark_data_type} is not supported by MDSwriter')
+            raise ValueError(f'{spark_data_type} is not supported by MDSWriter')
         return mds_type
 
     if user_defined_cols is not None:  # user has provided schema, we just check if mds supports the dtype
@@ -93,7 +93,7 @@ def infer_dataframe_schema(dataframe: DataFrame,
                 raise ValueError(
                     f'{col_name} is not a column of input dataframe: {dataframe.columns}')
             if user_dtype not in mds_supported_dtypes:
-                raise ValueError(f'{user_dtype} is not supported by MDSwriter')
+                raise ValueError(f'{user_dtype} is not supported by MDSWriter')
 
             actual_spark_dtype = dataframe.schema[col_name].dataType
             mapped_mds_dtype = map_spark_dtype(actual_spark_dtype)
@@ -111,11 +111,11 @@ def infer_dataframe_schema(dataframe: DataFrame,
         if dtype in _encodings:
             schema_dict[field.name] = dtype
         else:
-            raise ValueError(f'{dtype} is not supported by MDSwriter')
+            raise ValueError(f'{dtype} is not supported by MDSWriter')
     return schema_dict
 
 
-def do_merge_index(partitions: Iterable, mds_path: Union[str, Tuple[str, str]]):
+def do_merge_index(partitions: Iterable, mds_path: Union[str, Tuple[str, str]]) -> None:
     """Merge index.json from partitions into one for streaming.
 
     Args:
@@ -237,7 +237,7 @@ def dataframeToMDS(dataframe: DataFrame,
             axis=1)
 
     if dataframe is None or dataframe.count() == 0:
-        raise ValueError(f'input dataframe is none or empty!')
+        raise ValueError(f'Input dataframe is None or Empty!')
 
     if not mds_kwargs:
         mds_kwargs = {}
@@ -246,7 +246,7 @@ def dataframeToMDS(dataframe: DataFrame,
         udf_kwargs = {}
 
     if 'out' not in mds_kwargs:
-        raise ValueError(f'out and columns need to be specified in mds_kwargs')
+        raise ValueError(f'`out` and `columns` need to be specified in `mds_kwargs`')
 
     if udf_iterable is not None:
         if 'columns' not in mds_kwargs:
