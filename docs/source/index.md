@@ -77,7 +77,7 @@ If you have any questions, please feel free to reach out to us on [Twitter](htt
    examples/facesynthetics.ipynb
    examples/synthetic_nlp.ipynb
    examples/multiprocess_dataset_conversion.ipynb
-   examples/spark_dataframe.ipynb
+   examples/spark_dataframe_to_MDS.ipynb
 
 .. toctree::
    :hidden:
