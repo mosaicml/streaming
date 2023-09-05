@@ -94,7 +94,7 @@ extra_deps['docs'] = [
     'sphinx-tabs==3.4.1',
 ]
 
-extra_deps['databricks'] = ['databricks-sdk==0.6.0']
+extra_deps['databricks'] = ['databricks-sdk==0.8.0']
 
 extra_deps['all'] = sorted({dep for deps in extra_deps.values() for dep in deps})
 
