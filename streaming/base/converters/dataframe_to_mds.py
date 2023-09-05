@@ -32,6 +32,27 @@ from streaming.base.storage.upload import CloudUploader
 
 logger = logging.getLogger(__name__)
 
+MAPPING_SPARK_TO_MDS = {
+    ByteType: 'uint8',
+    ShortType: 'uint16',
+    IntegerType: 'int',
+    LongType: 'int64',
+    FloatType: 'float32',
+    DoubleType: 'float64',
+    DecimalType: 'str_decimal',
+    StringType: 'str',
+    BinaryType: 'bytes',
+    BooleanType: None,
+    TimestampType: None,
+    TimestampNTZType: None,
+    DateType: None,
+    DayTimeIntervalType: None,
+    ArrayType: None,
+    MapType: None,
+    StructType: None,
+    StructField: None
+}
+
 
 def is_iterable(obj: object) -> bool:
     """Check if obj is iterable.
@@ -57,36 +78,16 @@ def infer_dataframe_schema(dataframe: DataFrame,
     Exceptions:
         Any of the datatype found to be unsupported by MDSWriter, then raise ValueError
     """
-    mapping_spark_to_mds = {
-        ByteType: 'uint8',
-        ShortType: 'uint16',
-        IntegerType: 'int',
-        LongType: 'int64',
-        FloatType: 'float32',
-        DoubleType: 'float64',
-        DecimalType: 'str_decimal',
-        StringType: 'str',
-        BinaryType: 'bytes',
-        BooleanType: None,
-        TimestampType: None,
-        TimestampNTZType: None,
-        DateType: None,
-        DayTimeIntervalType: None,
-        ArrayType: None,
-        MapType: None,
-        StructType: None,
-        StructField: None
-    }
 
     def map_spark_dtype(spark_data_type: Any) -> str:
-        mds_type = mapping_spark_to_mds.get(type(spark_data_type), None)
+        mds_type = MAPPING_SPARK_TO_MDS.get(type(spark_data_type), None)
         if mds_type is None:
             raise ValueError(f'{spark_data_type} is not supported by MDSWriter')
         return mds_type
 
     if user_defined_cols is not None:  # user has provided schema, we just check if mds supports the dtype
         mds_supported_dtypes = {
-            mds_type for mds_type in mapping_spark_to_mds.values() if mds_type is not None
+            mds_type for mds_type in MAPPING_SPARK_TO_MDS.values() if mds_type is not None
         }
         for col_name, user_dtype in user_defined_cols.items():
             if col_name not in dataframe.columns:

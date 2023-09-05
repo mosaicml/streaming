@@ -3,6 +3,7 @@
 
 import json
 import os
+import shutil
 from decimal import Decimal
 from tempfile import mkdtemp
 from typing import Any, Tuple
@@ -17,24 +18,38 @@ from streaming.base.converters import dataframeToMDS
 
 MY_PREFIX = 'train'
 MY_BUCKET = 'mosaicml-composer-tests'
-LOCAL_MANUAL_TEST = False
+MANUAL_INTEGRATION_TEST = False
 os.environ[
     'OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'  # set to yes to all fork process in spark calls
 
 
-@pytest.fixture(scope='class', autouse=True)
-def remote_local_dir() -> Any:
+@pytest.fixture(scope='function', autouse=True)
+def manual_integration_dir() -> Any:
     """Creates a temporary directory and then deletes it when the calling function is done."""
+    if MANUAL_INTEGRATION_TEST:
+        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'path/to/gooogle_api_credential.json'
 
-    os.environ[
-        'GOOGLE_APPLICATION_CREDENTIALS'] = '~/.mosaic/mosaicml-research-nonprod-027345ddbdfd.json'
+    tmp_dir = mkdtemp()
 
     def _method(cloud_prefix: str = 'gs://') -> Tuple[str, str]:
-        mock_local_dir = mkdtemp()
+        mock_local_dir = tmp_dir  # mkdtemp()
         mock_remote_dir = os.path.join(cloud_prefix, MY_BUCKET, MY_PREFIX)
         return mock_local_dir, mock_remote_dir
 
-    return _method
+    try:
+        yield _method
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)  # pyright: ignore
+        if MANUAL_INTEGRATION_TEST:
+            try:
+                from google.cloud.storage import Client
+                storage_client = Client()
+                bucket = storage_client.get_bucket(MY_BUCKET)
+                blobs = bucket.list_blobs(prefix=MY_PREFIX)
+                for blob in blobs:
+                    blob.delete()
+            except ImportError:
+                raise ImportError('google.cloud.storage is not imported correctly.')
 
 
 class TestDataFrameToMDS:
@@ -79,8 +94,9 @@ class TestDataFrameToMDS:
     @pytest.mark.parametrize('keep_local', [True, False])
     @pytest.mark.parametrize('merge_index', [True, False])
     def test_end_to_end_conversion_local_nocolumns(self, dataframe: Any, keep_local: bool,
-                                                   merge_index: bool):
-        out = mkdtemp()
+                                                   merge_index: bool,
+                                                   local_remote_dir: Tuple[str, str]):
+        out, _ = local_remote_dir
         mds_kwargs = {
             'out': out,
             'keep_local': keep_local,
@@ -117,8 +133,9 @@ class TestDataFrameToMDS:
                 out, 'index.json'))), 'merged index is created when merge_index=False'
 
     @pytest.mark.parametrize('use_columns', [True, False])
-    def test_end_to_end_conversion_local_decimal(self, decimal_dataframe: Any, use_columns: bool):
-        out = mkdtemp()
+    def test_end_to_end_conversion_local_decimal(self, decimal_dataframe: Any, use_columns: bool,
+                                                 local_remote_dir: Tuple[str, str]):
+        out, _ = local_remote_dir
         user_defined_columns = {'id': 'int', 'name': 'str', 'amount': 'str_decimal'}
         mds_kwargs = {
             'out': out,
@@ -131,8 +148,8 @@ class TestDataFrameToMDS:
         _, _ = dataframeToMDS(decimal_dataframe, merge_index=True, mds_kwargs=mds_kwargs)
         assert (len(os.listdir(out)) > 0), f'{out} is empty'
 
-    def test_user_defined_columns(self, dataframe: Any):
-        out = mkdtemp()
+    def test_user_defined_columns(self, dataframe: Any, local_remote_dir: Tuple[str, str]):
+        out, _ = local_remote_dir
         user_defined_columns = {'idd': 'str', 'dept': 'str'}
         mds_kwargs = {
             'out': out,
@@ -152,9 +169,9 @@ class TestDataFrameToMDS:
 
     @pytest.mark.parametrize('keep_local', [True, False])
     @pytest.mark.parametrize('merge_index', [True, False])
-    def test_end_to_end_conversion_local(self, dataframe: Any, keep_local: bool,
-                                         merge_index: bool):
-        out = mkdtemp()
+    def test_end_to_end_conversion_local(self, dataframe: Any, keep_local: bool, merge_index: bool,
+                                         local_remote_dir: Tuple[str, str]):
+        out, _ = local_remote_dir
         mds_kwargs = {
             'out': out,
             'columns': {
@@ -193,15 +210,15 @@ class TestDataFrameToMDS:
     @pytest.mark.parametrize('scheme', ['gs'])
     @pytest.mark.parametrize('keep_local', [True, False])
     @pytest.mark.parametrize('merge_index', [True, False])
-    @pytest.mark.usefixtures('remote_local_dir')
+    @pytest.mark.usefixtures('manual_integration_dir')
     def test_patch_conversion_local_and_remote(self, dataframe: Any, scheme: str,
                                                merge_index: bool, keep_local: bool,
-                                               remote_local_dir: Any):
-        if not LOCAL_MANUAL_TEST:
+                                               manual_integration_dir: Any):
+        if not MANUAL_INTEGRATION_TEST:
             pytest.skip(
                 'Overlap with integration tests. But better figure out how to run this test suite with Mock.'
             )
-        mock_local, mock_remote = remote_local_dir(cloud_prefix='gs://')
+        mock_local, mock_remote = manual_integration_dir()
         out = (mock_local, mock_remote)
         mds_kwargs = {
             'out': out,
@@ -241,12 +258,13 @@ class TestDataFrameToMDS:
 
     @pytest.mark.parametrize('keep_local', [True, False])
     @pytest.mark.parametrize('merge_index', [True, False])
-    @pytest.mark.usefixtures('remote_local_dir')
-    def test_integration_conversion_local_and_remote(self, dataframe: Any, remote_local_dir: Any,
+    @pytest.mark.usefixtures('manual_integration_dir')
+    def test_integration_conversion_local_and_remote(self, dataframe: Any,
+                                                     manual_integration_dir: Any,
                                                      merge_index: bool, keep_local: bool):
-        if not LOCAL_MANUAL_TEST:
+        if not MANUAL_INTEGRATION_TEST:
             pytest.skip('run local only. CI cluster does not have GCS service acct set up.')
-        out = remote_local_dir(cloud_prefix='gs://')
+        out = manual_integration_dir()
         mds_kwargs = {
             'out': out,
             'columns': {
@@ -281,11 +299,11 @@ class TestDataFrameToMDS:
                 os.path.exists(os.path.join(mds_path[0], 'index.json'))
             ), f'merged index is created at {mds_path[0]} when merge_index={merge_index} and keep_local={keep_local}'
 
-    @pytest.mark.usefixtures('remote_local_dir')
-    def test_integration_conversion_remote_only(self, dataframe: Any, remote_local_dir: Any):
-        if not LOCAL_MANUAL_TEST:
+    @pytest.mark.usefixtures('manual_integration_dir')
+    def test_integration_conversion_remote_only(self, dataframe: Any, manual_integration_dir: Any):
+        if not MANUAL_INTEGRATION_TEST:
             pytest.skip('run local only. CI cluster does not have GCS service acct set up.')
-        _, remote = remote_local_dir(cloud_prefix='gs://')
+        _, remote = manual_integration_dir()
         mds_kwargs = {
             'out': remote,
             'columns': {
@@ -302,7 +320,7 @@ class TestDataFrameToMDS:
         assert (len(os.listdir(mds_path[0])) > 0), f'{mds_path[0]} is not empty'
 
     def test_simple_remote(self, dataframe: Any):
-        if not LOCAL_MANUAL_TEST:
+        if not MANUAL_INTEGRATION_TEST:
             pytest.skip('run local only. CI cluster does not have GCS service acct set up.')
 
         out = 'gs://mosaicml-composer-tests/test_df2mds'

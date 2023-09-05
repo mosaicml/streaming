@@ -3,6 +3,6 @@
 
 """Utility function for converting spark dataframe to MDS dataset."""
 
-from streaming.base.converters.dataframe_to_mds import dataframeToMDS
+from streaming.base.converters.dataframe_to_mds import MAPPING_SPARK_TO_MDS, dataframeToMDS
 
-__all__ = ['dataframeToMDS']
+__all__ = ['dataframeToMDS', 'MAPPING_SPARK_TO_MDS']
