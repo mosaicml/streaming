@@ -7,14 +7,18 @@ import numpy as np
 from numpy.typing import NDArray
 
 
-def get_shard_sampling(samples_per_shard: NDArray[np.int64], choose: int,
-                       granularity: int) -> NDArray[np.int64]:
+def get_shard_sampling(samples_per_shard: NDArray[np.int64], choose: int, granularity: int,
+                       seed: int, epoch: int, use_epoch: bool) -> NDArray[np.int64]:
     """Get how many samples to draw from each shard of the given stream.
 
     Args:
         samples_per_shard (NDArray[np.int64]): Array of underlying shard sizes.
         choose (int): How many samples to draw in total over all shards.
         granularity (int): How many samples to draw at a time from the same shard.
+        seed (int): Seed for shuffling sampling granules.
+        epoch (int): Which epoch we are sampling for.
+        use_epoch (bool): Whether to factor epoch into the base seed, or use the same seed across
+            epochs.
 
     Returns:
         NDArray[np.int64]: Array of ephemeral samples chosen per shard.
@@ -39,7 +43,9 @@ def get_shard_sampling(samples_per_shard: NDArray[np.int64], choose: int,
     shard_ids = np.concatenate(shard_ids)
     counts = np.concatenate(counts)
     num_granules = len(shard_ids)
-    ordering = np.random.permutation(num_granules)
+    epoch_seed = seed + epoch if use_epoch else seed
+    rng = np.random.default_rng(epoch_seed)
+    ordering = rng.permutation(num_granules)
 
     choose_per_shard = samples_per_shard * (choose // num_samples)
     choose %= num_samples
