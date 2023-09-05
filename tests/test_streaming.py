@@ -498,3 +498,39 @@ def test_multiple_dataset_instantiation(local_remote_dir: Any, shuffle_seed: tup
 
     assert len(train_sample_order) == len(val_sample_order), 'Missing samples'
     assert len(set(train_sample_order)) == len(set(val_sample_order)), 'Duplicate samples'
+
+
+def test_same_local_no_remote(local_remote_dir: Tuple[str, str]):
+    local_0, _ = local_remote_dir
+    convert_to_mds(out_root=local_0,
+                   dataset_name='sequencedataset',
+                   num_samples=117,
+                   size_limit=1 << 8)
+    # Build StreamingDataset
+    dataset_0 = StreamingDataset(local=local_0, remote=None, batch_size=4, num_canonical_nodes=1)
+    # Build StreamingDataset
+    dataset_1 = StreamingDataset(local=local_0, remote=None, batch_size=2, num_canonical_nodes=1)
+    samples_seen_0 = set()
+    for sample in dataset_0:
+        samples_seen_0.add(sample['sample'])
+
+    samples_seen_1 = set()
+    for sample in dataset_1:
+        samples_seen_1.add(sample['sample'])
+
+    assert samples_seen_0 == samples_seen_1
+    assert len(samples_seen_0) == len(samples_seen_1) == 117
+
+
+def test_same_local_diff_remote(local_remote_dir: Tuple[str, str]):
+    local_0, remote_0 = local_remote_dir
+    _, remote_1 = local_remote_dir
+    convert_to_mds(out_root=local_0,
+                   dataset_name='sequencedataset',
+                   num_samples=117,
+                   size_limit=1 << 8)
+    # Build StreamingDataset
+    _ = StreamingDataset(local=local_0, remote=remote_0, batch_size=4, num_canonical_nodes=1)
+    # Build StreamingDataset
+    with pytest.raises(ValueError, match='Reused local directory.*vs.*Provide a different one.'):
+        _ = StreamingDataset(local=local_0, remote=remote_1, batch_size=2, num_canonical_nodes=1)
