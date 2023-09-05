@@ -18,6 +18,11 @@ Checkout the [user guide](../getting_started/user_guide.md) section which contai
 
 We've already created conversion scripts that can be used to convert popular public datasets to MDS format.  Please see below for usage instructions.
 
+## Spark Dataframe Conversion Examples
+```{include} ../../../streaming/base/converters/README.md
+:start-line: 8
+```
+
 ## NLP Dataset Conversion Examples
 
 ```{include} ../../../streaming/text/convert/README.md
