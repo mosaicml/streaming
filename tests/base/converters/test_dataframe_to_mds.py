@@ -102,7 +102,7 @@ class TestDataFrameToMDS:
             'keep_local': keep_local,
         }
 
-        with pytest.raises(ValueError):  # , match=f'* is not supported by MDSwriter'):
+        with pytest.raises(ValueError, match=f'.*is not supported by MDSWriter.*'):
             _, _ = dataframeToMDS(dataframe.select(col('id'), col('dept'), col('properties')),
                                   merge_index=merge_index,
                                   mds_kwargs=mds_kwargs)
@@ -155,7 +155,7 @@ class TestDataFrameToMDS:
             'out': out,
             'columns': user_defined_columns,
         }
-        with pytest.raises(ValueError):  # ,match=f'*is not a column of input dataframe*'):
+        with pytest.raises(ValueError, match=f'.*is not a column of input dataframe.*'):
             _, _ = dataframeToMDS(dataframe, merge_index=False, mds_kwargs=mds_kwargs)
 
         user_defined_columns = {'id': 'strr', 'dept': 'str'}
@@ -164,7 +164,7 @@ class TestDataFrameToMDS:
             'out': out,
             'columns': user_defined_columns,
         }
-        with pytest.raises(ValueError):  # , match=f'* is not supported by MDSwriter'):
+        with pytest.raises(ValueError, match=f'.* is not supported by MDSWriter.*'):
             _, _ = dataframeToMDS(dataframe, merge_index=False, mds_kwargs=mds_kwargs)
 
     @pytest.mark.parametrize('keep_local', [True, False])
