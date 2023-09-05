@@ -8,49 +8,47 @@ from numpy.typing import NDArray
 
 
 def get_shard_sampling(samples_per_shard: NDArray[np.int64], choose: int,
-                       visits_per_shard: int) -> NDArray[np.int64]:
+                       granularity: int) -> NDArray[np.int64]:
     """Get how many samples to draw from each shard of the given stream.
 
     Args:
         samples_per_shard (NDArray[np.int64]): Array of underlying shard sizes.
         choose (int): How many samples to draw in total over all shards.
-        visits_per_shard (int): A slider to trade off shard efficiency vs shard diversity. When you
-            are sampling few samples from many shards, do you draw all the samples from the same
-            shard in order to save downloading, or do you balance it out over a bunch of them?
+        granularity (int): How many samples to draw at a time from the same shard.
 
     Returns:
         NDArray[np.int64]: Array of ephemeral samples chosen per shard.
     """
     # Handle whole integer repeat case.
-    samples = sum(samples_per_shard)
-    if not choose % samples:
-        return samples_per_shard * choose // samples
+    num_samples = sum(samples_per_shard)
+    if not choose % num_samples:
+        return samples_per_shard * choose // num_samples
 
     # Fractional repeat case.
 
     # Get the ordering by which we will exhaust the shards.
-    num_shards = len(samples_per_shard)
-    visit_ids = np.arange(num_shards * visits_per_shard)
-    np.random.shuffle(visit_ids)
+    pairs = []  # List of (shard ID, samples to draw).
+    for shard_id, shard_samples in enumerate(samples_per_shard):
+        num_granules = (shard_samples + granularity - 1) // granularity
+        shard_ids = np.full(num_granules, shard_id)
+        counts = np.full(num_granules, granularity)
+        counts[-1] = shard_samples % granularity
+        pair = shard_ids, counts
+        pairs.append(pair)
+    shard_ids, counts = zip(*pairs)
+    shard_ids = np.concatenate(shard_ids)
+    counts = np.concatenate(counts)
+    num_granules = len(shard_ids)
+    ordering = np.random.permutation(num_granules)
 
-    # Get sample size of each visit of each shard.
-    x = np.arange(visits_per_shard)
-    x = np.expand_dims(x, 0)
-    samples_per_shard_rows = np.expand_dims(samples_per_shard, 1)
-    begins = samples_per_shard_rows * x // visits_per_shard
-    ends = samples_per_shard_rows * (x + 1) // visits_per_shard
-    samples_per_visit = (ends - begins).flatten()
-
-    # Start choose per shard with the full repeats.
-    choose_per_shard = samples_per_shard * (choose // samples)
-    choose %= samples
-
-    # Walk visits, adding to choose per shard for the last partial reeat.
-    for visit_id in visit_ids:
-        shard_id = visit_id // visits_per_shard
-        visit_samples = min(int(samples_per_visit[visit_id]), choose)
-        choose_per_shard[shard_id] += visit_samples
-        choose -= visit_samples
+    choose_per_shard = samples_per_shard * (choose // num_samples)
+    choose %= num_samples
+    for index in ordering:
+        shard_id = shard_ids[index]
+        count = counts[index]
+        count = min(choose, int(count))
+        choose_per_shard[shard_id] += count
+        choose -= count
         if not choose:
             break
 
