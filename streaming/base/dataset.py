@@ -271,7 +271,7 @@ class StreamingDataset(Array, IterableDataset):
             of this size, and samples within each block are shuffled. Defaults to ``1 << 18``.
         sampling_method (str): Which sampling method to use, either ``balanced`` or ``fixed``.
             Defaults to ``balanced``.
-        batching_method (str): Which batching method to use, either ``random``, ``apportioned``, or
+        batching_method (str): Which batching method to use, either ``random``, ``stratified``, or
             ``per_stream``. Defaults to ``random``.
     """
 
@@ -321,10 +321,10 @@ class StreamingDataset(Array, IterableDataset):
                 f'Invalid sampling method: {sampling_method}. Must be one of `balanced` or `fixed`.'
             )
 
-        # Check batching method is one of "random", "apportioned", or "per_stream".
-        if self.batching_method not in ['random', 'apportioned', 'per_stream']:
+        # Check batching method is one of "random", "stratified", or "per_stream".
+        if self.batching_method not in ['random', 'stratified', 'per_stream']:
             raise ValueError(
-                f'Invalid batching method: {batching_method}. Must be one of `random`, `apportioned`, or `per_stream.'
+                f'Invalid batching method: {batching_method}. Must be one of `random`, `stratified`, or `per_stream.'
             )
 
         # issue deprecation warning for py1b shuffle algorithm.
@@ -787,11 +787,11 @@ class StreamingDataset(Array, IterableDataset):
         sample_ids = np.concatenate(sample_ids).astype(np.int64)
         return shuffle_units, sample_ids
 
-    def _generate_work_apportioned_batching(self, world: World, epoch: int,
-                                            sample_in_epoch: int) -> NDArray[np.int64]:
-        """Generate the epoch's sample arrangement for ``apportioned`` batching method.
+    def _generate_work_stratified_batching(self, world: World, epoch: int,
+                                           sample_in_epoch: int) -> NDArray[np.int64]:
+        """Generate the epoch's sample arrangement for ``stratified`` batching method.
 
-        This is only called in local rank zero. When ``batching_method`` is set to ``apportioned``,
+        This is only called in local rank zero. When ``batching_method`` is set to ``stratified``,
         every single batch is divided between streams in the same proportions.
 
         Args:
@@ -894,7 +894,7 @@ class StreamingDataset(Array, IterableDataset):
             num_full_batches = np.count_nonzero(np.min(batch_parts_inorder, axis=1) >= 0)
             if num_full_batches != batch_parts_inorder.shape[0]:
                 logger.warning(
-                    'Because of the `apportioned` batching method, some batches with an inadequate number of samples '
+                    'Because of the `stratified` batching method, some batches with an inadequate number of samples '
                     + 'from stream with index ' + str(i) + ' are being dropped.')
             if num_full_batches < min_batch_parts:
                 min_batch_parts = num_full_batches
@@ -911,7 +911,7 @@ class StreamingDataset(Array, IterableDataset):
         # If applicable we resume right after the most recently used full global batch.
         if sample_in_epoch % global_batch_size != 0:
             logger.warning(
-                'Because of the `apportioned` batching method, resumption may only occur on a sample that '
+                'Because of the `stratified` batching method, resumption may only occur on a sample that '
                 + 'is a multiple of the current global batch size of ' + str(global_batch_size) +
                 '. Resuming training ' + 'after the most recently finished global batch.')
 
@@ -1047,10 +1047,10 @@ class StreamingDataset(Array, IterableDataset):
 
         # Do expensive work that may use a lot of cores/memory just once, in the local leader.
         if world.is_local_leader:
-            if self.batching_method == 'apportioned':
-                # Partition has global batches that are always apportioned between streams --
+            if self.batching_method == 'stratified':
+                # Partition has global batches that are always stratified --
                 # each batch contains a fixed number of samples from each stream.
-                epoch_sample_ids = self._generate_work_apportioned_batching(
+                epoch_sample_ids = self._generate_work_stratified_batching(
                     world, epoch, sample_in_epoch)
             else:
                 epoch_sample_ids = self._generate_work(world, epoch, sample_in_epoch)

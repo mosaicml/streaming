@@ -73,10 +73,10 @@ def test_dataloader_epoch_size_no_streams(local_remote_dir: Tuple[str,
 @pytest.mark.parametrize('num_stream_1_samples', [200, 255])
 @pytest.mark.parametrize('num_stream_2_samples', [342, 557])
 @pytest.mark.usefixtures('local_remote_dir')
-def test_dataloader_apportioned_batching(local_remote_dir: Tuple[str, str], batch_size: int,
-                                         seed: int, shuffle: bool, drop_last: bool,
-                                         num_workers: int, num_canonical_nodes: int,
-                                         num_stream_1_samples: int, num_stream_2_samples: int):
+def test_dataloader_stratified_batching(local_remote_dir: Tuple[str, str], batch_size: int,
+                                        seed: int, shuffle: bool, drop_last: bool,
+                                        num_workers: int, num_canonical_nodes: int,
+                                        num_stream_1_samples: int, num_stream_2_samples: int):
     # create mock datasets for 2 streams. Second one has 1.5x the samples
     local, remote = local_remote_dir
     local1 = os.path.join(local, 'stream1')
@@ -105,7 +105,7 @@ def test_dataloader_apportioned_batching(local_remote_dir: Tuple[str, str], batc
                                batch_size=batch_size,
                                shuffle_seed=seed,
                                num_canonical_nodes=num_canonical_nodes,
-                               batching_method='apportioned')
+                               batching_method='stratified')
 
     # Build DataLoader
     dataloader = StreamingDataLoader(dataset=dataset,
