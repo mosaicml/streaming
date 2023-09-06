@@ -23,6 +23,18 @@ def get_sampling(samples_per_shard: NDArray[np.int64], choose: int, granularity:
     Returns:
         NDArray[np.int64]: Array of ephemeral samples chosen per shard.
     """
+    if choose < 0:
+        raise ValueError('Choose must be a non-negative integer.')
+
+    if granularity <= 0:
+        raise ValueError('Granularity must be a positive integer.')
+
+    if seed < 0:
+        raise ValueError('Seed must be a non-negative integer.')
+
+    if epoch < 0:
+        raise ValueError('Epoch must be a non-negative integer.')
+
     # Handle whole integer repeat case.
     num_samples = sum(samples_per_shard)
     if not choose % num_samples:
@@ -36,7 +48,8 @@ def get_sampling(samples_per_shard: NDArray[np.int64], choose: int, granularity:
         num_granules = (shard_samples + granularity - 1) // granularity
         shard_ids = np.full(num_granules, shard_id)
         counts = np.full(num_granules, granularity)
-        counts[-1] = shard_samples % granularity
+        if shard_samples % granularity:
+            counts[-1] = shard_samples % granularity
         pair = shard_ids, counts
         pairs.append(pair)
     shard_ids, counts = zip(*pairs)
