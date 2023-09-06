@@ -206,6 +206,10 @@ class StreamingDataset(Array, IterableDataset):
 
         * ``sampling_method``
 
+      * Batching:
+
+        * ``batching``
+
 
     Args:
         streams (Sequence[Stream], optional): One or more streams to stream/cache samples from,
@@ -265,8 +269,10 @@ class StreamingDataset(Array, IterableDataset):
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
         shuffle_block_size (int): Unit of shuffle. A canonical node's samples are split into blocks
             of this size, and samples within each block are shuffled. Defaults to ``1 << 18``.
-        sampling_method (str): Which sampling method to use, either ``balanced``, ``fixed``, or ``consistent_batch_composition``.
+        sampling_method (str): Which sampling method to use, either ``balanced`` or ``fixed``.
             Defaults to ``balanced``.
+        batching_method (str): Which batching method to use, either ``random``, ``apportioned``, or
+            ``per_stream``. Defaults to ``random``.
     """
 
     def __init__(self,
@@ -289,7 +295,8 @@ class StreamingDataset(Array, IterableDataset):
                  shuffle_algo: str = 'py1s',
                  shuffle_seed: int = 9176,
                  shuffle_block_size: int = 1 << 18,
-                 sampling_method: str = 'balanced') -> None:
+                 sampling_method: str = 'balanced',
+                 batching_method: str = 'random') -> None:
         # Global arguments (which do not live in Streams).
         self.predownload = predownload
         self.cache_limit = cache_limit
@@ -301,6 +308,7 @@ class StreamingDataset(Array, IterableDataset):
         self.shuffle_seed = shuffle_seed
         self.shuffle_block_size = shuffle_block_size
         self.sampling_method = sampling_method.lower().strip()
+        self.batching_method = batching_method.lower().strip()
 
         # Check streams vs remote/local.
         if bool(streams) == (bool(remote) or bool(local)):
@@ -308,12 +316,18 @@ class StreamingDataset(Array, IterableDataset):
                 'You must provide either `streams` or `remote`/`local`, but not both.')
 
         # Check sampling method is one of "balanced" or "fixed".
-        if self.sampling_method not in ['balanced', 'fixed', 'consistent_batch_composition']:
+        if self.sampling_method not in ['balanced', 'fixed']:
             raise ValueError(
-                f'Invalid sampling method: {sampling_method}. Must be one of `balanced`, `fixed`, or `consistent_batch_composition`.'
+                f'Invalid sampling method: {sampling_method}. Must be one of `balanced` or `fixed`.'
+            )
+        
+        # Check batching method is one of "random" or "apportioned".
+        if self.batching_method not in ['random', 'apportioned']:
+            raise ValueError(
+                f'Invalid batching method: {batching_method}. Must be one of `random` or `apportioned`.'
             )
 
-        # issue deprecation warning for py1b shuffle algorithm.
+        # Issue deprecation warning for py1b shuffle algorithm.
         if self.shuffle_algo == 'py1b':
             warnings.warn(
                 'The \'py1b\' shuffle algorithm will soon be deprecated. Please use the more performant \'py1br\' algorithm instead.',
@@ -773,12 +787,12 @@ class StreamingDataset(Array, IterableDataset):
         sample_ids = np.concatenate(sample_ids).astype(np.int64)
         return shuffle_units, sample_ids
 
-    def _generate_work_consistent_batch_composition(self, world: World, epoch: int,
+    def _generate_work_apportioned_batching(self, world: World, epoch: int,
                                                     sample_in_epoch: int) -> NDArray[np.int64]:
-        """Generate the epoch's sample arrangement for ``consistent_batch_composition`` sampling.
+        """Generate the epoch's sample arrangement for ``apportioned`` batching method.
 
-        This is only called in local rank zero. When ``sampling_method`` is set to ``consistent_batch_composition``,
-        every single batch is consistently composed of samples from streams in the same proportions.
+        This is only called in local rank zero. When ``batching_method`` is set to ``apportioned``,
+        every single batch is divided between streams in the same proportions.
 
         Args:
             world (World): World state.
@@ -880,7 +894,7 @@ class StreamingDataset(Array, IterableDataset):
             num_full_batches = np.count_nonzero(np.min(batch_parts_inorder, axis=1) >= 0)
             if num_full_batches != batch_parts_inorder.shape[0]:
                 logger.warning(
-                    'Because of the `consistent_batch_composition` sampling method, some batches with an inadequate number of samples '
+                    'Because of the `apportioned` batching method, some batches with an inadequate number of samples '
                     + 'from stream with index ' + str(i) + ' are being dropped.')
             if num_full_batches < min_batch_parts:
                 min_batch_parts = num_full_batches
@@ -897,7 +911,7 @@ class StreamingDataset(Array, IterableDataset):
         # If applicable we resume right after the most recently used full global batch.
         if sample_in_epoch % global_batch_size != 0:
             logger.warning(
-                'Because of the `consistent_batch_composition` sampling method, resumption may only occur on a sample that '
+                'Because of the `apportioned` batching method, resumption may only occur on a sample that '
                 + 'is a multiple of the current global batch size of ' + str(global_batch_size) +
                 '. Resuming training ' + 'after the most recently finished global batch.')
 
@@ -1033,10 +1047,10 @@ class StreamingDataset(Array, IterableDataset):
 
         # Do expensive work that may use a lot of cores/memory just once, in the local leader.
         if world.is_local_leader:
-            if self.sampling_method == 'consistent_batch_composition':
-                # Partition has global batches that have a consistent composition --
+            if self.batching_method == 'apportioned':
+                # Partition has global batches that are always apportioned between streams --
                 # each batch contains a fixed number of samples from each stream.
-                epoch_sample_ids = self._generate_work_consistent_batch_composition(
+                epoch_sample_ids = self._generate_work_apportioned_batching(
                     world, epoch, sample_in_epoch)
             else:
                 epoch_sample_ids = self._generate_work(world, epoch, sample_in_epoch)
