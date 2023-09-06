@@ -104,8 +104,8 @@ def submit_simulation(shards, samples_per_shard, avg_shard_size, epochs, batches
             time_to_first_batch = result
         
         # update plots and percentages at regular intervals
-        interval = (batches_per_epoch*epochs) // 10
-        if i == 1 or i % interval == 0 or i == batches_per_epoch * epochs - 1:
+        plot_interval = (batches_per_epoch*epochs) // 15
+        if i == 1 or i % plot_interval == 0 or i == batches_per_epoch * epochs - 1:
             rolling_throughput_df = pd.DataFrame({"step": steps, "measurement": [" rolling avg"]*len(rolling_throughput_data),  "throughput (batches/s)": rolling_throughput_data})
             immediate_throughput_df = pd.DataFrame({"step": steps, "measurement": ["per step"]*len(immediate_throughput_data),  "throughput (batches/s)": immediate_throughput_data})
             throughput_df = pd.concat([immediate_throughput_df, rolling_throughput_df])
