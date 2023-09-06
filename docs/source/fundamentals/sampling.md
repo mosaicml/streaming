@@ -4,4 +4,3 @@ You can choose how sampling from your dataset(s) occurs between epochs by specif
 
 - `'balanced'`: (default) Samples are chosen at random from dataset(s) during each epoch according to the proportions specified.
 - `'fixed'`: The same samples from the dataset(s) are chosen during every epoch, still according to the proportions specified.
-- `'uniform_global_batch'`: Each global batch's samples are from a single stream.
