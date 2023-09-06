@@ -68,20 +68,20 @@ extra_deps['dev'] = [
     'docformatter>=1.4',
     'jupyter==1.0.0',
     'pre-commit>=2.18.1,<4',
-    'pytest==7.4.0',
+    'pytest==7.4.1',
     'pytest_codeblocks==0.16.1',
     'pytest-cov>=4,<5',
     'toml==0.10.2',
     'yamllint==1.32.0',
     'moto>=4.0,<5',
-    'fastapi==0.103.0',
+    'fastapi==0.103.1',
     'pydantic==2.3.0',
     'uvicorn==0.23.2',
     'pytest-split==0.8.1',
 ]
 
 extra_deps['docs'] = [
-    'GitPython==3.1.32',
+    'GitPython==3.1.34',
     'docutils==0.18.1',
     'furo==2023.7.26',
     'myst-parser==2.0.0',
@@ -94,7 +94,7 @@ extra_deps['docs'] = [
     'sphinx-tabs==3.4.1',
 ]
 
-extra_deps['databricks'] = ['databricks-sdk==0.6.0']
+extra_deps['databricks'] = ['databricks-sdk==0.8.0']
 
 extra_deps['all'] = sorted({dep for deps in extra_deps.values() for dep in deps})
 
