@@ -817,12 +817,12 @@ class StreamingDataset(Array, IterableDataset):
 
             shuffle_units, small_per_big = self._resample_streams(epoch, stream_id)
             samples_in_stream = len(small_per_big)
-            # The partition for each stream is constructed with batch size 1 in order to make sure that
-            # canonical nodes are still correctly distributed over nodes for each global batch.
+            # The partition for each stream is constructed with batch size 1 and 1 physical node
+            # in order to make sure that the sample order from each batch stays the same 
             # We later reshape these partitions to the correct batch size per stream.
             # We also handle used samples (drop_first) at the end.
             stream_partition = get_partitions(self.partition_algo, samples_in_stream,
-                                              self.num_canonical_nodes, world.num_nodes,
+                                              self.num_canonical_nodes, 1,
                                               world.ranks_per_node, world.workers_per_rank, 1, 0)
             if self.shuffle:
                 # Ratio of stream's shuffle block size to overall shuffle block size should be the
