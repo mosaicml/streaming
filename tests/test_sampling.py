@@ -38,3 +38,21 @@ def test_is_deterministic():
                 if last is not None:
                     assert (last == choose_per_shard).all()
                 last = choose_per_shard
+
+
+def test_balance():
+    samples_per_shard = np.random.choice(1_000, 10)
+    samples = sum(samples_per_shard)
+    choose = np.random.choice(samples)
+    choose_per_shard = np.zeros(len(samples_per_shard))
+    for granularity in range(1, 100):
+        for _ in range(10):
+            seed = np.random.choice(31337)
+            epoch = np.random.choice(42)
+            use_epoch = bool(np.random.choice(2))
+            choose_per_shard += get_sampling(samples_per_shard, choose, granularity, seed, epoch,
+                                             use_epoch)
+    choose_per_shard /= 99 * 10
+    rates = choose_per_shard / samples_per_shard
+    imbalance = rates.std() / rates.mean()
+    assert imbalance < 0.05
