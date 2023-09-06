@@ -269,7 +269,7 @@ class StreamingDataset(Array, IterableDataset):
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
         shuffle_block_size (int): Unit of shuffle. A canonical node's samples are split into blocks
             of this size, and samples within each block are shuffled. Defaults to ``1 << 18``.
-        sampling_method (str): Which sampling method to use, ``balanced`` or ``fixed``.
+        sampling_method (str): Which sampling method to use, either ``balanced`` or ``fixed``.
             Defaults to ``balanced``.
         batching_method (str): Which batching method to use, either ``random``, ``apportioned``, or
             ``per_stream``. Defaults to ``random``.
