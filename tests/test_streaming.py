@@ -66,10 +66,9 @@ def test_dataloader_epoch_size_no_streams(local_remote_dir: Tuple[str,
 @pytest.mark.parametrize('num_workers', [3, 6])
 @pytest.mark.parametrize('num_canonical_nodes', [4, 8])
 @pytest.mark.usefixtures('local_remote_dir')
-def test_dataloader_uniform_global_batch_sampling(local_remote_dir: Tuple[str,
-                                                                          str], batch_size: int,
-                                                  seed: int, shuffle: bool, drop_last: bool,
-                                                  num_workers: int, num_canonical_nodes: int):
+def test_dataloader_per_stream_batching(local_remote_dir: Tuple[str, str], batch_size: int,
+                                        seed: int, shuffle: bool, drop_last: bool,
+                                        num_workers: int, num_canonical_nodes: int):
     # create mock datasets for 2 streams. Second one has 1.5x the samples
     local, remote = local_remote_dir
     local1 = os.path.join(local, 'stream1')
@@ -98,7 +97,7 @@ def test_dataloader_uniform_global_batch_sampling(local_remote_dir: Tuple[str,
                                batch_size=batch_size,
                                shuffle_seed=seed,
                                num_canonical_nodes=num_canonical_nodes,
-                               sampling_method='uniform_global_batch')
+                               batching_method='per_stream')
 
     # Build DataLoader
     dataloader = StreamingDataLoader(dataset=dataset,

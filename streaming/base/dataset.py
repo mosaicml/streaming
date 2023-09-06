@@ -206,6 +206,10 @@ class StreamingDataset(Array, IterableDataset):
 
         * ``sampling_method``
 
+      * Batching:
+
+        * ``batching_method``
+
 
     Args:
         streams (Sequence[Stream], optional): One or more streams to stream/cache samples from,
@@ -265,8 +269,10 @@ class StreamingDataset(Array, IterableDataset):
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
         shuffle_block_size (int): Unit of shuffle. A canonical node's samples are split into blocks
             of this size, and samples within each block are shuffled. Defaults to ``1 << 18``.
-        sampling_method (str): Which sampling method to use, ``balanced``, ``fixed``, or ``uniform_global_batch``.
+        sampling_method (str): Which sampling method to use, ``balanced`` or ``fixed``.
             Defaults to ``balanced``.
+        batching_method (str): Which batching method to use, either ``random``, ``apportioned``, or
+            ``per_stream``. Defaults to ``random``.
     """
 
     def __init__(self,
@@ -289,7 +295,8 @@ class StreamingDataset(Array, IterableDataset):
                  shuffle_algo: str = 'py1s',
                  shuffle_seed: int = 9176,
                  shuffle_block_size: int = 1 << 18,
-                 sampling_method: str = 'balanced') -> None:
+                 sampling_method: str = 'balanced',
+                 batching_method: str = 'random') -> None:
         # Global arguments (which do not live in Streams).
         self.predownload = predownload
         self.cache_limit = cache_limit
@@ -301,6 +308,7 @@ class StreamingDataset(Array, IterableDataset):
         self.shuffle_seed = shuffle_seed
         self.shuffle_block_size = shuffle_block_size
         self.sampling_method = sampling_method.lower().strip()
+        self.batching_method = batching_method.lower().strip()
 
         # Check streams vs remote/local.
         if bool(streams) == (bool(remote) or bool(local)):
@@ -308,15 +316,21 @@ class StreamingDataset(Array, IterableDataset):
                 'You must provide either `streams` or `remote`/`local`, but not both.')
 
         # Check sampling method is one of "balanced" or "fixed".
-        if self.sampling_method not in ['balanced', 'fixed', 'uniform_global_batch']:
+        if self.sampling_method not in ['balanced', 'fixed']:
             raise ValueError(
-                f'Invalid sampling method: {sampling_method}. Must be one of `balanced`, `fixed`, or `uniform_global_batch`.'
+                f'Invalid sampling method: {sampling_method}. Must be one of `balanced` or `fixed`.'
+            )
+
+        # Check batching method is one of "random", "apportioned", or "per_stream".
+        if self.batching_method not in ['random', 'apportioned', 'per_stream']:
+            raise ValueError(
+                f'Invalid batching method: {batching_method}. Must be one of `random`, `apportioned`, or `per_stream.'
             )
 
         # issue deprecation warning for py1b shuffle algorithm.
         if self.shuffle_algo == 'py1b':
             warnings.warn(
-                'The \'py1b\' shuffle algorithm will soon be deprecated. Please use the more performant \'py1br\' algorithm instead.',
+                'The \'py1b\' shuffle algorithm will soon be deprecated. Please use the more performant \'py1e\' or \'py1br\' algorithms instead.',
                 DeprecationWarning,
                 stacklevel=2)
 
@@ -773,11 +787,11 @@ class StreamingDataset(Array, IterableDataset):
         sample_ids = np.concatenate(sample_ids).astype(np.int64)
         return shuffle_units, sample_ids
 
-    def _generate_work_uniform_global_batch(self, world: World, epoch: int,
-                                            sample_in_epoch: int) -> NDArray[np.int64]:
-        """Generate this epoch's arrangement of samples for ``uniform_global_batch`` sampling.
+    def _generate_work_per_stream_batching(self, world: World, epoch: int,
+                                           sample_in_epoch: int) -> NDArray[np.int64]:
+        """Generate this epoch's arrangement of samples for ``per_stream`` batching.
 
-        This is only called in local rank zero. When ``sampling_method`` is set to ``uniform_global_batch``,
+        This is only called in local rank zero. When ``batching_method`` is set to ``per_stream``,
         each batch consists of samples from only one stream.
 
         Args:
@@ -802,10 +816,8 @@ class StreamingDataset(Array, IterableDataset):
         partition_per_stream = []
 
         batch_size = self.batch_size or 1
-        _, overall_small_per_big = self._resample_streams(epoch)
-        overall_num_samples = len(overall_small_per_big)
 
-        for stream_id in range(self.num_streams):
+        for stream_id, stream in enumerate(self.streams):
             shuffle_units, small_per_big = self._resample_streams(epoch, stream_id)
             samples_in_stream = len(small_per_big)
             stream_partition = get_partitions(self.partition_algo, samples_in_stream,
@@ -817,8 +829,7 @@ class StreamingDataset(Array, IterableDataset):
                 # same as the ratio of the stream's samples to overall samples.
                 # This ensures that the overall training shuffle block size is still approximately
                 # equal to what is set by the user, and allows for reasoning about cache_limit as well.
-                shuffle_block_portion = int(self.shuffle_block_size *
-                                            (samples_in_stream / overall_num_samples))
+                shuffle_block_portion = int(self.shuffle_block_size * stream.proportion)
                 stream_shuffle = get_shuffle(self.shuffle_algo, shuffle_units,
                                              self.num_canonical_nodes, self.shuffle_seed, epoch,
                                              shuffle_block_portion)
@@ -842,7 +853,7 @@ class StreamingDataset(Array, IterableDataset):
             batches_per_stream.append(num_full_batches)
             if num_full_batches != global_batches_inorder.shape[0]:
                 logger.warning(
-                    'Because of the `uniform_global_batch` sampling method, some batches with an inadequate number of samples '
+                    'Because of the `per_stream` batching method, some batches with an inadequate number of samples '
                     + 'from stream with index ' + str(i) + ' are being dropped.')
             batches_from_partitions.append(global_batches_inorder[:num_full_batches])
 
@@ -874,7 +885,7 @@ class StreamingDataset(Array, IterableDataset):
         global_batch_size = batch_size * world.num_nodes * world.ranks_per_node
         if sample_in_epoch % global_batch_size != 0:
             logger.warning(
-                'Because of the `uniform_global_batch` sampling method, resumption may only occur on a sample that '
+                'Because of the `per_stream` batching method, resumption may only occur on a sample that '
                 + 'is a multiple of the current global batch size of ' + str(global_batch_size) +
                 '. Resuming training ' + 'after the most recently finished global batch.')
 
@@ -1010,9 +1021,9 @@ class StreamingDataset(Array, IterableDataset):
 
         # Do expensive work that may use a lot of cores/memory just once, in the local leader.
         if world.is_local_leader:
-            if self.sampling_method == 'uniform_global_batch':
-                # Partition has global batches that are uniform -- samples are from just one stream.
-                epoch_sample_ids = self._generate_work_uniform_global_batch(
+            if self.batching_method == 'per_stream':
+                # Partition such that each batch has samples from just one stream.
+                epoch_sample_ids = self._generate_work_per_stream_batching(
                     world, epoch, sample_in_epoch)
             else:
                 epoch_sample_ids = self._generate_work(world, epoch, sample_in_epoch)
