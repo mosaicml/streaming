@@ -9,7 +9,6 @@ at the cost of having to download more shards to make progress.
 
 import numpy as np
 from numpy.typing import NDArray
-
 from streaming.base.shuffle.py1s import divide_spans
 
 
@@ -22,6 +21,7 @@ def get_shuffle_py1br(shard_sizes: NDArray[np.int64],
 
     The assignment of shards to nodes is fixed across epochs, but each grouping of shards is
     processed concurrently in a different order by each node's workers each epoch.
+
     Args:
         shard_sizes (NDArray[np.int64]): Number of samples contained in each shard, in order.
         num_canonical_nodes (int): Number of canonical nodes.
