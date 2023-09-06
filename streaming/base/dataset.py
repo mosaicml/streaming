@@ -208,7 +208,7 @@ class StreamingDataset(Array, IterableDataset):
 
       * Batching:
 
-        * ``batching``
+        * ``batching_method``
 
 
     Args:
@@ -320,17 +320,17 @@ class StreamingDataset(Array, IterableDataset):
             raise ValueError(
                 f'Invalid sampling method: {sampling_method}. Must be one of `balanced` or `fixed`.'
             )
-        
-        # Check batching method is one of "random" or "apportioned".
-        if self.batching_method not in ['random', 'apportioned']:
+
+        # Check batching method is one of "random", "apportioned", or "per_stream".
+        if self.batching_method not in ['random', 'apportioned', 'per_stream']:
             raise ValueError(
-                f'Invalid batching method: {batching_method}. Must be one of `random` or `apportioned`.'
+                f'Invalid batching method: {batching_method}. Must be one of `random`, `apportioned`, or `per_stream.'
             )
 
-        # Issue deprecation warning for py1b shuffle algorithm.
+        # issue deprecation warning for py1b shuffle algorithm.
         if self.shuffle_algo == 'py1b':
             warnings.warn(
-                'The \'py1b\' shuffle algorithm will soon be deprecated. Please use the more performant \'py1br\' algorithm instead.',
+                'The \'py1b\' shuffle algorithm will soon be deprecated. Please use the more performant \'py1e\' or \'py1br\' algorithms instead.',
                 DeprecationWarning,
                 stacklevel=2)
 
@@ -788,7 +788,7 @@ class StreamingDataset(Array, IterableDataset):
         return shuffle_units, sample_ids
 
     def _generate_work_apportioned_batching(self, world: World, epoch: int,
-                                                    sample_in_epoch: int) -> NDArray[np.int64]:
+                                            sample_in_epoch: int) -> NDArray[np.int64]:
         """Generate the epoch's sample arrangement for ``apportioned`` batching method.
 
         This is only called in local rank zero. When ``batching_method`` is set to ``apportioned``,
@@ -836,12 +836,12 @@ class StreamingDataset(Array, IterableDataset):
             shuffle_units, small_per_big = self._resample_streams(epoch, stream_id)
             samples_in_stream = len(small_per_big)
             # The partition for each stream is constructed with batch size 1 and 1 physical node
-            # in order to make sure that the sample order from each batch stays the same 
+            # in order to make sure that the sample order from each batch stays the same
             # We later reshape these partitions to the correct batch size per stream.
             # We also handle used samples (drop_first) at the end.
             stream_partition = get_partitions(self.partition_algo, samples_in_stream,
-                                              self.num_canonical_nodes, 1,
-                                              world.ranks_per_node, world.workers_per_rank, 1, 0)
+                                              self.num_canonical_nodes, 1, world.ranks_per_node,
+                                              world.workers_per_rank, 1, 0)
             if self.shuffle:
                 # Ratio of stream's shuffle block size to overall shuffle block size should be the
                 # same as the ratio of the stream's samples to overall samples.
