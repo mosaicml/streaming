@@ -271,7 +271,7 @@ class StreamingDataset(Array, IterableDataset):
             of this size, and samples within each block are shuffled. Defaults to ``1 << 18``.
         sampling_method (str): Which sampling method to use, either ``balanced`` or ``fixed``.
             Defaults to ``balanced``.
-        batching_method (str): Which batching method to use, either ``random``, ``apportioned``, or
+        batching_method (str): Which batching method to use, either ``random``, ``stratified``, or
             ``per_stream``. Defaults to ``random``.
     """
 
@@ -321,10 +321,10 @@ class StreamingDataset(Array, IterableDataset):
                 f'Invalid sampling method: {sampling_method}. Must be one of `balanced` or `fixed`.'
             )
 
-        # Check batching method is one of "random", "apportioned", or "per_stream".
-        if self.batching_method not in ['random', 'apportioned', 'per_stream']:
+        # Check batching method is one of "random", "stratified", or "per_stream".
+        if self.batching_method not in ['random', 'stratified', 'per_stream']:
             raise ValueError(
-                f'Invalid batching method: {batching_method}. Must be one of `random`, `apportioned`, or `per_stream.'
+                f'Invalid batching method: {batching_method}. Must be one of `random`, `stratified`, or `per_stream.'
             )
 
         # issue deprecation warning for py1b shuffle algorithm.
