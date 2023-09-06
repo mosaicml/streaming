@@ -28,7 +28,7 @@ from streaming.base.constant import (BARRIER, BARRIER_FILELOCK, CACHE_FILELOCK, 
 from streaming.base.distributed import maybe_init_dist
 from streaming.base.format import get_index_basename
 from streaming.base.partition import get_partitions
-from streaming.base.sampling import get_shard_sampling
+from streaming.base.sampling import get_sampling
 from streaming.base.shared import (SharedArray, SharedBarrier, SharedMemory, SharedScalar,
                                    _get_path, get_shm_prefix)
 from streaming.base.shuffle import get_shuffle
@@ -723,12 +723,13 @@ class StreamingDataset(Array, IterableDataset):
 
             # Calculate choose per stream shard.
             samples_per_stream_shard = self.samples_per_shard[stream_shard_ids]
-            # the number of items to choose from each stream (calculated during dataset initialization)
+            # the number of items to choose from each stream (calculated during dataset
+            # initialization)
             stream_choose = self.streams[stream_id].choose
             use_epoch = self.sampling_method == 'balanced'
-            choose_per_stream_shard = get_shard_sampling(samples_per_stream_shard, stream_choose,
-                                                         self.sampling_granularity,
-                                                         self.shuffle_seed, epoch, use_epoch)
+            choose_per_stream_shard = get_sampling(samples_per_stream_shard, stream_choose,
+                                                   self.sampling_granularity, self.shuffle_seed,
+                                                   epoch, use_epoch)
 
             # Iterate over each shard of this stream.
             for shard_id, shard_samples, shard_choose in zip(stream_shard_ids,

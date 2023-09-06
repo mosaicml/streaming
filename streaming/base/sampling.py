@@ -7,8 +7,8 @@ import numpy as np
 from numpy.typing import NDArray
 
 
-def get_shard_sampling(samples_per_shard: NDArray[np.int64], choose: int, granularity: int,
-                       seed: int, epoch: int, use_epoch: bool) -> NDArray[np.int64]:
+def get_sampling(samples_per_shard: NDArray[np.int64], choose: int, granularity: int, seed: int,
+                 epoch: int, use_epoch: bool) -> NDArray[np.int64]:
     """Get how many samples to draw from each shard of the given stream.
 
     Args:
@@ -47,6 +47,7 @@ def get_shard_sampling(samples_per_shard: NDArray[np.int64], choose: int, granul
     rng = np.random.default_rng(epoch_seed)
     ordering = rng.permutation(num_granules)
 
+    # Collect choose per shard.
     choose_per_shard = samples_per_shard * (choose // num_samples)
     choose %= num_samples
     for index in ordering:
