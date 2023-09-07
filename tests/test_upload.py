@@ -321,7 +321,8 @@ class TestAzureDataLakeUploader:
 class TestDatabricksUnityCatalogUploader:
 
     @patch('streaming.base.storage.upload.DatabricksUploader._create_workspace_client')
-    @pytest.mark.parametrize('out', ['uc://container/dir', ('./dir1', 'uc://container/dir/')])
+    @pytest.mark.parametrize(
+        'out', ['dbfs:/Volumes/container/dir', ('./dir1', 'dbfs:/Volumes/container/dir/')])
     def test_instantiation(self, mock_create_client: Mock, out: Any):
         mock_create_client.side_effect = None
         _ = DatabricksUnityCatalogUploader(out=out)

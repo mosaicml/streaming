@@ -11,7 +11,9 @@ import pytest
 from botocore.exceptions import ClientError
 
 from streaming.base.storage.download import (download_file, download_from_azure,
-                                             download_from_azure_datalake, download_from_gcs,
+                                             download_from_azure_datalake,
+                                             download_from_databricks_unity_catalog,
+                                             download_from_dbfs, download_from_gcs,
                                              download_from_local, download_from_s3,
                                              download_or_wait)
 from tests.conftest import GCS_URL, MY_BUCKET, R2_URL
@@ -129,6 +131,29 @@ class TestGCSClient:
             download_from_gcs(mock_remote_filepath, mock_local_filepath)
 
 
+class TestDatabricksUnityCatalog:
+
+    def test_invalid_prefix_from_db_uc(self, remote_local_file: Any):
+        with tempfile.NamedTemporaryFile(delete=True, suffix='.txt') as tmp:
+            file_name = tmp.name.split(os.sep)[-1]
+            mock_remote_filepath, _ = remote_local_file(cloud_prefix='dbfs:/Volumess',
+                                                        filename=file_name)
+            print(f'{mock_remote_filepath=}')
+            with pytest.raises(Exception, match='Expected path prefix to be.*'):
+                download_from_databricks_unity_catalog(mock_remote_filepath, tmp.name)
+
+
+class TestDatabricksFileSystem:
+
+    def test_invalid_prefix_from_dbfs(self, remote_local_file: Any):
+        with tempfile.NamedTemporaryFile(delete=True, suffix='.txt') as tmp:
+            file_name = tmp.name.split(os.sep)[-1]
+            mock_remote_filepath, _ = remote_local_file(cloud_prefix='dbfsx:/', filename=file_name)
+            print(f'{mock_remote_filepath=}')
+            with pytest.raises(Exception, match='Expected path prefix to be.*'):
+                download_from_dbfs(mock_remote_filepath, tmp.name)
+
+
 def test_download_from_local():
     mock_remote_dir = tempfile.TemporaryDirectory()
     mock_local_dir = tempfile.TemporaryDirectory()
@@ -190,7 +215,7 @@ class TestDownload:
     @pytest.mark.usefixtures('remote_local_file')
     def test_download_from_databricks_unity_catalog_gets_called(self, mocked_requests: Mock,
                                                                 remote_local_file: Any):
-        mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='uc://')
+        mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='dbfs:/Volumes')
         download_file(mock_remote_filepath, mock_local_filepath, 60)
         mocked_requests.assert_called_once()
         mocked_requests.assert_called_once_with(mock_remote_filepath, mock_local_filepath)

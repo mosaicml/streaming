@@ -5,6 +5,7 @@
 
 import logging
 import os
+import pathlib
 import shutil
 import sys
 import urllib.parse
@@ -37,8 +38,8 @@ UPLOADERS = {
     'oci': 'OCIUploader',
     'azure': 'AzureUploader',
     'azure-dl': 'AzureDataLakeUploader',
+    'dbfs:/Volumes': 'DatabricksUnityCatalogUploader',
     'dbfs': 'DBFSUploader',
-    'uc': 'DatabricksUnityCatalogUploader',
     '': 'LocalUploader',
 }
 
@@ -77,7 +78,14 @@ class CloudUploader:
         """
         cls._validate(cls, out)
         obj = urllib.parse.urlparse(out) if isinstance(out, str) else urllib.parse.urlparse(out[1])
-        return getattr(sys.modules[__name__], UPLOADERS[obj.scheme])(out, keep_local, progress_bar)
+        provider_prefix = obj.scheme
+        if obj.scheme == 'dbfs':
+            path = pathlib.Path(out) if isinstance(out, str) else pathlib.Path(out[1])
+            prefix = os.path.join(path.parts[0], path.parts[1])
+            if prefix == 'dbfs:/Volumes':
+                provider_prefix = prefix
+        return getattr(sys.modules[__name__], UPLOADERS[provider_prefix])(out, keep_local,
+                                                                          progress_bar)
 
     def _validate(self, out: Union[str, Tuple[str, str]]) -> None:
         """Validate the `out` argument.
@@ -666,9 +674,9 @@ class DatabricksUnityCatalogUploader(DatabricksUploader):
         local_filename = local_filename.replace('\\', '/')
         remote_filename = os.path.join(self.remote, filename)  # pyright: ignore
         remote_filename = remote_filename.replace('\\', '/')
-        remote_file_path = remote_filename.lstrip('uc:/')
+        remote_filename_wo_prefix = urllib.parse.urlparse(remote_filename).path
         with open(local_filename, 'rb') as f:
-            self.client.files.upload(remote_file_path, f)
+            self.client.files.upload(remote_filename_wo_prefix, f)
 
 
 class DBFSUploader(DatabricksUploader):
@@ -707,8 +715,9 @@ class DBFSUploader(DatabricksUploader):
         local_filename = local_filename.replace('\\', '/')
         remote_filename = os.path.join(self.dbfs_path, filename)
         remote_filename = remote_filename.replace('\\', '/')
+        file_path = urllib.parse.urlparse(remote_filename)
         with open(local_filename, 'rb') as f:
-            self.client.dbfs.upload(remote_filename, f)
+            self.client.dbfs.upload(file_path.path, f)
 
     def check_folder_exists(self):
         """Raise an exception if the DBFS folder does not exist.
@@ -716,8 +725,18 @@ class DBFSUploader(DatabricksUploader):
         Raises:
             error: Folder does not exist.
         """
-        if not self.client.dbfs.exists(self.dbfs_path):
-            raise FileNotFoundError(f'DBFS path {self.dbfs_path} not found')
+        from databricks.sdk.core import DatabricksError
+        try:
+            if not self.client.dbfs.exists(self.dbfs_path):
+                raise FileNotFoundError(f'Databricks File System path {self.dbfs_path} not found')
+        except DatabricksError as e:
+            if e.error_code == 'PERMISSION_DENIED':
+                e.args = (
+                    f'Ensure the file path or credentials are set correctly. For ' +
+                    f'Databricks Unity Catalog, file path must starts with `dbfs:/Volumes` ' +
+                    f'and for Databricks File System, file path must starts with `dbfs`. ' +
+                    e.args[0],)
+            raise e
 
 
 class LocalUploader(CloudUploader):
@@ -759,3 +778,4 @@ class LocalUploader(CloudUploader):
             logger.debug(f'Copying to {remote_filename}')
             shutil.copy(local_filename, remote_filename)
             self.clear_local(local=local_filename)
+

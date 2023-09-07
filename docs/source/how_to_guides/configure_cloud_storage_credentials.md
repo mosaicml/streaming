@@ -1,12 +1,12 @@
 # Configure Cloud Storage Credentials
 
 Streaming dataset supports the following cloud storage providers to stream your data directly to your instance.
-- Amazon S3
-- Any S3 compatible object store
-- Google Cloud Storage
-- Oracle Cloud Storage
-- Azure Blob Storage
-- Databricks
+- [Amazon S3](#amazon-s3)
+- [Any S3 compatible object store](#any-s3-compatible-object-store)
+- [Google Cloud Storage](#google-cloud-storage)
+- [Oracle Cloud Storage](#oracle-cloud-storage)
+- [Azure Blob Storage](#azure-blob-storage-and-azure-datalake)
+- [Databricks](#databricks)
 
 ## Amazon S3
 
