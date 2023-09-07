@@ -306,8 +306,8 @@ class StreamingDataset(Array, IterableDataset):
         self.shuffle_algo = shuffle_algo
         self.shuffle_seed = shuffle_seed
         self.shuffle_block_size = shuffle_block_size
-        self.sampling_method = sampling_method.lower().strip()
-        self.batching_method = batching_method.lower().strip()
+        self.sampling_method = sampling_method
+        self.batching_method = batching_method
 
         # Check streams vs remote/local.
         if bool(streams) == (bool(remote) or bool(local)):
