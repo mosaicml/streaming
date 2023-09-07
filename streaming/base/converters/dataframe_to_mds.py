@@ -80,7 +80,7 @@ def infer_dataframe_schema(dataframe: DataFrame,
     """
 
     def map_spark_dtype(spark_data_type: Any) -> str:
-        """Map spark data type to mds supported types
+        """Map spark data type to mds supported types.
 
         Args:
             spark_data_type: https://spark.apache.org/docs/latest/sql-ref-datatypes.html
