@@ -329,7 +329,7 @@ class StreamingDataset(Array, IterableDataset):
         # issue deprecation warning for py1b shuffle algorithm.
         if self.shuffle_algo == 'py1b':
             warnings.warn(
-                'The \'py1b\' shuffle algorithm will soon be deprecated. Please use the more performant \'py1e\' or \'py1br\' algorithms instead.',
+                'The \'py1b\' shuffle algorithm will soon be deprecated. Please use the more performant \'py1br\' algorithm instead.',
                 DeprecationWarning,
                 stacklevel=2)
 

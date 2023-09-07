@@ -11,6 +11,8 @@ from numpy.typing import NDArray
 
 from streaming.base.batching.random import generate_work_random_batching
 from streaming.base.batching.stratified import generate_work_stratified_batching
+from streaming.base.batching.per_stream import generate_work_per_stream_batching
+from streaming.base.batching.random import generate_work_random_batching
 from streaming.base.world import World
 
 if TYPE_CHECKING:
@@ -19,6 +21,7 @@ if TYPE_CHECKING:
 batching_methods = {
     'random': generate_work_random_batching,
     'stratified': generate_work_stratified_batching,
+    'per_stream': generate_work_per_stream_batching,
 }
 
 
