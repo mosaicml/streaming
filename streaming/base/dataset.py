@@ -22,6 +22,7 @@ from torch import distributed as dist
 from torch.utils.data import IterableDataset
 
 from streaming.base.array import Array
+from streaming.base.batching import generate_work
 from streaming.base.constant import (BARRIER, BARRIER_FILELOCK, CACHE_FILELOCK, CACHE_USAGE,
                                      EPOCH_DATA, EPOCH_SHAPE, NEXT_EPOCH, RESUME,
                                      SHARD_ACCESS_TIMES, SHARD_STATES, TICK)
@@ -33,7 +34,6 @@ from streaming.base.spanner import Spanner
 from streaming.base.stream import Stream
 from streaming.base.util import bytes_to_int, number_abbrev_to_int
 from streaming.base.world import World
-from streaming.base.batching import generate_work
 
 # An arbitrary time in the future, used for cold shard eviction.
 NEVER = np.iinfo(np.uint64).max
@@ -857,7 +857,8 @@ class StreamingDataset(Array, IterableDataset):
 
         # Do expensive work that may use a lot of cores/memory just once, in the local leader.
         if world.is_local_leader:
-            epoch_sample_ids = generate_work(self.batching_method, self, world, epoch, sample_in_epoch)
+            epoch_sample_ids = generate_work(self.batching_method, self, world, epoch,
+                                             sample_in_epoch)
             shape_shm, data_shm = self._share_work(epoch_sample_ids)
             self._shared_barrier(world.workers_per_node)
         else:
