@@ -80,6 +80,15 @@ def infer_dataframe_schema(dataframe: DataFrame,
     """
 
     def map_spark_dtype(spark_data_type: Any) -> str:
+        """Map spark data type to mds supported types
+
+        Args:
+            spark_data_type: https://spark.apache.org/docs/latest/sql-ref-datatypes.html
+        Return:
+            str: corresponding mds datatype for input.
+        Exception:
+            raise ValueError if no mds datatype is found for input type
+        """
         mds_type = MAPPING_SPARK_TO_MDS.get(type(spark_data_type), None)
         if mds_type is None:
             raise ValueError(f'{spark_data_type} is not supported by MDSWriter')
