@@ -344,10 +344,9 @@ def download_from_databricks_unity_catalog(remote: str, local: str) -> None:
     local_tmp = local + '.tmp'
     with client.files.download(file_path.path).contents as response:
         with open(local_tmp, 'wb') as f:
-            # Read 64MB of data at a time.
             # Multiple shard files are getting downloaded in parallel, so we need to
-            # read the data in chunks to avoid memory issues.
-            for chunk in iter(lambda: response.read(65536), b''):
+            # read the data in chunks to avoid memory issues. Hence, read 64MB of data at a time.
+            for chunk in iter(lambda: response.read(64 * 1024 * 1024), b''):
                 f.write(chunk)
     os.rename(local_tmp, local)
 
@@ -377,10 +376,10 @@ def download_from_dbfs(remote: str, local: str) -> None:
     try:
         with client.dbfs.download(file_path.path) as response:
             with open(local_tmp, 'wb') as f:
-                # Read 64MB of data at a time.
                 # Multiple shard files are getting downloaded in parallel, so we need to
                 # read the data in chunks to avoid memory issues.
-                for chunk in iter(lambda: response.read(65536), b''):
+                # Read 1MB of data at a time since that's the max limit it can read at a time.
+                for chunk in iter(lambda: response.read(1024 * 1024), b''):
                     f.write(chunk)
     except DatabricksError as e:
         if e.error_code == 'PERMISSION_DENIED':
