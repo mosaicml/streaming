@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -13,7 +14,6 @@ from numpy.typing import NDArray
 from streaming.base.partition import get_partitions
 from streaming.base.shuffle import get_shuffle
 from streaming.base.world import World
-import warnings
 
 if TYPE_CHECKING:
     from streaming.base.dataset import StreamingDataset
