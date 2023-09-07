@@ -138,7 +138,6 @@ class TestDatabricksUnityCatalog:
             file_name = tmp.name.split(os.sep)[-1]
             mock_remote_filepath, _ = remote_local_file(cloud_prefix='dbfs:/Volumess',
                                                         filename=file_name)
-            print(f'{mock_remote_filepath=}')
             with pytest.raises(Exception, match='Expected path prefix to be.*'):
                 download_from_databricks_unity_catalog(mock_remote_filepath, tmp.name)
 
@@ -149,7 +148,6 @@ class TestDatabricksFileSystem:
         with tempfile.NamedTemporaryFile(delete=True, suffix='.txt') as tmp:
             file_name = tmp.name.split(os.sep)[-1]
             mock_remote_filepath, _ = remote_local_file(cloud_prefix='dbfsx:/', filename=file_name)
-            print(f'{mock_remote_filepath=}')
             with pytest.raises(Exception, match='Expected path prefix to be.*'):
                 download_from_dbfs(mock_remote_filepath, tmp.name)
 

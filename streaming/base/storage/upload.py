@@ -778,4 +778,3 @@ class LocalUploader(CloudUploader):
             logger.debug(f'Copying to {remote_filename}')
             shutil.copy(local_filename, remote_filename)
             self.clear_local(local=local_filename)
-
