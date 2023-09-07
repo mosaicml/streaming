@@ -20,7 +20,7 @@ We've already created conversion scripts that can be used to convert popular pub
 
 ## Spark Dataframe Conversion Examples
 ```{include} ../../../streaming/base/converters/README.md
-:start-line: 8
+:start-line: 2
 ```
 
 ## NLP Dataset Conversion Examples
