@@ -41,10 +41,10 @@ def test_dataloader_epoch_size_no_streams(local_remote_dir: Tuple[str,
                                epoch_size=epoch_size)
 
     # Build DataLoader
-    dataloader = StreamingDataLoader(dataset=dataset,
-                                     batch_size=batch_size,
-                                     num_workers=num_workers,
-                                     drop_last=drop_last)
+    dataloader = DataLoader(dataset=dataset,
+                            batch_size=batch_size,
+                            num_workers=num_workers,
+                            drop_last=drop_last)
 
     samples_seen = 0
     for batch in dataloader:
@@ -59,7 +59,7 @@ def test_dataloader_epoch_size_no_streams(local_remote_dir: Tuple[str,
             assert samples_seen == epoch_size
 
 
-@pytest.mark.parametrize('batch_size', [4])
+@pytest.mark.parametrize('batch_size', [4, 7])
 @pytest.mark.parametrize('seed', [2222])
 @pytest.mark.parametrize('shuffle', [True])
 @pytest.mark.parametrize('drop_last', [False, True])
@@ -100,22 +100,33 @@ def test_dataloader_per_stream_batching(local_remote_dir: Tuple[str, str], batch
                                batching_method='per_stream')
 
     # Build DataLoader
-    dataloader = StreamingDataLoader(dataset=dataset,
-                                     batch_size=batch_size,
-                                     num_workers=num_workers,
-                                     drop_last=drop_last)
+    dataloader = DataLoader(dataset=dataset,
+                            batch_size=batch_size,
+                            num_workers=num_workers,
+                            drop_last=drop_last)
 
     # Ensure that the samples seen in each batch are from the same stream.
     # Stream 1 has samples 0 to 600, stream 2 has samples 600 and above.
+    # When we have 1 batch and 1 device, we will repeat samples until we are divisible by NCN.
+    # This logic takes care of that case.
+    total_batches_stream_1 = 200 // batch_size if 200 % num_canonical_nodes == 0 else (
+        200 + (num_canonical_nodes - 200 % num_canonical_nodes)) // batch_size
+    total_batches_stream_2 = 300 // batch_size if 300 % num_canonical_nodes == 0 else (
+        300 + (num_canonical_nodes - 300 % num_canonical_nodes)) // batch_size
+    total_batches = total_batches_stream_1 + total_batches_stream_2
+
+    batches_seen = 0
     for batch in dataloader:
+        batches_seen += 1
         samples = batch['sample']
         first_sample = samples[0]
-        print(first_sample)
-        print(samples)
         if first_sample >= 600:
             assert (samples >= 600).all()
         else:
             assert (samples < 600).all()
+
+    # Make sure that we see the expected number of batches, accounting for sample drops
+    assert batches_seen == total_batches
 
 
 @pytest.mark.parametrize('batch_size', [4])
