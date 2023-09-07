@@ -1,6 +1,6 @@
 ### [Spark Dataframe Conversion](https://github.com/mosaicml/streaming/blob/main/streaming/base/converters/dataframe_to_mds.py)
 
-Users can read datasets of any formats that Spark supports and convert the Spark dataframe to a Mosaic Streaming dataset. More specifically, 
+Users can read datasets of any formats that Spark supports and convert the Spark dataframe to a Mosaic Streaming dataset. More specifically,
 
 1. We enable converting a Spark DataFrame into an MDS format via the utility function `dataframeToMDS`. This utility function is flexible and supports a callable function, allowing modifications to the original data format. The function iterates over the callable, processes the modified data, and writes it in MDS format. For instance, it can be used with a tokenizer callable function that yields tokens as output.
 
