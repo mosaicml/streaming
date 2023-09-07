@@ -22,12 +22,12 @@ batching_methods = {
 }
 
 
-def generate_work(method: str, dataset: StreamingDataset, world: World, epoch: int,
+def generate_work(batching_method: str, dataset: StreamingDataset, world: World, epoch: int,
                   sample_in_epoch: int) -> NDArray[np.int64]:
     """Apportion shards/samples to nodes/ranks/workers for elastically deterministic sample order.
 
     Args:
-        method (str): The batching method to use.
+        batching_method (str): The batching method to use.
         dataset (StreamingDataset): Dataset to generate the partition for.
         world (World): World state.
         epoch (int): Which epoch it is.
@@ -37,5 +37,5 @@ def generate_work(method: str, dataset: StreamingDataset, world: World, epoch: i
         NDArray[np.int64]: The epoch (num physical nodes, ranks per node, workers per rank,
             batches per worker, batch size).
     """
-    get = batching_methods[method]
+    get = batching_methods[batching_method]
     return get(dataset, world, epoch, sample_in_epoch)
