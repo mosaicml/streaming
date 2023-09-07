@@ -4,6 +4,7 @@
 """A mid-epoch-resumable streaming/caching pytorch IterableDataset."""
 
 import json
+import logging
 import os
 import warnings
 from concurrent.futures import ThreadPoolExecutor, wait
@@ -13,7 +14,6 @@ from math import ceil
 from threading import Event, Lock
 from time import sleep, time_ns
 from typing import Any, Dict, Iterator, Optional, Sequence, Tuple, Union
-from warnings import warn
 
 import numpy as np
 from filelock import FileLock
@@ -22,15 +22,14 @@ from torch import distributed as dist
 from torch.utils.data import IterableDataset
 
 from streaming.base.array import Array
+from streaming.base.batching import generate_work
 from streaming.base.constant import (BARRIER, BARRIER_FILELOCK, CACHE_FILELOCK, CACHE_USAGE,
                                      EPOCH_DATA, EPOCH_SHAPE, NEXT_EPOCH, RESUME,
                                      SHARD_ACCESS_TIMES, SHARD_STATES, TICK)
 from streaming.base.distributed import maybe_init_dist
 from streaming.base.format import get_index_basename
-from streaming.base.partition import get_partitions
 from streaming.base.shared import (SharedArray, SharedBarrier, SharedMemory, SharedScalar,
                                    _get_path, get_shm_prefix)
-from streaming.base.shuffle import get_shuffle
 from streaming.base.spanner import Spanner
 from streaming.base.stream import Stream
 from streaming.base.util import bytes_to_int, number_abbrev_to_int
@@ -38,6 +37,8 @@ from streaming.base.world import World
 
 # An arbitrary time in the future, used for cold shard eviction.
 NEVER = np.iinfo(np.uint64).max
+
+logger = logging.getLogger(__name__)
 
 
 class _ShardState(IntEnum):
@@ -204,6 +205,10 @@ class StreamingDataset(Array, IterableDataset):
 
         * ``sampling_method``
 
+      * Batching:
+
+        * ``batching_method``
+
 
     Args:
         streams (Sequence[Stream], optional): One or more streams to stream/cache samples from,
@@ -265,6 +270,8 @@ class StreamingDataset(Array, IterableDataset):
             of this size, and samples within each block are shuffled. Defaults to ``1 << 18``.
         sampling_method (str): Which sampling method to use, either ``balanced`` or ``fixed``.
             Defaults to ``balanced``.
+        batching_method (str): Which batching method to use, either ``random``, ``stratified``, or
+            ``per_stream``. Defaults to ``random``.
     """
 
     def __init__(self,
@@ -287,7 +294,8 @@ class StreamingDataset(Array, IterableDataset):
                  shuffle_algo: str = 'py1s',
                  shuffle_seed: int = 9176,
                  shuffle_block_size: int = 1 << 18,
-                 sampling_method: str = 'balanced') -> None:
+                 sampling_method: str = 'balanced',
+                 batching_method: str = 'random') -> None:
         # Global arguments (which do not live in Streams).
         self.predownload = predownload
         self.cache_limit = cache_limit
@@ -299,6 +307,7 @@ class StreamingDataset(Array, IterableDataset):
         self.shuffle_seed = shuffle_seed
         self.shuffle_block_size = shuffle_block_size
         self.sampling_method = sampling_method.lower().strip()
+        self.batching_method = batching_method.lower().strip()
 
         # Check streams vs remote/local.
         if bool(streams) == (bool(remote) or bool(local)):
@@ -311,9 +320,15 @@ class StreamingDataset(Array, IterableDataset):
                 f'Invalid sampling method: {sampling_method}. Must be one of `balanced` or `fixed`.'
             )
 
+        # Check batching method is one of "random", "stratified", or "per_stream".
+        if self.batching_method not in ['random', 'stratified', 'per_stream']:
+            raise ValueError(
+                f'Invalid batching method: {batching_method}. Must be one of `random`, `stratified`, or `per_stream.'
+            )
+
         # issue deprecation warning for py1b shuffle algorithm.
         if self.shuffle_algo == 'py1b':
-            warn(
+            warnings.warn(
                 'The \'py1b\' shuffle algorithm will soon be deprecated. Please use the more performant \'py1br\' algorithm instead.',
                 DeprecationWarning,
                 stacklevel=2)
@@ -690,11 +705,15 @@ class StreamingDataset(Array, IterableDataset):
         self._resume_shm = SharedMemory(name=name, size=len(data))
         self._resume_shm.buf[:len(data)] = data
 
-    def _resample_streams(self, epoch: int) -> Tuple[NDArray[np.int64], NDArray[np.int64]]:
+    def resample_streams(
+            self,
+            epoch: int,
+            stream_id: Optional[int] = None) -> Tuple[NDArray[np.int64], NDArray[np.int64]]:
         """Perform the up/down-sampling needed to generate the weighted epoch.
 
         Args:
             epoch (int): What epoch this is for. Used in seeding the sampling RNG.
+            stream_id (Optional[int]): Which stream to resample. If ``None``, resample all streams. Defaults to ``None``.
 
         Returns:
             Tuple[NDArray[np.int64], NDArray[np.int64]]: Sampled shard sizes and sample mapping.
@@ -707,8 +726,10 @@ class StreamingDataset(Array, IterableDataset):
         shuffle_units = []
         sample_ids = []
 
+        resampling_streams = range(self.num_streams) if stream_id is None else [stream_id]
+
         # Iterate over each stream.
-        for stream_id in range(self.num_streams):
+        for stream_id in resampling_streams:
             # stream's shard offset in list of all shards from all streams
             stream_shard_offset = self.shard_offset_per_stream[stream_id]
             num_stream_shards = self.shards_per_stream[stream_id]
@@ -764,47 +785,6 @@ class StreamingDataset(Array, IterableDataset):
         shuffle_units = np.concatenate(shuffle_units).astype(np.int64)
         sample_ids = np.concatenate(sample_ids).astype(np.int64)
         return shuffle_units, sample_ids
-
-    def _generate_work(self, world: World, epoch: int, sample_in_epoch: int) -> NDArray[np.int64]:
-        """Generate this epoch's arrangement of samples.
-
-        This is only called in local rank zero.
-
-        Args:
-            world (World): World state.
-            epoch (int): Which epoch it is.
-            sample_in_epoch (int): Where we are in the epoch.
-
-        Returns:
-            NDArray[np.int64]: The epoch (num physical nodes, ranks per node, workers per rank,
-                batches per worker, batch size).
-        """
-        # Ensure that num_canonical_nodes has been set.
-        if self.num_canonical_nodes is None:
-            raise RuntimeError(f'`num_canonical_nodes` can never be None. ' +
-                               f'Provide a positive integer.')
-
-        # Sample each shard of each stream according to their proportions/repeats/samples. This
-        # gives us the resampled size of each underlying shard, and a mapping from each fake "big"
-        # sample ID to its underlying "small" sample ID.
-        shuffle_units, small_per_big = self._resample_streams(epoch)
-
-        # Partition the global sample space (of resampled "big" sample IDs) into a tensor of shape
-        # (num physical nodes, ranks per node, workers per rank, batches per worker, samples per
-        # batch) such that we have an elastically deterministic sample order.
-        big_ids = get_partitions(self.partition_algo, self.epoch_size, self.num_canonical_nodes,
-                                 world.num_nodes, world.ranks_per_node, world.workers_per_rank,
-                                 self.batch_size, sample_in_epoch)
-
-        # If we need to shuffle, shuffle in a node-aware and *underlying* shard-aware way.
-        if self.shuffle:
-            shuffle = get_shuffle(self.shuffle_algo, shuffle_units, self.num_canonical_nodes,
-                                  self.shuffle_seed, epoch, self.shuffle_block_size)
-            big_ids = np.where(big_ids != -1, shuffle[big_ids], -1)
-
-        # Now that we have partitioning and shuffled with hallucinated "big" sample IDs, we don't
-        # need them anymore, and can convert back to underlying "small" sample IDs.
-        return np.where(big_ids != -1, small_per_big[big_ids], -1)
 
     def _share_work(self, sample_ids: NDArray[np.int64]) -> Tuple[SharedMemory, SharedMemory]:
         """Put an epoch's sample ordering into shared memory.
@@ -877,7 +857,8 @@ class StreamingDataset(Array, IterableDataset):
 
         # Do expensive work that may use a lot of cores/memory just once, in the local leader.
         if world.is_local_leader:
-            epoch_sample_ids = self._generate_work(world, epoch, sample_in_epoch)
+            epoch_sample_ids = generate_work(self.batching_method, self, world, epoch,
+                                             sample_in_epoch)
             shape_shm, data_shm = self._share_work(epoch_sample_ids)
             self._shared_barrier(world.workers_per_node)
         else:
