@@ -213,6 +213,7 @@ def test_dataloader_stratified_batching(local_remote_dir: Tuple[str, str], batch
     # Check if the number of batches seen is correct
     assert batches_seen == total_batches
 
+
 @pytest.mark.parametrize('batch_size', [4, 7])
 @pytest.mark.parametrize('seed', [2222])
 @pytest.mark.parametrize('shuffle', [True])
@@ -302,21 +303,21 @@ def test_stratified_batching_Exception(local_remote_dir: Tuple[str, str], stream
 
     # Make stream 1 with stream_1_size samples
     convert_to_mds(out_root=remote1,
-                    dataset_name='sequencedataset',
-                    num_samples=stream_1_size,
-                    size_limit=1 << 8)
+                   dataset_name='sequencedataset',
+                   num_samples=stream_1_size,
+                   size_limit=1 << 8)
     # Make stream 2 with stream_2_size samples
     convert_to_mds(out_root=remote2,
-                    dataset_name='sequencedataset',
-                    num_samples=stream_2_size,
-                    offset=stream_1_size * 3,
-                    size_limit=1 << 8)
+                   dataset_name='sequencedataset',
+                   num_samples=stream_2_size,
+                   offset=stream_1_size * 3,
+                   size_limit=1 << 8)
 
     stream1 = Stream(local=local1, remote=remote1)
     stream2 = Stream(local=local2, remote=remote2)
     dataset = StreamingDataset(streams=[stream1, stream2],
-                                batch_size=batch_size,
-                                batching_method='stratified')
+                               batch_size=batch_size,
+                               batching_method='stratified')
 
     dataloader = StreamingDataLoader(dataset=dataset, batch_size=batch_size, drop_last=False)
 
