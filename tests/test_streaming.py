@@ -81,7 +81,8 @@ def test_dataloader_per_stream_batching(local_remote_dir: Tuple[str, str], batch
                    dataset_name='sequencedataset',
                    num_samples=200,
                    size_limit=1 << 8)
-    # stream 2 has samples 600 and above. This lets us differentiate between the samples from each stream
+    # stream 2 has samples 600 and above.
+    # This lets us differentiate between the samples from each stream
     convert_to_mds(out_root=remote2,
                    dataset_name='sequencedataset',
                    num_samples=300,
@@ -154,7 +155,8 @@ def test_dataloader_stratified_batching(local_remote_dir: Tuple[str, str], batch
                    dataset_name='sequencedataset',
                    num_samples=num_stream_1_samples,
                    size_limit=1 << 8)
-    # stream 2 has samples num_stream_1_samples*3 and above. This lets us differentiate between the samples from each stream
+    # stream 2 has samples num_stream_1_samples*3 and above.
+    # This lets us differentiate between the samples from each stream
     convert_to_mds(out_root=remote2,
                    dataset_name='sequencedataset',
                    num_samples=num_stream_2_samples,
@@ -184,11 +186,13 @@ def test_dataloader_stratified_batching(local_remote_dir: Tuple[str, str], batch
     stream_2_batch_part = batch_size - stream_1_batch_part
 
     # The total number of possible batches is the minimum of the batch parts from each stream.
-    # Total number of samples will be padded to be divisible by NCN. This logic takes care of that case.
-    total_stream_1_batches = num_stream_1_samples // stream_1_batch_part if num_stream_1_samples % num_canonical_nodes == 0 else (
+    # Total number of samples will be padded to be divisible by NCN.
+    total_stream_1_batches = num_stream_1_samples // stream_1_batch_part \
+        if num_stream_1_samples % num_canonical_nodes == 0 else (
         num_stream_1_samples +
         (num_canonical_nodes - num_stream_1_samples % num_canonical_nodes)) // stream_1_batch_part
-    total_stream_2_batches = num_stream_2_samples // stream_2_batch_part if num_stream_2_samples % num_canonical_nodes == 0 else (
+    total_stream_2_batches = num_stream_2_samples // stream_2_batch_part \
+        if num_stream_2_samples % num_canonical_nodes == 0 else (
         num_stream_2_samples +
         (num_canonical_nodes - num_stream_2_samples % num_canonical_nodes)) // stream_2_batch_part
     total_batches = min(total_stream_1_batches, total_stream_2_batches)
@@ -206,7 +210,8 @@ def test_dataloader_stratified_batching(local_remote_dir: Tuple[str, str], batch
                 stream_1_samples += 1
             else:
                 stream_2_samples += 1
-        # check that the batch is consistently composed of the correct number of samples from each stream
+        # check that the batch is consistently composed of the correct number of samples
+        # from each stream
         assert stream_1_samples == stream_1_batch_part
         assert stream_2_samples == stream_2_batch_part
 
@@ -241,7 +246,8 @@ def test_dataloader_stratified_batching_user_set(local_remote_dir: Tuple[str,
                    dataset_name='sequencedataset',
                    num_samples=200,
                    size_limit=1 << 8)
-    # stream 2 has samples 600 and above. This lets us differentiate between the samples from each stream
+    # stream 2 has samples 600 and above.
+    # This lets us differentiate between the samples from each stream
     convert_to_mds(out_root=remote2,
                    dataset_name='sequencedataset',
                    num_samples=300,
@@ -281,7 +287,8 @@ def test_dataloader_stratified_batching_user_set(local_remote_dir: Tuple[str,
                 stream_1_samples += 1
             else:
                 stream_2_samples += 1
-        # check that the batch is consistently composed of the correct number of samples from each stream
+        # check that the batch is consistently composed of the correct number of samples
+        # from each stream
         assert stream_1_samples == stream_1_batch_part
         assert stream_2_samples == stream_2_batch_part
 
@@ -297,7 +304,8 @@ def test_stratified_batching_Exception(local_remote_dir: Tuple[str, str], stream
     remote2 = os.path.join(remote, 'stream2')
 
     # With a batch size of 8, stream 1 of size 1000, and stream 2 anywhere between 1 and 65,
-    # we expect stream 2 to be too small to be included in each batch, which should raise ValueError.
+    # We expect stream 2 to be too small to be included in each batch,
+    # which should raise ValueError.
     stream_1_size = 1000
     batch_size = 8
 
@@ -352,7 +360,8 @@ def test_dataloader_epoch_size_multiple_streams_default(local_remote_dir: Tuple[
                    dataset_name='sequencedataset',
                    num_samples=200,
                    size_limit=1 << 8)
-    # stream 2 has samples 600 and above. This lets us differentiate between the samples from each stream
+    # stream 2 has samples 600 and above.
+    # This lets us differentiate between the samples from each stream
     convert_to_mds(out_root=remote2,
                    dataset_name='sequencedataset',
                    num_samples=300,
@@ -392,10 +401,11 @@ def test_dataloader_epoch_size_multiple_streams_default(local_remote_dir: Tuple[
         samples_seen_stream1 += stream1_seen
         samples_seen_stream2 += stream2_seen
 
-    # if epoch size is not divisible by canonical nodes the partition algorithm will have some repeated samples
-    # so the number of samples seen will be within some tolerance of the epoch size
-    # in all cases though, stream 1 and stream 2 samples should be approximately in a 2:3 ratio
-    # in accordance with the number of samples each stream has (stream 1: 200, stream 2: 300)
+    # if epoch size is not divisible by canonical nodes the partition algorithm will have
+    # some repeated samples. This means the number of samples seen will be within some
+    # tolerance of the epoch size. In all cases though, stream 1 and stream 2 samples
+    # should be approximately in a 2:3 ratio, in accordance with the number of samples
+    # each stream has (stream 1: 200, stream 2: 300).
     if epoch_size % num_canonical_nodes != 0:
         assert samples_seen == (math.ceil(epoch_size / num_canonical_nodes) * num_canonical_nodes)
         assert samples_seen_stream1 == int(

@@ -193,4 +193,6 @@ def get_import_exception_message(package_name: str) -> str:
     Returns:
         str: Exception message.
     """
-    return f'Streaming was installed without {package_name} support. To use {package_name} related packages with Streaming, run `pip install \'mosaicml-streaming[{package_name}]\'`.'
+    return f'Streaming was installed without {package_name} support. ' + \
+            f'To use {package_name} related packages with Streaming, run ' + \
+            f'`pip install \'mosaicml-streaming[{package_name}]\'`.'
