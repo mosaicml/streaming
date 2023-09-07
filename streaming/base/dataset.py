@@ -27,14 +27,13 @@ from streaming.base.constant import (BARRIER, BARRIER_FILELOCK, CACHE_FILELOCK, 
                                      SHARD_ACCESS_TIMES, SHARD_STATES, TICK)
 from streaming.base.distributed import maybe_init_dist
 from streaming.base.format import get_index_basename
-from streaming.base.partition import get_partitions
 from streaming.base.shared import (SharedArray, SharedBarrier, SharedMemory, SharedScalar,
                                    _get_path, get_shm_prefix)
-from streaming.base.shuffle import get_shuffle
 from streaming.base.spanner import Spanner
 from streaming.base.stream import Stream
 from streaming.base.util import bytes_to_int, number_abbrev_to_int
 from streaming.base.world import World
+from streaming.base.batching import generate_work
 
 # An arbitrary time in the future, used for cold shard eviction.
 NEVER = np.iinfo(np.uint64).max
@@ -706,7 +705,7 @@ class StreamingDataset(Array, IterableDataset):
         self._resume_shm = SharedMemory(name=name, size=len(data))
         self._resume_shm.buf[:len(data)] = data
 
-    def _resample_streams(
+    def resample_streams(
             self,
             epoch: int,
             stream_id: Optional[int] = None) -> Tuple[NDArray[np.int64], NDArray[np.int64]]:
@@ -787,195 +786,6 @@ class StreamingDataset(Array, IterableDataset):
         sample_ids = np.concatenate(sample_ids).astype(np.int64)
         return shuffle_units, sample_ids
 
-    def _generate_work_stratified_batching(self, world: World, epoch: int,
-                                           sample_in_epoch: int) -> NDArray[np.int64]:
-        """Generate the epoch's sample arrangement for ``stratified`` batching method.
-
-        This is only called in local rank zero. When ``batching_method`` is set to ``stratified``,
-        every single batch is divided between streams in the same proportions.
-
-        Args:
-            world (World): World state.
-            epoch (int): Which epoch it is.
-            sample_in_epoch (int): Where we are in the epoch.
-
-        Returns:
-            NDArray[np.int64]: The epoch (num physical nodes, ranks per node, workers per rank,
-                batches per worker, batch size).
-        """
-        # Ensure that num_canonical_nodes has been set.
-        if self.num_canonical_nodes is None:
-            raise RuntimeError(f'`num_canonical_nodes` can never be None. ' +
-                               f'Provide a positive integer.')
-
-        # First, for each stream, sample each shard of the stream according to proportions/repeats/samples.
-        # We obtain the resampled size of each shard in the stream and a mapping from the training "big" sample ID
-        # to the underlying shard "small" sample ID.
-        # Then, we also partition each stream's samples over nodes/devices/workers.
-        # We handle sample_in_epoch (for resumption) at the end.
-
-        batch_size = self.batch_size or 1
-        global_batch_size = batch_size * world.ranks_per_node * world.num_nodes
-        partition_per_stream = []
-        batch_portion_per_stream = []
-        stream_proportions = []
-        for stream_id, stream in enumerate(self.streams):
-            # find how many samples in each global batch are from each stream.
-            batch_portion = int(stream.proportion * global_batch_size)
-            stream_proportions.append(stream.proportion)
-            if batch_portion <= 0:
-                raise ValueError(
-                    f'Number of samples for stream {stream_id} is {batch_portion} because the portion '
-                    +
-                    f'of this stream in the global batch, which is of size {global_batch_size}, is '
-                    +
-                    f'too low. Please increase the global batch size or increase the porportion of '
-                    + f'total samples that come from stream {stream_id}.')
-            batch_portion_per_stream.append(batch_portion)
-
-            shuffle_units, small_per_big = self._resample_streams(epoch, stream_id)
-            samples_in_stream = len(small_per_big)
-            # The partition for each stream is constructed with batch size 1 and 1 physical node
-            # in order to make sure that the sample order from each batch stays the same
-            # We later reshape these partitions to the correct batch size per stream.
-            # We also handle used samples (drop_first) at the end.
-            stream_partition = get_partitions(self.partition_algo, samples_in_stream,
-                                              self.num_canonical_nodes, 1, world.ranks_per_node,
-                                              world.workers_per_rank, 1, 0)
-            if self.shuffle:
-                # Ratio of stream's shuffle block size to overall shuffle block size should be the
-                # same as the ratio of the stream's samples to overall samples.
-                # This ensures that the overall training shuffle block size is still approximately
-                # equal to what is set by the user, and allows for reasoning about cache_limit as well.
-                shuffle_block_portion = int(self.shuffle_block_size * stream.proportion)
-                stream_shuffle = get_shuffle(self.shuffle_algo, shuffle_units,
-                                             self.num_canonical_nodes, self.shuffle_seed, epoch,
-                                             shuffle_block_portion)
-                stream_partition = np.where(stream_partition != -1,
-                                            stream_shuffle[stream_partition], -1)
-            # The small_per_big array already corresponds to indices of samples per shard of each stream.
-            # So each sample ID in the stream's partition already corresponds to the sample ID in the right shard.
-            partition_per_stream.append(
-                np.where(stream_partition != -1, small_per_big[stream_partition], -1))
-
-        # The sum of batch portion sizes per stream might not equal the global batch size.
-        batch_portion_per_stream = np.array(batch_portion_per_stream)
-        batch_parts_sum = np.sum(batch_portion_per_stream)
-        if batch_parts_sum != global_batch_size:
-            missing_samples = global_batch_size - batch_parts_sum
-            # Select the streams that should get the extra samples by seeing which streams were "closest"
-            # to having an additional sample in the batch, but did not because int conversion rounds down.
-            leftover_batch_part_sizes = global_batch_size * np.array(
-                stream_proportions) - batch_portion_per_stream
-            # We have to flip the array since argsort is in ascending order, and we want to prioritize
-            # streams that were closest to getting a sample (highest leftover batch part size.)
-            # Then, only get the top missing_samples number of streams to add extra samples to their batch part sizes.
-            stream_size_increment_ids = np.flip(
-                np.argsort(leftover_batch_part_sizes))[:missing_samples]
-            batch_portion_per_stream[stream_size_increment_ids] += 1
-
-        # We now merge the partitions from each stream to get our final partition over all streams, where
-        # every single global batch has the same sample composition from the streams.
-        # The total number of batches we can make is constrained by the min batch parts available from any one stream.
-        min_batch_parts = np.inf
-        batches_from_partitions = []
-        for i, partition in enumerate(partition_per_stream):
-            # Reshape the partition to batch portion per stream in order of traversal, and count only batches without -1 in them.
-            # Before reshaping, make sure number of samples in each stream is divisible by the batch_portion_per_stream
-            batch_parts_inorder = partition.transpose(3, 2, 0, 1, 4).flatten()
-            samples_in_stream_partition = batch_parts_inorder.size
-            if samples_in_stream_partition % batch_portion_per_stream[i] != 0:
-                padding_samples = batch_portion_per_stream[i] - (samples_in_stream_partition %
-                                                                 batch_portion_per_stream[i])
-                batch_parts_inorder = np.concatenate(
-                    (batch_parts_inorder, np.full(padding_samples, -1)))
-            # Reshape to get batch portions from this stream, in order of traversal.
-            batch_parts_inorder = batch_parts_inorder.reshape(-1, batch_portion_per_stream[i])
-            num_full_batches = np.count_nonzero(np.min(batch_parts_inorder, axis=1) >= 0)
-            if num_full_batches != batch_parts_inorder.shape[0]:
-                logger.warning(
-                    'Because of the `stratified` batching method, some batches with an inadequate number of samples '
-                    + 'from stream with index ' + str(i) + ' are being dropped.')
-            if num_full_batches < min_batch_parts:
-                min_batch_parts = num_full_batches
-            batches_from_partitions.append(batch_parts_inorder)
-
-        # clip the partitions from all streams to only have min_batch_parts batch parts.
-        batches_from_partitions = [
-            batch_partition[:min_batch_parts] for batch_partition in batches_from_partitions
-        ]
-
-        # Concatenate the batch parts from every stream to form all the global batches
-        all_partition_batches = np.concatenate(batches_from_partitions, axis=1)
-
-        # If applicable we resume right after the most recently used full global batch.
-        if sample_in_epoch % global_batch_size != 0:
-            logger.warning(
-                'Because of the `stratified` batching method, resumption may only occur on a sample that '
-                + 'is a multiple of the current global batch size of ' + str(global_batch_size) +
-                '. Resuming training ' + 'after the most recently finished global batch.')
-
-        # Discard previous batches that may have already finished
-        resumption_batch = sample_in_epoch // global_batch_size
-        all_partition_batches = all_partition_batches[resumption_batch:]
-
-        # Add padding batches if necessary to ensure that we have an even number of batches per worker/rank/node
-        current_samples = all_partition_batches.size
-        divisibility_requirement = world.num_nodes * world.ranks_per_node * world.workers_per_rank * batch_size
-        if current_samples % divisibility_requirement != 0:
-            samples_needed = divisibility_requirement - (current_samples %
-                                                         divisibility_requirement)
-            padding_batches_needed = samples_needed // global_batch_size
-            all_partition_batches = np.concatenate(
-                (all_partition_batches, np.full((padding_batches_needed, global_batch_size), -1)))
-
-        # Reverse the transposition and reshape from earlier.
-        # Final result is (physical nodes, ranks per node, workers per rank, batches per worker, batch size), as desired.
-        return all_partition_batches.reshape(-1, world.workers_per_rank, world.num_nodes,
-                                             world.ranks_per_node,
-                                             batch_size).transpose(2, 3, 1, 0, 4)
-
-    def _generate_work(self, world: World, epoch: int, sample_in_epoch: int) -> NDArray[np.int64]:
-        """Generate this epoch's arrangement of samples.
-
-        This is only called in local rank zero.
-
-        Args:
-            world (World): World state.
-            epoch (int): Which epoch it is.
-            sample_in_epoch (int): Where we are in the epoch.
-
-        Returns:
-            NDArray[np.int64]: The epoch (num physical nodes, ranks per node, workers per rank,
-                batches per worker, batch size).
-        """
-        # Ensure that num_canonical_nodes has been set.
-        if self.num_canonical_nodes is None:
-            raise RuntimeError(f'`num_canonical_nodes` can never be None. ' +
-                               f'Provide a positive integer.')
-
-        # Sample each shard of each stream according to their proportions/repeats/samples. This
-        # gives us the resampled size of each underlying shard, and a mapping from each fake "big"
-        # sample ID to its underlying "small" sample ID.
-        shuffle_units, small_per_big = self._resample_streams(epoch)
-
-        # Partition the global sample space (of resampled "big" sample IDs) into a tensor of shape
-        # (num physical nodes, ranks per node, workers per rank, batches per worker, samples per
-        # batch) such that we have an elastically deterministic sample order.
-        big_ids = get_partitions(self.partition_algo, self.epoch_size, self.num_canonical_nodes,
-                                 world.num_nodes, world.ranks_per_node, world.workers_per_rank,
-                                 self.batch_size, sample_in_epoch)
-
-        # If we need to shuffle, shuffle in a node-aware and *underlying* shard-aware way.
-        if self.shuffle:
-            shuffle = get_shuffle(self.shuffle_algo, shuffle_units, self.num_canonical_nodes,
-                                  self.shuffle_seed, epoch, self.shuffle_block_size)
-            big_ids = np.where(big_ids != -1, shuffle[big_ids], -1)
-
-        # Now that we have partitioning and shuffled with hallucinated "big" sample IDs, we don't
-        # need them anymore, and can convert back to underlying "small" sample IDs.
-        return np.where(big_ids != -1, small_per_big[big_ids], -1)
-
     def _share_work(self, sample_ids: NDArray[np.int64]) -> Tuple[SharedMemory, SharedMemory]:
         """Put an epoch's sample ordering into shared memory.
 
@@ -1047,13 +857,7 @@ class StreamingDataset(Array, IterableDataset):
 
         # Do expensive work that may use a lot of cores/memory just once, in the local leader.
         if world.is_local_leader:
-            if self.batching_method == 'stratified':
-                # Partition has global batches that are always stratified --
-                # each batch contains a fixed number of samples from each stream.
-                epoch_sample_ids = self._generate_work_stratified_batching(
-                    world, epoch, sample_in_epoch)
-            else:
-                epoch_sample_ids = self._generate_work(world, epoch, sample_in_epoch)
+            epoch_sample_ids = generate_work(self.batching_method, self, world, epoch, sample_in_epoch)
             shape_shm, data_shm = self._share_work(epoch_sample_ids)
             self._shared_barrier(world.workers_per_node)
         else:
