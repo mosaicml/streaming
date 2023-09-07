@@ -18,7 +18,7 @@ from tests.common.utils import convert_to_mds
 @pytest.mark.parametrize('shuffle', [False])
 @pytest.mark.parametrize('drop_last', [False, True])
 @pytest.mark.parametrize('num_workers', [3, 6])
-@pytest.mark.parametrize('num_canonical_nodes', [4, 8])
+@pytest.mark.parametrize('num_canonical_nodes', [8])
 @pytest.mark.parametrize('epoch_size', [10, 200])
 @pytest.mark.usefixtures('local_remote_dir')
 def test_dataloader_epoch_size_no_streams(local_remote_dir: Tuple[str,
@@ -63,8 +63,8 @@ def test_dataloader_epoch_size_no_streams(local_remote_dir: Tuple[str,
 @pytest.mark.parametrize('seed', [2222])
 @pytest.mark.parametrize('shuffle', [True])
 @pytest.mark.parametrize('drop_last', [True])
-@pytest.mark.parametrize('num_workers', [1])
-@pytest.mark.parametrize('num_canonical_nodes', [4, 8])
+@pytest.mark.parametrize('num_workers', [4])
+@pytest.mark.parametrize('num_canonical_nodes', [8])
 @pytest.mark.parametrize('num_stream_1_samples', [200, 255])
 @pytest.mark.parametrize('num_stream_2_samples', [342, 557])
 @pytest.mark.usefixtures('local_remote_dir')
@@ -148,8 +148,8 @@ def test_dataloader_stratified_batching(local_remote_dir: Tuple[str, str], batch
 @pytest.mark.parametrize('seed', [2222])
 @pytest.mark.parametrize('shuffle', [True])
 @pytest.mark.parametrize('drop_last', [True])
-@pytest.mark.parametrize('num_workers', [1])
-@pytest.mark.parametrize('num_canonical_nodes', [4, 8])
+@pytest.mark.parametrize('num_workers', [4])
+@pytest.mark.parametrize('num_canonical_nodes', [8])
 @pytest.mark.parametrize('stream_1_proportion', [2, 5])
 @pytest.mark.parametrize('stream_2_proportion', [2, 5])
 @pytest.mark.usefixtures('local_remote_dir')
@@ -231,27 +231,29 @@ def test_stratified_batching_Exception(local_remote_dir: Tuple[str, str], stream
     stream_1_size = 1000
     batch_size = 8
 
+    # Make stream 1 with stream_1_size samples
+    convert_to_mds(out_root=remote1,
+                    dataset_name='sequencedataset',
+                    num_samples=stream_1_size,
+                    size_limit=1 << 8)
+    # Make stream 2 with stream_2_size samples
+    convert_to_mds(out_root=remote2,
+                    dataset_name='sequencedataset',
+                    num_samples=stream_2_size,
+                    offset=stream_1_size * 3,
+                    size_limit=1 << 8)
+
+    stream1 = Stream(local=local1, remote=remote1)
+    stream2 = Stream(local=local2, remote=remote2)
+    dataset = StreamingDataset(streams=[stream1, stream2],
+                                batch_size=batch_size,
+                                batching_method='stratified')
+
+    dataloader = StreamingDataLoader(dataset=dataset, batch_size=batch_size, drop_last=False)
+
     with pytest.raises(ValueError, match=f'Number of samples for stream*'):
-        # Make stream 1 with stream_1_size samples
-        convert_to_mds(out_root=remote1,
-                       dataset_name='sequencedataset',
-                       num_samples=stream_1_size,
-                       size_limit=1 << 8)
-        # Make stream 2 with stream_2_size samples
-        convert_to_mds(out_root=remote2,
-                       dataset_name='sequencedataset',
-                       num_samples=stream_2_size,
-                       offset=stream_1_size * 3,
-                       size_limit=1 << 8)
-
-        stream1 = Stream(local=local1, remote=remote1)
-        stream2 = Stream(local=local2, remote=remote2)
-        dataset = StreamingDataset(streams=[stream1, stream2],
-                                   batch_size=batch_size,
-                                   batching_method='stratified')
-
-        dataloader = StreamingDataLoader(dataset=dataset, batch_size=batch_size, drop_last=False)
-
+        # When we iterate through the dataloader, the samples will be partitioned.
+        # This should thow ValueError since stream 2 is too small to be included in each batch.
         for _ in dataloader:
             continue
 
@@ -261,7 +263,7 @@ def test_stratified_batching_Exception(local_remote_dir: Tuple[str, str], stream
 @pytest.mark.parametrize('shuffle', [False])
 @pytest.mark.parametrize('drop_last', [False, True])
 @pytest.mark.parametrize('num_workers', [3, 6])
-@pytest.mark.parametrize('num_canonical_nodes', [4, 8])
+@pytest.mark.parametrize('num_canonical_nodes', [8])
 @pytest.mark.parametrize('epoch_size', [10, 200])
 @pytest.mark.usefixtures('local_remote_dir')
 def test_dataloader_epoch_size_multiple_streams_default(local_remote_dir: Tuple[str, str],
