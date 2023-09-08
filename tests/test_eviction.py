@@ -10,6 +10,7 @@ import pytest
 from torch.utils.data import DataLoader
 
 from streaming import MDSWriter, StreamingDataset
+from tests.common.utils import convert_to_mds
 
 
 def validate(remote: str, local: str, dataset: StreamingDataset, keep_zip: bool,
@@ -189,3 +190,42 @@ def test_eviction_zip_keep(local_remote_dir: Tuple[str, str], func: Any):
             out.write(sample)
 
     func(remote, local, True)
+
+
+@pytest.mark.parametrize('cache_limit', ['2048'])
+@pytest.mark.usefixtures('local_remote_dir')
+def test_cache_limit_lower_than_index_json(local_remote_dir: Any, cache_limit: str):
+    remote_dir, local_dir = local_remote_dir
+    convert_to_mds(out_root=remote_dir,
+                   dataset_name='sequencedataset',
+                   num_samples=1000,
+                   compression=None,
+                   size_limit=2048)
+
+    with pytest.raises(ValueError, match='Minimum cache usage.*is larger than the cache limit*'):
+        _ = StreamingDataset(local=local_dir,
+                             remote=remote_dir,
+                             shuffle=False,
+                             batch_size=4,
+                             cache_limit=cache_limit)
+
+
+@pytest.mark.parametrize('cache_limit', ['5kb'])
+@pytest.mark.parametrize('compression', [None, 'zstd:7'])
+@pytest.mark.usefixtures('local_remote_dir')
+def test_cache_limit_lower_than_few_shards(local_remote_dir: Any, cache_limit: str,
+                                           compression: str):
+    remote_dir, local_dir = local_remote_dir
+    convert_to_mds(out_root=remote_dir,
+                   dataset_name='sequencedataset',
+                   num_samples=1000,
+                   compression=compression,
+                   size_limit=2048)
+
+    with pytest.raises(ValueError,
+                       match='Cache limit.*is too low. Increase the `cache_limit` to*'):
+        _ = StreamingDataset(local=local_dir,
+                             remote=remote_dir,
+                             shuffle=False,
+                             batch_size=4,
+                             cache_limit=cache_limit)

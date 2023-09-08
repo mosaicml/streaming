@@ -395,6 +395,7 @@ class StreamingDataset(Array, IterableDataset):
         self.shards_per_stream = np.zeros(self.num_streams, np.int64)
         self.sample_offset_per_stream = np.zeros(self.num_streams, np.int64)
         self.samples_per_stream = np.zeros(self.num_streams, np.int64)
+        self.max_shard_size_across_all_streams = 0
         for stream_id, stream in enumerate(self.streams):
             stream_shards = stream.get_shards(world)
             num_stream_samples = sum(map(len, stream_shards))
@@ -402,6 +403,9 @@ class StreamingDataset(Array, IterableDataset):
                 index_filename = os.path.join(stream.local, stream.split, get_index_basename())
                 raise RuntimeError(f'Stream contains no samples: {index_filename}.')
             stream_per_shard += [stream_id] * len(stream_shards)
+            # Includes the size of raw (decompressed) and zip (compressed) shard files.
+            self.max_shard_size_across_all_streams = max(self.max_shard_size_across_all_streams,
+                                                         stream_shards[0].get_max_size())
             self.shard_offset_per_stream[stream_id] = len(self.shards)
             self.shards_per_stream[stream_id] = len(stream_shards)
             self.sample_offset_per_stream[stream_id] = self.num_samples
@@ -420,6 +424,13 @@ class StreamingDataset(Array, IterableDataset):
                 raise ValueError(f'Minimum cache usage ({min_cache_usage} bytes) is larger than ' +
                                  f'the cache limit ({self.cache_limit} bytes). Please raise ' +
                                  f'`cache_limit`.')
+            if self.cache_limit < 4 * self.max_shard_size_across_all_streams:
+                raise ValueError(f'Cache limit ({self.cache_limit} bytes) is too low. ' +
+                                 f'Increase the `cache_limit` to at-least four times the ' +
+                                 f'largest shard size ({self.max_shard_size_across_all_streams} ' +
+                                 f'bytes) which includes raw (decompressed) and zip ' +
+                                 f'(compressed) file size. Recommendation is to provide a ' +
+                                 f'`cache_limit` as high as possible to avoid thrashing.')
 
         # Build the shard index (for partitioning and mapping samples to shards).
         self.samples_per_shard = np.array([shard.samples for shard in self.shards], np.int64)
