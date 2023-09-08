@@ -30,7 +30,8 @@ def get_shuffle_py1br(shard_sizes: NDArray[np.int64],
         epoch (int): Current epoch, which is added to the seed to get a different deterministic
             shuffle each epoch.
         block_size (int): Unit of shuffle. For py1br shuffling method, the block size is chosen
-        uniformly at random in the range (0.75*block_size, 1.25*block_size). Defaults to ``1 << 18``.
+            uniformly at random in the range (0.75*block_size, 1.25*block_size).
+            Defaults to ``1 << 18``.
 
     Returns:
         NDArray[np.int64]: 1:1 mapping of sample ID to shuffled sample ID.

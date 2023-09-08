@@ -18,8 +18,8 @@ BOTOCORE_CLIENT_ERROR_CODES = {'403', '404', 'NoSuchKey'}
 
 GCS_ERROR_NO_AUTHENTICATION = """\
 Either set the environment variables `GCS_KEY` and `GCS_SECRET` or use any of the methods in \
-https://cloud.google.com/docs/authentication/external/set-up-adc to set up Application Default Credentials. See also \
-https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/gcp.html.
+https://cloud.google.com/docs/authentication/external/set-up-adc to set up Application Default \
+Credentials. See also https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/gcp.html.
 """
 
 
