@@ -49,7 +49,6 @@ install_requires = [
     'paramiko>=2.11.0,<4',
     'python-snappy>=0.6.1,<1',
     'torch>=1.10,<3',
-    'torchtext>=0.10',
     'torchvision>=0.10',
     'tqdm>=4.64.0,<5',
     'transformers>=4.21.3,<5',
@@ -81,6 +80,7 @@ extra_deps['dev'] = [
 ]
 
 extra_deps['docs'] = [
+    'torchtext>=0.10',
     'GitPython==3.1.34',
     'docutils==0.18.1',
     'furo==2023.7.26',
