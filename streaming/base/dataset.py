@@ -421,7 +421,17 @@ class StreamingDataset(Array, IterableDataset):
             if self.cache_limit <= min_cache_usage:
                 raise ValueError(f'Minimum cache usage ({min_cache_usage} bytes) is larger than ' +
                                  f'the cache limit ({self.cache_limit} bytes). Please raise ' +
-                                 f'`cache_limit`.')
+                                 f'`cache_limit`. Recommendation is to provide a `cache_limit` ' +
+                                 f'as high as possible to avoid thrashing.')
+            self.max_shard_size_across_all_streams = max(
+                np.array([shard.get_max_size() for shard in self.shards]))
+            if self.cache_limit < 4 * self.max_shard_size_across_all_streams:
+                raise ValueError(f'Cache limit ({self.cache_limit} bytes) is too low. ' +
+                                 f'Increase the `cache_limit` to at-least four times the ' +
+                                 f'largest shard size ({self.max_shard_size_across_all_streams} ' +
+                                 f'bytes) which includes raw (decompressed) and zip ' +
+                                 f'(compressed) file size. Recommendation is to provide a ' +
+                                 f'`cache_limit` as high as possible to avoid thrashing.')
 
         # Build the shard index (for partitioning and mapping samples to shards).
         self.samples_per_shard = np.array([shard.samples for shard in self.shards], np.int64)
