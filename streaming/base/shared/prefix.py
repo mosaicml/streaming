@@ -169,15 +169,17 @@ def get_shm_prefix(streams_local: List[str],
     """Register or lookup our shared memory prefix.
 
     Args:
-        streams_local (List[str]): Local working dir of each stream, relative to /. We need to verify
-            that there is no overlap with any other currently running StreamingDataset.
+        streams_local (List[str]): Local working dir of each stream, relative to /.
+            We need to verify that there is no overlap with any other currently
+            running StreamingDataset.
         streams_remote (List[Union[str, None]]): Remote working dir of each stream.
         world (World): Information about nodes, ranks, and workers.
-        retry (int): Number of retries upon failure before raising an exception. Defaults to ``100``.
+        retry (int): Number of retries upon failure before raising an exception.
+            Defaults to ``100``.
 
     Returns:
-        Tuple[int, SharedMemory]: Shared memory integer prefix and object. The name is required to be very
-            short due to limitations of Python on Mac OSX.
+        Tuple[int, SharedMemory]: Shared memory integer prefix and object. The name
+            is required to be very short due to limitations of Python on Mac OSX.
     """
     # Check my locals for overlap.
     _check_self(streams_local)

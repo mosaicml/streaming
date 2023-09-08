@@ -246,10 +246,10 @@ class TestGCSUploader:
         with pytest.raises(
                 ValueError,
                 match=
-            (f'Either set the environment variables `GCS_KEY` and `GCS_SECRET` or use any of the methods in '
-             f'https://cloud.google.com/docs/authentication/external/set-up-adc to set up Application Default '
-             f'Credentials. See also https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/'
-             f'gcp.html.')):
+            (f'Either set the environment variables `GCS_KEY` and `GCS_SECRET` or use any of '
+             f'the methods in https://cloud.google.com/docs/authentication/external/set-up-adc '
+             f'to set up Application Default Credentials. See also '
+             f'https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/gcp.html.')):
             _ = GCSUploader(out=out)
 
 
@@ -321,7 +321,8 @@ class TestAzureDataLakeUploader:
 class TestDatabricksUnityCatalogUploader:
 
     @patch('streaming.base.storage.upload.DatabricksUploader._create_workspace_client')
-    @pytest.mark.parametrize('out', ['uc://container/dir', ('./dir1', 'uc://container/dir/')])
+    @pytest.mark.parametrize(
+        'out', ['dbfs:/Volumes/container/dir', ('./dir1', 'dbfs:/Volumes/container/dir/')])
     def test_instantiation(self, mock_create_client: Mock, out: Any):
         mock_create_client.side_effect = None
         _ = DatabricksUnityCatalogUploader(out=out)

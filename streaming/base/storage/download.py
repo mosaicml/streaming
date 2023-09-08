@@ -4,6 +4,7 @@
 """Shard downloading from various storage providers."""
 
 import os
+import pathlib
 import shutil
 import urllib.parse
 from time import sleep, time
@@ -17,8 +18,8 @@ BOTOCORE_CLIENT_ERROR_CODES = {'403', '404', 'NoSuchKey'}
 
 GCS_ERROR_NO_AUTHENTICATION = """\
 Either set the environment variables `GCS_KEY` and `GCS_SECRET` or use any of the methods in \
-https://cloud.google.com/docs/authentication/external/set-up-adc to set up Application Default Credentials. See also \
-https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/gcp.html.
+https://cloud.google.com/docs/authentication/external/set-up-adc to set up Application Default \
+Credentials. See also https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/gcp.html.
 """
 
 
@@ -331,18 +332,22 @@ def download_from_databricks_unity_catalog(remote: str, local: str) -> None:
     """
     from databricks.sdk import WorkspaceClient
 
-    obj = urllib.parse.urlparse(remote)
-    if obj.scheme != 'uc':
+    path = pathlib.Path(remote)
+    provider_prefix = os.path.join(path.parts[0], path.parts[1])
+    if provider_prefix != 'dbfs:/Volumes':
         raise ValueError(
-            f'Expected obj.scheme to be `uc`, instead, got {obj.scheme} for remote={remote}')
+            f'Expected path prefix to be `dbfs:/Volumes` if it is a Databricks Unity Catalog, ' +
+            f'instead, got {provider_prefix} for remote={remote}.')
 
     client = WorkspaceClient()
-    file_path = remote.lstrip('uc:/')
-    uc_file = client.files.download(file_path)
+    file_path = urllib.parse.urlparse(remote)
     local_tmp = local + '.tmp'
-    with open(local_tmp, 'wb') as f:
-        f.write(uc_file.read())
-    uc_file.close()
+    with client.files.download(file_path.path).contents as response:
+        with open(local_tmp, 'wb') as f:
+            # Multiple shard files are getting downloaded in parallel, so we need to
+            # read the data in chunks to avoid memory issues. Hence, read 64MB of data at a time.
+            for chunk in iter(lambda: response.read(64 * 1024 * 1024), b''):
+                f.write(chunk)
     os.rename(local_tmp, local)
 
 
@@ -355,17 +360,34 @@ def download_from_dbfs(remote: str, local: str) -> None:
     """
     try:
         from databricks.sdk import WorkspaceClient
+        from databricks.sdk.core import DatabricksError
     except ImportError as e:
-        e.msg = get_import_exception_message(e.name)  # pyright: ignore
+        e.msg = get_import_exception_message(e.name, 'databricks')  # pyright: ignore
         raise e
 
+    obj = urllib.parse.urlparse(remote)
+    if obj.scheme != 'dbfs':
+        raise ValueError(f'Expected path prefix to be `dbfs` if it is a Databricks File System, ' +
+                         f'instead, got {obj.scheme} for remote={remote}.')
+
     client = WorkspaceClient()
-    file_path = remote.lstrip('dbfs:')
-    dbfs_file = client.dbfs.download(file_path)
+    file_path = urllib.parse.urlparse(remote)
     local_tmp = local + '.tmp'
-    with open(local_tmp, 'wb') as f:
-        f.write(dbfs_file.read())
-    dbfs_file.close()
+    try:
+        with client.dbfs.download(file_path.path) as response:
+            with open(local_tmp, 'wb') as f:
+                # Multiple shard files are getting downloaded in parallel, so we need to
+                # read the data in chunks to avoid memory issues.
+                # Read 1MB of data at a time since that's the max limit it can read at a time.
+                for chunk in iter(lambda: response.read(1024 * 1024), b''):
+                    f.write(chunk)
+    except DatabricksError as e:
+        if e.error_code == 'PERMISSION_DENIED':
+            e.args = (f'Ensure the file path or credentials are set correctly. For ' +
+                      f'Databricks Unity Catalog, file path must starts with `dbfs:/Volumes` ' +
+                      f'and for Databricks File System, file path must starts with `dbfs`. ' +
+                      e.args[0],)
+        raise e
     os.rename(local_tmp, local)
 
 
@@ -417,10 +439,10 @@ def download_file(remote: Optional[str], local: str, timeout: float):
         download_from_azure(remote, local)
     elif remote.startswith('azure-dl://'):
         download_from_azure_datalake(remote, local)
+    elif remote.startswith('dbfs:/Volumes'):
+        download_from_databricks_unity_catalog(remote, local)
     elif remote.startswith('dbfs:/'):
         download_from_dbfs(remote, local)
-    elif remote.startswith('uc://'):
-        download_from_databricks_unity_catalog(remote, local)
     else:
         download_from_local(remote, local)
 

@@ -42,11 +42,11 @@ def generate_work_per_stream_batching(dataset: StreamingDataset, world: World, e
         raise RuntimeError(f'`num_canonical_nodes` can never be None. ' +
                            f'Provide a positive integer.')
 
-    # First, for each stream, sample each shard of the stream according to proportions/repeats/samples.
-    # We obtain the resampled size of each shard in the stream and a mapping from the training "big" sample ID
-    # to the underlying shard "small" sample ID.
-    # Then, we also partition each stream's samples over nodes/devices/workers.
-    # We handle sample_in_epoch (for resumption) at the end.
+    # First, for each stream, sample each shard of the stream according to
+    # stream proportions/repeats/samples. We obtain the resampled size of each shard
+    # in the stream and a mapping from the training "big" sample ID to the underlying
+    # shard "small" sample ID. Then, we also partition each stream's samples over
+    # nodes/devices/workers. We handle sample_in_epoch (for resumption) at the end.
     partition_per_stream = []
 
     batch_size = dataset.batch_size or 1
@@ -69,32 +69,34 @@ def generate_work_per_stream_batching(dataset: StreamingDataset, world: World, e
                                          shuffle_block_portion)
             stream_partition = np.where(stream_partition != -1, stream_shuffle[stream_partition],
                                         -1)
-        # The small_per_big array already corresponds to indices of samples per shard of each stream.
-        # So each sample ID in the stream's partition already corresponds to the sample ID in the right shard.
+        # The small_per_big array already corresponds to indices of samples per shard of each
+        # stream. So each sample ID in the stream's partition already corresponds to the sample ID
+        # in the right shard.
         partition_per_stream.append(
             np.where(stream_partition != -1, small_per_big[stream_partition], -1))
 
-    # We now merge the partitions from each stream to get our final partition over all streams, where
-    # each global batch has samples only from a single stream.
-    # Partitions are arranged (physical nodes, ranks per node, workers per rank, batches per worker, batch size).
+    # We now merge the partitions from each stream to get our final partition over all
+    # streams, where each global batch has samples only from a single stream.
+    # Partitions are (physical nodes, ranks, workers, batches per worker, batch size).
     batches_per_stream = []
     batches_from_partitions = []
     for stream_idx, partition in enumerate(partition_per_stream):
-        # reshape the partition to be global batches in order of traversal, and count only batches without -1 in them.
+        # Reshape the partition to be global batches in order of traversal.
+        # We only count only batches without -1 in them.
         global_batches_inorder = partition.transpose(3, 2, 0, 1, 4).reshape(
             -1, batch_size * world.ranks_per_node * world.num_nodes)
         num_full_batches = np.count_nonzero(np.min(global_batches_inorder, axis=1) >= 0)
         batches_per_stream.append(num_full_batches)
         if num_full_batches != global_batches_inorder.shape[0]:
             logger.warning(
-                'Because of the `per_stream` batching method, some batches with an inadequate number of samples '
-                + 'from stream with index ' + str(stream_idx) + ' are being dropped.')
+                'Because of the `per_stream` batching method, some batches with an inadequate \
+                number of samples from stream with index ' + str(stream_idx) + ' will be dropped.')
         batches_from_partitions.append(global_batches_inorder[:num_full_batches])
 
     # Combine all global batches from all streams into one array.
     all_partition_batches = np.concatenate(batches_from_partitions)
 
-    # Shuffle seed changes with every epoch so that the order of streams in our batches changes as well.
+    # Shuffle seed changes with every epoch, so the order of streams in our batches also changes.
     epoch_rng = np.random.default_rng(dataset.shuffle_seed + epoch)
 
     # stream_origins is an array that tells us which stream each batch is using.
@@ -119,17 +121,19 @@ def generate_work_per_stream_batching(dataset: StreamingDataset, world: World, e
     global_batch_size = batch_size * world.num_nodes * world.ranks_per_node
     if sample_in_epoch % global_batch_size != 0:
         logger.warning(
-            'Because of the `per_stream` batching method, resumption may only occur on a sample that '
-            + 'is a multiple of the current global batch size of ' + str(global_batch_size) +
-            '. Resuming training ' + 'after the most recently finished global batch.')
+            'Because of the `per_stream` batching method, resumption may only occur on a sample \
+            that is a multiple of the current global batch size of ' + str(global_batch_size) +
+            '. Resuming training after the most recently finished global batch.')
 
     # Discard previous batches that may have already finished
     resumption_batch = sample_in_epoch // global_batch_size
     all_partition_batches = all_partition_batches[resumption_batch:]
 
-    # Add padding batches if necessary to ensure that we have an even number of batches per worker/rank/node
+    # Add padding batches if needed to ensure that we have an even number of
+    # batches per worker/rank/node.
     current_samples = all_partition_batches.size
-    divisibility_requirement = world.num_nodes * world.ranks_per_node * world.workers_per_rank * batch_size
+    divisibility_requirement = world.num_nodes * world.ranks_per_node * \
+          world.workers_per_rank * batch_size
     if current_samples % divisibility_requirement != 0:
         samples_needed = divisibility_requirement - (current_samples % divisibility_requirement)
         padding_batches_needed = samples_needed // global_batch_size
@@ -137,7 +141,7 @@ def generate_work_per_stream_batching(dataset: StreamingDataset, world: World, e
             (all_partition_batches, np.full((padding_batches_needed, global_batch_size), -1)))
 
     # Reverse the transposition and reshape from earlier.
-    # Final result is (physical nodes, ranks per node, workers per rank, batches per worker, batch size), as desired.
+    # Final result is (physical nodes, ranks, worker, batches per worker, batch size).
     return all_partition_batches.reshape(-1, world.workers_per_rank, world.num_nodes,
                                          world.ranks_per_node,
                                          batch_size).transpose(2, 3, 1, 0, 4)
