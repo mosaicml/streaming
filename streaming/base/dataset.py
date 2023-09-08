@@ -254,7 +254,8 @@ class StreamingDataset(Array, IterableDataset):
             Defaults to ``balanced``.
         sampling_granularity (int): When picking samples for a stream's final partial repeat,
             how many samples to pick from the same shard at a time (``1`` for evenly balanced
-            across shards). Defaults to ``1``.
+            across shards, ``1000`` to pick 1000 samples from the same shard at a time, etc).
+            Defaults to ``1``.
         partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
         num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
             resumption. The sample space is divided evenly according to the number of canonical
