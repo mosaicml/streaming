@@ -189,6 +189,11 @@ class StreamingDataset(Array, IterableDataset):
         * ``predownload``
         * ``cache_limit``
 
+      * Sampling:
+
+        * ``sampling_method``
+        * ``sampling_granularity``
+
       * Determinism:
 
         * ``partition_algo``
@@ -201,11 +206,6 @@ class StreamingDataset(Array, IterableDataset):
         * ``shuffle_algo``
         * ``shuffle_seed``
         * ``shuffle_block_size``
-
-      * Sampling:
-
-        * ``sampling_method``
-        * ``sampling_granularity``
 
       * Batching:
 
@@ -272,7 +272,7 @@ class StreamingDataset(Array, IterableDataset):
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
             ``False``.
         shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1s``.
-        shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
+        shuffle_seed (int): Seed for deterministic data shuffling. Defaults to ``9176``.
         shuffle_block_size (int): Unit of shuffle. A canonical node's samples are split into blocks
             of this size, and samples within each block are shuffled. Defaults to ``1 << 18``.
         batching_method (str): Which batching method to use, either ``random``, ``stratified``, or
@@ -328,6 +328,11 @@ class StreamingDataset(Array, IterableDataset):
                 f'Must be one of `balanced` or `fixed`.'
             )
 
+        # Check sampling granularity.
+        if self.sampling_granularity <= 0:
+            raise ValueError(f'`sampling_granularity` must be a positive integer, but got: ' +
+                             f'{self.sampling_granularity}.')
+
         # Check batching method is one of "random", "stratified", or "per_stream".
         if self.batching_method not in ['random', 'stratified', 'per_stream']:
             raise ValueError(
@@ -341,6 +346,11 @@ class StreamingDataset(Array, IterableDataset):
                 Please use the more performant \'py1br\' algorithm instead.',
                           DeprecationWarning,
                           stacklevel=2)
+
+        # Check shuffle seed.
+        if self.shuffle_seed < 0:
+            raise ValueError(f'`shuffle_seed` must be a non-negative integer, but got: ' +
+                             f'{self.shuffle_seed}.')
 
         # Check that predownload is at least per device batch size.
         if self.predownload is not None and self.batch_size is not None and \
