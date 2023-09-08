@@ -41,7 +41,7 @@ def test_is_deterministic():
 
 
 def test_balance():
-    samples_per_shard = np.random.choice(1_000, 10)
+    samples_per_shard = 1_000 + np.random.choice(1_000, 10)
     samples = sum(samples_per_shard)
     choose = np.random.choice(samples)
     choose_per_shard = np.zeros(len(samples_per_shard))
