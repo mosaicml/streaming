@@ -184,7 +184,7 @@ def clean_stale_shared_memory() -> None:
         dist.destroy_process_group()
 
 
-def get_import_exception_message(package_name: str) -> str:
+def get_import_exception_message(package_name: str, extra_deps: str) -> str:
     """Get import exception message.
 
     Args:

@@ -362,7 +362,7 @@ def download_from_dbfs(remote: str, local: str) -> None:
         from databricks.sdk import WorkspaceClient
         from databricks.sdk.core import DatabricksError
     except ImportError as e:
-        e.msg = get_import_exception_message(e.name)  # pyright: ignore
+        e.msg = get_import_exception_message(e.name, 'databricks')  # pyright: ignore
         raise e
 
     obj = urllib.parse.urlparse(remote)

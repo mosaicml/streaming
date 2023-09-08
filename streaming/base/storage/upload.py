@@ -636,7 +636,7 @@ class DatabricksUploader(CloudUploader):
             from databricks.sdk import WorkspaceClient
             return WorkspaceClient()
         except ImportError as e:
-            e.msg = get_import_exception_message(e.name)  # pyright: ignore
+            e.msg = get_import_exception_message(e.name, 'databricks')  # pyright: ignore
             raise e
 
 
