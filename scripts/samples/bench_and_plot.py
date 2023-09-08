@@ -341,11 +341,11 @@ def bench(args: Namespace, bench_name: str, desc: str, generate: Callable,
     plt.grid(which='minor', ls=':', c='#ddd', lw=0.5)
     ax = plt.gca()
     ax.xaxis.set_major_formatter(ScalarFormatter())
-    ax.xaxis.get_major_formatter().set_scientific(False)  # pyright: ignore
-    ax.xaxis.get_major_formatter().set_useOffset(False)  # pyright: ignore
+    ax.xaxis.get_major_formatter().set_scientific(False)
+    ax.xaxis.get_major_formatter().set_useOffset(False)
     ax.xaxis.set_minor_formatter(ScalarFormatter())
-    ax.xaxis.get_minor_formatter().set_scientific(False)  # pyright: ignore
-    ax.xaxis.get_minor_formatter().set_useOffset(False)  # pyright: ignore
+    ax.xaxis.get_minor_formatter().set_scientific(False)
+    ax.xaxis.get_minor_formatter().set_useOffset(False)
     ax.xaxis.set_tick_params(which='minor', pad=5)
     print('  Stats')
     for (format_name, writer_class, color), seq, rand in zip(format_infos, seqs, rands):
