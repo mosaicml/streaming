@@ -80,7 +80,6 @@ extra_deps['dev'] = [
 ]
 
 extra_deps['docs'] = [
-    'torchtext>=0.10',
     'GitPython==3.1.34',
     'docutils==0.18.1',
     'furo==2023.7.26',

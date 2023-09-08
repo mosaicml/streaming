@@ -212,7 +212,6 @@ intersphinx_mapping = {
     'python': ('https://docs.python.org/3/', None),
     'torch': ('https://pytorch.org/docs/stable/', None),
     'torchmetrics': ('https://torchmetrics.readthedocs.io/en/latest/', None),
-    'torchtext': ('https://pytorch.org/text/stable/', None),
     'torchvision': ('https://pytorch.org/vision/stable/', None),
     'transformers': ('https://huggingface.co/docs/transformers/master/en/', None),
 }
