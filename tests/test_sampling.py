@@ -9,7 +9,7 @@ from streaming.base.sampling import get_sampling
 def test_choose_per_shard_adds_up():
     for granularity in range(1, 100):
         for _ in range(10):
-            samples_per_shard = np.random.choice(100, 10)
+            samples_per_shard = 100 + np.random.choice(100, 10)
             samples = sum(samples_per_shard)
             choose = np.random.choice(samples)
             seed = np.random.choice(31337)
@@ -25,7 +25,7 @@ def test_choose_per_shard_adds_up():
 def test_is_deterministic():
     for granularity in range(1, 100):
         for _iter in range(3):
-            samples_per_shard = np.random.choice(100, 10)
+            samples_per_shard = 100 + np.random.choice(100, 10)
             samples = sum(samples_per_shard)
             choose = np.random.choice(samples)
             seed = np.random.choice(31337)

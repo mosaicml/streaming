@@ -40,35 +40,40 @@ def get_sampling(samples_per_shard: NDArray[np.int64], choose: int, granularity:
     if not choose % num_samples:
         return samples_per_shard * choose // num_samples
 
-    # Fractional repeat case.
+    # Fractional repeat case:
 
-    # Get the ordering by which we will exhaust the shards.
-    pairs = []  # List of (shard ID, samples to draw).
-    for shard_id, shard_samples in enumerate(samples_per_shard):
-        num_granules = (shard_samples + granularity - 1) // granularity
-        shard_ids = np.full(num_granules, shard_id)
-        counts = np.full(num_granules, granularity)
-        if shard_samples % granularity:
-            counts[-1] = shard_samples % granularity
-        pair = shard_ids, counts
-        pairs.append(pair)
-    shard_ids, counts = zip(*pairs)
-    shard_ids = np.concatenate(shard_ids)
-    counts = np.concatenate(counts)
-    num_granules = len(shard_ids)
+    # Get the number of shards.
+    num_shards = len(samples_per_shard)
+
+    # Get how many times you have to pick each shard to draw all its samples.
+    picks_per_shard = (samples_per_shard + granularity - 1) // granularity
+    num_picks = sum(picks_per_shard)
+
+    # Get the shard ID of each of those picks.
+    shard_ids = np.arange(num_shards)
+    pick_shard_ids = np.repeat(shard_ids, picks_per_shard)
+
+    # Get the size in samples of each of those picks.
+    pick_samples_per_shard = np.full(num_shards, granularity)
+    samples_per_pick = np.repeat(pick_samples_per_shard, picks_per_shard)
+    shard_last_pick_indices = np.cumsum(picks_per_shard) - 1
+    shard_last_pick_sizes = samples_per_shard - (picks_per_shard - 1) * granularity
+    samples_per_pick[shard_last_pick_indices] = shard_last_pick_sizes
+
+    # Deterministically shuffle the picks.
     epoch_seed = seed + epoch if use_epoch else seed
     rng = np.random.default_rng(epoch_seed)
-    ordering = rng.permutation(num_granules)
+    pick_ordering = rng.permutation(num_picks)
 
-    # Collect choose per shard.
+    # Add up the picks until we have enough chosen samples to get choose per shard.
     choose_per_shard = samples_per_shard * (choose // num_samples)
     choose %= num_samples
-    for index in ordering:
-        shard_id = shard_ids[index]
-        count = counts[index]
-        count = min(choose, int(count))
-        choose_per_shard[shard_id] += count
-        choose -= count
+    for pick_id in pick_ordering:
+        shard_id = pick_shard_ids[pick_id]
+        num_picked = int(samples_per_pick[pick_id])
+        num_picked = min(choose, num_picked)
+        choose_per_shard[shard_id] += num_picked
+        choose -= num_picked
         if not choose:
             break
 
