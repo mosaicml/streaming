@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor, wait
 from concurrent.futures._base import Future
 from enum import IntEnum
 from math import ceil
-from threading import Event, Lock
+from threading import Event, Lock, _register_atexit
 from time import sleep, time_ns
 from typing import Any, Dict, Iterator, Optional, Sequence, Tuple, Union
 
@@ -102,6 +102,17 @@ class _Iterator:
         self._lock = Lock()
         self._state = 0
         self._num_exited = 0
+
+        _register_atexit(self.non_blocking_exit)
+
+    def non_blocking_exit(self) -> None:
+        """Signal threads to exit without blocking.
+
+        This will be called at process exit.
+        """
+        with self._lock:
+            if self._state == _IterState.ITERATING:
+                self._state = _IterState.EXITING
 
     def exit(self) -> None:
         """Signal threads to exit, wait until they have all exited, then return.
