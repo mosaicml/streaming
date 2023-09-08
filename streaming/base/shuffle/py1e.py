@@ -63,7 +63,8 @@ def get_shuffle_py1e(shard_sizes: NDArray[np.int64],
     # Populate the global sample ID mapping, shuffling within each span.
     ids = np.empty(num_samples, np.int64)
     offset = 0
-    # Iterate through each canonical node's spans because we don't want samples crossing canonical node boundaries
+    # Iterate through each canonical node's spans.
+    # We don't want samples crossing canonical node boundaries.
     for cn_begin, cn_end in super_spans:
         cn_spans = spans[cn_begin:cn_end]
         cn_span_sizes = np.array([end - begin for begin, end in cn_spans])
@@ -79,13 +80,13 @@ def get_shuffle_py1e(shard_sizes: NDArray[np.int64],
             cn_samples[samples_inserted:samples_inserted + (end - begin)] = cn_span_samples
             samples_inserted += (end - begin)
 
-        # Iterate over each span and shift sample indices by randomly sampled shifts from uniform distribution.
+        # Iterate over each span and shift sample indices by sampling from uniform distribution.
         cn_sample_offset = 0
         sample_positions = np.arange(num_cn_samples).astype(np.float64)
         for span_size in cn_span_sizes:
 
             # The maximum range on each side of the span is (block_size - span_size) / 2.
-            # This ensures that the span samples are only found in a range of max possible size block_size.
+            # This ensures that the span samples are only found in a range of maximum block_size.
             cutoff = (block_size - span_size) / 2
 
             # Make sure the lower bound of the range doesn't cross the start of the canonical node.
