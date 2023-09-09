@@ -4,6 +4,7 @@
 import math
 import os
 import shutil
+from multiprocessing import Process
 from typing import Any, Tuple
 
 import pytest
@@ -481,6 +482,32 @@ def test_dataloader_fixed_balanced_sampling(local_remote_dir: Any, batch_size: i
             assert samples_seen == first_samples_seen
         if epoch > 0 and sampling_method == 'balanced':
             assert samples_seen != first_samples_seen
+
+
+@pytest.mark.parametrize('num_samples', [9867])
+@pytest.mark.parametrize('seed', [1234])
+@pytest.mark.usefixtures('local_remote_dir')
+def test_dataloader_mid_epoch_exit(local_remote_dir: Tuple[str, str], num_samples: int, seed: int):
+    local, remote = local_remote_dir
+    convert_to_mds(out_root=remote, dataset_name='sequencedataset', num_samples=num_samples)
+
+    def run_one_iter(local: str, remote: str, seed: int) -> None:
+        # Build a StreamingDataset
+        dataset = StreamingDataset(local=local, remote=remote, shuffle_seed=seed)
+
+        # Do one iteration
+        it = iter(dataset)
+        next(it)
+        # Test if we can exit...
+
+    p = Process(target=run_one_iter, args=(local, remote, seed))
+    p.start()
+    p.join(5)
+    p.terminate()
+
+    result = p.exitcode
+
+    assert result == 0
 
 
 @pytest.mark.parametrize('batch_size', [128])
