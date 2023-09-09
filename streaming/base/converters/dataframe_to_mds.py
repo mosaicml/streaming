@@ -246,7 +246,7 @@ def dataframeToMDS(dataframe: DataFrame,
              pd.Series([count], name='fail_count')],
             axis=1)
 
-    if dataframe is None or dataframe.count() == 0:
+    if dataframe is None or dataframe.isEmpty:
         raise ValueError(f'Input dataframe is None or Empty!')
 
     if not mds_kwargs:
