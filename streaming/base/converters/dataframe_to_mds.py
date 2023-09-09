@@ -237,8 +237,8 @@ def dataframeToMDS(dataframe: DataFrame,
                 for sample in records:
                     try:
                         mds_writer.write(sample)
-                    except:
-                        raise RuntimeError(f'failed to write sample: {sample}')
+                    except Exception as ex:
+                        raise RuntimeError(f'failed to write sample: {sample}') from ex
                         count += 1
 
         yield pd.concat(
@@ -246,7 +246,7 @@ def dataframeToMDS(dataframe: DataFrame,
              pd.Series([count], name='fail_count')],
             axis=1)
 
-    if dataframe is None or dataframe.count() == 0:
+    if dataframe is None or dataframe.isEmpty():
         raise ValueError(f'Input dataframe is None or Empty!')
 
     if not mds_kwargs:
