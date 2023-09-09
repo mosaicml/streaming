@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor, wait
 from concurrent.futures._base import Future
 from enum import IntEnum
 from math import ceil
-from threading import Event, Lock, _register_atexit
+from threading import Event, Lock, _register_atexit  # pyright: ignore
 from time import sleep, time_ns
 from typing import Any, Dict, Iterator, Optional, Sequence, Tuple, Union
 
