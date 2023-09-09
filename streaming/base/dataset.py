@@ -6,12 +6,13 @@
 import json
 import logging
 import os
+import sys
 import warnings
 from concurrent.futures import ThreadPoolExecutor, wait
 from concurrent.futures._base import Future
 from enum import IntEnum
 from math import ceil
-from threading import Event, Lock, _register_atexit  # pyright: ignore
+from threading import Event, Lock
 from time import sleep, time_ns
 from typing import Any, Dict, Iterator, Optional, Sequence, Tuple, Union
 
@@ -103,7 +104,12 @@ class _Iterator:
         self._state = 0
         self._num_exited = 0
 
-        _register_atexit(self.non_blocking_exit)
+        if sys.version_info[1] <= 8:
+            import atexit
+            atexit.register(self.non_blocking_exit)
+        else:
+            from threading import _register_atexit  # pyright: ignore
+            _register_atexit(self.non_blocking_exit)
 
     def non_blocking_exit(self) -> None:
         """Signal threads to exit without blocking.
