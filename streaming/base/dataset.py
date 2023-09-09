@@ -28,6 +28,7 @@ from streaming.base.constant import (BARRIER, BARRIER_FILELOCK, CACHE_FILELOCK, 
                                      SHARD_ACCESS_TIMES, SHARD_STATES, TICK)
 from streaming.base.distributed import maybe_init_dist
 from streaming.base.format import get_index_basename
+from streaming.base.sampling import get_sampling
 from streaming.base.shared import (SharedArray, SharedBarrier, SharedMemory, SharedScalar,
                                    _get_path, get_shm_prefix)
 from streaming.base.spanner import Spanner
@@ -188,6 +189,11 @@ class StreamingDataset(Array, IterableDataset):
         * ``predownload``
         * ``cache_limit``
 
+      * Sampling:
+
+        * ``sampling_method``
+        * ``sampling_granularity``
+
       * Determinism:
 
         * ``partition_algo``
@@ -200,10 +206,6 @@ class StreamingDataset(Array, IterableDataset):
         * ``shuffle_algo``
         * ``shuffle_seed``
         * ``shuffle_block_size``
-
-      * Sampling:
-
-        * ``sampling_method``
 
       * Batching:
 
@@ -248,6 +250,12 @@ class StreamingDataset(Array, IterableDataset):
             Set to ``None`` to disable shard eviction. Supports integer bytes as well as string
             human-readable bytes (e.g., ``100b``, ``64kb``, ``77mb``, and so on). Defaults to
             ``None``.
+        sampling_method (str): Which sampling method to use, either ``balanced`` or ``fixed``.
+            Defaults to ``balanced``.
+        sampling_granularity (int): When picking samples for a stream's final partial repeat,
+            how many samples to pick from the same shard at a time (``1`` for evenly balanced
+            across shards, ``1000`` to pick 1000 samples from the same shard at a time, etc).
+            Defaults to ``1``.
         partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
         num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
             resumption. The sample space is divided evenly according to the number of canonical
@@ -265,11 +273,9 @@ class StreamingDataset(Array, IterableDataset):
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
             ``False``.
         shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1s``.
-        shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
+        shuffle_seed (int): Seed for deterministic data shuffling. Defaults to ``9176``.
         shuffle_block_size (int): Unit of shuffle. A canonical node's samples are split into blocks
             of this size, and samples within each block are shuffled. Defaults to ``1 << 18``.
-        sampling_method (str): Which sampling method to use, either ``balanced`` or ``fixed``.
-            Defaults to ``balanced``.
         batching_method (str): Which batching method to use, either ``random``, ``stratified``, or
             ``per_stream``. Defaults to ``random``.
     """
@@ -287,6 +293,8 @@ class StreamingDataset(Array, IterableDataset):
                  epoch_size: Optional[Union[int, str]] = None,
                  predownload: Optional[int] = None,
                  cache_limit: Optional[Union[int, str]] = None,
+                 sampling_method: str = 'balanced',
+                 sampling_granularity: int = 1,
                  partition_algo: str = 'orig',
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
@@ -294,11 +302,12 @@ class StreamingDataset(Array, IterableDataset):
                  shuffle_algo: str = 'py1s',
                  shuffle_seed: int = 9176,
                  shuffle_block_size: int = 1 << 18,
-                 sampling_method: str = 'balanced',
                  batching_method: str = 'random') -> None:
         # Global arguments (which do not live in Streams).
         self.predownload = predownload
         self.cache_limit = cache_limit
+        self.sampling_method = sampling_method
+        self.sampling_granularity = sampling_granularity
         self.partition_algo = partition_algo
         self.num_canonical_nodes = num_canonical_nodes
         self.batch_size = batch_size
@@ -306,7 +315,6 @@ class StreamingDataset(Array, IterableDataset):
         self.shuffle_algo = shuffle_algo
         self.shuffle_seed = shuffle_seed
         self.shuffle_block_size = shuffle_block_size
-        self.sampling_method = sampling_method
         self.batching_method = batching_method
 
         # Check streams vs remote/local.
@@ -321,6 +329,11 @@ class StreamingDataset(Array, IterableDataset):
                 f'Must be one of `balanced` or `fixed`.'
             )
 
+        # Check sampling granularity.
+        if self.sampling_granularity <= 0:
+            raise ValueError(f'`sampling_granularity` must be a positive integer, but got: ' +
+                             f'{self.sampling_granularity}.')
+
         # Check batching method is one of "random", "stratified", or "per_stream".
         if self.batching_method not in ['random', 'stratified', 'per_stream']:
             raise ValueError(
@@ -334,6 +347,11 @@ class StreamingDataset(Array, IterableDataset):
                 Please use the more performant \'py1br\' algorithm instead.',
                           DeprecationWarning,
                           stacklevel=2)
+
+        # Check shuffle seed.
+        if self.shuffle_seed < 0:
+            raise ValueError(f'`shuffle_seed` must be a non-negative integer, but got: ' +
+                             f'{self.shuffle_seed}.')
 
         # Check that predownload is at least per device batch size.
         if self.predownload is not None and self.batch_size is not None and \
@@ -750,17 +768,12 @@ class StreamingDataset(Array, IterableDataset):
 
             # Calculate choose per stream shard.
             samples_per_stream_shard = self.samples_per_shard[stream_shard_ids]
-            stream_samples = sum(samples_per_stream_shard)
             # the number of items to choose from each stream, obtained during initialization
             stream_choose = self.streams[stream_id].choose
-            if stream_choose == stream_samples:
-                choose_per_stream_shard = samples_per_stream_shard
-            else:
-                choose_per_stream_shard = \
-                    samples_per_stream_shard * stream_choose // stream_samples
-                shortfall = stream_choose - choose_per_stream_shard.sum()
-                indices = rng.choice(num_stream_shards, shortfall, False)
-                choose_per_stream_shard[indices] += 1
+            use_epoch = self.sampling_method == 'balanced'
+            choose_per_stream_shard = get_sampling(samples_per_stream_shard, stream_choose,
+                                                   self.sampling_granularity, self.shuffle_seed,
+                                                   epoch, use_epoch)
 
             # Iterate over each shard of this stream.
             for shard_id, shard_samples, shard_choose in zip(stream_shard_ids,
