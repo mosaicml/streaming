@@ -3,6 +3,7 @@
 
 """A mid-epoch-resumable streaming/caching pytorch IterableDataset."""
 
+import getpass
 import json
 import logging
 import os
@@ -495,7 +496,7 @@ class StreamingDataset(Array, IterableDataset):
         ]
         self._shm_prefix_int, self._locals_shm = get_shm_prefix(streams_local, streams_remote,
                                                                 world)
-        self._filelock_root = os.path.join(os.path.sep, 'tmp', 'streaming')
+        self._filelock_root = os.path.join(os.path.sep, 'tmp', getpass.getuser(), 'streaming')
         os.makedirs(self._filelock_root, exist_ok=True)
 
         # Create the shared memory-backed barrier, without its lock, which is unpickleable.
