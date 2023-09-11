@@ -104,7 +104,14 @@ class _Iterator:
         self._state = 0
         self._num_exited = 0
 
-        if sys.version_info[1] <= 8:
+        # python will attempt to join all threads on shutdown.
+        # Here, we register a call to self.non_blocking_exit to run
+        # at shutdown to prevent a deadlock.
+        # In python version >=3.9 this can be accomplished via
+        # threading._register_atexit but not with the atexit module.
+        # In older python versions, the atexit module can be used, and
+        # threading._register_atexit does not exist.
+        if sys.version_info[1] <= 8:  # check if python version <=3.8
             import atexit
             atexit.register(self.non_blocking_exit)
         else:
