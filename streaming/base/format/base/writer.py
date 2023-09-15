@@ -95,10 +95,9 @@ class Writer(ABC):
                                  f'found as {size_limit_value}.')
 
         # Validate keyword arguments
-        invalid_kwargs = []
-        for args in kwargs.keys():
-            if args not in ('progress_bar', 'max_workers'):
-                invalid_kwargs.append(args)
+        invalid_kwargs = [
+            args for args in kwargs.keys() if args not in ('progress_bar', 'max_workers')
+        ]
         if invalid_kwargs:
             raise ValueError(f'Invalid Writer argument(s): {invalid_kwargs} ')
 
