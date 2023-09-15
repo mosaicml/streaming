@@ -94,6 +94,14 @@ class Writer(ABC):
                 raise ValueError(f'`size_limit` must be greater than zero, instead, ' +
                                  f'found as {size_limit_value}.')
 
+        # Validate keyword arguments
+        invalid_kwargs = []
+        for args in kwargs.keys():
+            if args not in ('progress_bar', 'max_workers'):
+                invalid_kwargs.append(args)
+        if invalid_kwargs:
+            raise ValueError(f'Invalid Writer argument(s): {invalid_kwargs} ')
+
         self.keep_local = keep_local
         self.compression = compression
         self.hashes = hashes
