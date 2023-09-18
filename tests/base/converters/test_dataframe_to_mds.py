@@ -216,8 +216,8 @@ class TestDataFrameToMDS:
                                                manual_integration_dir: Any):
         if not MANUAL_INTEGRATION_TEST:
             pytest.skip(
-                'Overlap with integration tests. But better figure out how to run this test suite with Mock.'
-            )
+                'Overlap with integration tests. But better figure out how to run this test ' +
+                'suite with Mock.')
         mock_local, mock_remote = manual_integration_dir()
         out = (mock_local, mock_remote)
         mds_kwargs = {
@@ -295,9 +295,9 @@ class TestDataFrameToMDS:
             assert (os.path.exists(os.path.join(mds_path[0],
                                                 'index.json'))), 'No merged index.json found'
         else:
-            assert not (
-                os.path.exists(os.path.join(mds_path[0], 'index.json'))
-            ), f'merged index is created at {mds_path[0]} when merge_index={merge_index} and keep_local={keep_local}'
+            assert not (os.path.exists(os.path.join(mds_path[0], 'index.json'))), (
+                f'merged index is created at {mds_path[0]} when merge_index={merge_index} and ' +
+                f'keep_local={keep_local}')
 
     @pytest.mark.usefixtures('manual_integration_dir')
     def test_integration_conversion_remote_only(self, dataframe: Any, manual_integration_dir: Any):
