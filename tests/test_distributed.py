@@ -37,8 +37,6 @@ class TestWorldSize(DistributedTest):
 
 class TestAllgatherObject(DistributedTest):
 
-    @pytest.mark.skip(
-        'CI non-deterministically hangs. See https://mosaicml.atlassian.net/browse/STR-61')
     @pytest.mark.world_size(2)
     @pytest.mark.parametrize(('data', 'expected_data'),
                              [(5, [5, 5]),
@@ -47,8 +45,6 @@ class TestAllgatherObject(DistributedTest):
         output = ms_dist.all_gather_object(data)
         assert output == expected_data
 
-    @pytest.mark.skip(
-        'CI non-deterministically hangs. See https://mosaicml.atlassian.net/browse/STR-61')
     @pytest.mark.world_size(1)
     @pytest.mark.parametrize(('data', 'expected_data'), [(5, [5]), (np.array(10), [np.array(10)])])
     def test_all_gather_object_non_dist(self, data: Any, expected_data: Any):
