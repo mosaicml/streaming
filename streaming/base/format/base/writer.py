@@ -96,7 +96,7 @@ class Writer(ABC):
 
         # Validate keyword arguments
         invalid_kwargs = [
-            args for args in kwargs.keys() if args not in ('progress_bar', 'max_workers')
+            arg for arg in kwargs.keys() if arg not in ('progress_bar', 'max_workers')
         ]
         if invalid_kwargs:
             raise ValueError(f'Invalid Writer argument(s): {invalid_kwargs} ')
