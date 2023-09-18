@@ -68,7 +68,7 @@ extra_deps['dev'] = [
     'jupyter==1.0.0',
     'pre-commit>=2.18.1,<4',
     'pytest==7.4.2',
-    'pytest_codeblocks==0.16.1',
+    'pytest_codeblocks==0.17.0',
     'pytest-cov>=4,<5',
     'toml==0.10.2',
     'yamllint==1.32.0',
