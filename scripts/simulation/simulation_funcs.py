@@ -101,6 +101,8 @@ def simulate(shards: int,
     # or multiple streams for now.
     shard_sizes = np.array([samples_per_shard] * shards)
 
+    print("before partition")
+
     # get partition of sample ids
     # structured as (physical nodes, ranks per node, workers per rank, batches per worker, batch size)
     orig_partitions = get_partitions(algo='orig',
@@ -111,6 +113,8 @@ def simulate(shards: int,
                                 workers_per_rank=workers,
                                 batch_size=device_batch_size,
                                 drop_first=0)
+    
+    print("partition done")
     
     # time for the global batch is just device batch size * time per sample, since all devices process their microbatch in parallel
     avg_batch_time = device_batch_size * time_per_sample
@@ -140,6 +144,8 @@ def simulate(shards: int,
 
     for epoch in range(epochs):
 
+        print("within loop...")
+
         if shuffle_algo is not None:
             # get shuffle of sample ids
             shuffle = get_shuffle(algo=shuffle_algo,
@@ -149,11 +155,16 @@ def simulate(shards: int,
                                   epoch=epoch,
                                   block_size=shuffle_block_size)
             # index into the shuffle to get the new sample at each index
+            print("shuffle done")
             partitions = np.where(orig_partitions != -1, shuffle[orig_partitions], -1)
+
+        print("after shuffle...")
 
         # handle initial predownload
         # reshape shuffled_partition to get samples, in order, per worker
         samples_per_worker = partitions.reshape(physical_nodes, devices, workers, -1)
+
+        print("after reshape...")
 
         worker_sample_index = 0  # track which sample we are on. is an index per worker.
         worker_download_indices = np.array(
