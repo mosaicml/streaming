@@ -67,7 +67,7 @@ extra_deps['dev'] = [
     'docformatter>=1.4',
     'jupyter==1.0.0',
     'pre-commit>=2.18.1,<4',
-    'pytest==7.4.1',
+    'pytest==7.4.2',
     'pytest_codeblocks==0.16.1',
     'pytest-cov>=4,<5',
     'toml==0.10.2',
