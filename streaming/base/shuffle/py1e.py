@@ -4,8 +4,8 @@
 """Shuffling algorithm that shuffles by randomly placing shard samples in expanded ranges.
 
 This algorithm has more balanced downloading and a lower minimum cache limit than ``py1b`` and
-``py1br``, but also slightly lower shuffle quality. The maximum range the samples from each shard
-can cover is determined by ``shuffle_block_size``.
+``py1br``, but also slightly lower shuffle quality. The range the samples from each shard can cover
+is determined by ``shuffle_block_size``.
 """
 
 import numpy as np
@@ -85,9 +85,14 @@ def get_shuffle_py1e(shard_sizes: NDArray[np.int64],
         sample_positions = np.arange(num_cn_samples).astype(np.float64)
         for span_size in cn_span_sizes:
 
-            # The maximum range on each side of the span is (block_size - span_size) / 2.
-            # This ensures that the span samples are only found in a range of maximum block_size.
-            cutoff = (block_size - span_size) / 2
+            # Sample the block size uniformly in a fixed range centered around the block_size.
+            # This helps to ensure that when training across a large number of nodes, downloads
+            # are more balanced.
+            rand_block_size = epoch_rng.integers(int(0.75 * block_size), int(1.25 * block_size))
+
+            # The maximum range on each side of the span is (rand_block_size - span_size) / 2.
+            # This ensures that the span samples are only found in a max range of rand_block_size.
+            cutoff = (rand_block_size - span_size) / 2
 
             # Make sure the lower bound of the range doesn't cross the start of the canonical node.
             lower_bound = max(-cutoff, -cn_sample_offset)
