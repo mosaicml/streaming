@@ -1090,8 +1090,7 @@ class StreamingDataset(Array, IterableDataset):
             shard = self.shards[shard_id]
 
             # We may need to decompress the shard (if local dir just contains zips).
-            raw_info, _ = shard.file_pairs[0]  # Each file pair is present in the same way.
-            raw_filename = os.path.join(stream.local, stream.split, raw_info.basename)  # Find raw.
+            raw_filename = os.path.join(stream.local, stream.split, shard.raw_data.basename)
             if not os.path.isfile(raw_filename):  # Is raw missing?
                 self._shard_states[shard_id] = _ShardState.PREPARING  # Lock the shard.
                 lock.release()  # Unblock other workers.

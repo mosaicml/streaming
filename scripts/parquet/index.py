@@ -6,9 +6,11 @@
 import json
 import os
 from argparse import ArgumentParser, Namespace
-from typing import Any, Dict, Iterator, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 from pyarrow import parquet as pq
+
+from streaming.base.format.mds.encodings import get_mds_encoded_size
 
 
 def parse_args() -> Namespace:
@@ -62,6 +64,42 @@ def each_shard_path(dataset_root: str, shard_suffix: str) -> Iterator[Tuple[str,
             yield path, dataset_rel_path
 
 
+def get_column(val: Any) -> str:
+    """Get the MDS column encoding of one field.
+
+    Args:
+        val (Any): The field.
+
+    Returns:
+        str: Its corresponding MDS encoding.
+    """
+    if isinstance(val, int):
+        return 'int'
+    elif isinstance(val, str):
+        return 'str'
+    else:
+        raise ValueError('Unsupported column type: {type(val)}.')
+
+
+def get_columns(sample: Dict[str, Any]) -> Tuple[List[str], List[str], List[Optional[int]]]:
+    """Get column names, encodings, and sizes.
+
+    Args:
+        sample (Dict[str, Any]): A sample to derive column info from.
+
+    Returns:
+        Tuple[List[str], List[str], List[Optional[int]]]: Column names, encodings, and sizes.
+    """
+    col_names = sorted(sample)
+    col_encs = []
+    for name in col_names:
+        val = sample[name]
+        enc = get_column(val)
+        col_encs.append(enc)
+    col_sizes = list(map(get_mds_encoded_size, col_encs))
+    return col_names, col_encs, col_sizes
+
+
 def get_shard_info(path: str, dataset_rel_path: str) -> Dict[str, Any]:
     """Get info the index needs about a Parquet shard.
 
@@ -74,14 +112,23 @@ def get_shard_info(path: str, dataset_rel_path: str) -> Dict[str, Any]:
     """
     num_bytes = os.stat(path).st_size
     table = pq.read_table(path)
-    num_samples = len(table)
+    samples = table.to_pylist()
+    num_samples = len(samples)
+    col_names, col_encs, col_sizes = get_columns(samples[0])
     return {
-        'format': 'parquet',
+        'version': 2,
+        'format': 'pq',
+        'column_names': col_names,
+        'column_encodings': col_encs,
+        'column_sizes': col_sizes,
         'raw_parquet': {
             'basename': dataset_rel_path,
-            'bytes': num_bytes,
+            'bytes': num_bytes
         },
-        'samples': num_samples,
+        'raw_data': {
+            'basename': dataset_rel_path + '.mds'
+        },
+        'samples': num_samples
     }
 
 

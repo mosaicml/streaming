@@ -419,7 +419,7 @@ class Stream:
         Returns:
             int: Change in cache usage.
         """
-        delta = 0
+        delta = shard.prepare(self.safe_keep_zip)
         for raw_info, zip_info in shard.file_pairs:
             delta += self._prepare_shard_part(raw_info, zip_info, shard.compression)
         return delta

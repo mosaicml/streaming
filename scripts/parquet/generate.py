@@ -21,7 +21,7 @@ def parse_args() -> Namespace:
     args = ArgumentParser()
     args.add_argument('--num_train', type=int, default=10_000_000)
     args.add_argument('--num_val', type=int, default=1_000_000)
-    args.add_argument('--out', type=str, default='data/pq/')
+    args.add_argument('--dataset', type=str, default='data/pq/')
     args.add_argument('--samples_per_shard', type=int, default=10_000)
     return args.parse_args()
 
@@ -130,10 +130,10 @@ def main(args: Namespace) -> None:
     train_txts = [' '.join(say(num)) for num in train_nums]
     val_txts = [' '.join(say(num)) for num in val_nums]
 
-    dirname = os.path.join(args.out, 'train')
+    dirname = os.path.join(args.dataset, 'train')
     save_parquets(train_nums, train_txts, dirname, args.samples_per_shard)
 
-    dirname = os.path.join(args.out, 'val')
+    dirname = os.path.join(args.dataset, 'val')
     save_parquets(val_nums, val_txts, dirname, args.samples_per_shard)
 
 

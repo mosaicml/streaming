@@ -23,9 +23,14 @@ class FileInfo(object):
         bytes (int): File size in bytes.
         hashes (Dict[str, str]): Mapping of hash algorithm to hash value.
     """
-    basename: str
-    bytes: int
-    hashes: Dict[str, str]
+
+    def __init__(self,
+                 basename: str,
+                 bytes: Optional[int] = None,
+                 hashes: Optional[Dict[str, str]] = None):
+        self.basename = basename
+        self.bytes = bytes
+        self.hashes = hashes or {}
 
 
 class Reader(Array, ABC):
@@ -133,7 +138,7 @@ class Reader(Array, ABC):
                 compression was used. Necessary when local is the remote or there is no remote.
 
         Returns:
-            bool: Whether the shard is present.
+            int: Shard cache usage.
         """
         # For raw/zip to be considered present, each raw/zip file must be present.
         raw_files_present = 0
@@ -317,6 +322,17 @@ class Reader(Array, ABC):
         """
         for i in range(len(self)):
             yield self[i]
+
+    def prepare(self, safe_keep_zip: bool) -> int:
+        """Do any additional work to prepare a shard for use.
+
+        Args:
+            safe_keep_zip (bool): Whether to keep zip shard files, or drop post-conversion.
+
+        Returns:
+            int: Change in cache usage in bytes due to preparation.
+        """
+        return 0
 
 
 class JointReader(Reader):
