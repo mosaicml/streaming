@@ -184,6 +184,5 @@ class PQReader(MDSReader):
             delta = os.stat(mds_filename).st_size
         if not safe_keep_zip:
             delta -= os.stat(pq_filename).st_size
-            print('REMOVING', pq_filename)
             os.remove(pq_filename)
         return delta
