@@ -22,7 +22,7 @@ def parse_args() -> Namespace:
     args.add_argument('--num_train', type=int, default=10_000_000)
     args.add_argument('--num_val', type=int, default=1_000_000)
     args.add_argument('--dataset', type=str, default='data/pq/')
-    args.add_argument('--samples_per_shard', type=int, default=10_000)
+    args.add_argument('--samples_per_shard', type=int, default=100_000)
     return args.parse_args()
 
 
