@@ -3,18 +3,16 @@
 
 """A utility to convert spark dataframe to MDS."""
 
-import json
 import logging
 import os
 import shutil
 from collections.abc import Iterable
-from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 import pandas as pd
 
 from streaming.base.util import get_import_exception_message
 from streaming.base.util import merge_index as do_merge_index
-
 
 try:
     from pyspark import TaskContext
@@ -28,7 +26,6 @@ except ImportError as e:
     raise e
 
 from streaming import MDSWriter
-from streaming.base.format.index import get_index_basename
 from streaming.base.format.mds.encodings import _encodings
 from streaming.base.storage.upload import CloudUploader
 
@@ -256,8 +253,8 @@ def dataframeToMDS(dataframe: DataFrame,
                 folder_urls.append(row['mds_path'].split(','))
             else:
                 folder_urls.append(row['mds_path'])
-        n_downloads = do_merge_index(folder_urls, out, keep_local = keep_local, overwrite=True)
-        logger.warning(f"{n_downloads} index files have been downloaded during index merging")
+        n_downloads = do_merge_index(folder_urls, out, keep_local=keep_local, overwrite=True)
+        logger.warning(f'{n_downloads} index files have been downloaded during index merging')
 
     if cu.remote is not None:
         if 'keep_local' in mds_kwargs and mds_kwargs['keep_local'] == False:
