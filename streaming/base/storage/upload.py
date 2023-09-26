@@ -53,10 +53,13 @@ class CloudUploader:
     """Upload local files to a cloud storage."""
 
     @classmethod
-    def get(cls,
-            out: Union[str, Tuple[str, str]],
-            keep_local: bool = False,
-            progress_bar: bool = False) -> Any:
+    def get(
+        cls,
+        out: Union[str, Tuple[str, str]],
+        keep_local: bool = False,
+        progress_bar: bool = False,
+        exist_ok: bool = False,
+    ) -> Any:
         """Instantiate a cloud provider uploader or a local uploader based on remote path.
 
         Args:
@@ -72,6 +75,7 @@ class CloudUploader:
                 shard file or remove it after uploading. Defaults to ``False``.
             progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
                 a remote location. Default to ``False``.
+            exist_ok (bool): Throw error if out already exists and not empty. Defaults to ``False``.
 
         Returns:
             CloudUploader: An instance of sub-class.
@@ -85,7 +89,7 @@ class CloudUploader:
             if prefix == 'dbfs:/Volumes':
                 provider_prefix = prefix
         return getattr(sys.modules[__name__], UPLOADERS[provider_prefix])(out, keep_local,
-                                                                          progress_bar)
+                                                                          progress_bar, exist_ok)
 
     def _validate(self, out: Union[str, Tuple[str, str]]) -> None:
         """Validate the `out` argument.
@@ -118,7 +122,8 @@ class CloudUploader:
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
-                 progress_bar: bool = False) -> None:
+                 progress_bar: bool = False,
+                 exist_ok: bool = False) -> None:
         """Initialize and validate local and remote path.
 
         Args:
@@ -134,6 +139,7 @@ class CloudUploader:
                 shard file or remove it after uploading. Defaults to ``False``.
             progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
                 a remote location. Default to ``False``.
+            exist_ok (bool): Throw error if out already exists and has contents. Defaults to ``False``.
 
         Raises:
             FileExistsError: Local directory must be empty.
@@ -155,7 +161,7 @@ class CloudUploader:
             self.local = out[0]
             self.remote = out[1]
 
-        if os.path.exists(self.local) and len(os.listdir(self.local)) != 0:
+        if not exist_ok and os.path.exists(self.local) and len(os.listdir(self.local)) != 0:
             raise FileExistsError(f'Directory is not empty: {self.local}')
         os.makedirs(self.local, exist_ok=True)
 
@@ -196,13 +202,15 @@ class S3Uploader(CloudUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
+        exist_ok (bool): Throw error if out already exists and not empty. Defaults to ``False``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
-                 progress_bar: bool = False) -> None:
-        super().__init__(out, keep_local, progress_bar)
+                 progress_bar: bool = False,
+                 exist_ok: bool = False) -> None:
+        super().__init__(out, keep_local, progress_bar, exist_ok)
 
         import boto3
         from botocore.config import Config
@@ -277,13 +285,15 @@ class GCSUploader(CloudUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
+        exist_ok (bool): Throw error if out already exists and not empty. Defaults to ``False``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
-                 progress_bar: bool = False) -> None:
-        super().__init__(out, keep_local, progress_bar)
+                 progress_bar: bool = False,
+                 exist_ok: bool = False) -> None:
+        super().__init__(out, keep_local, progress_bar, exist_ok)
         if 'GCS_KEY' in os.environ and 'GCS_SECRET' in os.environ:
             import boto3
 
@@ -386,13 +396,15 @@ class OCIUploader(CloudUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
+        exist_ok (bool): Throw error if out already exists and not empty. Defaults to ``False``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
-                 progress_bar: bool = False) -> None:
-        super().__init__(out, keep_local, progress_bar)
+                 progress_bar: bool = False,
+                 exist_ok: bool = False) -> None:
+        super().__init__(out, keep_local, progress_bar, exist_ok)
 
         import oci
 
@@ -469,13 +481,15 @@ class AzureUploader(CloudUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
+        exist_ok (bool): Throw error if out already exists and not empty. Defaults to ``False``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
-                 progress_bar: bool = False) -> None:
-        super().__init__(out, keep_local, progress_bar)
+                 progress_bar: bool = False,
+                 exist_ok: bool = False) -> None:
+        super().__init__(out, keep_local, progress_bar, exist_ok)
 
         from azure.storage.blob import BlobServiceClient
 
@@ -547,13 +561,15 @@ class AzureDataLakeUploader(CloudUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
+        exist_ok (bool): Throw error if out already exists and not empty. Defaults to ``False``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
-                 progress_bar: bool = False) -> None:
-        super().__init__(out, keep_local, progress_bar)
+                 progress_bar: bool = False,
+                 exist_ok: bool = False) -> None:
+        super().__init__(out, keep_local, progress_bar, exist_ok)
 
         from azure.storage.filedatalake import DataLakeServiceClient
 
@@ -622,13 +638,15 @@ class DatabricksUploader(CloudUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
+        exist_ok (bool): Throw error if out already exists and not empty. Defaults to ``False``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
-                 progress_bar: bool = False) -> None:
-        super().__init__(out, keep_local, progress_bar)
+                 progress_bar: bool = False,
+                 exist_ok: bool = False) -> None:
+        super().__init__(out, keep_local, progress_bar, exist_ok)
         self.client = self._create_workspace_client()
 
     def _create_workspace_client(self):
@@ -656,13 +674,15 @@ class DatabricksUnityCatalogUploader(DatabricksUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
+        exist_ok (bool): Throw error if out already exists and not empty. Defaults to ``False``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
-                 progress_bar: bool = False) -> None:
-        super().__init__(out, keep_local, progress_bar)
+                 progress_bar: bool = False,
+                 exist_ok: bool = False) -> None:
+        super().__init__(out, keep_local, progress_bar, exist_ok)
 
     def upload_file(self, filename: str):
         """Upload file from local instance to Databricks Unity Catalog.
@@ -695,13 +715,15 @@ class DBFSUploader(DatabricksUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
+        exist_ok (bool): Throw error if out already exists and not empty. Defaults to ``False``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
-                 progress_bar: bool = False) -> None:
-        super().__init__(out, keep_local, progress_bar)
+                 progress_bar: bool = False,
+                 exist_ok: bool = False) -> None:
+        super().__init__(out, keep_local, progress_bar, exist_ok)
         self.dbfs_path = self.remote.lstrip('dbfs:')  # pyright: ignore
         self.check_folder_exists()
 
@@ -755,13 +777,15 @@ class LocalUploader(CloudUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
+        exist_ok (bool): Throw error if out already exists and not empty. Defaults to ``False``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
-                 progress_bar: bool = False) -> None:
-        super().__init__(out, keep_local, progress_bar)
+                 progress_bar: bool = False,
+                 exist_ok: bool = False) -> None:
+        super().__init__(out, keep_local, progress_bar, exist_ok)
         # Create remote directory if it doesn't exist
         if self.remote:
             os.makedirs(self.remote, exist_ok=True)

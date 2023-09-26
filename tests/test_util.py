@@ -1,15 +1,17 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+import os
+import tempfile
 from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
-from typing import List, Optional
+from typing import Any, List, Optional, Tuple
 
 import pytest
 
 from streaming.base.constant import RESUME
 from streaming.base.shared.prefix import _get_path
 from streaming.base.util import (bytes_to_int, clean_stale_shared_memory, get_list_arg,
-                                 number_abbrev_to_int)
+                                 merge_index, number_abbrev_to_int)
 
 
 @pytest.mark.parametrize(('text', 'expected_output'), [('hello,world', ['hello', 'world']),
@@ -105,3 +107,68 @@ def test_clean_stale_shared_memory():
     # If clean up is successful, it should raise FileNotFoundError Exception
     with pytest.raises(FileNotFoundError):
         _ = BuiltinSharedMemory(name, False, 64)
+
+
+@pytest.mark.parametrize('folder_urls', [
+    'local_accessible', 'remote', 'local_unaccessible', 'tuple_local_accessible',
+    'tuple_partial_local_accessible'
+])
+@pytest.mark.parametrize('out', ['local_str', 'remote_str', 'tuple'])
+@pytest.mark.usefixtures('local_remote_dir')
+@pytest.mark.parametrize('keep_local', [True, False])
+def test_merge_index(local_remote_dir: Tuple[str, str], keep_local: Any, folder_urls: Any,
+                     out: Any):
+    """Example input urls to test based on folder accessibility to the driver
+        ['pwd()/tests/resources/naive_MDSdataset/25/', ...] --> all accessible locally
+        ['gs://mybucket/mdsdata/25/'...] --> all remote urls, assume all accessible remotely
+        ['/path/never/exists/25',... ] --> none accessible locally
+        [('/path/never/exists/25', 'gs://mybucket/mdsdata/25/'), ...] --> all accessible remotely but not locally
+        [('pwd()/tests/resources/naive_MDSdataset/25/', 'gs://mybucket/mdsdata/25/'), ...] --> all accessible both locally and remotely
+        [('pwd()/tests/resources/naive_MDSdataset/25/', 'gs://mybucket/mdsdata/25/'),
+         ('/path/never/exists/25/', 'gs://mybucket/mdsdata/25/'),
+        ...] --> some accessible both locally and remotely, some are not
+    """
+
+    naive_mds_partitions = [
+        'tests/resources/naive_MDSdataset/25/', 'tests/resources/naive_MDSdataset/26/',
+        'tests/resources/naive_MDSdataset/27/'
+    ]
+
+    # require download_file from cloud
+    if out == 'remote_str' or 'tuple':
+        return
+
+    # require download_file from cloud
+    if folder_urls == 'remote' or 'tuple_partial_local_accessible':
+        return
+
+    if folder_urls == 'local_accessible':
+        folder_urls = [os.getcwd() + '/' + s for s in naive_mds_partitions]
+        print(folder_urls)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            n_downloads = merge_index(folder_urls, tmp, keep_local=keep_local, overwrite=True)
+            if keep_local:
+                assert (os.path.exists(os.path.join(tmp, 'index.json')))
+            else:
+                assert (not os.path.exists(os.path.join(tmp, 'index.json')))
+            assert n_downloads == 0, f'n_downloads should be 0 instead of {n_downloads}'
+
+    if folder_urls == 'local_unaccessible':
+        with tempfile.TemporaryDirectory() as tmp_data_root:
+            folder_urls = [tmp_data_root + '/' + s for s in naive_mds_partitions]
+            with pytest.raises(
+                    FileNotFoundError,
+                    match=f'.* does not exit or cannot be acceessed by the current process.*'):
+                merge_index(folder_urls, tmp_data_root, keep_local=keep_local, overwrite=True)
+
+    if folder_urls == 'tuple_local_accessible':
+        folder_urls = []
+        for s in naive_mds_partitions:
+            folder_urls.append((os.getcwd() + '/' + s, 'gs://mybucket/' + s))
+        with tempfile.TemporaryDirectory() as tmp_data_root:
+            n_downloads = merge_index(folder_urls,
+                                      tmp_data_root,
+                                      keep_local=keep_local,
+                                      overwrite=True)
+            assert n_downloads == 0, f'n_downloads should be 0 instead of {n_downloads}'
