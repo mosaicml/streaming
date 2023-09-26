@@ -13,6 +13,8 @@ from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union
 import pandas as pd
 
 from streaming.base.util import get_import_exception_message
+from streaming.base.util import merge_index as do_merge_index
+
 
 try:
     from pyspark import TaskContext
@@ -119,47 +121,6 @@ def infer_dataframe_schema(dataframe: DataFrame,
     return schema_dict
 
 
-def do_merge_index(partitions: Iterable, mds_path: Union[str, Tuple[str, str]]) -> None:
-    """Merge index.json from partitions into one for streaming.
-
-    Args:
-        partitions (Iterable): partitions that contain pd.DataFrame
-        mds_path (Union[str, Tuple[str, str]]): (str,str)=(local,remote), str = local or remote
-            based on parse_uri(url) result
-    """
-    if not partitions:
-        logger.warning('No partitions exist, no index merged')
-        return
-
-    shards = []
-
-    for row in partitions:
-        mds_partition_index = f'{row.mds_path}/{get_index_basename()}'
-        mds_partition_basename = os.path.basename(row.mds_path)
-        obj = json.load(open(mds_partition_index))
-        for i in range(len(obj['shards'])):
-            shard = obj['shards'][i]
-            for key in ('raw_data', 'zip_data'):
-                if shard.get(key):
-                    basename = shard[key]['basename']
-                    obj['shards'][i][key]['basename'] = os.path.join(mds_partition_basename,
-                                                                     basename)
-        shards += obj['shards']
-
-    obj = {
-        'version': 2,
-        'shards': shards,
-    }
-
-    if isinstance(mds_path, str):
-        mds_index = os.path.join(mds_path, get_index_basename())
-    else:
-        mds_index = os.path.join(mds_path[0], get_index_basename())
-
-    with open(mds_index, 'w') as out:
-        json.dump(obj, out)
-
-
 def dataframeToMDS(dataframe: DataFrame,
                    merge_index: bool = True,
                    mds_kwargs: Optional[Dict[str, Any]] = None,
@@ -203,10 +164,8 @@ def dataframeToMDS(dataframe: DataFrame,
 
         if isinstance(mds_path, str):  # local
             output = os.path.join(mds_path, f'{id}')
-            out_file_path = output
         else:
             output = (os.path.join(mds_path[0], f'{id}'), os.path.join(mds_path[1], f'{id}'))
-            out_file_path = output[0]
 
         if mds_kwargs:
             kwargs = mds_kwargs.copy()
@@ -238,7 +197,7 @@ def dataframeToMDS(dataframe: DataFrame,
                         count += 1
 
         yield pd.concat(
-            [pd.Series([out_file_path], name='mds_path'),
+            [pd.Series([out_put], name='mds_path'),
              pd.Series([count], name='fail_count')],
             axis=1)
 
@@ -289,11 +248,11 @@ def dataframeToMDS(dataframe: DataFrame,
     partitions = dataframe.mapInPandas(func=write_mds, schema=result_schema).collect()
 
     if merge_index:
-        do_merge_index(partitions, mds_path)
+        folder_urls = [ row['mds_path'] for row in partitions ]
+        n_downloads = do_merge_index(folder_urls, out, keep_local = keep_local, overwrite=True)
+        logger.warning(f"{n_download} index files have been downloaded during index merging")
 
     if cu.remote is not None:
-        if merge_index:
-            cu.upload_file(get_index_basename())
         if 'keep_local' in mds_kwargs and mds_kwargs['keep_local'] == False:
             shutil.rmtree(cu.local, ignore_errors=True)
 
