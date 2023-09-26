@@ -14,7 +14,10 @@ from streaming.base.constant import SHM_TO_CLEAN
 from streaming.base.distributed import get_local_rank, maybe_init_dist
 from streaming.base.shared.prefix import _get_path
 
-__all__ = ['get_list_arg']
+__all__ = [
+    'get_list_arg', 'wait_for_file_to_exist', 'bytes_to_int', 'number_abbrev_to_int',
+    'clean_stale_shared_memory', 'get_import_exception_message'
+]
 
 
 def get_list_arg(text: str) -> List[str]:

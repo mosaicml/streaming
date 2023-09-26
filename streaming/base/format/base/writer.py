@@ -20,7 +20,7 @@ from streaming.base.compression import compress, get_compression_extension, is_c
 from streaming.base.format.index import get_index_basename
 from streaming.base.hashing import get_hash, is_hash
 from streaming.base.storage.upload import CloudUploader
-from streaming.base.util import bytes_to_int
+from streaming.base.utils import bytes_to_int
 
 __all__ = ['JointWriter', 'SplitWriter']
 

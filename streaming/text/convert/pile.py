@@ -12,7 +12,7 @@ from multiprocessing import Pool
 from typing import Dict, Iterator, List, Tuple
 
 from streaming.base import MDSWriter
-from streaming.base.util import get_list_arg
+from streaming.base.utils import get_list_arg
 
 
 def parse_args() -> Namespace:

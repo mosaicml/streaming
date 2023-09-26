@@ -34,7 +34,7 @@ from streaming.base.shared import (SharedArray, SharedBarrier, SharedMemory, Sha
                                    _get_path, get_shm_prefix)
 from streaming.base.spanner import Spanner
 from streaming.base.stream import Stream
-from streaming.base.util import bytes_to_int, number_abbrev_to_int
+from streaming.base.utils import bytes_to_int, number_abbrev_to_int
 from streaming.base.world import World
 
 # An arbitrary time in the future, used for cold shard eviction.
