@@ -3,16 +3,23 @@
 
 """Utility and helper functions for datasets."""
 
+import json
+import logging
 import os
 from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
 from time import sleep, time
-from typing import List, Union
+from typing import List, Union, Tuple
 
 import torch.distributed as dist
 
 from streaming.base.constant import SHM_TO_CLEAN
 from streaming.base.distributed import get_local_rank, maybe_init_dist
 from streaming.base.shared.prefix import _get_path
+from streaming.base.format.index import get_index_basename
+import urllib.parse
+from tempfile import mkdtemp
+import shutil
+logger = logging.getLogger(__name__)
 
 __all__ = ['get_list_arg']
 
@@ -196,3 +203,126 @@ def get_import_exception_message(package_name: str, extra_deps: str) -> str:
     return f'Streaming was installed without {package_name} support. ' + \
             f'To use {package_name} related packages with Streaming, run ' + \
             f'`pip install \'mosaicml-streaming[{package_name}]\'`.'
+
+
+def merge_index(folder_urls: List[Union[str, Tuple[str, str]]],
+                out: Union[str, Tuple[str, str]],
+                *,
+                keep_local: bool = True,
+                overwrite: bool = True,
+                download_timeout: int = 100) -> None:
+    """Merge index.json from a list of remote or local directories into one for streaming and save the merged index to local or remote.
+
+    Args:
+        folder_urls (Iterable): folders that contain index.json for the partition
+            each element can take the form of a single path string or a tuple string
+
+            for each  url in folder_urls, if url is
+                1. tuple (local, remote): check if local is accessible.
+                    -> Yes: use local index to merge
+                    -> No:  download from remote first, then merge
+                2. str (local path): use local path to merge.
+                    raise FileNotFoundError if any local index is not accessible
+                3. str (remote url): download to a temp directory first, then merge
+
+        out (Union[str, Tuple[str, str]]): path to put the merged index file
+        keep_local (bool): Keep local copy of the merged index file. Defaults to ``True``
+        overwrite (bool): Overwrite merged index file in out if there exists one.Defaults to ``True``
+        download_timeout (int): The allowed time for downloading each json file
+            defaults to 60, same as streaming.download_file
+    """
+    # Import here to avoid circular import error
+    from streaming.base.storage.upload import CloudUploader
+    from streaming.base.storage.download import download_file
+
+    if not folder_urls:
+        logger.warning('No partitions exist, no index merged')
+        return
+
+    # This is the index json file name, e.g., it is index.json as of 0.6.0
+    index_basename = get_index_basename()
+
+    if os.path.exists(os.path.join(out, index_basename)) and overwrite:
+        logger.warning('Merged index already exists. no index merged if overwrite=False')
+        return
+
+    # Prepare a temp folder to download index.json rom remote if necessary. Removed in the end.
+    temp_root = mkdtemp()
+
+    # Remove '/' from right, so os.path.basename gives relative path to each folder
+    urls = []
+    for url in folder_urls:
+        if type(url) is str:
+            urls.append(url.rstrip('/').strip())
+        else:
+            urls.append((url[0].rstrip('/').strip(), url[1].rstrip('/').strip()))
+
+    # Determine if we need to call download_file.
+    download = False
+    for url in urls:
+        local = remote = url
+        if type(url) is tuple:
+            # If driver cannot access the local path, download = True
+            download = not os.path.exists(url[0])
+        else:
+            # If url is a remote, download = True, False otherwise
+            download = urllib.parse.urlparse(url).scheme is not None
+
+        # As long as one index file needs download, we download them all to keep it simple
+        if download:
+            break
+
+    # container for absolute local folder path
+    partitions = []
+    for url in urls:
+        local = remote = url
+
+        if download:
+            # If download is needed, download url from remote to temp_root
+            path = urllib.parse.urlparse(remote).path
+            local = os.path.join(temp_root, path.lstrip('/'))
+            try:
+                remote_url = os.path.join(remote, index_basename)
+                local_path = os.path.join(local, index_basename)
+                download_file(remote_url, local_path, download_timeout)
+            except Exception as ex:
+                raise RuntimeError(f'failed to download index.json {remote_url} -->{local_path}') from ex
+
+        assert(os.path.exists(local)), f"Folder {local} does not exit or cannot be acceessed by the current process"
+        partitions.append(local)
+
+    # merge index files into shards
+    shards = []
+    for partition in partitions:
+        partition_index = f'{partition}/{index_basename}'
+        mds_partition_basename = os.path.basename(partition)
+        obj = json.load(open(partition_index))
+        for i in range(len(obj['shards'])):
+            shard = obj['shards'][i]
+            for key in ('raw_data', 'zip_data'):
+                if shard.get(key):
+                    basename = shard[key]['basename']
+                    obj['shards'][i][key]['basename'] = os.path.join(mds_partition_basename, basename)
+        shards += obj['shards']
+
+    # Save merged index locally
+    obj = {
+        'version': 2,
+        'shards': shards,
+    }
+    merged_index_path = os.path.join(temp_root, index_basename)
+    with open(merged_index_path, 'w') as outfile:
+        json.dump(obj, outfile)
+
+    # Upload merged index to remote if out has remote part
+    # Otherwise, move it from temp root to out location
+    cu = CloudUploader.get(out, keep_local = True, exist_ok = True)
+    shutil.move(merged_index_path, cu.local)
+    if cu.remote is not None:
+        cu.upload_file(index_basename)
+
+    # Clean up
+    shutil.rmtree(temp_root, ignore_errors=True)
+    if not keep_local:
+        shutil.rmtree(cu.local, ignore_errors=True)
+
