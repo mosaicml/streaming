@@ -1,26 +1,18 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+import os
+import tempfile
 from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
-from typing import List, Optional, Tuple, Dict, Any
+from typing import Any, List, Optional, Tuple
 
 import pytest
 
 from streaming.base.constant import RESUME
 from streaming.base.shared.prefix import _get_path
 from streaming.base.util import (bytes_to_int, clean_stale_shared_memory, get_list_arg,
-                                 number_abbrev_to_int)
-from tests.common.utils import convert_to_mds
+                                 merge_index, number_abbrev_to_int)
 
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col
-from pyspark.sql.types import DecimalType, IntegerType, StringType, StructField, StructType
-
-from streaming.base.converters import dataframeToMDS
-from streaming.base.util import merge_index
-import tempfile
-import os
-import glob
 
 @pytest.mark.parametrize(('text', 'expected_output'), [('hello,world', ['hello', 'world']),
                                                        ('hello', ['hello']), ('', [])])
@@ -117,59 +109,37 @@ def test_clean_stale_shared_memory():
         _ = BuiltinSharedMemory(name, False, 64)
 
 
-@pytest.fixture
-def dataframe():
-    spark = SparkSession.builder.getOrCreate()  # pyright: ignore
-
-    data = [('36636', 'Finance', (3000, 'USA')), ('40288', 'Finance', (5000, 'IND')),
-            ('42114', 'Sales', (3900, 'USA')), ('39192', 'Marketing', (2500, 'CAN')),
-            ('34534', 'Sales', (6500, 'USA'))]
-    schema = StructType([
-        StructField('id', StringType(), True),
-        StructField('dept', StringType(), True),
-        StructField(
-            'properties',
-            StructType([
-                StructField('salary', IntegerType(), True),
-                StructField('location', StringType(), True)
-            ]))
-    ])
-
-    df = spark.createDataFrame(data=data, schema=schema).repartition(3)
-    yield df
-
-"""Example input urls to test
-    ['gs://mybucket/mdsdata/25/'...]
-    ['/path/never/exists/25',... ]
-    [('/path/never/exists/25', 'gs://mybucket/mdsdata/25/'), ...]
-    [('tests/resources/naive_MDSdataset/25/', 'gs://mybucket/mdsdata/25/'), ...]
-"""
-@pytest.mark.parametrize('folder_urls', ['local_accessible', 'remote', 'local_unaccessible', 'local_accessible_tuple'])
+@pytest.mark.parametrize(
+    'folder_urls', ['local_accessible', 'remote', 'local_unaccessible', 'local_accessible_tuple'])
 @pytest.mark.parametrize('out', ['local_str', 'remote_str', 'tuple'])
 @pytest.mark.usefixtures('local_remote_dir')
 @pytest.mark.parametrize('keep_local', [True, False])
-def test_merge_index(local_remote_dir: Tuple[str, str],
-                     dataframe: Any,
-                     keep_local: bool,
-                     folder_urls: Dict,
-                     out: Dict):
+def test_merge_index(local_remote_dir: Tuple[str, str], dataframe: Any, keep_local: Any,
+                     folder_urls: Any, out: Any):
+    """Example input urls to test
+        ['gs://mybucket/mdsdata/25/'...]
+        ['/path/never/exists/25',... ]
+        [('/path/never/exists/25', 'gs://mybucket/mdsdata/25/'), ...]
+        [('tests/resources/naive_MDSdataset/25/', 'gs://mybucket/mdsdata/25/'), ...]
+    """
 
-    naive_mds_partitions= ['tests/resources/naive_MDSdataset/25/',
-                           'tests/resources/naive_MDSdataset/26/',
-                           'tests/resources/naive_MDSdataset/27/']
+    naive_mds_partitions = [
+        'tests/resources/naive_MDSdataset/25/', 'tests/resources/naive_MDSdataset/26/',
+        'tests/resources/naive_MDSdataset/27/'
+    ]
 
     if folder_urls == 'local_accessible':
-        folder_urls = [ os.getcwd() + '/' + s for s in naive_mds_partitions]
+        folder_urls = [os.getcwd() + '/' + s for s in naive_mds_partitions]
         print(folder_urls)
 
         if out == 'local_str':
             with tempfile.TemporaryDirectory() as tmp:
-                n_downloads = merge_index(folder_urls, tmp, keep_local = keep_local, overwrite = True)
+                n_downloads = merge_index(folder_urls, tmp, keep_local=keep_local, overwrite=True)
                 if keep_local:
-                    assert(os.path.exists(os.path.join(tmp, 'index.json')))
+                    assert (os.path.exists(os.path.join(tmp, 'index.json')))
                 else:
-                    assert(not os.path.exists(os.path.join(tmp, 'index.json')))
-                assert n_downloads == 0, f"n_downloads should be 0 instead of {n_downloads}"
+                    assert (not os.path.exists(os.path.join(tmp, 'index.json')))
+                assert n_downloads == 0, f'n_downloads should be 0 instead of {n_downloads}'
         else:
             return
 
@@ -178,20 +148,22 @@ def test_merge_index(local_remote_dir: Tuple[str, str],
 
     if folder_urls == 'local_unaccessible':
         with tempfile.TemporaryDirectory() as tmp_data_root:
-            folder_urls = [ tmp_data_root + '/' + s for s in naive_mds_partitions]
-            with pytest.raises(FileNotFoundError, match=f'.* does not exit or cannot be acceessed by the current process.*'):
-                merge_index(folder_urls, tmp_data_root, keep_local = keep_local, overwrite = True)
+            folder_urls = [tmp_data_root + '/' + s for s in naive_mds_partitions]
+            with pytest.raises(
+                    FileNotFoundError,
+                    match=f'.* does not exit or cannot be acceessed by the current process.*'):
+                merge_index(folder_urls, tmp_data_root, keep_local=keep_local, overwrite=True)
 
     if folder_urls == 'local_accessible_tuple':
         folder_urls = []
         for s in naive_mds_partitions:
-            folder_urls.append((os.getcwd() + '/' + s, 'gs://mybucket/'+ s ))
+            folder_urls.append((os.getcwd() + '/' + s, 'gs://mybucket/' + s))
         if out == 'local_str':
             with tempfile.TemporaryDirectory() as tmp_data_root:
-                folder_urls = [ tmp_data_root + '/' + s for s in naive_mds_partitions]
-                with pytest.raises(FileNotFoundError, match=f'.* does not exit or cannot be acceessed by the current process.*'):
-                    merge_index(folder_urls, tmp_data_root, keep_local = keep_local, overwrite = True)
+                folder_urls = [tmp_data_root + '/' + s for s in naive_mds_partitions]
+                with pytest.raises(
+                        FileNotFoundError,
+                        match=f'.* does not exit or cannot be acceessed by the current process.*'):
+                    merge_index(folder_urls, tmp_data_root, keep_local=keep_local, overwrite=True)
         else:
             return
-
-

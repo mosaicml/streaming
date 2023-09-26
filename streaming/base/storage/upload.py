@@ -53,12 +53,13 @@ class CloudUploader:
     """Upload local files to a cloud storage."""
 
     @classmethod
-    def get(cls,
-            out: Union[str, Tuple[str, str]],
-            keep_local: bool = False,
-            progress_bar: bool = False,
-            exist_ok: bool = False,
-            ) -> Any:
+    def get(
+        cls,
+        out: Union[str, Tuple[str, str]],
+        keep_local: bool = False,
+        progress_bar: bool = False,
+        exist_ok: bool = False,
+    ) -> Any:
         """Instantiate a cloud provider uploader or a local uploader based on remote path.
 
         Args:

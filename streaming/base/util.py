@@ -6,19 +6,20 @@
 import json
 import logging
 import os
+import shutil
+import tempfile
+import urllib.parse
 from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
 from time import sleep, time
-from typing import List, Union, Tuple
+from typing import List, Tuple, Union
 
 import torch.distributed as dist
 
 from streaming.base.constant import SHM_TO_CLEAN
 from streaming.base.distributed import get_local_rank, maybe_init_dist
-from streaming.base.shared.prefix import _get_path
 from streaming.base.format.index import get_index_basename
-import urllib.parse
-import tempfile
-import shutil
+from streaming.base.shared.prefix import _get_path
+
 logger = logging.getLogger(__name__)
 
 __all__ = ['get_list_arg']
@@ -210,8 +211,8 @@ def merge_index(folder_urls: List[Union[str, Tuple[str, str]]],
                 *,
                 keep_local: bool = True,
                 overwrite: bool = True,
-                download_timeout: int = 100) -> None:
-    """Merge index.json from a list of remote or local directories into one for streaming and save the merged index to local or remote.
+                download_timeout: int = 100) -> int:
+    """Merge index.json from a list of remote or local directories.
 
     Args:
         folder_urls (Iterable): folders that contain index.json for the partition
@@ -230,21 +231,25 @@ def merge_index(folder_urls: List[Union[str, Tuple[str, str]]],
         overwrite (bool): Overwrite merged index file in out if there exists one.Defaults to ``True``
         download_timeout (int): The allowed time for downloading each json file
             defaults to 60, same as streaming.download_file
+
+    Returns:
+        int: count of files downloaded during function call
     """
     # Import here to avoid circular import error
-    from streaming.base.storage.upload import CloudUploader
     from streaming.base.storage.download import download_file
+    from streaming.base.storage.upload import CloudUploader
 
     if not folder_urls:
         logger.warning('No partitions exist, no index merged')
-        return
+        return 0
 
     # This is the index json file name, e.g., it is index.json as of 0.6.0
     index_basename = get_index_basename()
 
-    if os.path.exists(os.path.join(out, index_basename)) and overwrite:
-        logger.warning('Merged index already exists. no index merged if overwrite=False')
-        return
+    cu = CloudUploader.get(out, keep_local=True, exist_ok=True)
+    if os.path.exists(os.path.join(cu.local, index_basename)) and overwrite:
+        logger.warning('Merged index already exists locally. no index merged if overwrite=False')
+        return 0
 
     # Remove '/' from right, so os.path.basename gives relative path to each folder
     urls = []
@@ -289,10 +294,11 @@ def merge_index(folder_urls: List[Union[str, Tuple[str, str]]],
                     download_file(remote_url, local_path, download_timeout)
                     n_downloads += 1
                 except Exception as ex:
-                    raise RuntimeError(f'failed to download index.json {remote_url} -->{local_path}') from ex
+                    raise RuntimeError(f'failed to download index.json {url}') from ex
 
             if not (os.path.exists(local)):
-                raise FileNotFoundError("Folder {local} does not exit or cannot be acceessed by the current process")
+                raise FileNotFoundError(
+                    'Folder {local} does not exit or cannot be acceessed by the current process')
             partitions.append(local)
 
         # merge index files into shards
@@ -306,7 +312,8 @@ def merge_index(folder_urls: List[Union[str, Tuple[str, str]]],
                 for key in ('raw_data', 'zip_data'):
                     if shard.get(key):
                         basename = shard[key]['basename']
-                        obj['shards'][i][key]['basename'] = os.path.join(mds_partition_basename, basename)
+                        obj['shards'][i][key]['basename'] = os.path.join(
+                            mds_partition_basename, basename)
             shards += obj['shards']
 
         # Save merged index locally
@@ -320,7 +327,6 @@ def merge_index(folder_urls: List[Union[str, Tuple[str, str]]],
 
         # Upload merged index to remote if out has remote part
         # Otherwise, move it from temp root to out location
-        cu = CloudUploader.get(out, keep_local = True, exist_ok = True)
         shutil.move(merged_index_path, cu.local)
         if cu.remote is not None:
             cu.upload_file(index_basename)
@@ -331,4 +337,3 @@ def merge_index(folder_urls: List[Union[str, Tuple[str, str]]],
             shutil.rmtree(cu.local, ignore_errors=True)
 
     return n_downloads
-
