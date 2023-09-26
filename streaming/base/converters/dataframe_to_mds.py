@@ -163,9 +163,10 @@ def dataframeToMDS(dataframe: DataFrame,
             raise RuntimeError('TaskContext.get() returns None')
 
         if isinstance(mds_path, str):  # local
-            output = os.path.join(mds_path, f'{id}')
+            output_path = output = os.path.join(mds_path, f'{id}')
         else:
             output = (os.path.join(mds_path[0], f'{id}'), os.path.join(mds_path[1], f'{id}'))
+            output_path = ','.join(output)
 
         if mds_kwargs:
             kwargs = mds_kwargs.copy()
@@ -174,7 +175,7 @@ def dataframeToMDS(dataframe: DataFrame,
             kwargs = {}
 
         if merge_index:
-            kwargs['keep_local'] = True  # need to keep local to do merge
+            kwargs['keep_local'] = True  # need to keep workers' locals to do merge
 
         count = 0
 
@@ -197,7 +198,7 @@ def dataframeToMDS(dataframe: DataFrame,
                         count += 1
 
         yield pd.concat(
-            [pd.Series([out_put], name='mds_path'),
+            [pd.Series([output_path], name='mds_path'),
              pd.Series([count], name='fail_count')],
             axis=1)
 
@@ -233,6 +234,7 @@ def dataframeToMDS(dataframe: DataFrame,
     out = mds_kwargs['out']
     keep_local = False if 'keep_local' not in mds_kwargs else mds_kwargs['keep_local']
     cu = CloudUploader.get(out, keep_local=keep_local)
+    print('cu.local = ', cu.local)
 
     # Fix output format as mds_path: Tuple => remote Str => local only
     if cu.remote is None:
@@ -248,9 +250,14 @@ def dataframeToMDS(dataframe: DataFrame,
     partitions = dataframe.mapInPandas(func=write_mds, schema=result_schema).collect()
 
     if merge_index:
-        folder_urls = [ row['mds_path'] for row in partitions ]
+        folder_urls = []
+        for row in partitions:
+            if ',' in row['mds_path']:
+                folder_urls.append(row['mds_path'].split(','))
+            else:
+                folder_urls.append(row['mds_path'])
         n_downloads = do_merge_index(folder_urls, out, keep_local = keep_local, overwrite=True)
-        logger.warning(f"{n_download} index files have been downloaded during index merging")
+        logger.warning(f"{n_downloads} index files have been downloaded during index merging")
 
     if cu.remote is not None:
         if 'keep_local' in mds_kwargs and mds_kwargs['keep_local'] == False:

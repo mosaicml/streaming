@@ -262,7 +262,6 @@ def merge_index(folder_urls: List[Union[str, Tuple[str, str]]],
     # Determine if we need to call download_file.
     download = False
     for url in urls:
-        local = remote = url
         if type(url) is tuple:
             # If driver cannot access the local path, download = True
             download = not os.path.exists(url[0])
@@ -282,7 +281,10 @@ def merge_index(folder_urls: List[Union[str, Tuple[str, str]]],
         partitions = []
         n_downloads = 0
         for url in urls:
-            local = remote = url
+            if type(url) is tuple:
+                local, remote = url
+            else:
+                local = remote = url
 
             if download:
                 # If download is needed, download url from remote to temp_root

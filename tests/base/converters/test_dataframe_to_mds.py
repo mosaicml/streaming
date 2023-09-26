@@ -18,7 +18,7 @@ from streaming.base.converters import dataframeToMDS
 
 MY_PREFIX = 'train'
 MY_BUCKET = 'mosaicml-composer-tests'
-MANUAL_INTEGRATION_TEST = False
+MANUAL_INTEGRATION_TEST = True
 os.environ[
     'OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'  # set to yes to all fork process in spark calls
 
@@ -27,7 +27,8 @@ os.environ[
 def manual_integration_dir() -> Any:
     """Creates a temporary directory and then deletes it when the calling function is done."""
     if MANUAL_INTEGRATION_TEST:
-        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'path/to/gooogle_api_credential.json'
+        #os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'path/to/gooogle_api_credential.json'
+        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/Users/xiaohan.zhang/.mosaic/mosaicml-research-nonprod-027345ddbdfd.json'
 
     tmp_dir = mkdtemp()
 
@@ -96,6 +97,8 @@ class TestDataFrameToMDS:
     def test_end_to_end_conversion_local_nocolumns(self, dataframe: Any, keep_local: bool,
                                                    merge_index: bool,
                                                    local_remote_dir: Tuple[str, str]):
+        print('keep local = ', keep_local)
+        print('merge_index = ', merge_index)
         out, _ = local_remote_dir
         mds_kwargs = {
             'out': out,
@@ -111,23 +114,27 @@ class TestDataFrameToMDS:
                               merge_index=merge_index,
                               mds_kwargs=mds_kwargs)
 
-        assert (len(os.listdir(out)) > 0), f'{out} is empty'
-        for d in os.listdir(out):
-            if os.path.isdir(os.path.join(out, d)):
-                assert (os.path.exists(os.path.join(
-                    out, d, 'index.json'))), f'No index.json found in subdirectory {d}'
+        if keep_local:
+            assert (len(os.listdir(out)) > 0), f'{out} is empty'
+            for d in os.listdir(out):
+                if os.path.isdir(os.path.join(out, d)):
+                    assert (os.path.exists(os.path.join(
+                        out, d, 'index.json'))), f'No index.json found in subdirectory {d}'
 
         if merge_index:
-            assert (os.path.exists(os.path.join(out, 'index.json'))), 'No merged index.json found'
-            mgi = json.load(open(os.path.join(out, 'index.json'), 'r'))
-            nsamples = 0
-            for d in os.listdir(out):
-                sub_dir = os.path.join(out, d)
-                if os.path.isdir(sub_dir):
-                    shards = json.load(open(os.path.join(sub_dir, 'index.json'), 'r'))['shards']
-                    if shards:
-                        nsamples += shards[0]['samples']
-            assert (nsamples == sum([a['samples'] for a in mgi['shards']]))
+            if keep_local:
+                assert (os.path.exists(os.path.join(out, 'index.json'))), 'No merged index.json found'
+                mgi = json.load(open(os.path.join(out, 'index.json'), 'r'))
+                nsamples = 0
+                for d in os.listdir(out):
+                    sub_dir = os.path.join(out, d)
+                    if os.path.isdir(sub_dir):
+                        shards = json.load(open(os.path.join(sub_dir, 'index.json'), 'r'))['shards']
+                        if shards:
+                            nsamples += shards[0]['samples']
+                assert (nsamples == sum([a['samples'] for a in mgi['shards']]))
+            if not keep_local:
+                assert (not os.path.exists(os.path.join(out, 'index.json'))), 'merged index.json is found even keep_local = False'
         else:
             assert not (os.path.exists(os.path.join(
                 out, 'index.json'))), 'merged index is created when merge_index=False'
@@ -140,6 +147,7 @@ class TestDataFrameToMDS:
         mds_kwargs = {
             'out': out,
             'columns': user_defined_columns,
+            'keep_local' : True
         }
 
         if use_columns:
@@ -183,26 +191,32 @@ class TestDataFrameToMDS:
             'hashes': ['sha1', 'xxh64'],
             'size_limit': 1 << 26
         }
+        print('keep_local = ', keep_local)
+        print('merge_index = ', merge_index)
 
         _, _ = dataframeToMDS(dataframe, merge_index=merge_index, mds_kwargs=mds_kwargs)
 
-        assert (len(os.listdir(out)) > 0), f'{out} is empty'
-        for d in os.listdir(out):
-            if os.path.isdir(os.path.join(out, d)):
-                assert (os.path.exists(os.path.join(
-                    out, d, 'index.json'))), f'No index.json found in subdirectory {d}'
+        if keep_local:
+            assert (len(os.listdir(out)) > 0), f'{out} is empty'
+            for d in os.listdir(out):
+                if os.path.isdir(os.path.join(out, d)):
+                    assert (os.path.exists(os.path.join(
+                        out, d, 'index.json'))), f'No index.json found in subdirectory {d}'
 
         if merge_index == True:
-            assert (os.path.exists(os.path.join(out, 'index.json'))), 'No merged index.json found'
-            mgi = json.load(open(os.path.join(out, 'index.json'), 'r'))
-            nsamples = 0
-            for d in os.listdir(out):
-                sub_dir = os.path.join(out, d)
-                if os.path.isdir(sub_dir):
-                    shards = json.load(open(os.path.join(sub_dir, 'index.json'), 'r'))['shards']
-                    if shards:
-                        nsamples += shards[0]['samples']
-            assert (nsamples == sum([a['samples'] for a in mgi['shards']]))
+            if keep_local:
+                assert (os.path.exists(os.path.join(out, 'index.json'))), 'No merged index.json found'
+                mgi = json.load(open(os.path.join(out, 'index.json'), 'r'))
+                nsamples = 0
+                for d in os.listdir(out):
+                    sub_dir = os.path.join(out, d)
+                    if os.path.isdir(sub_dir):
+                        shards = json.load(open(os.path.join(sub_dir, 'index.json'), 'r'))['shards']
+                        if shards:
+                            nsamples += shards[0]['samples']
+                assert (nsamples == sum([a['samples'] for a in mgi['shards']]))
+            else:
+                assert (not os.path.exists(os.path.join(out, 'index.json'))), 'merged index.json is found even keep_local=False'
         else:
             assert not (os.path.exists(os.path.join(
                 out, 'index.json'))), 'merged index is created when merge_index=False'
