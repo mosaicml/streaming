@@ -17,7 +17,7 @@ from streaming.base.distributed import get_local_rank, maybe_init_dist
 from streaming.base.shared.prefix import _get_path
 from streaming.base.format.index import get_index_basename
 import urllib.parse
-from tempfile import mkdtemp
+import tempfile
 import shutil
 logger = logging.getLogger(__name__)
 
@@ -246,9 +246,6 @@ def merge_index(folder_urls: List[Union[str, Tuple[str, str]]],
         logger.warning('Merged index already exists. no index merged if overwrite=False')
         return
 
-    # Prepare a temp folder to download index.json rom remote if necessary. Removed in the end.
-    temp_root = mkdtemp()
-
     # Remove '/' from right, so os.path.basename gives relative path to each folder
     urls = []
     for url in folder_urls:
@@ -266,63 +263,72 @@ def merge_index(folder_urls: List[Union[str, Tuple[str, str]]],
             download = not os.path.exists(url[0])
         else:
             # If url is a remote, download = True, False otherwise
-            download = urllib.parse.urlparse(url).scheme is not None
+            download = urllib.parse.urlparse(url).scheme != ''
 
         # As long as one index file needs download, we download them all to keep it simple
         if download:
             break
 
-    # container for absolute local folder path
-    partitions = []
-    for url in urls:
-        local = remote = url
+    print('download = ', download)
+    # Prepare a temp folder to download index.json rom remote if necessary. Removed in the end.
+    with tempfile.TemporaryDirectory() as temp_root:
 
-        if download:
-            # If download is needed, download url from remote to temp_root
-            path = urllib.parse.urlparse(remote).path
-            local = os.path.join(temp_root, path.lstrip('/'))
-            try:
-                remote_url = os.path.join(remote, index_basename)
-                local_path = os.path.join(local, index_basename)
-                download_file(remote_url, local_path, download_timeout)
-            except Exception as ex:
-                raise RuntimeError(f'failed to download index.json {remote_url} -->{local_path}') from ex
+        # container for absolute local folder path
+        partitions = []
+        n_downloads = 0
+        for url in urls:
+            local = remote = url
 
-        assert(os.path.exists(local)), f"Folder {local} does not exit or cannot be acceessed by the current process"
-        partitions.append(local)
+            if download:
+                # If download is needed, download url from remote to temp_root
+                path = urllib.parse.urlparse(remote).path
+                local = os.path.join(temp_root, path.lstrip('/'))
+                try:
+                    remote_url = os.path.join(remote, index_basename)
+                    local_path = os.path.join(local, index_basename)
+                    download_file(remote_url, local_path, download_timeout)
+                    n_downloads += 1
+                except Exception as ex:
+                    raise RuntimeError(f'failed to download index.json {remote_url} -->{local_path}') from ex
 
-    # merge index files into shards
-    shards = []
-    for partition in partitions:
-        partition_index = f'{partition}/{index_basename}'
-        mds_partition_basename = os.path.basename(partition)
-        obj = json.load(open(partition_index))
-        for i in range(len(obj['shards'])):
-            shard = obj['shards'][i]
-            for key in ('raw_data', 'zip_data'):
-                if shard.get(key):
-                    basename = shard[key]['basename']
-                    obj['shards'][i][key]['basename'] = os.path.join(mds_partition_basename, basename)
-        shards += obj['shards']
+            if not (os.path.exists(local)):
+                raise FileNotFoundError("Folder {local} does not exit or cannot be acceessed by the current process")
+            partitions.append(local)
 
-    # Save merged index locally
-    obj = {
-        'version': 2,
-        'shards': shards,
-    }
-    merged_index_path = os.path.join(temp_root, index_basename)
-    with open(merged_index_path, 'w') as outfile:
-        json.dump(obj, outfile)
+        # merge index files into shards
+        shards = []
+        for partition in partitions:
+            partition_index = f'{partition}/{index_basename}'
+            mds_partition_basename = os.path.basename(partition)
+            obj = json.load(open(partition_index))
+            for i in range(len(obj['shards'])):
+                shard = obj['shards'][i]
+                for key in ('raw_data', 'zip_data'):
+                    if shard.get(key):
+                        basename = shard[key]['basename']
+                        obj['shards'][i][key]['basename'] = os.path.join(mds_partition_basename, basename)
+            shards += obj['shards']
 
-    # Upload merged index to remote if out has remote part
-    # Otherwise, move it from temp root to out location
-    cu = CloudUploader.get(out, keep_local = True, exist_ok = True)
-    shutil.move(merged_index_path, cu.local)
-    if cu.remote is not None:
-        cu.upload_file(index_basename)
+        # Save merged index locally
+        obj = {
+            'version': 2,
+            'shards': shards,
+        }
+        merged_index_path = os.path.join(temp_root, index_basename)
+        with open(merged_index_path, 'w') as outfile:
+            json.dump(obj, outfile)
 
-    # Clean up
-    shutil.rmtree(temp_root, ignore_errors=True)
-    if not keep_local:
-        shutil.rmtree(cu.local, ignore_errors=True)
+        # Upload merged index to remote if out has remote part
+        # Otherwise, move it from temp root to out location
+        cu = CloudUploader.get(out, keep_local = True, exist_ok = True)
+        shutil.move(merged_index_path, cu.local)
+        if cu.remote is not None:
+            cu.upload_file(index_basename)
+
+        # Clean up
+        # shutil.rmtree(temp_root, ignore_errors=True)
+        if not keep_local:
+            shutil.rmtree(cu.local, ignore_errors=True)
+
+    return n_downloads
 

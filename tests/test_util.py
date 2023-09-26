@@ -18,6 +18,7 @@ from pyspark.sql.types import DecimalType, IntegerType, StringType, StructField,
 
 from streaming.base.converters import dataframeToMDS
 from streaming.base.util import merge_index
+import tempfile
 import os
 import glob
 
@@ -137,54 +138,60 @@ def dataframe():
     df = spark.createDataFrame(data=data, schema=schema).repartition(3)
     yield df
 
-"""Ideally, we want to test all these combinations
-@pytest.mark.parametrize('folder_urls', {
-        ('/Volumes/mdsdata/00/',
-         '/Volumes/mdsdata/01/',
-         '/Volumes/mdsdata/02/'
-        ): 'driver can access the folder_urls, no download, merge diretly',
-        ('gs://mybucket/mdsdata/00/',
-         'gs://mybucket/mdsdata/01/',
-         'gs://mybucket/mdsdata/02/'
-        ): 'driver downloads from remote bucket, merge locally',
-        (('/tmp/zscf/mdsdata/00', 'gs://mybucket/mdsdata/00/'),
-         ('/tmp/zscf/mdsdata/01', 'gs://mybucket/mdsdata/01/'),
-         ('/tmp/zscf/mdsdata/02', 'gs://mybucket/mdsdata/02/')
-        ): 'driver cannot access local directories, so download from remote',
-        (('/Volumes/mdsdata/00', 'gs://mybucket/mdsdata/00/'),
-         ('/Volumes/mdsdata/01', 'gs://mybucket/mdsdata/01/'),
-         ('/Volumes/mdsdata/02', 'gs://mybucket/mdsdata/02/')
-        ): 'driver can access local directories, use local to merge',
-    })
-@pytest.mark.parametrize('out', {
-       '/Volumes/mdsdata/' : 'save merged index to /Volumes/mdsdata/',
-       'gs://mybucket/mdsdata/' : 'save merged index to gs://mybucket/mdsdata. remove local copy if keep_local = False',
-       ('/Volumes/mdsdata/', 'gs://mybucket/mdsdata'): 'save merged index to both /Volumes/mdsdata and gs://mybucket/dsdata/, remove local copy if keep_local=False',
-    })
+"""Example input urls to test
+    ['gs://mybucket/mdsdata/25/'...]
+    ['/path/never/exists/25',... ]
+    [('/path/never/exists/25', 'gs://mybucket/mdsdata/25/'), ...]
+    [('tests/resources/naive_MDSdataset/25/', 'gs://mybucket/mdsdata/25/'), ...]
 """
+@pytest.mark.parametrize('folder_urls', ['local_accessible', 'remote', 'local_unaccessible', 'local_accessible_tuple'])
+@pytest.mark.parametrize('out', ['local_str', 'remote_str', 'tuple'])
 @pytest.mark.usefixtures('local_remote_dir')
 @pytest.mark.parametrize('keep_local', [True, False])
-@pytest.mark.parametrize('overwrite', [True, False])
 def test_merge_index(local_remote_dir: Tuple[str, str],
                      dataframe: Any,
                      keep_local: bool,
-                     #folder_urls: Dict,
-                     #out: Dict,
-                     overwrite: bool):
-    """ Test the following scenarios for merge_index
-    """
+                     folder_urls: Dict,
+                     out: Dict):
 
-    local, remote = local_remote_dir
-    local = '/tmp/mdsdata'
-    mds_kwargs = {
-        'out': local,
-        'keep_local': True,
-    }
-    _, _ = dataframeToMDS(dataframe.select(col('id'), col('dept')),
-                          merge_index=False,
-                          mds_kwargs=mds_kwargs)
+    naive_mds_partitions= ['tests/resources/naive_MDSdataset/25/',
+                           'tests/resources/naive_MDSdataset/26/',
+                           'tests/resources/naive_MDSdataset/27/']
 
-    folder_urls = glob.glob(local + '/*')
-    merge_index(folder_urls, local)
+    if folder_urls == 'local_accessible':
+        folder_urls = [ os.getcwd() + '/' + s for s in naive_mds_partitions]
+        print(folder_urls)
 
-    assert(os.path.exists(os.path.join(local, 'index.json')))
+        if out == 'local_str':
+            with tempfile.TemporaryDirectory() as tmp:
+                n_downloads = merge_index(folder_urls, tmp, keep_local = keep_local, overwrite = True)
+                if keep_local:
+                    assert(os.path.exists(os.path.join(tmp, 'index.json')))
+                else:
+                    assert(not os.path.exists(os.path.join(tmp, 'index.json')))
+                assert n_downloads == 0, f"n_downloads should be 0 instead of {n_downloads}"
+        else:
+            return
+
+    if folder_urls == 'remote':
+        return
+
+    if folder_urls == 'local_unaccessible':
+        with tempfile.TemporaryDirectory() as tmp_data_root:
+            folder_urls = [ tmp_data_root + '/' + s for s in naive_mds_partitions]
+            with pytest.raises(FileNotFoundError, match=f'.* does not exit or cannot be acceessed by the current process.*'):
+                merge_index(folder_urls, tmp_data_root, keep_local = keep_local, overwrite = True)
+
+    if folder_urls == 'local_accessible_tuple':
+        folder_urls = []
+        for s in naive_mds_partitions:
+            folder_urls.append((os.getcwd() + '/' + s, 'gs://mybucket/'+ s ))
+        if out == 'local_str':
+            with tempfile.TemporaryDirectory() as tmp_data_root:
+                folder_urls = [ tmp_data_root + '/' + s for s in naive_mds_partitions]
+                with pytest.raises(FileNotFoundError, match=f'.* does not exit or cannot be acceessed by the current process.*'):
+                    merge_index(folder_urls, tmp_data_root, keep_local = keep_local, overwrite = True)
+        else:
+            return
+
+
