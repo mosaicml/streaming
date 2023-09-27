@@ -7,7 +7,7 @@ from typing import Any, Dict, Iterator, Optional
 
 from torch import Tensor
 from torch.utils.data import DataLoader
-from transformers.tokenization_utils_base import BatchEncoding, BatchFeature
+from transformers import BatchEncoding, BatchFeature
 
 from streaming.base.dataset import StreamingDataset
 from streaming.base.world import World
