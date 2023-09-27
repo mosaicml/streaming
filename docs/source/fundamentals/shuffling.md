@@ -50,9 +50,9 @@ In order to improve shuffle quality, this algorithm requires more shards to be d
 
 ### py1e
 
-Globally shuffle shards, divide that sample space over canonical nodes, shuffle the samples in each shard, then randomly distribute the samples from each shard over an expanded range (given by `shuffle_block_size`). So named because it shuffles samples by extending the range of each shard, in python.
+Globally shuffle shards, divide that sample space over canonical nodes, shuffle the samples in each shard, then randomly distribute the samples from each shard over an expanded range (determined using `shuffle_block_size`). So named because it shuffles samples by extending the range of each shard, in python.
 
-Shuffle block size should be set larger or much larger than the number of samples in a single shard. This algorithm provides guaranteed bounds on the range that samples from a shard can appear, allowing for a lower cache limit without decreasing throughput compared to py1b.
+Shuffle block size should be set larger or much larger than the number of samples in a single shard. This algorithm provides bounds on the range that samples from a shard can appear, allowing for a lower cache limit without decreasing throughput compared to py1b.
 
 This algorithm requires more shards to be downloaded and stay resident to make progress than py1s or py2s, noticed as longer start/resume latency, as a multiple of shuffle block size divided by samples per shard, similar to py1b. However, these shards will be downloaded in a more balanced fashion, reducing network bandwidth bottlenecks.
 

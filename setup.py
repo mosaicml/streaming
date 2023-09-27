@@ -44,7 +44,7 @@ classifiers = [
 install_requires = [
     'boto3>=1.21.45,<2',
     'Brotli>=1.0.9',
-    'google-cloud-storage>=2.9.0',
+    'google-cloud-storage>=2.9.0,<2.11.0',
     'matplotlib>=3.5.2,<4',
     'paramiko>=2.11.0,<4',
     'python-snappy>=0.6.1,<1',
@@ -68,7 +68,7 @@ extra_deps['dev'] = [
     'jupyter==1.0.0',
     'pre-commit>=2.18.1,<4',
     'pytest==7.4.2',
-    'pytest_codeblocks==0.16.1',
+    'pytest_codeblocks==0.17.0',
     'pytest-cov>=4,<5',
     'toml==0.10.2',
     'yamllint==1.32.0',
@@ -80,7 +80,7 @@ extra_deps['dev'] = [
 ]
 
 extra_deps['docs'] = [
-    'GitPython==3.1.36',
+    'GitPython==3.1.37',
     'docutils==0.18.1',
     'furo==2023.7.26',
     'myst-parser==2.0.0',
