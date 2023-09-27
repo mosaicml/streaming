@@ -12,7 +12,7 @@ from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union
 
 import pandas as pd
 
-from streaming.base.utils import get_import_exception_message
+from streaming.base.util import get_import_exception_message
 
 try:
     from pyspark import TaskContext

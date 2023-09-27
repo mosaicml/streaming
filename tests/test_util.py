@@ -8,8 +8,8 @@ import pytest
 
 from streaming.base.constant import RESUME
 from streaming.base.shared.prefix import _get_path
-from streaming.base.utils import (bytes_to_int, clean_stale_shared_memory, get_list_arg,
-                                  number_abbrev_to_int)
+from streaming.base.util import (bytes_to_int, clean_stale_shared_memory, get_list_arg,
+                                 number_abbrev_to_int)
 
 
 @pytest.mark.parametrize(('text', 'expected_output'), [('hello,world', ['hello', 'world']),

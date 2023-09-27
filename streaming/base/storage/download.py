@@ -10,7 +10,7 @@ import urllib.parse
 from time import sleep, time
 from typing import Any, Dict, Optional
 
-from streaming.base.utils import get_import_exception_message
+from streaming.base.util import get_import_exception_message
 
 __all__ = [
     'download_from_s3',

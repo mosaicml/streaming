@@ -19,7 +19,7 @@ from streaming.base.distributed import barrier, get_local_rank
 from streaming.base.format import FileInfo, Reader, get_index_basename, reader_from_json
 from streaming.base.hashing import get_hash
 from streaming.base.storage import download_file
-from streaming.base.utils import retry, wait_for_file_to_exist
+from streaming.base.util import retry, wait_for_file_to_exist
 from streaming.base.world import World
 
 

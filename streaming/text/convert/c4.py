@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader, IterableDataset, get_worker_info
 from tqdm import tqdm
 
 from streaming.base import MDSWriter
-from streaming.base.utils import get_list_arg
+from streaming.base.util import get_list_arg
 
 
 def parse_args() -> Namespace:
