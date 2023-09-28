@@ -11,6 +11,7 @@ from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures._base import Future
 from threading import Event
+from time import sleep
 from types import TracebackType
 from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
@@ -259,6 +260,13 @@ class Writer(ABC):
             json.dump(obj, out, sort_keys=True)
         # Execute the task if there is no exception in any of the async threads.
         if not self.event.is_set():
+            while self.executor._work_queue.qsize() > 0:
+                logger.debug(
+                    f'Queue size: {self.executor._work_queue.qsize()}. Waiting for all ' +
+                    f'shard files to get uploaded to {self.remote} before uploading index.json')
+                sleep(1)
+            logger.debug(f'Queue size: {self.executor._work_queue.qsize()}. Uploading ' +
+                         f'index.json to {self.remote}')
             future = self.executor.submit(self.cloud_writer.upload_file, basename)
             future.add_done_callback(self.exception_callback)
 

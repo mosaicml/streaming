@@ -1376,5 +1376,5 @@ class StreamingDataset(Array, IterableDataset):
         ready_future = self._executor.submit(self._ready_thread, it)
         ready_future.add_done_callback(self.on_exception)
         yield from map(self.__getitem__, self._each_sample_id(it))
-        wait([prepare_future, ready_future], return_when="FIRST_EXCEPTION")
+        wait([prepare_future, ready_future], return_when='FIRST_EXCEPTION')
         it.exit()
