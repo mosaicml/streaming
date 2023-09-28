@@ -5,6 +5,7 @@
 
 import collections.abc
 import functools
+import logging
 import os
 import random
 from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
@@ -16,6 +17,8 @@ import torch.distributed as dist
 from streaming.base.constant import SHM_TO_CLEAN
 from streaming.base.distributed import get_local_rank, maybe_init_dist
 from streaming.base.shared.prefix import _get_path
+
+logger = logging.getLogger(__name__)
 
 TCallable = TypeVar('TCallable', bound=Callable)
 
@@ -222,7 +225,8 @@ def retry(exc_class: TCallable) -> TCallable:
     ...
 
 
-# error: Type "(TCallable@retry) -> TCallable@retry" cannot be assigned to type "(func: Never) -> Never"
+# error: Type "(TCallable@retry) -> TCallable@retry" cannot be assigned to type
+# "(func: Never) -> Never"
 def retry(  # type: ignore
     exc_class: Union[TCallable, Type[Exception], Sequence[Type[Exception]]] = Exception,
     num_attempts: int = 3,
@@ -232,7 +236,7 @@ def retry(  # type: ignore
     """Decorator to retry a function with backoff and jitter.
 
     Attempts are spaced out with
-    ``initial_backoff + 2**num_attempts + random.random() * max_jitter`` seconds.
+    ``initial_backoff * 2**num_attempts + random.random() * max_jitter`` seconds.
 
     Example:
     .. testcode::
@@ -278,9 +282,11 @@ def retry(  # type: ignore
                     return func(*args, **kwargs)
                 except exc_class as e:
                     if i + 1 == num_attempts:
+                        logger.debug(f'Attempt {i + 1}/{num_attempts} failed with: {e}')
                         raise e
                     else:
                         sleep(initial_backoff * 2**i + random.random() * max_jitter)
+                        logger.debug(f'Attempt {i + 1}/{num_attempts} failed with: {e}')
                         i += 1
 
         return cast(TCallable, new_func)

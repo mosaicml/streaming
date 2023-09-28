@@ -60,6 +60,8 @@ class Writer(ABC):
             max_workers (int): Maximum number of threads used to upload output dataset files in
                 parallel to a remote location. One thread is responsible for uploading one shard
                 file to a remote location. Default to ``min(32, (os.cpu_count() or 1) + 4)``.
+            retry (int): Number of times to retry uploading a file to a remote location.
+                Default to ``2``.
     """
 
     format: str = ''  # Name of the format (like "mds", "csv", "json", etc).
@@ -96,7 +98,7 @@ class Writer(ABC):
 
         # Validate keyword arguments
         invalid_kwargs = [
-            arg for arg in kwargs.keys() if arg not in ('progress_bar', 'max_workers')
+            arg for arg in kwargs.keys() if arg not in ('progress_bar', 'max_workers', 'retry')
         ]
         if invalid_kwargs:
             raise ValueError(f'Invalid Writer argument(s): {invalid_kwargs} ')
@@ -112,7 +114,8 @@ class Writer(ABC):
 
         self.shards = []
 
-        self.cloud_writer = CloudUploader.get(out, keep_local, kwargs.get('progress_bar', False))
+        self.cloud_writer = CloudUploader.get(out, keep_local, kwargs.get('progress_bar', False),
+                                              kwargs.get('retry', 2))
         self.local = self.cloud_writer.local
         self.remote = self.cloud_writer.remote
         # `max_workers`: The maximum number of threads that can be executed in parallel.
@@ -340,6 +343,8 @@ class JointWriter(Writer):
             max_workers (int): Maximum number of threads used to upload output dataset files in
                 parallel to a remote location. One thread is responsible for uploading one shard
                 file to a remote location. Default to ``min(32, (os.cpu_count() or 1) + 4)``.
+            retry (int): Number of times to retry uploading a file to a remote location.
+                Default to ``2``.
     """
 
     def __init__(self,
@@ -418,6 +423,8 @@ class SplitWriter(Writer):
             max_workers (int): Maximum number of threads used to upload output dataset files in
                 parallel to a remote location. One thread is responsible for uploading one shard
                 file to a remote location. Default to ``min(32, (os.cpu_count() or 1) + 4)``.
+            retry (int): Number of times to retry uploading a file to a remote location.
+                Default to ``2``.
     """
 
     extra_bytes_per_shard = 0
