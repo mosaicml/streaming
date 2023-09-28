@@ -17,7 +17,7 @@ import tqdm
 
 from streaming.base.storage.download import (BOTOCORE_CLIENT_ERROR_CODES,
                                              GCS_ERROR_NO_AUTHENTICATION)
-from streaming.base.util import get_import_exception_message
+from streaming.base.util import get_import_exception_message, retry
 
 __all__ = [
     'CloudUploader',
@@ -56,7 +56,8 @@ class CloudUploader:
     def get(cls,
             out: Union[str, Tuple[str, str]],
             keep_local: bool = False,
-            progress_bar: bool = False) -> Any:
+            progress_bar: bool = False,
+            retry: int = 2) -> Any:
         """Instantiate a cloud provider uploader or a local uploader based on remote path.
 
         Args:
@@ -72,6 +73,7 @@ class CloudUploader:
                 shard file or remove it after uploading. Defaults to ``False``.
             progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
                 a remote location. Default to ``False``.
+            retry (int): Number of times to retry uploading a file. Defaults to ``2``.
 
         Returns:
             CloudUploader: An instance of sub-class.
@@ -85,7 +87,7 @@ class CloudUploader:
             if prefix == 'dbfs:/Volumes':
                 provider_prefix = prefix
         return getattr(sys.modules[__name__], UPLOADERS[provider_prefix])(out, keep_local,
-                                                                          progress_bar)
+                                                                          progress_bar, retry)
 
     def _validate(self, out: Union[str, Tuple[str, str]]) -> None:
         """Validate the `out` argument.
@@ -118,7 +120,8 @@ class CloudUploader:
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
-                 progress_bar: bool = False) -> None:
+                 progress_bar: bool = False,
+                 retry: int = 2) -> None:
         """Initialize and validate local and remote path.
 
         Args:
@@ -134,6 +137,7 @@ class CloudUploader:
                 shard file or remove it after uploading. Defaults to ``False``.
             progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
                 a remote location. Default to ``False``.
+            retry (int): Number of times to retry uploading a file. Defaults to ``2``.
 
         Raises:
             FileExistsError: Local directory must be empty.
@@ -141,6 +145,7 @@ class CloudUploader:
         self._validate(out)
         self.keep_local = keep_local
         self.progress_bar = progress_bar
+        self.retry = retry
 
         if isinstance(out, str):
             # It is a remote directory
@@ -196,13 +201,15 @@ class S3Uploader(CloudUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
+        retry (int): Number of times to retry uploading a file. Defaults to ``2``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
-                 progress_bar: bool = False) -> None:
-        super().__init__(out, keep_local, progress_bar)
+                 progress_bar: bool = False,
+                 retry: int = 2) -> None:
+        super().__init__(out, keep_local, progress_bar, retry)
 
         import boto3
         from botocore.config import Config
@@ -222,23 +229,28 @@ class S3Uploader(CloudUploader):
         Args:
             filename (str): File to upload.
         """
-        local_filename = os.path.join(self.local, filename)
-        remote_filename = os.path.join(self.remote, filename)  # pyright: ignore
-        obj = urllib.parse.urlparse(remote_filename)
-        logger.debug(f'Uploading to {remote_filename}')
-        file_size = os.stat(local_filename).st_size
-        with tqdm.tqdm(total=file_size,
-                       unit='B',
-                       unit_scale=True,
-                       desc=f'Uploading to {remote_filename}',
-                       disable=(not self.progress_bar)) as pbar:
-            self.s3.upload_file(
-                local_filename,
-                obj.netloc,
-                obj.path.lstrip('/'),
-                Callback=lambda bytes_transferred: pbar.update(bytes_transferred),
-            )
-        self.clear_local(local=local_filename)
+
+        @retry(num_attempts=self.retry)
+        def _upload_file():
+            local_filename = os.path.join(self.local, filename)
+            remote_filename = os.path.join(self.remote, filename)  # pyright: ignore
+            obj = urllib.parse.urlparse(remote_filename)
+            logger.debug(f'Uploading to {remote_filename}')
+            file_size = os.stat(local_filename).st_size
+            with tqdm.tqdm(total=file_size,
+                           unit='B',
+                           unit_scale=True,
+                           desc=f'Uploading to {remote_filename}',
+                           disable=(not self.progress_bar)) as pbar:
+                self.s3.upload_file(
+                    local_filename,
+                    obj.netloc,
+                    obj.path.lstrip('/'),
+                    Callback=lambda bytes_transferred: pbar.update(bytes_transferred),
+                )
+            self.clear_local(local=local_filename)
+
+        _upload_file()
 
     def check_bucket_exists(self, remote: str):
         """Raise an exception if the bucket does not exist.
@@ -277,13 +289,15 @@ class GCSUploader(CloudUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
+        retry (int): Number of times to retry uploading a file. Defaults to ``2``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
-                 progress_bar: bool = False) -> None:
-        super().__init__(out, keep_local, progress_bar)
+                 progress_bar: bool = False,
+                 retry: int = 2) -> None:
+        super().__init__(out, keep_local, progress_bar, retry)
         if 'GCS_KEY' in os.environ and 'GCS_SECRET' in os.environ:
             import boto3
 
@@ -317,33 +331,38 @@ class GCSUploader(CloudUploader):
         Args:
             filename (str): File to upload.
         """
-        local_filename = os.path.join(self.local, filename)
-        remote_filename = os.path.join(self.remote, filename)  # pyright: ignore
-        obj = urllib.parse.urlparse(remote_filename)
-        logger.debug(f'Uploading to {remote_filename}')
 
-        if self.authentication == GCSAuthentication.HMAC:
-            file_size = os.stat(local_filename).st_size
-            with tqdm.tqdm(
-                    total=file_size,
-                    unit='B',
-                    unit_scale=True,
-                    desc=f'Uploading to {remote_filename}',
-                    disable=(not self.progress_bar),
-            ) as pbar:
-                self.gcs_client.upload_file(
-                    local_filename,
-                    obj.netloc,
-                    obj.path.lstrip('/'),
-                    Callback=lambda bytes_transferred: pbar.update(bytes_transferred),
-                )
-        elif self.authentication == GCSAuthentication.SERVICE_ACCOUNT:
-            from google.cloud.storage import Blob, Bucket
+        @retry(num_attempts=self.retry)
+        def _upload_file():
+            local_filename = os.path.join(self.local, filename)
+            remote_filename = os.path.join(self.remote, filename)  # pyright: ignore
+            obj = urllib.parse.urlparse(remote_filename)
+            logger.debug(f'Uploading to {remote_filename}')
 
-            blob = Blob(obj.path.lstrip('/'), Bucket(self.gcs_client, obj.netloc))
-            blob.upload_from_filename(local_filename)
+            if self.authentication == GCSAuthentication.HMAC:
+                file_size = os.stat(local_filename).st_size
+                with tqdm.tqdm(
+                        total=file_size,
+                        unit='B',
+                        unit_scale=True,
+                        desc=f'Uploading to {remote_filename}',
+                        disable=(not self.progress_bar),
+                ) as pbar:
+                    self.gcs_client.upload_file(
+                        local_filename,
+                        obj.netloc,
+                        obj.path.lstrip('/'),
+                        Callback=lambda bytes_transferred: pbar.update(bytes_transferred),
+                    )
+            elif self.authentication == GCSAuthentication.SERVICE_ACCOUNT:
+                from google.cloud.storage import Blob, Bucket
 
-        self.clear_local(local=local_filename)
+                blob = Blob(obj.path.lstrip('/'), Bucket(self.gcs_client, obj.netloc))
+                blob.upload_from_filename(local_filename)
+
+            self.clear_local(local=local_filename)
+
+        _upload_file()
 
     def check_bucket_exists(self, remote: str) -> None:
         """Raise an exception if the bucket does not exist.
@@ -386,13 +405,15 @@ class OCIUploader(CloudUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
+        retry (int): Number of times to retry uploading a file. Defaults to ``2``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
-                 progress_bar: bool = False) -> None:
-        super().__init__(out, keep_local, progress_bar)
+                 progress_bar: bool = False,
+                 retry: int = 2) -> None:
+        super().__init__(out, keep_local, progress_bar, retry)
 
         import oci
 
@@ -409,27 +430,32 @@ class OCIUploader(CloudUploader):
         Args:
             filename (str): File to upload.
         """
-        local_filename = os.path.join(self.local, filename)
-        remote_filename = os.path.join(self.remote, filename)  # pyright: ignore
-        obj = urllib.parse.urlparse(remote_filename)
-        bucket_name = obj.netloc.split('@' + self.namespace)[0]
-        # Remove leading and trailing forward slash from string
-        object_path = obj.path.strip('/')
-        logger.debug(f'Uploading to {remote_filename}')
-        file_size = os.stat(local_filename).st_size
-        with tqdm.tqdm(total=file_size,
-                       unit='B',
-                       unit_scale=True,
-                       desc=f'Uploading to {remote_filename}',
-                       disable=(not self.progress_bar)) as pbar:
-            self.upload_manager.upload_file(
-                namespace_name=self.namespace,
-                bucket_name=bucket_name,
-                object_name=object_path,
-                file_path=local_filename,
-                progress_callback=lambda bytes_transferred: pbar.update(bytes_transferred),
-            )
-        self.clear_local(local=local_filename)
+
+        @retry(num_attempts=self.retry)
+        def _upload_file():
+            local_filename = os.path.join(self.local, filename)
+            remote_filename = os.path.join(self.remote, filename)  # pyright: ignore
+            obj = urllib.parse.urlparse(remote_filename)
+            bucket_name = obj.netloc.split('@' + self.namespace)[0]
+            # Remove leading and trailing forward slash from string
+            object_path = obj.path.strip('/')
+            logger.debug(f'Uploading to {remote_filename}')
+            file_size = os.stat(local_filename).st_size
+            with tqdm.tqdm(total=file_size,
+                           unit='B',
+                           unit_scale=True,
+                           desc=f'Uploading to {remote_filename}',
+                           disable=(not self.progress_bar)) as pbar:
+                self.upload_manager.upload_file(
+                    namespace_name=self.namespace,
+                    bucket_name=bucket_name,
+                    object_name=object_path,
+                    file_path=local_filename,
+                    progress_callback=lambda bytes_transferred: pbar.update(bytes_transferred),
+                )
+            self.clear_local(local=local_filename)
+
+        _upload_file()
 
     def check_bucket_exists(self, remote: str):
         """Raise an exception if the bucket does not exist.
@@ -469,13 +495,15 @@ class AzureUploader(CloudUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
+        retry (int): Number of times to retry uploading a file. Defaults to ``2``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
-                 progress_bar: bool = False) -> None:
-        super().__init__(out, keep_local, progress_bar)
+                 progress_bar: bool = False,
+                 retry: int = 2) -> None:
+        super().__init__(out, keep_local, progress_bar, retry)
 
         from azure.storage.blob import BlobServiceClient
 
@@ -493,27 +521,32 @@ class AzureUploader(CloudUploader):
         Args:
             filename (str): File to upload.
         """
-        local_filename = os.path.join(self.local, filename)
-        local_filename = local_filename.replace('\\', '/')
-        remote_filename = os.path.join(self.remote, filename)  # pyright: ignore
-        remote_filename = remote_filename.replace('\\', '/')
-        obj = urllib.parse.urlparse(remote_filename)
-        logger.debug(f'Uploading to {remote_filename}')
-        file_size = os.stat(local_filename).st_size
-        container_client = self.azure_service.get_container_client(container=obj.netloc)
 
-        with tqdm.tqdm(total=file_size,
-                       unit='B',
-                       unit_scale=True,
-                       desc=f'Uploading to {remote_filename}',
-                       disable=(not self.progress_bar)) as pbar:
-            with open(local_filename, 'rb') as data:
-                container_client.upload_blob(
-                    name=obj.path.lstrip('/'),
-                    data=data,
-                    progress_hook=lambda bytes_transferred, _: pbar.update(bytes_transferred),
-                    overwrite=True)
-        self.clear_local(local=local_filename)
+        @retry(num_attempts=self.retry)
+        def _upload_file():
+            local_filename = os.path.join(self.local, filename)
+            local_filename = local_filename.replace('\\', '/')
+            remote_filename = os.path.join(self.remote, filename)  # pyright: ignore
+            remote_filename = remote_filename.replace('\\', '/')
+            obj = urllib.parse.urlparse(remote_filename)
+            logger.debug(f'Uploading to {remote_filename}')
+            file_size = os.stat(local_filename).st_size
+            container_client = self.azure_service.get_container_client(container=obj.netloc)
+
+            with tqdm.tqdm(total=file_size,
+                           unit='B',
+                           unit_scale=True,
+                           desc=f'Uploading to {remote_filename}',
+                           disable=(not self.progress_bar)) as pbar:
+                with open(local_filename, 'rb') as data:
+                    container_client.upload_blob(
+                        name=obj.path.lstrip('/'),
+                        data=data,
+                        progress_hook=lambda bytes_transferred, _: pbar.update(bytes_transferred),
+                        overwrite=True)
+            self.clear_local(local=local_filename)
+
+        _upload_file()
 
     def check_bucket_exists(self, remote: str):
         """Raise an exception if the bucket does not exist.
@@ -547,13 +580,15 @@ class AzureDataLakeUploader(CloudUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
+        retry (int): Number of times to retry uploading a file. Defaults to ``2``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
-                 progress_bar: bool = False) -> None:
-        super().__init__(out, keep_local, progress_bar)
+                 progress_bar: bool = False,
+                 retry: int = 2) -> None:
+        super().__init__(out, keep_local, progress_bar, retry)
 
         from azure.storage.filedatalake import DataLakeServiceClient
 
@@ -570,25 +605,30 @@ class AzureDataLakeUploader(CloudUploader):
         Args:
             filename (str): File to upload.
         """
-        local_filename = os.path.join(self.local, filename)
-        local_filename = local_filename.replace('\\', '/')
-        remote_filename = os.path.join(self.remote, filename)  # pyright: ignore
-        remote_filename = remote_filename.replace('\\', '/')
-        obj = urllib.parse.urlparse(remote_filename)
-        logger.debug(f'Uploading to {remote_filename}')
-        file_size = os.stat(local_filename).st_size
-        file_client = self.azure_service.get_file_client(file_system=obj.netloc,
-                                                         file_path=obj.path.lstrip('/'))
 
-        with tqdm.tqdm(total=file_size,
-                       unit='B',
-                       unit_scale=True,
-                       desc=f'Uploading to {remote_filename}',
-                       disable=(not self.progress_bar)) as pbar:
-            with open(local_filename, 'rb') as data:
-                file_client.upload_data(data=data, overwrite=True)
-                pbar.update(file_size)
-        self.clear_local(local=local_filename)
+        @retry(num_attempts=self.retry)
+        def _upload_file():
+            local_filename = os.path.join(self.local, filename)
+            local_filename = local_filename.replace('\\', '/')
+            remote_filename = os.path.join(self.remote, filename)  # pyright: ignore
+            remote_filename = remote_filename.replace('\\', '/')
+            obj = urllib.parse.urlparse(remote_filename)
+            logger.debug(f'Uploading to {remote_filename}')
+            file_size = os.stat(local_filename).st_size
+            file_client = self.azure_service.get_file_client(file_system=obj.netloc,
+                                                             file_path=obj.path.lstrip('/'))
+
+            with tqdm.tqdm(total=file_size,
+                           unit='B',
+                           unit_scale=True,
+                           desc=f'Uploading to {remote_filename}',
+                           disable=(not self.progress_bar)) as pbar:
+                with open(local_filename, 'rb') as data:
+                    file_client.upload_data(data=data, overwrite=True)
+                    pbar.update(file_size)
+            self.clear_local(local=local_filename)
+
+        _upload_file()
 
     def check_container_exists(self, remote: str):
         """Raise an exception if the container does not exist.
@@ -622,13 +662,15 @@ class DatabricksUploader(CloudUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
+        retry (int): Number of times to retry uploading a file. Defaults to ``2``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
-                 progress_bar: bool = False) -> None:
-        super().__init__(out, keep_local, progress_bar)
+                 progress_bar: bool = False,
+                 retry: int = 2) -> None:
+        super().__init__(out, keep_local, progress_bar, retry)
         self.client = self._create_workspace_client()
 
     def _create_workspace_client(self):
@@ -656,13 +698,15 @@ class DatabricksUnityCatalogUploader(DatabricksUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
+        retry (int): Number of times to retry uploading a file. Defaults to ``2``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
-                 progress_bar: bool = False) -> None:
-        super().__init__(out, keep_local, progress_bar)
+                 progress_bar: bool = False,
+                 retry: int = 2) -> None:
+        super().__init__(out, keep_local, progress_bar, retry)
 
     def upload_file(self, filename: str):
         """Upload file from local instance to Databricks Unity Catalog.
@@ -670,13 +714,18 @@ class DatabricksUnityCatalogUploader(DatabricksUploader):
         Args:
             filename (str): Relative filepath to copy.
         """
-        local_filename = os.path.join(self.local, filename)
-        local_filename = local_filename.replace('\\', '/')
-        remote_filename = os.path.join(self.remote, filename)  # pyright: ignore
-        remote_filename = remote_filename.replace('\\', '/')
-        remote_filename_wo_prefix = urllib.parse.urlparse(remote_filename).path
-        with open(local_filename, 'rb') as f:
-            self.client.files.upload(remote_filename_wo_prefix, f)
+
+        @retry(num_attempts=self.retry)
+        def _upload_file():
+            local_filename = os.path.join(self.local, filename)
+            local_filename = local_filename.replace('\\', '/')
+            remote_filename = os.path.join(self.remote, filename)  # pyright: ignore
+            remote_filename = remote_filename.replace('\\', '/')
+            remote_filename_wo_prefix = urllib.parse.urlparse(remote_filename).path
+            with open(local_filename, 'rb') as f:
+                self.client.files.upload(remote_filename_wo_prefix, f)
+
+        _upload_file()
 
 
 class DBFSUploader(DatabricksUploader):
@@ -695,13 +744,15 @@ class DBFSUploader(DatabricksUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
+        retry (int): Number of times to retry uploading a file. Defaults to ``2``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
-                 progress_bar: bool = False) -> None:
-        super().__init__(out, keep_local, progress_bar)
+                 progress_bar: bool = False,
+                 retry: int = 2) -> None:
+        super().__init__(out, keep_local, progress_bar, retry)
         self.dbfs_path = self.remote.lstrip('dbfs:')  # pyright: ignore
         self.check_folder_exists()
 
@@ -711,13 +762,18 @@ class DBFSUploader(DatabricksUploader):
         Args:
             filename (str): Relative filepath to copy.
         """
-        local_filename = os.path.join(self.local, filename)
-        local_filename = local_filename.replace('\\', '/')
-        remote_filename = os.path.join(self.dbfs_path, filename)
-        remote_filename = remote_filename.replace('\\', '/')
-        file_path = urllib.parse.urlparse(remote_filename)
-        with open(local_filename, 'rb') as f:
-            self.client.dbfs.upload(file_path.path, f)
+
+        @retry(num_attempts=self.retry)
+        def _upload_file():
+            local_filename = os.path.join(self.local, filename)
+            local_filename = local_filename.replace('\\', '/')
+            remote_filename = os.path.join(self.dbfs_path, filename)
+            remote_filename = remote_filename.replace('\\', '/')
+            file_path = urllib.parse.urlparse(remote_filename)
+            with open(local_filename, 'rb') as f:
+                self.client.dbfs.upload(file_path.path, f)
+
+        _upload_file()
 
     def check_folder_exists(self):
         """Raise an exception if the DBFS folder does not exist.
@@ -755,13 +811,15 @@ class LocalUploader(CloudUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
+        retry (int): Number of times to retry uploading a file. Defaults to ``2``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
-                 progress_bar: bool = False) -> None:
-        super().__init__(out, keep_local, progress_bar)
+                 progress_bar: bool = False,
+                 retry: int = 2) -> None:
+        super().__init__(out, keep_local, progress_bar, retry)
         # Create remote directory if it doesn't exist
         if self.remote:
             os.makedirs(self.remote, exist_ok=True)
@@ -772,9 +830,14 @@ class LocalUploader(CloudUploader):
         Args:
             filename (str): Relative filepath to copy.
         """
-        if self.remote:
-            local_filename = os.path.join(self.local, filename)
-            remote_filename = os.path.join(self.remote, filename)  # pyright: ignore
-            logger.debug(f'Copying to {remote_filename}')
-            shutil.copy(local_filename, remote_filename)
-            self.clear_local(local=local_filename)
+
+        @retry(num_attempts=self.retry)
+        def _upload_file():
+            if self.remote:
+                local_filename = os.path.join(self.local, filename)
+                remote_filename = os.path.join(self.remote, filename)  # pyright: ignore
+                logger.debug(f'Copying to {remote_filename}')
+                shutil.copy(local_filename, remote_filename)
+                self.clear_local(local=local_filename)
+
+        _upload_file()
