@@ -221,7 +221,7 @@ class S3Uploader(CloudUploader):
         self.s3 = session.client('s3',
                                  config=config,
                                  endpoint_url=os.environ.get('S3_ENDPOINT_URL'))
-        self.check_bucket_exists(self.remote)  # pyright: ignore
+        # self.check_bucket_exists(self.remote)  # pyright: ignore
 
     def upload_file(self, filename: str):
         """Upload file from local instance to AWS S3 bucket.
@@ -232,7 +232,6 @@ class S3Uploader(CloudUploader):
 
         @retry(num_attempts=self.retry)
         def _upload_file():
-            print('number of retries')
             local_filename = os.path.join(self.local, filename)
             remote_filename = os.path.join(self.remote, filename)  # pyright: ignore
             obj = urllib.parse.urlparse(remote_filename)
