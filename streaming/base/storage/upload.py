@@ -221,7 +221,7 @@ class S3Uploader(CloudUploader):
         self.s3 = session.client('s3',
                                  config=config,
                                  endpoint_url=os.environ.get('S3_ENDPOINT_URL'))
-        # self.check_bucket_exists(self.remote)  # pyright: ignore
+        self.check_bucket_exists(self.remote)  # pyright: ignore
 
     def upload_file(self, filename: str):
         """Upload file from local instance to AWS S3 bucket.
