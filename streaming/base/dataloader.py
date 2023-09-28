@@ -7,7 +7,7 @@ from typing import Any, Dict, Iterator, Optional
 
 from torch import Tensor
 from torch.utils.data import DataLoader
-from transformers.tokenization_utils_base import BatchEncoding
+from transformers import BatchEncoding, BatchFeature
 
 from streaming.base.dataset import StreamingDataset
 from streaming.base.world import World
@@ -37,7 +37,7 @@ class StreamingDataLoader(DataLoader):
         Returns:
             int: Number of samples.
         """
-        if isinstance(batch, (dict, BatchEncoding)):
+        if isinstance(batch, (dict, BatchEncoding, BatchFeature)):
             for value in batch.values():
                 return len(value)
             raise ValueError('Batch is empty')
