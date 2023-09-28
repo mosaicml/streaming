@@ -96,8 +96,6 @@ class TestDataFrameToMDS:
     def test_end_to_end_conversion_local_nocolumns(self, dataframe: Any, keep_local: bool,
                                                    merge_index: bool,
                                                    local_remote_dir: Tuple[str, str]):
-        print('keep local = ', keep_local)
-        print('merge_index = ', merge_index)
         out, _ = local_remote_dir
         mds_kwargs = {
             'out': out,
@@ -189,8 +187,6 @@ class TestDataFrameToMDS:
             'hashes': ['sha1', 'xxh64'],
             'size_limit': 1 << 26
         }
-        print('keep_local = ', keep_local)
-        print('merge_index = ', merge_index)
 
         _, _ = dataframeToMDS(dataframe, merge_index=merge_index, mds_kwargs=mds_kwargs)
 

@@ -206,16 +206,15 @@ def get_import_exception_message(package_name: str, extra_deps: str) -> str:
             f'`pip install \'mosaicml-streaming[{package_name}]\'`.'
 
 
-def merge_index(folder_urls: List[Union[str, Tuple[str, str]]],
-                out: Union[str, Tuple[str, str]],
+def merge_index(root_to_MDSdataset: Union[str, Tuple[str, str]],
                 *,
                 keep_local: bool = True,
                 overwrite: bool = True,
-                download_timeout: int = 100) -> int:
+                download_timeout: int = 60) -> int:
     """Merge index.json from a list of remote or local directories.
 
     Args:
-        folder_urls (Iterable): folders that contain index.json for the partition
+        root_to_MDSdataset (Union[str, Tuple[str,str]]): folders that contain index.json for the partition
             each element can take the form of a single path string or a tuple string
 
             for each  url in folder_urls, if url is
@@ -228,12 +227,8 @@ def merge_index(folder_urls: List[Union[str, Tuple[str, str]]],
 
         out (Union[str, Tuple[str, str]]): path to put the merged index file
         keep_local (bool): Keep local copy of the merged index file. Defaults to ``True``
-        overwrite (bool): Overwrite merged index file in out if there exists one.Defaults to ``True``
-        download_timeout (int): The allowed time for downloading each json file
-            defaults to 60, same as streaming.download_file
-
-    Returns:
-        int: count of files downloaded during function call
+        overwrite (bool): Overwrite merged index file in out if there exists one. Defaults to ``True``
+        download_timeout (int): The allowed time for downloading each json file. Defaults to 60s.
     """
     # Import here to avoid circular import error
     from streaming.base.storage.download import download_file
@@ -254,7 +249,7 @@ def merge_index(folder_urls: List[Union[str, Tuple[str, str]]],
     # Remove '/' from right, so os.path.basename gives relative path to each folder
     urls = []
     for url in folder_urls:
-        if type(url) is str:
+        if isinstance(url, str):
             urls.append(url.rstrip('/').strip())
         else:
             urls.append((url[0].rstrip('/').strip(), url[1].rstrip('/').strip()))
@@ -262,7 +257,7 @@ def merge_index(folder_urls: List[Union[str, Tuple[str, str]]],
     # Determine if we need to call download_file.
     download = False
     for url in urls:
-        if type(url) is tuple:
+        if isinstance(url, tuple):
             # If driver cannot access the local path, download = True
             download = not os.path.exists(url[0])
         else:
@@ -273,15 +268,14 @@ def merge_index(folder_urls: List[Union[str, Tuple[str, str]]],
         if download:
             break
 
-    print('download = ', download)
-    # Prepare a temp folder to download index.json rom remote if necessary. Removed in the end.
+    # Prepare a temp folder to download index.json from remote if necessary. Removed in the end.
     with tempfile.TemporaryDirectory() as temp_root:
+        logging.warning(f"Create a temporary folder {temp_root} to store index files")
 
         # container for absolute local folder path
         partitions = []
-        n_downloads = 0
         for url in urls:
-            if type(url) is tuple:
+            if isinstance(url, tuple):
                 local, remote = url
             else:
                 local = remote = url
@@ -294,13 +288,12 @@ def merge_index(folder_urls: List[Union[str, Tuple[str, str]]],
                     remote_url = os.path.join(remote, index_basename)
                     local_path = os.path.join(local, index_basename)
                     download_file(remote_url, local_path, download_timeout)
-                    n_downloads += 1
                 except Exception as ex:
-                    raise RuntimeError(f'failed to download index.json {url}') from ex
+                    raise RuntimeError(f'Failed to download index.json {url}') from ex
 
             if not (os.path.exists(local)):
                 raise FileNotFoundError(
-                    'Folder {local} does not exit or cannot be acceessed by the current process')
+                    'Folder {local} does not exit or cannot be acceessed.')
             partitions.append(local)
 
         # merge index files into shards
@@ -338,4 +331,3 @@ def merge_index(folder_urls: List[Union[str, Tuple[str, str]]],
         if not keep_local:
             shutil.rmtree(cu.local, ignore_errors=True)
 
-    return n_downloads

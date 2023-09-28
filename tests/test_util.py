@@ -147,12 +147,11 @@ def test_merge_index(local_remote_dir: Tuple[str, str], keep_local: Any, folder_
         print(folder_urls)
 
         with tempfile.TemporaryDirectory() as tmp:
-            n_downloads = merge_index(folder_urls, tmp, keep_local=keep_local, overwrite=True)
+            merge_index(folder_urls, tmp, keep_local=keep_local, overwrite=True)
             if keep_local:
                 assert (os.path.exists(os.path.join(tmp, 'index.json')))
             else:
                 assert (not os.path.exists(os.path.join(tmp, 'index.json')))
-            assert n_downloads == 0, f'n_downloads should be 0 instead of {n_downloads}'
 
     if folder_urls == 'local_unaccessible':
         with tempfile.TemporaryDirectory() as tmp_data_root:
@@ -167,8 +166,7 @@ def test_merge_index(local_remote_dir: Tuple[str, str], keep_local: Any, folder_
         for s in naive_mds_partitions:
             folder_urls.append((os.getcwd() + '/' + s, 'gs://mybucket/' + s))
         with tempfile.TemporaryDirectory() as tmp_data_root:
-            n_downloads = merge_index(folder_urls,
-                                      tmp_data_root,
-                                      keep_local=keep_local,
-                                      overwrite=True)
-            assert n_downloads == 0, f'n_downloads should be 0 instead of {n_downloads}'
+            merge_index(folder_urls,
+                        tmp_data_root,
+                        keep_local=keep_local,
+                        overwrite=True)
