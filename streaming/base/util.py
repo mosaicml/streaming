@@ -314,7 +314,7 @@ def do_merge_index(folder_urls: List[Union[str, Tuple[str, str]]],
             obj = json.load(open(partition_index))
             for i in range(len(obj['shards'])):
                 shard = obj['shards'][i]
-                for key in ('raw_data', 'zip_data'):
+                for key in ('raw_data', 'zip_data', 'raw_meta', 'zip_meta'):
                     if shard.get(key):
                         basename = shard[key]['basename']
                         obj['shards'][i][key]['basename'] = os.path.join(
@@ -337,7 +337,6 @@ def do_merge_index(folder_urls: List[Union[str, Tuple[str, str]]],
             cu.upload_file(index_basename)
 
         # Clean up
-        # shutil.rmtree(temp_root, ignore_errors=True)
         if not keep_local:
             shutil.rmtree(cu.local, ignore_errors=True)
 
