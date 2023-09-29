@@ -290,7 +290,7 @@ def do_merge_index(folder_urls: List[Any],
                     local_path = os.path.join(local, index_basename)
                     download_file(remote_url, local_path, download_timeout)
                 except Exception as ex:
-                    raise RuntimeError(f'Failed to download index.json {remote_url}') from ex
+                    raise RuntimeError(f'Failed to download index.json') from ex
 
             if not (os.path.exists(local)):
                 raise FileNotFoundError(f'Folder {local} does not exist or not accessible.')
@@ -353,16 +353,24 @@ def merge_index(root_to_mds: Union[str, Tuple[str, str]],
 
     cu = CloudUploader.get(root_to_mds, exist_ok=True, keep_local=True)
     if isinstance(root_to_mds, tuple):
-        local_folders =  [os.path.join(cu.local, os.path.dirname(o))  for o in list_objects(root_to_mds[0])]
-        remote_folders = [os.path.join(cu.remote, os.path.dirname(o)) for o in list_objects(root_to_mds[1])]
+        local_folders = [
+            os.path.join(cu.local, os.path.dirname(o)) for o in list_objects(root_to_mds[0])
+        ]
+        remote_folders = [
+            os.path.join(cu.remote, os.path.dirname(o)) for o in list_objects(root_to_mds[1])
+        ]
         folder_urls = list(zip(local_folders, remote_folders))
     else:
         print('I am here 3.1', root_to_mds)
         print('I am here 3', list_objects(root_to_mds))
         if cu.remote:
-            folder_urls = [os.path.join(cu.remote, os.path.dirname(o)) for o in list_objects(root_to_mds)]
+            folder_urls = [
+                os.path.join(cu.remote, os.path.dirname(o)) for o in list_objects(root_to_mds)
+            ]
         else:
-            folder_urls = [os.path.join(cu.local, os.path.dirname(o)) for o in list_objects(root_to_mds)]
+            folder_urls = [
+                os.path.join(cu.local, os.path.dirname(o)) for o in list_objects(root_to_mds)
+            ]
 
     do_merge_index(folder_urls, root_to_mds, keep_local=keep_local, download_timeout=60)
 

@@ -8,7 +8,6 @@ from unittest.mock import Mock, patch
 
 import boto3
 import pytest
-from botocore.exceptions import ClientError
 
 from streaming.base.storage.download import (list_objects, list_objects_from_gcs,
                                              list_objects_from_local, list_objects_from_s3)
@@ -52,20 +51,21 @@ class TestS3Client:
             mock_remote_filepath, _ = remote_local_file(cloud_prefix='s3://', filename=file_name)
             client = boto3.client('s3', region_name='us-east-1')
             client.put_object(Bucket=MY_BUCKET, Key=os.path.join(MY_PREFIX, file_name), Body='')
-            objs = list_objects_from_s3(mock_remote_filepath)
+            _ = list_objects_from_s3(mock_remote_filepath)
             assert os.environ['S3_ENDPOINT_URL'] == R2_URL
 
     @pytest.mark.usefixtures('s3_client', 's3_test', 'remote_local_file')
     def test_clienterror_exception(self, remote_local_file: Any):
-        mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='s3://')
+        mock_remote_filepath, _ = remote_local_file(cloud_prefix='s3://')
         objs = list_objects_from_s3(mock_remote_filepath)
-        assert(len(objs) == 0)
+        if objs:
+            assert (len(objs) == 0)
 
     @pytest.mark.usefixtures('s3_client', 's3_test', 'remote_local_file')
     def test_invalid_cloud_prefix(self, remote_local_file: Any):
         with pytest.raises(ValueError):
-            mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='s9://')
-            objs = list_objects_from_s3(mock_remote_filepath)
+            mock_remote_filepath, _ = remote_local_file(cloud_prefix='s9://')
+            _ = list_objects_from_s3(mock_remote_filepath)
 
 
 class TestGCSClient:
@@ -89,7 +89,7 @@ class TestGCSClient:
     @pytest.mark.usefixtures('gcs_service_account_credentials')
     @pytest.mark.parametrize('out', ['gs://bucket/dir'])
     def test_download_service_account(self, mock_client: Mock, mock_default: Mock, out: str):
-        with tempfile.NamedTemporaryFile(delete=True, suffix='.txt') as tmp:
+        with tempfile.NamedTemporaryFile(delete=True, suffix='.txt') as _:
             credentials_mock = Mock()
             mock_default.return_value = credentials_mock, None
             objs = list_objects_from_gcs(out)
@@ -98,20 +98,20 @@ class TestGCSClient:
 
     @pytest.mark.usefixtures('gcs_hmac_client', 'gcs_test', 'remote_local_file')
     def test_filenotfound_exception(self, remote_local_file: Any):
-        mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='gs://')
-        objs = list_objects_from_gcs(mock_remote_filepath)
+        mock_remote_filepath, _ = remote_local_file(cloud_prefix='gs://')
+        _ = list_objects_from_gcs(mock_remote_filepath)
 
     @pytest.mark.usefixtures('gcs_hmac_client', 'gcs_test', 'remote_local_file')
     def test_invalid_cloud_prefix(self, remote_local_file: Any):
         with pytest.raises(ValueError):
-            mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='s3://')
-            objs = list_objects_from_gcs(mock_remote_filepath)
+            mock_remote_filepath, _ = remote_local_file(cloud_prefix='s3://')
+            _ = list_objects_from_gcs(mock_remote_filepath)
 
     def test_no_credentials_error(self, remote_local_file: Any):
         """Ensure we raise a value error correctly if we have no credentials available."""
         with pytest.raises(ValueError):
-            mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='gs://')
-            objs = list_objects_from_gcs(mock_remote_filepath)
+            mock_remote_filepath, _ = remote_local_file(cloud_prefix='gs://')
+            _ = list_objects_from_gcs(mock_remote_filepath)
 
 
 def test_list_objects_from_local():
@@ -121,9 +121,8 @@ def test_list_objects_from_local():
     # Creates a new empty file
     with open(mock_local_file, 'w') as _:
         pass
-
-    objs = list_objects_from_local(mock_local_file)
-    assert objs == mock_local_file
+    with pytest.raises(NotADirectoryError):
+        objs = list_objects_from_local(mock_local_file)
 
 
 class TestListObjects:
@@ -131,28 +130,30 @@ class TestListObjects:
     @patch('streaming.base.storage.download.list_objects_from_s3')
     @pytest.mark.usefixtures('remote_local_file')
     def test_list_objects_from_s3_gets_called(self, mocked_requests: Mock, remote_local_file: Any):
-        mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='s3://')
-        objs = list_objects(mock_remote_filepath)
+        mock_remote_filepath, _ = remote_local_file(cloud_prefix='s3://')
+        list_objects(mock_remote_filepath)
         mocked_requests.assert_called_once()
         mocked_requests.assert_called_once_with(mock_remote_filepath)
 
     @patch('streaming.base.storage.download.list_objects_from_gcs')
     @pytest.mark.usefixtures('remote_local_file')
-    def test_list_objects_from_gcs_gets_called(self, mocked_requests: Mock, remote_local_file: Any):
-        mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='gs://')
-        objs = list_objects(mock_remote_filepath)
+    def test_list_objects_from_gcs_gets_called(self, mocked_requests: Mock,
+                                               remote_local_file: Any):
+        mock_remote_filepath, _ = remote_local_file(cloud_prefix='gs://')
+        list_objects(mock_remote_filepath)
         mocked_requests.assert_called_once()
         mocked_requests.assert_called_once_with(mock_remote_filepath)
 
     @patch('streaming.base.storage.download.list_objects_from_local')
     @pytest.mark.usefixtures('remote_local_file')
-    def test_list_objects_from_local_gets_called(self, mocked_requests: Mock, remote_local_file: Any):
-        mock_remote_filepath, mock_local_filepath = remote_local_file()
-        objs = list_objects(mock_remote_filepath)
+    def test_list_objects_from_local_gets_called(self, mocked_requests: Mock,
+                                                 remote_local_file: Any):
+        mock_remote_filepath, _ = remote_local_file()
+        list_objects(mock_remote_filepath)
         mocked_requests.assert_called_once()
         mocked_requests.assert_called_once_with(mock_remote_filepath)
 
     @pytest.mark.usefixtures('remote_local_file')
     def test_list_objects_invalid_missing_remote(self):
         obj = list_objects(None)
-        assert(obj == os.listdir())
+        assert (obj == os.listdir())

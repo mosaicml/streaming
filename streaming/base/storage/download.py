@@ -490,32 +490,35 @@ def wait_for_download(local: str, timeout: float = 60) -> None:
                 f'Waited longer than {timeout}s for other worker to download {local}.')
         sleep(0.25)
 
+
 def remove_prefix(obj: str):
-    """Remove prefix from ob
+    """Remove prefix from ob.
 
     Args:
         obj (str): take form of 'path/to/folder'
     return:
         (str): take form of 'to/folder'
     """
-    return "/".join(obj.strip("/").split('/')[1:])
+    return '/'.join(obj.strip('/').split('/')[1:])
 
-def list_objects_from_s3(remote: str, timeout: int = 60) -> List[str]:
+
+def list_objects_from_s3(remote: str, timeout: float = 60) -> Optional[List[str]]:
     """List objects from remote AWS S3.
 
     Args:
         remote (str): Remote path (S3).
+        timeout (float): How long to wait for objects to be returned.
     """
     import boto3
-    from boto3.s3.transfer import TransferConfig
     from botocore import UNSIGNED
     from botocore.config import Config
     from botocore.exceptions import ClientError, NoCredentialsError
 
-    def _list_objects(obj, unsigned: bool = False) -> None:
+    def _list_objects(obj: urllib.parse.ParseResult, unsigned: bool = False) -> List[str]:
         """List the objects from AWS S3 bucket. The bucket can be either public or private.
 
         Args:
+            obj (ParseResult): ParseResult object of remote.
             unsigned (bool, optional):  Set to True if it is a public bucket.
                 Defaults to ``False``.
         """
@@ -542,7 +545,6 @@ def list_objects_from_s3(remote: str, timeout: int = 60) -> List[str]:
                     ans.append(remove_prefix(o['Key']))
         return ans
 
-
     obj = urllib.parse.urlparse(remote)
     if obj.scheme != 's3':
         raise ValueError(
@@ -567,22 +569,22 @@ def list_objects_from_s3(remote: str, timeout: int = 60) -> List[str]:
         raise
 
 
-def list_objects_from_gcs(remote: str, timeout: int = 60) -> List[str]:
+def list_objects_from_gcs(remote: str, timeout: float = 60) -> Optional[List[str]]:
     """List objects from remote Google Cloud Bucket.
 
     Args:
         remote (str): Remote path (S3).
+        timeout (float): How long to wait for objects to be returned.
     """
     from google.auth.exceptions import DefaultCredentialsError
 
-    def _gcs_with_hmac(obj: urllib.parse.ParseResult) -> None:
+    def _gcs_with_hmac(obj: urllib.parse.ParseResult) -> Optional[List[str]]:
         """Return a list of objects from remote GCS using user level credentials.
 
         Args:
             obj (ParseResult): ParseResult object of remote.
         """
         import boto3
-        from boto3.s3.transfer import TransferConfig
         from botocore.exceptions import ClientError
 
         # Create a new session per thread
@@ -594,31 +596,34 @@ def list_objects_from_gcs(remote: str, timeout: int = 60) -> List[str]:
                                     aws_access_key_id=os.environ['GCS_KEY'],
                                     aws_secret_access_key=os.environ['GCS_SECRET'])
         try:
-            response = gcs_client.list_objects_v2(Bucket=obj.netloc,
-                                                  Prefix=obj.path.lstrip("/"))
+            response = gcs_client.list_objects_v2(Bucket=obj.netloc, Prefix=obj.path.lstrip('/'))
             if response and 'Contents' in response:
                 return [remove_prefix(ob['Key']) for ob in response['Contents']]
 
         except ClientError as e:
             if e.response['Error']['Code'] in BOTOCORE_CLIENT_ERROR_CODES:
-                raise FileNotFoundError(f'Object {obj.sheme}, {obj.netloc}, {obj.path} not found.') from e
+                raise FileNotFoundError(
+                    f'Object {obj.scheme}, {obj.netloc}, {obj.path} not found.') from e
         except Exception:
             raise
 
-    def _gcs_with_service_account(obj: urllib.parse.ParseResult) -> None:
+    def _gcs_with_service_account(obj: urllib.parse.ParseResult) -> Optional[List[str]]:
         """Return a list of objects from remote GCS using service account credentials.
 
         Args:
             obj (ParseResult): ParseResult object of remote path (GCS).
         """
         from google.auth import default as default_auth
-        from google.cloud.storage import Blob, Bucket, Client
+        from google.cloud.storage import Client
 
         credentials, _ = default_auth()
         gcs_client = Client(credentials=credentials)
         bucket = gcs_client.get_bucket(obj.netloc, timeout=60.0)
         objects = bucket.list_blobs(prefix=obj.path.lstrip('/'))
-        return [remove_prefix(ob.name) for ob in objects]
+        ans = []
+        for ob in objects:
+            ans.append(remove_prefix(ob.name))
+        return ans
 
     obj = urllib.parse.urlparse(remote)
     if obj.scheme != 'gs':
@@ -626,7 +631,10 @@ def list_objects_from_gcs(remote: str, timeout: int = 60) -> List[str]:
             f'Expected obj.scheme to be `gs`, instead, got {obj.scheme} for remote={remote}')
 
     if 'GCS_KEY' in os.environ and 'GCS_SECRET' in os.environ:
-        return _gcs_with_hmac(obj)
+        try:
+            return _gcs_with_hmac(obj)
+        except (DefaultCredentialsError, EnvironmentError):
+            raise ValueError(GCS_ERROR_NO_AUTHENTICATION)
     else:
         try:
             return _gcs_with_service_account(obj)
@@ -634,7 +642,7 @@ def list_objects_from_gcs(remote: str, timeout: int = 60) -> List[str]:
             raise ValueError(GCS_ERROR_NO_AUTHENTICATION)
 
 
-def list_objects_from_oci(remote: str) -> List[str]:
+def list_objects_from_oci(remote: str) -> Optional[List[str]]:
     """List objects from remote OCI to local.
 
     Args:
@@ -650,16 +658,16 @@ def list_objects_from_oci(remote: str) -> List[str]:
         raise ValueError(
             f'Expected obj.scheme to be `oci`, instead, got {obj.scheme} for remote={remote}')
 
-    object_names = []
+    object_names = ['']
     next_start_with = None
     response_complete = False
-
+    namespace = client.get_namespace().data
     while not response_complete:
-        response = client.list_objects(namespace_name=client.get_namespace().data,
+        response = client.list_objects(namespace_name=namespace,
                                        bucket_name=obj.netloc.split('@' + namespace)[0],
                                        prefix=obj.path.strip('/'),
                                        start=next_start_with).data
-        object_names.extend([obj.name for obj in response.objects])
+        object_names.extend([remove_prefix(obj.name) for obj in response.objects])
         next_start_with = response.next_start_with
         if not next_start_with:
             response_complete = True
@@ -667,18 +675,20 @@ def list_objects_from_oci(remote: str) -> List[str]:
     return object_names
 
 
-def list_objects_from_local(path: Optional[str]) -> List[str]:
-    """List objects from a local directory. List current directory if path is None. Return path if path is not a directory.
+def list_objects_from_local(path: Optional[str]) -> Optional[List[str]]:
+    """List objects from a local directory.
 
     Args:
         path (str): absolute path or None.
+
+    Notes:
+        List current directory if path is None.
+        Raise error if path is a file
     """
     if not path:
         return os.listdir()
-    if os.path.isdir(path):
-        return os.listdir(path)
+    return os.listdir(path)
 
-    return path
 
 def list_objects(remote: Optional[str]) -> List[str]:
     """Use the correct cloud handler to list objects.
@@ -688,7 +698,10 @@ def list_objects(remote: Optional[str]) -> List[str]:
             If remote is None or '', list current working directory with os.listdir()
     """
     if not remote:  # '' or None
-        return list_objects_from_local(remote)
+        ans = list_objects_from_local(remote)
+        if not ans:
+            return ['']
+        return ans
 
     # fix paths for windows
     if remote:
@@ -697,12 +710,16 @@ def list_objects(remote: Optional[str]) -> List[str]:
     obj = urllib.parse.urlparse(remote)
 
     if obj.scheme == '':
-        return list_objects_from_local(remote)
+        ans = list_objects_from_local(remote)
     elif obj.scheme == 's3':
-        return list_objects_from_s3(remote)
-    elif remote.startswith('gs'):
-        return list_objects_from_gcs(remote)
-    elif remote.startswith('oci'):
-        return list_objects_from_oci(remote)
+        ans = list_objects_from_s3(remote)
+    elif obj.scheme == 'gs':
+        ans = list_objects_from_gcs(remote)
+    elif obj.scheme == 'oci':
+        ans = list_objects_from_oci(remote)
     else:
         raise NotImplementedError
+
+    if not ans:
+        return ['']
+    return ans
