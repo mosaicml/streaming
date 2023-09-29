@@ -122,7 +122,7 @@ def test_list_objects_from_local():
     with open(mock_local_file, 'w') as _:
         pass
     with pytest.raises(NotADirectoryError):
-        objs = list_objects_from_local(mock_local_file)
+        _ = list_objects_from_local(mock_local_file)
 
 
 class TestListObjects:
