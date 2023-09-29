@@ -241,6 +241,7 @@ def do_merge_index(folder_urls: List[Any],
         logger.warning('Need to specify both folder_urls and out. No index merged')
         return
 
+    print('folder_urls = ', folder_urls)
     # This is the index json file name, e.g., it is index.json as of 0.6.0
     index_basename = get_index_basename()
 
@@ -289,10 +290,10 @@ def do_merge_index(folder_urls: List[Any],
                     local_path = os.path.join(local, index_basename)
                     download_file(remote_url, local_path, download_timeout)
                 except Exception as ex:
-                    raise RuntimeError(f'Failed to download index.json {url}') from ex
+                    raise RuntimeError(f'Failed to download index.json {remote_url}') from ex
 
             if not (os.path.exists(local)):
-                raise FileNotFoundError('Folder {local} does not exist or not accessible.')
+                raise FileNotFoundError(f'Folder {local} does not exist or not accessible.')
             partitions.append(local)
 
         # merge index files into shards
@@ -344,17 +345,24 @@ def merge_index(root_to_mds: Union[str, Tuple[str, str]],
         download_timeout (int): The allowed time for downloading each json file. Defaults to 60s.
     """
     from streaming.base.storage.download import list_objects
+    from streaming.base.storage.upload import CloudUploader
 
     if not root_to_mds:
         logger.warning('No MDS dataset folder specified, no index merged')
         return
 
+    cu = CloudUploader.get(root_to_mds, exist_ok=True, keep_local=True)
     if isinstance(root_to_mds, tuple):
-        local_folders = list_objects(root_to_mds[0])
-        remote_folders = list_objects(root_to_mds[1])
+        local_folders =  [os.path.join(cu.local, os.path.dirname(o))  for o in list_objects(root_to_mds[0])]
+        remote_folders = [os.path.join(cu.remote, os.path.dirname(o)) for o in list_objects(root_to_mds[1])]
         folder_urls = list(zip(local_folders, remote_folders))
     else:
-        folder_urls = list_objects(root_to_mds)
+        print('I am here 3.1', root_to_mds)
+        print('I am here 3', list_objects(root_to_mds))
+        if cu.remote:
+            folder_urls = [os.path.join(cu.remote, os.path.dirname(o)) for o in list_objects(root_to_mds)]
+        else:
+            folder_urls = [os.path.join(cu.local, os.path.dirname(o)) for o in list_objects(root_to_mds)]
 
     do_merge_index(folder_urls, root_to_mds, keep_local=keep_local, download_timeout=60)
 

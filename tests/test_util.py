@@ -12,9 +12,9 @@ import pytest
 
 from streaming.base.constant import RESUME
 from streaming.base.shared.prefix import _get_path
-from streaming.base.storage.download import download_file
+from streaming.base.storage.download import download_file, list_objects
 from streaming.base.storage.upload import CloudUploader
-from streaming.base.util import (bytes_to_int, clean_stale_shared_memory, do_merge_index,
+from streaming.base.util import (bytes_to_int, clean_stale_shared_memory, do_merge_index, merge_index,
                                  get_list_arg, number_abbrev_to_int, retry)
 
 MY_PREFIX = 'train'
@@ -149,6 +149,68 @@ def test_clean_stale_shared_memory():
     with pytest.raises(FileNotFoundError):
         _ = BuiltinSharedMemory(name, False, 64)
 
+def integrity_check(out: Union[str, Tuple[str, str]], keep_local):
+    """ Check if merged_index file has integrity
+        If merged_index is a cloud url, first download it to a temp local file.
+    """
+
+    cu = CloudUploader.get(out, keep_local=True, exist_ok=True)
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+
+        if cu.remote:
+            download_file(os.path.join(cu.remote, 'index.json'),
+                          os.path.join(temp_dir, 'index.json'),
+                          timeout=60)
+            local_merged_index_path = os.path.join(temp_dir, 'index.json')
+        else:
+            local_merged_index_path = os.path.join(cu.local, 'index.json')
+
+        if not keep_local:
+            assert not os.path.exists(os.path.join(cu.local, 'index.json'))
+            return
+
+        assert os.path.exists(local_merged_index_path)
+        merged_index = json.load(open(local_merged_index_path, 'r'))
+        n_shard_files = len({b['raw_data']['basename'] for b in merged_index['shards']})
+        assert (n_shard_files == 2), 'expected 2 shard files but got {n_shard_files}'
+
+def test_merge_index(manual_integration_dir: Any):
+    from decimal import Decimal
+    from streaming.base.converters import dataframeToMDS
+    from pyspark.sql import SparkSession
+    from pyspark.sql.types import DecimalType, IntegerType, StringType, StructField, StructType
+
+    spark = SparkSession.builder.getOrCreate()  # pyright: ignore
+    schema = StructType([
+        StructField('id', IntegerType(), nullable=False),
+        StructField('name', StringType(), nullable=False),
+        StructField('amount', DecimalType(10, 2), nullable=False)
+    ])
+
+    data = [(1, 'Alice', Decimal('123.45')), (2, 'Bob', Decimal('67.89')),
+            (3, 'Charlie', Decimal('987.65'))]
+
+    df = spark.createDataFrame(data=data, schema=schema).repartition(3)
+
+    _, remote = manual_integration_dir()
+    mds_kwargs = {
+        'out': remote,
+        'columns': {
+            'id': 'int',
+            'name': 'str'
+        },
+    }
+    print('I am here 0: remote = ', remote)
+
+    mds_path, _ = dataframeToMDS(df, merge_index=False, mds_kwargs=mds_kwargs)
+
+    print('mds_path = ', mds_path)
+    print(list_objects("gs://mosaicml-composer-tests/train/"))
+    merge_index(remote)
+
+    integrity_check(remote, keep_local=True)
+
 
 @pytest.mark.parametrize('folder_urls_pattern', [1, 2, 3, 4, 5])
 @pytest.mark.parametrize('output_format', ['local', 'remote', 'tuple'])
@@ -163,32 +225,6 @@ def test_do_merge_index(manual_integration_dir: Any, keep_local: bool, folder_ur
         4. All urls are tuple (local, remote). At least one url is not accessible locally -> download all
         5. All urls are str (remote) -> download all
     """
-
-    def integrity_check(out: Union[str, Tuple[str, str]]):
-        """ Check if merged_index file has integrity
-            If merged_index is a cloud url, first download it to a temp local file.
-        """
-
-        cu = CloudUploader.get(out, keep_local=True, exist_ok=True)
-
-        with tempfile.TemporaryDirectory() as temp_dir:
-
-            if cu.remote:
-                download_file(os.path.join(cu.remote, 'index.json'),
-                              os.path.join(temp_dir, 'index.json'),
-                              timeout=60)
-                local_merged_index_path = os.path.join(temp_dir, 'index.json')
-            else:
-                local_merged_index_path = os.path.join(cu.local, 'index.json')
-
-            if not keep_local:
-                assert not os.path.exists(os.path.join(cu.local, 'index.json'))
-                return
-
-            assert os.path.exists(local_merged_index_path)
-            merged_index = json.load(open(local_merged_index_path, 'r'))
-            n_shard_files = len({b['raw_data']['basename'] for b in merged_index['shards']})
-            assert (n_shard_files == 2), 'expected 2 shard files but got {n_shard_files}'
 
     if output_format != 'local':
         if not MANUAL_INTEGRATION_TEST:
@@ -255,7 +291,7 @@ def test_do_merge_index(manual_integration_dir: Any, keep_local: bool, folder_ur
                 folder_urls.append('gs://' + MY_BUCKET + '/' + s)
             do_merge_index(folder_urls, out, keep_local=keep_local)
 
-    integrity_check(out)
+    integrity_check(out, keep_local=keep_local)
 
 
 @pytest.mark.parametrize('with_args', [True, False])

@@ -490,18 +490,195 @@ def wait_for_download(local: str, timeout: float = 60) -> None:
                 f'Waited longer than {timeout}s for other worker to download {local}.')
         sleep(0.25)
 
+def remove_prefix(obj: str):
+    """Remove prefix from ob
 
-def list_objects_from_s3(remote: str) -> List[str]:
-    return []
+    Args:
+        obj (str): take form of 'path/to/folder'
+    return:
+        (str): take form of 'to/folder'
+    """
+    return "/".join(obj.strip("/").split('/')[1:])
+
+def list_objects_from_s3(remote: str, timeout: int = 60) -> List[str]:
+    """List objects from remote AWS S3.
+
+    Args:
+        remote (str): Remote path (S3).
+    """
+    import boto3
+    from boto3.s3.transfer import TransferConfig
+    from botocore import UNSIGNED
+    from botocore.config import Config
+    from botocore.exceptions import ClientError, NoCredentialsError
+
+    def _list_objects(obj, unsigned: bool = False) -> None:
+        """List the objects from AWS S3 bucket. The bucket can be either public or private.
+
+        Args:
+            unsigned (bool, optional):  Set to True if it is a public bucket.
+                Defaults to ``False``.
+        """
+        if unsigned:
+            # Client will be using unsigned mode in which public
+            # resources can be accessed without credentials
+            config = Config(read_timeout=timeout, signature_version=UNSIGNED)
+        else:
+            config = Config(read_timeout=timeout)
+
+        # Create a new session per thread
+        session = boto3.session.Session()
+        # Create a resource client using a thread's session object
+        s3 = session.client('s3', config=config, endpoint_url=os.environ.get('S3_ENDPOINT_URL'))
+        # Threads calling S3 operations return RuntimeError (cannot schedule new futures after
+        # interpreter shutdown). Temporary solution is to have `use_threads` as `False`.
+        # Issue: https://github.com/boto/boto3/issues/3113
+        paginator = s3.get_paginator('list_objects_v2')
+        pages = paginator.paginate(Bucket=obj.netloc, Prefix=obj.path)
+        ans = []
+        for page in pages:
+            if 'Contents' in page:
+                for o in page['Contents']:
+                    ans.append(remove_prefix(o['Key']))
+        return ans
 
 
-def list_objects_from_gcs(remote: str) -> List[str]:
-    return []
+    obj = urllib.parse.urlparse(remote)
+    if obj.scheme != 's3':
+        raise ValueError(
+            f'Expected obj.scheme to be `s3`, instead, got {obj.scheme} for remote={remote}')
+
+    try:
+        return _list_objects(obj)
+    except NoCredentialsError:
+        # Public S3 buckets without credentials
+        return _list_objects(obj, unsigned=True)
+    except ClientError as e:
+        if e.response['Error']['Code'] in BOTOCORE_CLIENT_ERROR_CODES:
+            e.args = (f'Object {remote} not found! Either check the bucket path or the bucket ' +
+                      f'permission. If the bucket is a requester pays bucket, then provide the ' +
+                      f'bucket name to the environment variable ' +
+                      f'`MOSAICML_STREAMING_AWS_REQUESTER_PAYS`.',)
+            raise e
+        elif e.response['Error']['Code'] == '400':
+            # Public S3 buckets without credentials
+            return _list_objects(obj, unsigned=True)
+    except Exception:
+        raise
+
+
+def list_objects_from_gcs(remote: str, timeout: int = 60) -> List[str]:
+    """List objects from remote Google Cloud Bucket.
+
+    Args:
+        remote (str): Remote path (S3).
+    """
+    from google.auth.exceptions import DefaultCredentialsError
+
+    def _gcs_with_hmac(obj: urllib.parse.ParseResult) -> None:
+        """Return a list of objects from remote GCS using user level credentials.
+
+        Args:
+            obj (ParseResult): ParseResult object of remote.
+        """
+        import boto3
+        from boto3.s3.transfer import TransferConfig
+        from botocore.exceptions import ClientError
+
+        # Create a new session per thread
+        session = boto3.session.Session()
+        # Create a resource client using a thread's session object
+        gcs_client = session.client('s3',
+                                    region_name='auto',
+                                    endpoint_url='https://storage.googleapis.com',
+                                    aws_access_key_id=os.environ['GCS_KEY'],
+                                    aws_secret_access_key=os.environ['GCS_SECRET'])
+        try:
+            response = gcs_client.list_objects_v2(Bucket=obj.netloc,
+                                                  Prefix=obj.path.lstrip("/"))
+            if response and 'Contents' in response:
+                return [remove_prefix(ob['Key']) for ob in response['Contents']]
+
+        except ClientError as e:
+            if e.response['Error']['Code'] in BOTOCORE_CLIENT_ERROR_CODES:
+                raise FileNotFoundError(f'Object {obj.sheme}, {obj.netloc}, {obj.path} not found.') from e
+        except Exception:
+            raise
+
+    def _gcs_with_service_account(obj: urllib.parse.ParseResult) -> None:
+        """Return a list of objects from remote GCS using service account credentials.
+
+        Args:
+            obj (ParseResult): ParseResult object of remote path (GCS).
+        """
+        from google.auth import default as default_auth
+        from google.cloud.storage import Blob, Bucket, Client
+
+        credentials, _ = default_auth()
+        gcs_client = Client(credentials=credentials)
+        bucket = gcs_client.get_bucket(obj.netloc, timeout=60.0)
+        objects = bucket.list_blobs(prefix=obj.path.lstrip('/'))
+        return [remove_prefix(ob.name) for ob in objects]
+
+    obj = urllib.parse.urlparse(remote)
+    if obj.scheme != 'gs':
+        raise ValueError(
+            f'Expected obj.scheme to be `gs`, instead, got {obj.scheme} for remote={remote}')
+
+    if 'GCS_KEY' in os.environ and 'GCS_SECRET' in os.environ:
+        return _gcs_with_hmac(obj)
+    else:
+        try:
+            return _gcs_with_service_account(obj)
+        except (DefaultCredentialsError, EnvironmentError):
+            raise ValueError(GCS_ERROR_NO_AUTHENTICATION)
 
 
 def list_objects_from_oci(remote: str) -> List[str]:
-    return []
+    """List objects from remote OCI to local.
 
+    Args:
+        remote (str): Remote path (OCI).
+    """
+    import oci
+    config = oci.config.from_file()
+    client = oci.object_storage.ObjectStorageClient(
+        config=config, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
+
+    obj = urllib.parse.urlparse(remote)
+    if obj.scheme != 'oci':
+        raise ValueError(
+            f'Expected obj.scheme to be `oci`, instead, got {obj.scheme} for remote={remote}')
+
+    object_names = []
+    next_start_with = None
+    response_complete = False
+
+    while not response_complete:
+        response = client.list_objects(namespace_name=client.get_namespace().data,
+                                       bucket_name=obj.netloc.split('@' + namespace)[0],
+                                       prefix=obj.path.strip('/'),
+                                       start=next_start_with).data
+        object_names.extend([obj.name for obj in response.objects])
+        next_start_with = response.next_start_with
+        if not next_start_with:
+            response_complete = True
+
+    return object_names
+
+
+def list_objects_from_local(path: Optional[str]) -> List[str]:
+    """List objects from a local directory. List current directory if path is None. Return path if path is not a directory.
+
+    Args:
+        path (str): absolute path or None.
+    """
+    if not path:
+        return os.listdir()
+    if os.path.isdir(path):
+        return os.listdir(path)
+
+    return path
 
 def list_objects(remote: Optional[str]) -> List[str]:
     """Use the correct cloud handler to list objects.
@@ -510,27 +687,22 @@ def list_objects(remote: Optional[str]) -> List[str]:
         remote (str, optional): Remote path (local filesystem).
             If remote is None or '', list current working directory with os.listdir()
     """
+    if not remote:  # '' or None
+        return list_objects_from_local(remote)
+
     # fix paths for windows
     if remote:
         remote = remote.replace('\\', '/')
 
-    if not remote:  # '' or None
-        return os.listdir()
-    elif remote.startswith('s3://'):
+    obj = urllib.parse.urlparse(remote)
+
+    if obj.scheme == '':
+        return list_objects_from_local(remote)
+    elif obj.scheme == 's3':
         return list_objects_from_s3(remote)
-    elif remote.startswith('gs://'):
+    elif remote.startswith('gs'):
         return list_objects_from_gcs(remote)
-    elif remote.startswith('oci://'):
+    elif remote.startswith('oci'):
         return list_objects_from_oci(remote)
-    elif remote.startswith('sftp://'):
-        raise NotImplemented('list_objects for sftp not supported')
-    elif remote.startswith('azure://'):
-        raise NotImplemented('list_objects for azure not supported')
-    elif remote.startswith('azure-dl://'):
-        raise NotImplemented('list_objects for azure-dl not supported')
-    elif remote.startswith('dbfs:/Volumes'):
-        raise NotImplemented('list_objects for dbfs:/Volumes not supported')
-    elif remote.startswith('dbfs:/'):
-        raise NotImplemented('list_objects for dbfs:/ not supported')
     else:
-        raise ValueError('remote scheme is not recognizable')
+        raise NotImplementedError
