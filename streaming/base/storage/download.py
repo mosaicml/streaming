@@ -489,3 +489,37 @@ def wait_for_download(local: str, timeout: float = 60) -> None:
             raise TimeoutError(
                 f'Waited longer than {timeout}s for other worker to download {local}.')
         sleep(0.25)
+
+
+def list_objects(remote: Optional[str]):
+    """Use the correct cloud handler to list objects.
+
+    Args:
+        remote (str, optional): Remote path (local filesystem).
+            If remote is None or '', list current working directory with os.listdir()
+    """
+    # fix paths for windows
+    if remote:
+        remote = remote.replace('\\', '/')
+
+    if not remote: # '' or None
+        return os.listdir()
+    elif remote.startswith('s3://'):
+        list_objects_from_s3(remote)
+    elif remote.startswith('sftp://'):
+        raise NotImplemented('list_objects for sftp not supported')
+    elif remote.startswith('gs://'):
+        list_objects_from_gcs(remote, local)
+    elif remote.startswith('oci://'):
+        list_objects_from_oci(remote, local)
+    elif remote.startswith('azure://'):
+        raise NotImplemented('list_objects for azure not supported')
+    elif remote.startswith('azure-dl://'):
+        raise NotImplemented('list_objects for azure-dl not supported')
+    elif remote.startswith('dbfs:/Volumes'):
+        raise NotImplemented('list_objects for dbfs:/Volumes not supported')
+    elif remote.startswith('dbfs:/'):
+        raise NotImplemented('list_objects for dbfs:/ not supported')
+    else:
+        raise ValueError("remote scheme is not recognizable")
+

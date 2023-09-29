@@ -89,8 +89,8 @@ class CloudUploader:
             prefix = os.path.join(path.parts[0], path.parts[1])
             if prefix == 'dbfs:/Volumes':
                 provider_prefix = prefix
-        return getattr(sys.modules[__name__], UPLOADERS[provider_prefix])(out, keep_local,
-                                                                          progress_bar, retry, exist_ok)
+        return getattr(sys.modules[__name__],
+                       UPLOADERS[provider_prefix])(out, keep_local, progress_bar, retry, exist_ok)
 
     def _validate(self, out: Union[str, Tuple[str, str]]) -> None:
         """Validate the `out` argument.

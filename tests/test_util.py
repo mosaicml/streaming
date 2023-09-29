@@ -2,16 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import json
 import tempfile
 from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple, Union
 
 import pytest
 
 from streaming.base.constant import RESUME
 from streaming.base.shared.prefix import _get_path
 from streaming.base.util import (bytes_to_int, clean_stale_shared_memory, get_list_arg,
-                                 number_abbrev_to_int, merge_index, retry)
+                                 merge_index, do_merge_index, number_abbrev_to_int, retry)
 
 
 @pytest.mark.parametrize(('text', 'expected_output'), [('hello,world', ['hello', 'world']),
@@ -109,24 +110,18 @@ def test_clean_stale_shared_memory():
         _ = BuiltinSharedMemory(name, False, 64)
 
 
-@pytest.mark.parametrize('folder_urls', [
-    'local_accessible', 'remote', 'local_unaccessible', 'tuple_local_accessible',
-    'tuple_partial_local_accessible'
-])
-@pytest.mark.parametrize('out', ['local_str', 'remote_str', 'tuple'])
+@pytest.mark.parametrize('folder_urls_pattern', [1, 2, 3, 4, 5])
 @pytest.mark.usefixtures('local_remote_dir')
 @pytest.mark.parametrize('keep_local', [True, False])
-def test_merge_index(local_remote_dir: Tuple[str, str], keep_local: Any, folder_urls: Any,
-                     out: Any):
-    """Example input urls to test based on folder accessibility to the driver
-        ['pwd()/tests/resources/naive_MDSdataset/25/', ...] --> all accessible locally
-        ['gs://mybucket/mdsdata/25/'...] --> all remote urls, assume all accessible remotely
-        ['/path/never/exists/25',... ] --> none accessible locally
-        [('/path/never/exists/25', 'gs://mybucket/mdsdata/25/'), ...] --> all accessible remotely but not locally
-        [('pwd()/tests/resources/naive_MDSdataset/25/', 'gs://mybucket/mdsdata/25/'), ...] --> all accessible both locally and remotely
-        [('pwd()/tests/resources/naive_MDSdataset/25/', 'gs://mybucket/mdsdata/25/'),
-         ('/path/never/exists/25/', 'gs://mybucket/mdsdata/25/'),
-        ...] --> some accessible both locally and remotely, some are not
+def test_do_merge_index(local_remote_dir: Tuple[str, str],
+                        keep_local: bool,
+                        folder_urls_pattern: int):
+    """Validate the final merge index json for following patterns of folder_urls:
+        1. All urls are str (local). All urls are accessible locally -> no download
+        2. All urls are str (local). At least one url is unaccessible locally -> Error
+        3. All urls are tuple (local, remote). All urls are accessible locally -> no download
+        4. All urls are tuple (local, remote). At least one url is not accessible locally -> download all
+        5. All urls are str (remote) -> download all
     """
 
     naive_mds_partitions = [
@@ -134,42 +129,44 @@ def test_merge_index(local_remote_dir: Tuple[str, str], keep_local: Any, folder_
         'tests/resources/naive_MDSdataset/27/'
     ]
 
-    # require download_file from cloud
-    if out == 'remote_str' or 'tuple':
+    if folder_urls_pattern in [4,5]:
+        # Require cloud file transfers. Will be covered by integration tests.
         return
 
-    # require download_file from cloud
-    if folder_urls == 'remote' or 'tuple_partial_local_accessible':
-        return
+    with tempfile.TemporaryDirectory() as out:
+        if folder_urls_pattern == 1:
+            folder_urls = [os.getcwd() + '/' + s for s in naive_mds_partitions]
+            do_merge_index(folder_urls, out, keep_local=keep_local)
 
-    if folder_urls == 'local_accessible':
-        folder_urls = [os.getcwd() + '/' + s for s in naive_mds_partitions]
-        print(folder_urls)
 
-        with tempfile.TemporaryDirectory() as tmp:
-            merge_index(folder_urls, tmp, keep_local=keep_local, overwrite=True)
-            if keep_local:
-                assert (os.path.exists(os.path.join(tmp, 'index.json')))
-            else:
-                assert (not os.path.exists(os.path.join(tmp, 'index.json')))
-
-    if folder_urls == 'local_unaccessible':
-        with tempfile.TemporaryDirectory() as tmp_data_root:
-            folder_urls = [tmp_data_root + '/' + s for s in naive_mds_partitions]
+        if folder_urls_pattern == 2:
+            folder_urls = [out + '/' + s for s in naive_mds_partitions]
             with pytest.raises(
-                    FileNotFoundError,
-                    match=f'.* does not exit or cannot be acceessed by the current process.*'):
-                merge_index(folder_urls, tmp_data_root, keep_local=keep_local, overwrite=True)
+                   FileNotFoundError,
+                   match=f'.* does not exist or not accessible.*'):
+                do_merge_index(folder_urls, out, keep_local=keep_local)
+            return
 
-    if folder_urls == 'tuple_local_accessible':
-        folder_urls = []
-        for s in naive_mds_partitions:
-            folder_urls.append((os.getcwd() + '/' + s, 'gs://mybucket/' + s))
-        with tempfile.TemporaryDirectory() as tmp_data_root:
-            merge_index(folder_urls,
-                        tmp_data_root,
-                        keep_local=keep_local,
-                        overwrite=True)
+        if folder_urls_pattern == 3:
+            folder_urls = []
+            for s in naive_mds_partitions:
+                folder_urls.append((os.getcwd() + '/' + s, 'gs://mybucket/' + s))
+            do_merge_index(folder_urls, out, keep_local=keep_local)
+
+        # Integrity checks
+
+        merged_index_path = os.path.join(out, 'index.json')
+
+        if not keep_local:
+            assert not os.path.exists(merged_index_path)
+            return
+
+        assert os.path.exists(merged_index_path)
+        merged_index = json.load(open(merged_index_path, 'r'))
+        n_shard_files = len(set([b['raw_data']['basename'] for b in merged_index['shards']]))
+        assert(n_shard_files == 2), "expected 2 shard files but got {n_shard_files}"
+
+
 
 @pytest.mark.parametrize('with_args', [True, False])
 def test_retry(with_args: bool):

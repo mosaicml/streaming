@@ -5,16 +5,17 @@
 
 import collections.abc
 import functools
+import json
 import logging
 import os
 import random
-from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
-from time import sleep, time
-from typing import Any, Callable, List, Sequence, Type, TypeVar, Union, cast, overload, Tuple
-import json
 import shutil
 import tempfile
 import urllib.parse
+from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
+from time import sleep, time
+from typing import (TYPE_CHECKING, Any, Callable, List, Sequence, Tuple, Type, TypeVar, Union,
+                    cast, overload, Union)
 
 import torch.distributed as dist
 
@@ -23,10 +24,6 @@ from streaming.base.distributed import get_local_rank, maybe_init_dist
 from streaming.base.format.index import get_index_basename
 from streaming.base.shared.prefix import _get_path
 
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from streaming.base.storage.download import download_file
-    from streaming.base.storage.upload import CloudUploader
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +33,7 @@ __all__ = [
     'get_list_arg', 'wait_for_file_to_exist', 'bytes_to_int', 'number_abbrev_to_int',
     'clean_stale_shared_memory', 'get_import_exception_message', 'retry'
 ]
+
 
 def get_list_arg(text: str) -> List[str]:
     """Pass a list as a command-line flag.
@@ -219,42 +217,39 @@ def get_import_exception_message(package_name: str, extra_deps: str) -> str:
 
 
 def do_merge_index(folder_urls: List[Union[str, Tuple[str, str]]],
+                   out: Union[str, Tuple[str, str]],
                    *,
-                   out: Union[str, Tuple[str,str]],
                    keep_local: bool = True,
-                   overwrite: bool = True,
-                   download_timeout: int = 60) -> int:
-
+                   download_timeout: int = 60) -> None:
     """Merge index.json from a list of remote or local directories.
+       Write merged index file to `out`. Overwrite if an old file exists.
 
     Args:
-        root_to_MDSdataset (Union[str, Tuple[str,str]]): folders that contain index.json for the partition
-            each element can take the form of a single path string or a tuple string
+        folder_urls (Union[str, Tuple[str,str]]): folders that contain index.json for the partition
+            each element can take the form of a single path string or a tuple string.
 
-            for each  url in folder_urls, if url is
-                1. tuple (local, remote): check if local is accessible.
-                    -> Yes: use local index to merge
-                    -> No:  download from remote first, then merge
-                2. str (local path): use local path to merge.
-                    raise FileNotFoundError if any local index is not accessible
-                3. str (remote url): download to a temp directory first, then merge
+            The pattern of folder_urls and corresponding reaction is one of:
+            1. All urls are str (local). All urls are accessible locally -> no download
+            2. All urls are tuple (local, remote). All urls are accessible locally -> no download
+            3. All urls are tuple (local, remote). At least one url is not accessible locally -> download all
+            4. All urls are str (remote) -> download all
 
         out (Union[str, Tuple[str, str]]): path to put the merged index file
         keep_local (bool): Keep local copy of the merged index file. Defaults to ``True``
-        overwrite (bool): Overwrite merged index file in out if there exists one. Defaults to ``True``
         download_timeout (int): The allowed time for downloading each json file. Defaults to 60s.
     """
-    if not folder_urls:
-        logger.warning('No partitions exist, no index merged')
+
+    from streaming.base.storage.download import download_file, list_objects
+    from streaming.base.storage.upload import CloudUploader
+
+    if not folder_urls or not out:
+        logger.warning('Need to specify both folder_urls and out. No index merged')
         return 0
 
     # This is the index json file name, e.g., it is index.json as of 0.6.0
     index_basename = get_index_basename()
 
     cu = CloudUploader.get(out, keep_local=True, exist_ok=True)
-    if os.path.exists(os.path.join(cu.local, index_basename)) and overwrite:
-        logger.warning('Merged index already exists locally. no index merged if overwrite=False')
-        return 0
 
     # Remove '/' from right, so os.path.basename gives relative path to each folder
     urls = []
@@ -280,7 +275,7 @@ def do_merge_index(folder_urls: List[Union[str, Tuple[str, str]]],
 
     # Prepare a temp folder to download index.json from remote if necessary. Removed in the end.
     with tempfile.TemporaryDirectory() as temp_root:
-        logging.warning(f"Create a temporary folder {temp_root} to store index files")
+        logging.warning(f'Create a temporary folder {temp_root} to store index files')
 
         # container for absolute local folder path
         partitions = []
@@ -302,8 +297,7 @@ def do_merge_index(folder_urls: List[Union[str, Tuple[str, str]]],
                     raise RuntimeError(f'Failed to download index.json {url}') from ex
 
             if not (os.path.exists(local)):
-                raise FileNotFoundError(
-                    'Folder {local} does not exit or cannot be acceessed.')
+                raise FileNotFoundError('Folder {local} does not exist or not accessible.')
             partitions.append(local)
 
         # merge index files into shards
@@ -340,11 +334,13 @@ def do_merge_index(folder_urls: List[Union[str, Tuple[str, str]]],
         if not keep_local:
             shutil.rmtree(cu.local, ignore_errors=True)
 
+
 def merge_index(root_to_mds: Union[str, Tuple[str, str]],
                 *,
                 keep_local: bool = True,
                 overwrite: bool = True) -> int:
-    """Merge index.json of a MDS dataset from the subdirectories of root_to_mds and store in root_to_mds
+    """Merge index.json of a MDS dataset from the subdirectories of root_to_mds and store in
+    root_to_mds.
 
     Args:
         root_to_MDSdataset (Union[str, Tuple[str,str]]): folders that contain MDS partitions.
@@ -368,8 +364,7 @@ def merge_index(root_to_mds: Union[str, Tuple[str, str]],
     do_merge_index(folder_urls,
                    root_to_mds,
                    keep_local=keep_local,
-                   overwrite=overwrite,
-                   download_timeout = 60)
+                   download_timeout=60)
 
     return
 
