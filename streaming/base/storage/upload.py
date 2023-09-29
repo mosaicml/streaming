@@ -53,13 +53,12 @@ class CloudUploader:
     """Upload local files to a cloud storage."""
 
     @classmethod
-    def get(
-        cls,
-        out: Union[str, Tuple[str, str]],
-        keep_local: bool = False,
-        progress_bar: bool = False,
-        exist_ok: bool = False,
-    ) -> Any:
+    def get(cls,
+            out: Union[str, Tuple[str, str]],
+            keep_local: bool = False,
+            progress_bar: bool = False,
+            exist_ok: bool = False,
+            retry: int = 2) -> Any:
         """Instantiate a cloud provider uploader or a local uploader based on remote path.
 
         Args:
@@ -90,7 +89,7 @@ class CloudUploader:
             if prefix == 'dbfs:/Volumes':
                 provider_prefix = prefix
         return getattr(sys.modules[__name__],
-                       UPLOADERS[provider_prefix])(out, keep_local, progress_bar, retry, exist_ok)
+                       UPLOADERS[provider_prefix])(out, keep_local, progress_bar, exist_ok, retry)
 
     def _validate(self, out: Union[str, Tuple[str, str]]) -> None:
         """Validate the `out` argument.

@@ -14,8 +14,7 @@ import tempfile
 import urllib.parse
 from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
 from time import sleep, time
-from typing import (TYPE_CHECKING, Any, Callable, List, Sequence, Tuple, Type, TypeVar, Union,
-                    cast, overload, Union)
+from typing import Any, Callable, List, Sequence, Tuple, Type, TypeVar, Union, cast, overload
 
 import torch.distributed as dist
 
@@ -23,7 +22,6 @@ from streaming.base.constant import SHM_TO_CLEAN
 from streaming.base.distributed import get_local_rank, maybe_init_dist
 from streaming.base.format.index import get_index_basename
 from streaming.base.shared.prefix import _get_path
-
 
 logger = logging.getLogger(__name__)
 
@@ -216,13 +214,11 @@ def get_import_exception_message(package_name: str, extra_deps: str) -> str:
             f'`pip install \'mosaicml-streaming[{package_name}]\'`.'
 
 
-def do_merge_index(folder_urls: List[Union[str, Tuple[str, str]]],
+def do_merge_index(folder_urls: List[Any],
                    out: Union[str, Tuple[str, str]],
-                   *,
                    keep_local: bool = True,
                    download_timeout: int = 60) -> None:
-    """Merge index.json from a list of remote or local directories.
-       Write merged index file to `out`. Overwrite if an old file exists.
+    """Merge index.json from a list of directories. Write to `out`, overwriting if exists.
 
     Args:
         folder_urls (Union[str, Tuple[str,str]]): folders that contain index.json for the partition
@@ -238,13 +234,12 @@ def do_merge_index(folder_urls: List[Union[str, Tuple[str, str]]],
         keep_local (bool): Keep local copy of the merged index file. Defaults to ``True``
         download_timeout (int): The allowed time for downloading each json file. Defaults to 60s.
     """
-
-    from streaming.base.storage.download import download_file, list_objects
+    from streaming.base.storage.download import download_file
     from streaming.base.storage.upload import CloudUploader
 
     if not folder_urls or not out:
         logger.warning('Need to specify both folder_urls and out. No index merged')
-        return 0
+        return
 
     # This is the index json file name, e.g., it is index.json as of 0.6.0
     index_basename = get_index_basename()
@@ -264,7 +259,7 @@ def do_merge_index(folder_urls: List[Union[str, Tuple[str, str]]],
     for url in urls:
         if isinstance(url, tuple):
             # If driver cannot access the local path, download = True
-            download = not os.path.exists(url[0])
+            download = not os.path.exists(os.path.join(url[0], index_basename))
         else:
             # If url is a remote, download = True, False otherwise
             download = urllib.parse.urlparse(url).scheme != ''
@@ -338,17 +333,17 @@ def do_merge_index(folder_urls: List[Union[str, Tuple[str, str]]],
 def merge_index(root_to_mds: Union[str, Tuple[str, str]],
                 *,
                 keep_local: bool = True,
-                overwrite: bool = True) -> int:
-    """Merge index.json of a MDS dataset from the subdirectories of root_to_mds and store in
-    root_to_mds.
+                overwrite: bool = True) -> None:
+    """Merge index.json given the root of MDS dataset. Write merged index to the root folder.
 
     Args:
-        root_to_MDSdataset (Union[str, Tuple[str,str]]): folders that contain MDS partitions.
+        root_to_mds (Union[str, Tuple[str,str]]): folders that contain MDS partitions.
             It can be local str or remote str or (local, remote)
         keep_local (bool): Keep local copy of the merged index file. Defaults to ``True``
         overwrite (bool): Overwrite merged index file in out if there exists one. Defaults to ``True``
         download_timeout (int): The allowed time for downloading each json file. Defaults to 60s.
     """
+    from streaming.base.storage.download import list_objects
 
     if not root_to_mds:
         logger.warning('No MDS dataset folder specified, no index merged')
@@ -361,10 +356,7 @@ def merge_index(root_to_mds: Union[str, Tuple[str, str]],
     else:
         folder_urls = list_objects(root_to_mds)
 
-    do_merge_index(folder_urls,
-                   root_to_mds,
-                   keep_local=keep_local,
-                   download_timeout=60)
+    do_merge_index(folder_urls, root_to_mds, keep_local=keep_local, download_timeout=60)
 
     return
 

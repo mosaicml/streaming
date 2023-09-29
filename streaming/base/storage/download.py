@@ -8,7 +8,7 @@ import pathlib
 import shutil
 import urllib.parse
 from time import sleep, time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from streaming.base.util import get_import_exception_message
 
@@ -491,7 +491,19 @@ def wait_for_download(local: str, timeout: float = 60) -> None:
         sleep(0.25)
 
 
-def list_objects(remote: Optional[str]):
+def list_objects_from_s3(remote: str) -> List[str]:
+    return []
+
+
+def list_objects_from_gcs(remote: str) -> List[str]:
+    return []
+
+
+def list_objects_from_oci(remote: str) -> List[str]:
+    return []
+
+
+def list_objects(remote: Optional[str]) -> List[str]:
     """Use the correct cloud handler to list objects.
 
     Args:
@@ -502,16 +514,16 @@ def list_objects(remote: Optional[str]):
     if remote:
         remote = remote.replace('\\', '/')
 
-    if not remote: # '' or None
+    if not remote:  # '' or None
         return os.listdir()
     elif remote.startswith('s3://'):
-        list_objects_from_s3(remote)
+        return list_objects_from_s3(remote)
+    elif remote.startswith('gs://'):
+        return list_objects_from_gcs(remote)
+    elif remote.startswith('oci://'):
+        return list_objects_from_oci(remote)
     elif remote.startswith('sftp://'):
         raise NotImplemented('list_objects for sftp not supported')
-    elif remote.startswith('gs://'):
-        list_objects_from_gcs(remote, local)
-    elif remote.startswith('oci://'):
-        list_objects_from_oci(remote, local)
     elif remote.startswith('azure://'):
         raise NotImplemented('list_objects for azure not supported')
     elif remote.startswith('azure-dl://'):
@@ -521,5 +533,4 @@ def list_objects(remote: Optional[str]):
     elif remote.startswith('dbfs:/'):
         raise NotImplemented('list_objects for dbfs:/ not supported')
     else:
-        raise ValueError("remote scheme is not recognizable")
-
+        raise ValueError('remote scheme is not recognizable')

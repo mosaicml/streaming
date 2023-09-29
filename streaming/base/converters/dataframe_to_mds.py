@@ -253,8 +253,7 @@ def dataframeToMDS(dataframe: DataFrame,
                 folder_urls.append(row['mds_path'].split(','))
             else:
                 folder_urls.append(row['mds_path'])
-        n_downloads = do_merge_index(folder_urls, out, keep_local=keep_local, overwrite=True)
-        logger.warning(f'{n_downloads} index files have been downloaded during index merging')
+        do_merge_index(folder_urls, out, keep_local=keep_local, download_timeout=60)
 
     if cu.remote is not None:
         if 'keep_local' in mds_kwargs and mds_kwargs['keep_local'] == False:
