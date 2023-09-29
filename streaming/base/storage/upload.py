@@ -75,7 +75,7 @@ class CloudUploader:
                 shard file or remove it after uploading. Defaults to ``False``.
             progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
                 a remote location. Default to ``False``.
-            exist_ok (bool): Throw error if out already exists and not empty. Defaults to ``False``.
+            exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
 
         Returns:
             CloudUploader: An instance of sub-class.
@@ -139,7 +139,7 @@ class CloudUploader:
                 shard file or remove it after uploading. Defaults to ``False``.
             progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
                 a remote location. Default to ``False``.
-            exist_ok (bool): Throw error if out already exists and has contents. Defaults to ``False``.
+            exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
 
         Raises:
             FileExistsError: Local directory must be empty.
@@ -202,7 +202,7 @@ class S3Uploader(CloudUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
-        exist_ok (bool): Throw error if out already exists and not empty. Defaults to ``False``.
+        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
@@ -285,7 +285,7 @@ class GCSUploader(CloudUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
-        exist_ok (bool): Throw error if out already exists and not empty. Defaults to ``False``.
+        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
@@ -396,7 +396,7 @@ class OCIUploader(CloudUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
-        exist_ok (bool): Throw error if out already exists and not empty. Defaults to ``False``.
+        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
@@ -561,7 +561,7 @@ class AzureDataLakeUploader(CloudUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
-        exist_ok (bool): Throw error if out already exists and not empty. Defaults to ``False``.
+        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
@@ -638,7 +638,7 @@ class DatabricksUploader(CloudUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
-        exist_ok (bool): Throw error if out already exists and not empty. Defaults to ``False``.
+        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
@@ -674,7 +674,7 @@ class DatabricksUnityCatalogUploader(DatabricksUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
-        exist_ok (bool): Throw error if out already exists and not empty. Defaults to ``False``.
+        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
@@ -715,7 +715,7 @@ class DBFSUploader(DatabricksUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
-        exist_ok (bool): Throw error if out already exists and not empty. Defaults to ``False``.
+        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
@@ -777,7 +777,7 @@ class LocalUploader(CloudUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
-        exist_ok (bool): Throw error if out already exists and not empty. Defaults to ``False``.
+        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
