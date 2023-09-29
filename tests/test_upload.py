@@ -425,3 +425,10 @@ class TestLocalUploader:
             pass
         lc.upload_file(filename)
         assert os.path.exists(remote_file_path)
+
+    def test_upload_file_exception(self, local_remote_dir: Tuple[str, str]):
+        local, remote = local_remote_dir
+        filename = 'file.txt'
+        lc = LocalUploader(out=(local, remote))
+        with pytest.raises(FileNotFoundError, match=f'No such file or directory:.*'):
+            lc.upload_file(filename)

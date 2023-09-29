@@ -316,6 +316,6 @@ If you like this project, give us a star **⭐** and check out our other project
     author = {The Mosaic ML Team},
     title = {streaming},
     year = {2022},
-    howpublished = {\\url{<https://github.com/mosaicml/streaming/>}},
+    howpublished = {\url{<https://github.com/mosaicml/streaming/>}},
 }
 ```
