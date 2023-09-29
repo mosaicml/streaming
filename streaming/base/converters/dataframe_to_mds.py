@@ -11,8 +11,7 @@ from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 import pandas as pd
 
-from streaming.base.util import get_import_exception_message
-from streaming.base.util import merge_index as do_merge_index
+from streaming.base.util import do_merge_index, get_import_exception_message
 
 try:
     from pyspark import TaskContext
