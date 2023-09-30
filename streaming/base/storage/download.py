@@ -675,7 +675,7 @@ def list_objects_from_oci(remote: str) -> Optional[List[str]]:
     return object_names
 
 
-def list_objects_from_local(path: Optional[str]) -> Optional[List[str]]:
+def list_objects_from_local(path: Optional[str]) -> List[str]:
     """List objects from a local directory.
 
     Args:
@@ -698,10 +698,7 @@ def list_objects(remote: Optional[str]) -> List[str]:
             If remote is None or '', list current working directory with os.listdir()
     """
     if not remote:  # '' or None
-        ans = list_objects_from_local(remote)
-        if not ans:
-            return ['']
-        return ans
+        return list_objects_from_local(remote)
 
     # fix paths for windows
     if remote:
@@ -710,7 +707,7 @@ def list_objects(remote: Optional[str]) -> List[str]:
     obj = urllib.parse.urlparse(remote)
 
     if obj.scheme == '':
-        ans = list_objects_from_local(remote)
+        return list_objects_from_local(remote)
     elif obj.scheme == 's3':
         ans = list_objects_from_s3(remote)
     elif obj.scheme == 'gs':
@@ -722,4 +719,4 @@ def list_objects(remote: Optional[str]) -> List[str]:
 
     if not ans:
         return ['']
-    return ans
+    return [ os.path.dirname(o) for o in ans]

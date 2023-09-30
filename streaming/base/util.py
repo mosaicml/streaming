@@ -354,10 +354,10 @@ def merge_index(root_to_mds: Union[str, Tuple[str, str]],
     cu = CloudUploader.get(root_to_mds, exist_ok=True, keep_local=True)
     if isinstance(root_to_mds, tuple):
         local_folders = [
-            os.path.join(cu.local, os.path.dirname(o)) for o in list_objects(root_to_mds[0])
+            os.path.join(cu.local, o) for o in list_objects(root_to_mds[0])
         ]
         remote_folders = [
-            os.path.join(cu.remote, os.path.dirname(o)) for o in list_objects(root_to_mds[1])
+            os.path.join(cu.remote, o) for o in list_objects(root_to_mds[1])
         ]
         folder_urls = list(zip(local_folders, remote_folders))
     else:
@@ -365,11 +365,11 @@ def merge_index(root_to_mds: Union[str, Tuple[str, str]],
         print('I am here 3', list_objects(root_to_mds))
         if cu.remote:
             folder_urls = [
-                os.path.join(cu.remote, os.path.dirname(o)) for o in list_objects(root_to_mds)
+                os.path.join(cu.remote, o) for o in list_objects(root_to_mds)
             ]
         else:
             folder_urls = [
-                os.path.join(cu.local, os.path.dirname(o)) for o in list_objects(root_to_mds)
+                os.path.join(cu.local, o) for o in list_objects(root_to_mds)
             ]
 
     do_merge_index(folder_urls, root_to_mds, keep_local=keep_local, download_timeout=60)

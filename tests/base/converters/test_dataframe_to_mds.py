@@ -18,7 +18,7 @@ from streaming.base.converters import dataframeToMDS
 
 MY_PREFIX = 'train'
 MY_BUCKET = 'mosaicml-composer-tests'
-MANUAL_INTEGRATION_TEST = True
+MANUAL_INTEGRATION_TEST = False
 os.environ[
     'OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'  # set to yes to all fork process in spark calls
 
@@ -27,9 +27,8 @@ os.environ[
 def manual_integration_dir() -> Any:
     """Creates a temporary directory and then deletes it when the calling function is done."""
     if MANUAL_INTEGRATION_TEST:
-        #os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'path/to/gooogle_api_credential.json'
-        os.environ[
-            'GOOGLE_APPLICATION_CREDENTIALS'] = '/Users/xiaohan.zhang/.mosaic/mosaicml-research-nonprod-027345ddbdfd.json'
+        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'path/to/gooogle_api_credential.json'
+        #os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/Users/xiaohan.zhang/.mosaic/mosaicml-research-nonprod-027345ddbdfd.json'
 
     tmp_dir = mkdtemp()
 

@@ -19,7 +19,7 @@ from streaming.base.util import (bytes_to_int, clean_stale_shared_memory, do_mer
 
 MY_PREFIX = 'train'
 MY_BUCKET = 'mosaicml-composer-tests'
-MANUAL_INTEGRATION_TEST = True
+MANUAL_INTEGRATION_TEST = False
 os.environ[
     'OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'  # set to yes to all fork process in spark calls
 
@@ -28,9 +28,8 @@ os.environ[
 def manual_integration_dir() -> Any:
     """Creates a temporary directory and then deletes it when the calling function is done."""
     if MANUAL_INTEGRATION_TEST:
-        #os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'path/to/gooogle_api_credential.json'
-        os.environ[
-            'GOOGLE_APPLICATION_CREDENTIALS'] = '/Users/xiaohan.zhang/.mosaic/mosaicml-research-nonprod-027345ddbdfd.json'
+        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'path/to/gooogle_api_credential.json'
+        #os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/Users/xiaohan.zhang/.mosaic/mosaicml-research-nonprod-027345ddbdfd.json'
 
     tmp_dir = tempfile.mkdtemp()
 
@@ -181,13 +180,20 @@ def integrity_check(out: Union[str, Tuple[str, str]], keep_local: bool):
         assert (n_shard_files == 2), 'expected 2 shard files but got {n_shard_files}'
 
 
-def test_merge_index(manual_integration_dir: Any):
+@pytest.mark.parametrize('output_format', ['local', 'remote'])
+def test_merge_index(manual_integration_dir: Any, output_format: str):
     from decimal import Decimal
-
     from pyspark.sql import SparkSession
     from pyspark.sql.types import DecimalType, IntegerType, StringType, StructField, StructType
-
     from streaming.base.converters import dataframeToMDS
+
+    if output_format == 'remote':
+        if not MANUAL_INTEGRATION_TEST:
+            pytest.skip('Require cloud credentials. ' +
+                        'skipping. Set MANUAL_INTEGRATION_TEST=True to run the check manually!')
+        _, out = manual_integration_dir()
+    else:
+        out, _ = manual_integration_dir()
 
     spark = SparkSession.builder.getOrCreate()  # pyright: ignore
     schema = StructType([
@@ -201,23 +207,17 @@ def test_merge_index(manual_integration_dir: Any):
 
     df = spark.createDataFrame(data=data, schema=schema).repartition(3)
 
-    _, remote = manual_integration_dir()
     mds_kwargs = {
-        'out': remote,
+        'out': out,
         'columns': {
             'id': 'int',
             'name': 'str'
         },
     }
-    print('I am here 0: remote = ', remote)
 
     mds_path, _ = dataframeToMDS(df, merge_index=False, mds_kwargs=mds_kwargs)
-
-    print('mds_path = ', mds_path)
-    print(list_objects('gs://mosaicml-composer-tests/train/'))
-    merge_index(remote)
-
-    integrity_check(remote, keep_local=True)
+    merge_index(out)
+    integrity_check(out, keep_local=True)
 
 
 @pytest.mark.parametrize('folder_urls_pattern', [1, 2, 3, 4, 5])
