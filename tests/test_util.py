@@ -12,7 +12,7 @@ import pytest
 
 from streaming.base.constant import RESUME
 from streaming.base.shared.prefix import _get_path
-from streaming.base.storage.download import download_file, list_objects
+from streaming.base.storage.download import download_file
 from streaming.base.storage.upload import CloudUploader
 from streaming.base.util import (bytes_to_int, clean_stale_shared_memory, do_merge_index,
                                  get_list_arg, merge_index, number_abbrev_to_int, retry)
@@ -183,8 +183,10 @@ def integrity_check(out: Union[str, Tuple[str, str]], keep_local: bool):
 @pytest.mark.parametrize('output_format', ['local', 'remote'])
 def test_merge_index(manual_integration_dir: Any, output_format: str):
     from decimal import Decimal
+
     from pyspark.sql import SparkSession
     from pyspark.sql.types import DecimalType, IntegerType, StringType, StructField, StructType
+
     from streaming.base.converters import dataframeToMDS
 
     if output_format == 'remote':
@@ -215,7 +217,7 @@ def test_merge_index(manual_integration_dir: Any, output_format: str):
         },
     }
 
-    mds_path, _ = dataframeToMDS(df, merge_index=False, mds_kwargs=mds_kwargs)
+    dataframeToMDS(df, merge_index=False, mds_kwargs=mds_kwargs)
     merge_index(out)
     integrity_check(out, keep_local=True)
 

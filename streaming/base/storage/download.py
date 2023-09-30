@@ -719,4 +719,4 @@ def list_objects(remote: Optional[str]) -> List[str]:
 
     if not ans:
         return ['']
-    return [ os.path.dirname(o) for o in ans]
+    return [os.path.dirname(o) for o in ans]
