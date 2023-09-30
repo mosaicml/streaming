@@ -499,7 +499,7 @@ def remove_prefix(obj: str):
     return:
         (str): take form of 'to/folder'
     """
-    return '/'.join(obj.strip('/').split('/')[1:])
+    return obj  # '/'.join(obj.strip('/').split('/')[1:])
 
 
 def list_objects_from_s3(remote: str, timeout: float = 60) -> Optional[List[str]]:
@@ -719,4 +719,14 @@ def list_objects(remote: Optional[str]) -> List[str]:
 
     if not ans:
         return ['']
-    return [os.path.dirname(o) for o in ans]
+    level_one_list = []
+    for o in ans:
+        print('I am here 5', o)
+        suffix = o[len(obj.path):]
+        print('I am here 5.1', suffix, obj.path)
+        if '/' in suffix.strip('/'):
+            level_one_list.append(os.path.dirname(suffix))
+            print('I am here 5.2', os.path.dirname(suffix))
+        else:
+            level_one_list.append(suffix)
+    return list(set(level_one_list))

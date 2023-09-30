@@ -285,12 +285,12 @@ def do_merge_index(folder_urls: List[Any],
                 # If download is needed, download url from remote to temp_root
                 path = urllib.parse.urlparse(remote).path
                 local = os.path.join(temp_root, path.lstrip('/'))
+                remote_url = os.path.join(remote, index_basename)
+                local_path = os.path.join(local, index_basename)
                 try:
-                    remote_url = os.path.join(remote, index_basename)
-                    local_path = os.path.join(local, index_basename)
                     download_file(remote_url, local_path, download_timeout)
                 except Exception as ex:
-                    raise RuntimeError(f'Failed to download index.json') from ex
+                    raise RuntimeError(f'Failed to download index.json: {remote_url}') from ex
 
             if not (os.path.exists(local)):
                 raise FileNotFoundError(f'Folder {local} does not exist or not accessible.')
@@ -353,16 +353,36 @@ def merge_index(root_to_mds: Union[str, Tuple[str, str]],
 
     cu = CloudUploader.get(root_to_mds, exist_ok=True, keep_local=True)
     if isinstance(root_to_mds, tuple):
-        local_folders = [os.path.join(cu.local, o) for o in list_objects(root_to_mds[0])]
-        remote_folders = [os.path.join(cu.remote, o) for o in list_objects(root_to_mds[1])]
+        local_folders = [
+            os.path.join(cu.local, o)
+            for o in list_objects(root_to_mds[0])
+            if not o.endswith('.json')
+        ]
+        remote_folders = [
+            os.path.join(cu.remote, o)
+            for o in list_objects(root_to_mds[1])
+            if not o.endswith('.json')
+        ]
         folder_urls = list(zip(local_folders, remote_folders))
     else:
         print('I am here 3.1', root_to_mds)
         print('I am here 3', list_objects(root_to_mds))
         if cu.remote:
-            folder_urls = [os.path.join(cu.remote, o) for o in list_objects(root_to_mds)]
+            folder_urls = [
+                os.path.join(cu.remote, o)
+                for o in list_objects(root_to_mds)
+                if not o.endswith('.json')
+            ]
         else:
-            folder_urls = [os.path.join(cu.local, o) for o in list_objects(root_to_mds)]
+            folder_urls = [
+                os.path.join(cu.local, o)
+                for o in list_objects(root_to_mds)
+                if not o.endswith('.json')
+            ]
+
+            print('I am here 3.2')
+            for fu in folder_urls:
+                print(list_objects(fu))
 
     do_merge_index(folder_urls, root_to_mds, keep_local=keep_local, download_timeout=60)
 

@@ -12,7 +12,7 @@ import pytest
 
 from streaming.base.constant import RESUME
 from streaming.base.shared.prefix import _get_path
-from streaming.base.storage.download import download_file
+from streaming.base.storage.download import download_file, list_objects
 from streaming.base.storage.upload import CloudUploader
 from streaming.base.util import (bytes_to_int, clean_stale_shared_memory, do_merge_index,
                                  get_list_arg, merge_index, number_abbrev_to_int, retry)
@@ -28,8 +28,9 @@ os.environ[
 def manual_integration_dir() -> Any:
     """Creates a temporary directory and then deletes it when the calling function is done."""
     if MANUAL_INTEGRATION_TEST:
-        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'path/to/gooogle_api_credential.json'
-        #os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/Users/xiaohan.zhang/.mosaic/mosaicml-research-nonprod-027345ddbdfd.json'
+        #os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'path/to/gooogle_api_credential.json'
+        os.environ[
+            'GOOGLE_APPLICATION_CREDENTIALS'] = '/Users/xiaohan.zhang/.mosaic/mosaicml-research-nonprod-027345ddbdfd.json'
 
     tmp_dir = tempfile.mkdtemp()
 
@@ -149,26 +150,44 @@ def test_clean_stale_shared_memory():
         _ = BuiltinSharedMemory(name, False, 64)
 
 
-def integrity_check(out: Union[str, Tuple[str, str]], keep_local: bool):
+def integrity_check(out: Union[str, Tuple[str, str]],
+                    keep_local: bool,
+                    expected_n_shard_files: int = -1):
     """ Check if merged_index file has integrity
         If merged_index is a cloud url, first download it to a temp local file.
 
     Args:
         out (Union[str, Tuple[str,str]]): folder that merged index.json resides
         keep_local: whether to check local file
+        expected_n_shard_files (int): If -1, find the number in out with get_expected()
     """
+
+    def get_expected(mds_root: str):
+        n_shard_files = 0
+        for o in list_objects(mds_root):
+            print('I am here 4.1: ', o)
+            if o.endswith('.json'):
+                continue
+            for b in list_objects(os.path.join(mds_root, o)):
+                print(f'I am here 4.2 for {os.path.join(mds_root, o)}: ', b)
+                if b.endswith('.mds'):
+                    n_shard_files += 1
+        return n_shard_files
 
     cu = CloudUploader.get(out, keep_local=True, exist_ok=True)
 
     with tempfile.TemporaryDirectory() as temp_dir:
-
         if cu.remote:
             download_file(os.path.join(cu.remote, 'index.json'),
                           os.path.join(temp_dir, 'index.json'),
                           timeout=60)
+            if expected_n_shard_files == -1:
+                expected_n_shard_files = get_expected(cu.remote)
             local_merged_index_path = os.path.join(temp_dir, 'index.json')
         else:
             local_merged_index_path = os.path.join(cu.local, 'index.json')
+            if expected_n_shard_files == -1:
+                expected_n_shard_files = get_expected(cu.local)
 
         if not keep_local:
             assert not os.path.exists(os.path.join(cu.local, 'index.json'))
@@ -177,11 +196,13 @@ def integrity_check(out: Union[str, Tuple[str, str]], keep_local: bool):
         assert os.path.exists(local_merged_index_path)
         merged_index = json.load(open(local_merged_index_path, 'r'))
         n_shard_files = len({b['raw_data']['basename'] for b in merged_index['shards']})
-        assert (n_shard_files == 2), 'expected 2 shard files but got {n_shard_files}'
+        assert (n_shard_files == expected_n_shard_files
+               ), f'expected {expected_n_shard_files} shard files but got {n_shard_files}'
 
 
 @pytest.mark.parametrize('output_format', ['local', 'remote'])
-def test_merge_index(manual_integration_dir: Any, output_format: str):
+@pytest.mark.parametrize('n_partitions', [1, 2, 3, 4])
+def test_merge_index(manual_integration_dir: Any, output_format: str, n_partitions: int):
     from decimal import Decimal
 
     from pyspark.sql import SparkSession
@@ -207,7 +228,7 @@ def test_merge_index(manual_integration_dir: Any, output_format: str):
     data = [(1, 'Alice', Decimal('123.45')), (2, 'Bob', Decimal('67.89')),
             (3, 'Charlie', Decimal('987.65'))]
 
-    df = spark.createDataFrame(data=data, schema=schema).repartition(3)
+    df = spark.createDataFrame(data=data, schema=schema).repartition(n_partitions)
 
     mds_kwargs = {
         'out': out,
@@ -301,7 +322,7 @@ def test_do_merge_index(manual_integration_dir: Any, keep_local: bool, folder_ur
                 folder_urls.append('gs://' + MY_BUCKET + '/' + s)
             do_merge_index(folder_urls, out, keep_local=keep_local)
 
-    integrity_check(out, keep_local=keep_local)
+    integrity_check(out, keep_local=keep_local, expected_n_shard_files=2)
 
 
 @pytest.mark.parametrize('with_args', [True, False])
