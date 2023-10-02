@@ -5,6 +5,7 @@
 
 import os
 from argparse import ArgumentParser, Namespace
+from tqdm import tqdm
 from typing import List, Tuple
 
 import numpy as np
@@ -19,10 +20,11 @@ def parse_args() -> Namespace:
         Namespace: Command-line arguments.
     """
     args = ArgumentParser()
-    args.add_argument('--num_train', type=int, default=10_000_000)
-    args.add_argument('--num_val', type=int, default=1_000_000)
-    args.add_argument('--dataset', type=str, default='data/pq/')
-    args.add_argument('--samples_per_shard', type=int, default=100_000)
+    args.add_argument('--num_train', type=int, default=1 << 24)
+    args.add_argument('--num_val', type=int, default=1 << 20)
+    args.add_argument('--dataset', type=str, default='data/parquet/')
+    args.add_argument('--samples_per_shard', type=int, default=1 << 17)
+    args.add_argument('--tqdm', type=int, default=1)
     return args.parse_args()
 
 
@@ -69,23 +71,29 @@ def generate_number() -> int:
     return sign * mag
 
 
-def generate_numbers(num_train: int, num_val: int) -> Tuple[List[int], List[int]]:
+def generate_numbers(num_train: int, num_val: int, use_tqdm: int) -> Tuple[List[int], List[int]]:
     """Get two non-overlapping splits of integers to say.
 
     Args:
         num_train (int): Number of training samples.
         num_val (int): Number of validation samples.
+        use_tqdm (int): Whether to display a progress bar.
 
     Returns:
         Tuple[List[int], List[int]]: The two generated splits.
     """
     total = num_train + num_val
     nums = set()
+    pbar = tqdm(total=total) if use_tqdm else None
     while len(nums) < total:
         num = generate_number()
         if num in nums:
             continue
         nums.add(num)
+        if use_tqdm:
+            pbar.update(1)
+    if use_tqdm:
+        pbar.close()
     nums = sorted(nums)
     np.random.shuffle(nums)
     train_nums = nums[:num_train]
@@ -125,7 +133,7 @@ def main(args: Namespace) -> None:
     Args:
         args (Namespace): Command-line arguments.
     """
-    train_nums, val_nums = generate_numbers(args.num_train, args.num_val)
+    train_nums, val_nums = generate_numbers(args.num_train, args.num_val, args.tqdm)
 
     train_txts = [' '.join(say(num)) for num in train_nums]
     val_txts = [' '.join(say(num)) for num in val_nums]
