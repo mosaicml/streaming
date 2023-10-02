@@ -158,11 +158,10 @@ def dataframeToMDS(dataframe: DataFrame,
         else:
             raise RuntimeError('TaskContext.get() returns None')
 
-        if isinstance(mds_path, str):  # local
-            output_path = output = os.path.join(mds_path, f'{id}')
+        if mds_path[1] == '':
+            output = (os.path.join(mds_path[0], f'{id}'), '')
         else:
             output = (os.path.join(mds_path[0], f'{id}'), os.path.join(mds_path[1], f'{id}'))
-            output_path = ','.join(output)
 
         if mds_kwargs:
             kwargs = mds_kwargs.copy()
@@ -194,7 +193,8 @@ def dataframeToMDS(dataframe: DataFrame,
                         count += 1
 
         yield pd.concat(
-            [pd.Series([output_path], name='mds_path'),
+            [pd.Series([output[0]], name='mds_path_local'),
+             pd.Series([output[1]], name='mds_path_remote'),
              pd.Series([count], name='fail_count')],
             axis=1)
 
@@ -232,26 +232,22 @@ def dataframeToMDS(dataframe: DataFrame,
     cu = CloudUploader.get(out, keep_local=keep_local)
     print('cu.local = ', cu.local)
 
-    # Fix output format as mds_path: Tuple => remote Str => local only
+    # Fix output format as mds_path: Tuple(local, remote)
     if cu.remote is None:
-        mds_path = cu.local
+        mds_path = (cu.local, "")
     else:
         mds_path = (cu.local, cu.remote)
 
     # Prepare partition schema
     result_schema = StructType([
-        StructField('mds_path', StringType(), False),
+        StructField('mds_path_local', StringType(), False),
+        StructField('mds_path_remote', StringType(), False),
         StructField('fail_count', IntegerType(), False)
     ])
     partitions = dataframe.mapInPandas(func=write_mds, schema=result_schema).collect()
 
     if merge_index:
-        folder_urls = []
-        for row in partitions:
-            if ',' in row['mds_path']:
-                folder_urls.append(row['mds_path'].split(','))
-            else:
-                folder_urls.append(row['mds_path'])
+        folder_urls = [ (row['mds_path_local'], row['mds_path_remote']) for row in partitions ]
         do_merge_index(folder_urls, out, keep_local=keep_local, download_timeout=60)
 
     if cu.remote is not None:
