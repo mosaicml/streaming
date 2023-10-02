@@ -192,11 +192,12 @@ def dataframeToMDS(dataframe: DataFrame,
                         raise RuntimeError(f'failed to write sample: {sample}') from ex
                         count += 1
 
-        yield pd.concat(
-            [pd.Series([output[0]], name='mds_path_local'),
-             pd.Series([output[1]], name='mds_path_remote'),
-             pd.Series([count], name='fail_count')],
-            axis=1)
+        yield pd.concat([
+            pd.Series([output[0]], name='mds_path_local'),
+            pd.Series([output[1]], name='mds_path_remote'),
+            pd.Series([count], name='fail_count')
+        ],
+                        axis=1)
 
     if dataframe is None or dataframe.isEmpty():
         raise ValueError(f'Input dataframe is None or Empty!')
@@ -234,7 +235,7 @@ def dataframeToMDS(dataframe: DataFrame,
 
     # Fix output format as mds_path: Tuple(local, remote)
     if cu.remote is None:
-        mds_path = (cu.local, "")
+        mds_path = (cu.local, '')
     else:
         mds_path = (cu.local, cu.remote)
 
@@ -247,7 +248,7 @@ def dataframeToMDS(dataframe: DataFrame,
     partitions = dataframe.mapInPandas(func=write_mds, schema=result_schema).collect()
 
     if merge_index:
-        folder_urls = [ (row['mds_path_local'], row['mds_path_remote']) for row in partitions ]
+        folder_urls = [(row['mds_path_local'], row['mds_path_remote']) for row in partitions]
         do_merge_index(folder_urls, out, keep_local=keep_local, download_timeout=60)
 
     if cu.remote is not None:
