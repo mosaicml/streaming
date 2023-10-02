@@ -5,12 +5,12 @@
 
 import os
 from argparse import ArgumentParser, Namespace
-from tqdm import tqdm
 from typing import List, Tuple
 
 import numpy as np
 import pyarrow as pa
 from pyarrow import parquet as pq
+from tqdm import tqdm
 
 
 def parse_args() -> Namespace:
@@ -90,9 +90,9 @@ def generate_numbers(num_train: int, num_val: int, use_tqdm: int) -> Tuple[List[
         if num in nums:
             continue
         nums.add(num)
-        if use_tqdm:
+        if pbar:
             pbar.update(1)
-    if use_tqdm:
+    if pbar:
         pbar.close()
     nums = sorted(nums)
     np.random.shuffle(nums)
