@@ -1,8 +1,9 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Randomly iterate over a Parquet dataset with Streaming."""
+"""Benchmark dataset iteration time."""
 
+import json
 import os
 from argparse import ArgumentParser, Namespace
 from time import time
@@ -11,7 +12,6 @@ from typing import Iterator
 import lance
 import numpy as np
 from lance import LanceDataset
-from matplotlib import pyplot as plt
 from numpy.typing import NDArray
 from pyarrow import parquet as pq
 from tqdm import tqdm, trange
@@ -32,7 +32,7 @@ def parse_args() -> Namespace:
     args.add_argument('--pq_suffix', type=str, default='.parquet')
     args.add_argument('--tqdm', type=int, default=1)
     args.add_argument('--time_limit', type=float, default=20)
-    args.add_argument('--plot', type=str, required=True)
+    args.add_argument('--stats', type=str, required=True)
     return args.parse_args()
 
 
@@ -285,46 +285,45 @@ def main(args: Namespace) -> None:
     streaming_dataset = StreamingDataset(local=args.streaming_dataset)
     lance_dataset = lance.dataset(args.lance_dataset)
 
-    plt.rc('legend', fontsize=6)
-    plt.title('Time to iterate')
-    plt.xlabel('Seconds')
-    plt.ylabel('Samples')
-    line_width = 0.75
-
     if args.lance_pow == 4:
-        lance_colors = '#a60', '#b70', '#c80', '#d90', '#ea0', '#fb1'
         lance_take_counts = 1, 4, 16, 64, 256, 1024
     elif args.lance_pow == 2:
-        lance_colors = '#730', '#840', '#950', '#a60', '#b70', '#c80', '#d90', '#ea0', '#fb1', \
-            '#fc4', '#fd7'
         lance_take_counts = 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024
     else:
         raise ValueError(f'Unsupported --lance_pow: {args.lance_pow}.')
 
-    for color, take_count in reversed(list(zip(lance_colors, lance_take_counts))):
+    obj = {}
+
+    to_dict = lambda label, rate, times: ({
+        'label': label,
+        'rate': rate,
+        'times': (times * 1e9).astype(np.int64).tolist()
+    })
+
+    for take_count in lance_take_counts:
         times = bench_lance_seq(lance_dataset, take_count, args.tqdm, args.time_limit)
         rate = int(len(times) / times[-1])
-        label = f'Lance seq n={take_count}: {rate:,}/s'
-        plt.plot(times, np.arange(len(times)), c=color, ls='-', lw=line_width, label=label)
+        label = f'Lance seq n={take_count:04}: {rate:,}/s'
+        obj[f'lance_seq_{take_count:04}'] = to_dict(label, rate, times)
         print(label)
 
-    for color, take_count in reversed(list(zip(lance_colors, lance_take_counts))):
+    for take_count in lance_take_counts:
         times = bench_lance_rand(lance_dataset, take_count, args.tqdm, args.time_limit)
         rate = int(len(times) / times[-1])
-        label = f'Lance rand n={take_count}: {rate:,}/s'
-        plt.plot(times, np.arange(len(times)), c=color, ls=':', lw=line_width, label=label)
+        label = f'Lance rand n={take_count:04}: {rate:,}/s'
+        obj[f'lance_rand_{take_count:04}'] = to_dict(label, rate, times)
         print(label)
 
     times = bench_pq_seq(streaming_dataset, args.pq_suffix, args.tqdm, args.time_limit)
     rate = int(len(times) / times[-1])
     label = f'PQ seq (in mem): {rate:,}/s'
-    plt.plot(times, np.arange(len(times)), c='green', ls='-', lw=line_width, label=label)
+    obj['pq_seq'] = to_dict(label, rate, times)
     print(label)
 
     times = bench_pq_rand_uncached(streaming_dataset, args.pq_suffix, args.tqdm, args.time_limit)
     rate = int(len(times) / times[-1])
     label = f'PQ rand (in mem): {rate:,}/s'
-    plt.plot(times, np.arange(len(times)), c='green', ls=':', lw=line_width, label=label)
+    obj['pq_rand'] = to_dict(label, rate, times)
     print(label)
 
     clear_mds(args.streaming_dataset)
@@ -332,7 +331,7 @@ def main(args: Namespace) -> None:
     times = bench_seq(streaming_dataset, args.tqdm, args.time_limit)
     rate = int(len(times) / times[-1])
     label = f'Cold PQ>MDS seq: {rate:,}/s'
-    plt.plot(times, np.arange(len(times)), c='blue', ls='-', lw=line_width, label=label)
+    obj['pq_mds_seq'] = to_dict(label, rate, times)
     print(label)
 
     clear_mds(args.streaming_dataset)
@@ -340,24 +339,23 @@ def main(args: Namespace) -> None:
     times = bench_rand(streaming_dataset, args.tqdm, args.time_limit)
     rate = int(len(times) / times[-1])
     label = f'Cold PQ>MDS rand: {rate:,}/s'
-    plt.plot(times, np.arange(len(times)), c='blue', ls=':', lw=line_width, label=label)
+    obj['pq_mds_rand'] = to_dict(label, rate, times)
     print(label)
 
     times = bench_seq(streaming_dataset, args.tqdm, args.time_limit)
     rate = int(len(times) / times[-1])
     label = f'Warm MDS seq: {rate:,}/s'
-    plt.plot(times, np.arange(len(times)), c='red', ls='-', lw=line_width, label=label)
+    obj['mds_seq'] = to_dict(label, rate, times)
     print(label)
 
     times = bench_rand(streaming_dataset, args.tqdm, args.time_limit)
     rate = int(len(times) / times[-1])
     label = f'Warm MDS rand: {rate:,}/s'
-    plt.plot(times, np.arange(len(times)), c='red', ls=':', lw=line_width, label=label)
+    obj['mds_rand'] = to_dict(label, rate, times)
     print(label)
 
-    plt.legend()
-    plt.grid(which='major', ls='--', c='#ddd')
-    plt.savefig(args.plot, dpi=500)
+    with open(args.stats, 'w') as out:
+        json.dump(obj, out)
 
 
 if __name__ == '__main__':
