@@ -207,15 +207,13 @@ def delete_oci(remote_dir: str) -> None:
         oci_client.delete_object(namespace, obj.netloc, filenames.name)
 
 
-def compare_files(files: list[str], identical: bool = False) -> None:
-    """Compares the data in multiple files line by line.
+def compare_sample_order(files: list[str], identical: bool = False) -> None:
+    """Compare the sample order of multiple files.
 
     Args:
-    files: A list of file paths.
-    identical: A boolean indicating whether the files should be identical or not.
-
-    Returns:
-    A list of differences between the files, or an empty list if the files are identical.
+        files (list[str]): A list of files to compare.
+        identical (bool, optional): Whether the sample order should be identical.
+            Defaults to ``False``.
     """
 
     def display(data: list[str]):

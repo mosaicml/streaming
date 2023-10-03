@@ -13,7 +13,8 @@ from typing import Union
 import torch
 from torch import distributed as dist
 from torch.utils.data import DataLoader
-from utils import compare_files, get_dataloader_params, get_kwargs, get_streaming_dataset_params
+from utils import (compare_sample_order, get_dataloader_params, get_kwargs,
+                   get_streaming_dataset_params)
 
 from streaming import StreamingDataset
 from streaming.base.distributed import (all_gather, barrier, get_rank, get_world_size,
@@ -113,8 +114,8 @@ def main(args: Namespace, kwargs: dict[str, str]) -> None:
         for batch in dataloader:
             if args.sample_order_file is not None and epoch == 0:
                 key = None
-                if 'id' in batch:
-                    key = 'id'
+                if 'sample' in batch:
+                    key = 'sample'
                 elif 'number' in batch:
                     key = 'number'
                 samples = [int(sample) for sample in batch[key]]
@@ -167,6 +168,6 @@ def main(args: Namespace, kwargs: dict[str, str]) -> None:
 if __name__ == '__main__':
     args, kwargs = parse_args()
     if args.cmp_sample_order:
-        compare_files(args.cmp_sample_order)
+        compare_sample_order(args.cmp_sample_order)
     else:
         main(args, kwargs)
