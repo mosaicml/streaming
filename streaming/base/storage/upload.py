@@ -179,7 +179,7 @@ class CloudUploader:
         """
         raise NotImplementedError('Override this method in your sub-class')
 
-    def list_objects(self, prefix: Optional[str] = None) -> List[str]:
+    def list_objects(self, prefix: Optional[str] = None) -> Optional[List[str]]:
         """List all objects in the object store with the given prefix.
 
         Args:
@@ -289,7 +289,7 @@ class S3Uploader(CloudUploader):
                               f'or check the bucket permission.',)
             raise error
 
-    def list_objects(self, prefix: Optional[str] = None) -> List[str]:
+    def list_objects(self, prefix: Optional[str] = None) -> Optional[List[str]]:
         """List all objects in the S3 object store with the given prefix.
 
         Args:
@@ -303,7 +303,7 @@ class S3Uploader(CloudUploader):
 
         obj = urllib.parse.urlparse(self.remote)
         bucket_name = obj.netloc
-        prefix = os.path.join(obj.path.lstrip('/'), prefix)
+        prefix = os.path.join(str(obj.path).lstrip('/'), prefix)
 
         paginator = self.s3.get_paginator('list_objects_v2')
         pages = paginator.paginate(Bucket=bucket_name, Prefix=prefix)
@@ -430,7 +430,7 @@ class GCSUploader(CloudUploader):
         elif self.authentication == GCSAuthentication.SERVICE_ACCOUNT:
             self.gcs_client.get_bucket(bucket_name)
 
-    def list_objects(self, prefix: Optional[str] = None) -> List[str]:
+    def list_objects(self, prefix: Optional[str] = None) -> Optional[List[str]]:
         """List all objects in the GCS object store with the given prefix.
 
         Args:
@@ -442,12 +442,13 @@ class GCSUploader(CloudUploader):
         if prefix is None:
             prefix = ''
 
-        if self.authentication == GCSAuthentication.HMAC:
-            obj = urllib.parse.urlparse(self.remote)
-            bucket_name = obj.netloc
-            prefix = os.path.join(obj.path.lstrip('/'), prefix)
+        obj = urllib.parse.urlparse(self.remote)
 
-            paginator = self.s3.get_paginator('list_objects_v2')
+        if self.authentication == GCSAuthentication.HMAC:
+            bucket_name = obj.netloc
+            prefix = os.path.join(str(obj.path).lstrip('/'), prefix)
+
+            paginator = self.gcs_client.get_paginator('list_objects_v2')
             pages = paginator.paginate(Bucket=bucket_name, Prefix=prefix)
             try:
                 return [obj['Key'] for page in pages for obj in page['Contents']]
@@ -456,7 +457,7 @@ class GCSUploader(CloudUploader):
         elif self.authentication == GCSAuthentication.SERVICE_ACCOUNT:
             from google.cloud.storage import Blob, Bucket
 
-            blob = Blob(obj.path.lstrip('/'), Bucket(self.gcs_client, obj.netloc))
+            blob = Blob(str(obj.path).lstrip('/'), Bucket(self.gcs_client, obj.netloc))
             return [blob.name for blob in blob.bucket.list_blobs(prefix=prefix)]
 
 
@@ -551,7 +552,7 @@ class OCIUploader(CloudUploader):
                               f'Check the bucket permission or create the bucket.',)
             raise error
 
-    def list_objects(self, prefix: Optional[str] = None) -> List[str]:
+    def list_objects(self, prefix: Optional[str] = None) -> Optional[List[str]]:
         """List all objects in the OCI object store with the given prefix.
 
         Args:
@@ -565,7 +566,7 @@ class OCIUploader(CloudUploader):
 
         obj = urllib.parse.urlparse(self.remote)
         bucket_name = obj.netloc.split('@' + self.namespace)[0]
-        prefix = os.path.join(obj.path.strip('/'), prefix)
+        prefix = os.path.join(str(obj.path).strip('/'), prefix)
 
         object_names = []
         next_start_with = None
@@ -580,10 +581,9 @@ class OCIUploader(CloudUploader):
                 next_start_with = response.next_start_with
                 if not next_start_with:
                     response_complete = True
-        except Exception as e:
-            _reraise_oci_errors(self.get_uri(prefix), e)
-
-        return object_names
+            return object_names
+        except Exception as _:
+            return []
 
 
 class AzureUploader(CloudUploader):
