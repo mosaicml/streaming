@@ -13,6 +13,7 @@ import shutil
 import tempfile
 import urllib.parse
 from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
+from pathlib import Path
 from time import sleep, time
 from typing import Any, Callable, List, Sequence, Tuple, Type, TypeVar, Union, cast, overload
 
@@ -214,17 +215,17 @@ def get_import_exception_message(package_name: str, extra_deps: str) -> str:
             f'`pip install \'mosaicml-streaming[{package_name}]\'`.'
 
 
-def do_merge_index(folder_urls: List[Any],
+def do_merge_index(index_file_urls: List[Any],
                    out: Union[str, Tuple[str, str]],
                    keep_local: bool = True,
                    download_timeout: int = 60) -> None:
-    """Merge index.json from a list of directories. Write to `out`, overwriting if exists.
+    """Merge index.json from a list of index.json. Write to `out`, overwriting if exists.
 
     Args:
-        folder_urls (Union[str, Tuple[str,str]]): folders that contain index.json for the partition
+        index_file_urls (Union[str, Tuple[str,str]]): index.json from all the partitions
             each element can take the form of a single path string or a tuple string.
 
-            The pattern of folder_urls and corresponding reaction is one of:
+            The pattern of index_file_urls and corresponding reaction is one of:
             1. All urls are str (local). All urls are accessible locally -> no download
             2. All urls are tuple (local, remote). All urls are accessible locally -> no download
             3. All urls are tuple (local, remote). At least one url is not accessible locally -> download all
@@ -237,19 +238,19 @@ def do_merge_index(folder_urls: List[Any],
     from streaming.base.storage.download import download_file
     from streaming.base.storage.upload import CloudUploader
 
-    if not folder_urls or not out:
-        logger.warning('Need to specify both folder_urls and out. No index merged')
+    if not index_file_urls or not out:
+        logger.warning('Need to specify both index_file_urls and out. No index merged')
         return
 
-    print('folder_urls = ', folder_urls)
     # This is the index json file name, e.g., it is index.json as of 0.6.0
     index_basename = get_index_basename()
 
     cu = CloudUploader.get(out, keep_local=True, exist_ok=True)
 
-    # Remove '/' from right, so os.path.basename gives relative path to each folder
+    # Remove duplicates, and strip '/' from right if any
+    index_file_urls = list(set(index_file_urls))
     urls = []
-    for url in folder_urls:
+    for url in index_file_urls:
         if isinstance(url, str):
             urls.append(url.rstrip('/').strip())
         else:
@@ -260,7 +261,7 @@ def do_merge_index(folder_urls: List[Any],
     for url in urls:
         if isinstance(url, tuple):
             # If driver cannot access the local path, download = True
-            download = not os.path.exists(os.path.join(url[0], index_basename))
+            download = not os.path.exists(url[0])
         else:
             # If url is a remote, download = True, False otherwise
             download = urllib.parse.urlparse(url).scheme != ''
@@ -285,22 +286,19 @@ def do_merge_index(folder_urls: List[Any],
                 # If download is needed, download url from remote to temp_root
                 path = urllib.parse.urlparse(remote).path
                 local = os.path.join(temp_root, path.lstrip('/'))
-                remote_url = os.path.join(remote, index_basename)
-                local_path = os.path.join(local, index_basename)
                 try:
-                    download_file(remote_url, local_path, download_timeout)
+                    download_file(remote, local, download_timeout)
                 except Exception as ex:
-                    raise RuntimeError(f'Failed to download index.json: {remote_url}') from ex
+                    raise RuntimeError(f'Failed to download index.json: {remote}') from ex
 
             if not (os.path.exists(local)):
-                raise FileNotFoundError(f'Folder {local} does not exist or not accessible.')
+                raise FileNotFoundError(f'Index file {local} does not exist or not accessible.')
             partitions.append(local)
 
         # merge index files into shards
         shards = []
-        for partition in partitions:
-            partition_index = f'{partition}/{index_basename}'
-            mds_partition_basename = os.path.basename(partition)
+        for partition_index in partitions:
+            p = Path(partition_index)
             obj = json.load(open(partition_index))
             for i in range(len(obj['shards'])):
                 shard = obj['shards'][i]
@@ -308,7 +306,7 @@ def do_merge_index(folder_urls: List[Any],
                     if shard.get(key):
                         basename = shard[key]['basename']
                         obj['shards'][i][key]['basename'] = os.path.join(
-                            mds_partition_basename, basename)
+                            os.path.basename(p.parent), basename)
             shards += obj['shards']
 
         # Save merged index locally
@@ -329,64 +327,6 @@ def do_merge_index(folder_urls: List[Any],
         # Clean up
         if not keep_local:
             shutil.rmtree(cu.local, ignore_errors=True)
-
-
-def merge_index(root_to_mds: Union[str, Tuple[str, str]],
-                *,
-                keep_local: bool = True,
-                overwrite: bool = True) -> None:
-    """Merge index.json given the root of MDS dataset. Write merged index to the root folder.
-
-    Args:
-        root_to_mds (Union[str, Tuple[str,str]]): folders that contain MDS partitions.
-            It can be local str or remote str or (local, remote)
-        keep_local (bool): Keep local copy of the merged index file. Defaults to ``True``
-        overwrite (bool): Overwrite merged index file in out if there exists one. Defaults to ``True``
-        download_timeout (int): The allowed time for downloading each json file. Defaults to 60s.
-    """
-    from streaming.base.storage.download import list_objects
-    from streaming.base.storage.upload import CloudUploader
-
-    if not root_to_mds:
-        logger.warning('No MDS dataset folder specified, no index merged')
-        return
-
-    cu = CloudUploader.get(root_to_mds, exist_ok=True, keep_local=True)
-    if isinstance(root_to_mds, tuple):
-        local_folders = [
-            os.path.join(cu.local, o)
-            for o in list_objects(root_to_mds[0])
-            if not o.endswith('.json')
-        ]
-        remote_folders = [
-            os.path.join(cu.remote, o)
-            for o in list_objects(root_to_mds[1])
-            if not o.endswith('.json')
-        ]
-        folder_urls = list(zip(local_folders, remote_folders))
-    else:
-        print('I am here 3.1', root_to_mds)
-        print('I am here 3', list_objects(root_to_mds))
-        if cu.remote:
-            folder_urls = [
-                os.path.join(cu.remote, o)
-                for o in list_objects(root_to_mds)
-                if not o.endswith('.json')
-            ]
-        else:
-            folder_urls = [
-                os.path.join(cu.local, o)
-                for o in list_objects(root_to_mds)
-                if not o.endswith('.json')
-            ]
-
-            print('I am here 3.2')
-            for fu in folder_urls:
-                print(list_objects(fu))
-
-    do_merge_index(folder_urls, root_to_mds, keep_local=keep_local, download_timeout=60)
-
-    return
 
 
 @overload

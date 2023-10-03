@@ -25,6 +25,7 @@ except ImportError as e:
     raise e
 
 from streaming import MDSWriter
+from streaming.base.format.index import get_index_basename
 from streaming.base.format.mds.encodings import _encodings
 from streaming.base.storage.upload import CloudUploader
 
@@ -193,8 +194,9 @@ def dataframeToMDS(dataframe: DataFrame,
                         count += 1
 
         yield pd.concat([
-            pd.Series([output[0]], name='mds_path_local'),
-            pd.Series([output[1]], name='mds_path_remote'),
+            pd.Series([os.path.join(output[0], get_index_basename())], name='mds_path_local'),
+            pd.Series([os.path.join(output[1], get_index_basename()) if output[1] != '' else ''],
+                      name='mds_path_remote'),
             pd.Series([count], name='fail_count')
         ],
                         axis=1)
@@ -231,7 +233,6 @@ def dataframeToMDS(dataframe: DataFrame,
     out = mds_kwargs['out']
     keep_local = False if 'keep_local' not in mds_kwargs else mds_kwargs['keep_local']
     cu = CloudUploader.get(out, keep_local=keep_local)
-    print('cu.local = ', cu.local)
 
     # Fix output format as mds_path: Tuple(local, remote)
     if cu.remote is None:

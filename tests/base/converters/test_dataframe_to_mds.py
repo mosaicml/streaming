@@ -17,7 +17,10 @@ from streaming import MDSWriter
 from streaming.base.converters import dataframeToMDS
 
 MY_PREFIX = 'train'
-MY_BUCKET = {'gs://': 'mosaicml-composer-tests', 's3://': 'streaming-upload-test-bucket'}
+MY_BUCKET = {
+    'gs://': 'mosaicml-composer-tests',
+    's3://': 'mosaicml-internal-temporary-composer-testing'
+}
 MANUAL_INTEGRATION_TEST = False
 os.environ[
     'OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'  # set to yes to all fork process in spark calls
@@ -27,13 +30,19 @@ os.environ[
 def manual_integration_dir() -> Any:
     """Creates a temporary directory and then deletes it when the calling function is done."""
     if MANUAL_INTEGRATION_TEST:
-        #os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'path/to/gooogle_api_credential.json'
+        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'path/to/gooogle_api_credential.json'
         os.environ[
             'GOOGLE_APPLICATION_CREDENTIALS'] = '/Users/xiaohan.zhang/.mosaic/mosaicml-research-nonprod-027345ddbdfd.json'
 
+        os.environ.pop('AWS_ACCESS_KEY_ID', None)
+        os.environ.pop('AWS_SECRET_ACCESS_KEY', None)
+        os.environ.pop('AWS_SECURITY_TOKEN', None)
+        os.environ.pop('AWS_SESSION_TOKEN', None)
+        os.environ['AWS_PROFILE'] = 'temporary'
+
     tmp_dir = mkdtemp()
 
-    def _method(cloud_prefix: str = 's3://') -> Tuple[str, str]:
+    def _method(cloud_prefix: str = 'gs://') -> Tuple[str, str]:
         mock_local_dir = tmp_dir  # mkdtemp()
         mock_remote_dir = os.path.join(cloud_prefix, MY_BUCKET[cloud_prefix], MY_PREFIX)
         return mock_local_dir, mock_remote_dir
@@ -42,16 +51,16 @@ def manual_integration_dir() -> Any:
         yield _method
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)  # pyright: ignore
-        #if MANUAL_INTEGRATION_TEST:
-        #    try:
-        #        from google.cloud.storage import Client
-        #        storage_client = Client()
-        #        bucket = storage_client.get_bucket(MY_BUCKET)
-        #        blobs = bucket.list_blobs(prefix=MY_PREFIX)
-        #        for blob in blobs:
-        #            blob.delete()
-        #    except ImportError:
-        #        raise ImportError('google.cloud.storage is not imported correctly.')
+        if MANUAL_INTEGRATION_TEST:
+            try:
+                from google.cloud.storage import Client
+                storage_client = Client()
+                bucket = storage_client.get_bucket(MY_BUCKET['gs://'])
+                blobs = bucket.list_blobs(prefix=MY_PREFIX)
+                for blob in blobs:
+                    blob.delete()
+            except ImportError:
+                raise ImportError('google.cloud.storage is not imported correctly.')
 
 
 class TestDataFrameToMDS:
@@ -220,9 +229,9 @@ class TestDataFrameToMDS:
             assert not (os.path.exists(os.path.join(
                 out, 'index.json'))), 'merged index is created when merge_index=False'
 
-    @pytest.mark.parametrize('scheme', ['gs'])
-    @pytest.mark.parametrize('keep_local', [True, False])
-    @pytest.mark.parametrize('merge_index', [True, False])
+    @pytest.mark.parametrize('scheme', ['gs://', 's3://'])
+    @pytest.mark.parametrize('keep_local', [True])  # , False])
+    @pytest.mark.parametrize('merge_index', [True])  # , False])
     @pytest.mark.usefixtures('manual_integration_dir')
     def test_patch_conversion_local_and_remote(self, dataframe: Any, scheme: str,
                                                merge_index: bool, keep_local: bool,
@@ -231,7 +240,7 @@ class TestDataFrameToMDS:
             pytest.skip(
                 'Overlap with integration tests. But better figure out how to run this test ' +
                 'suite with Mock.')
-        mock_local, mock_remote = manual_integration_dir()
+        mock_local, mock_remote = manual_integration_dir(scheme)
         out = (mock_local, mock_remote)
         mds_kwargs = {
             'out': out,
@@ -269,15 +278,17 @@ class TestDataFrameToMDS:
             assert not (os.path.exists(os.path.join(
                 mds_path[0], 'index.json'))), 'merged index is created when merge_index=False'
 
+    @pytest.mark.parametrize('scheme', ['gs://', 's3://'])
     @pytest.mark.parametrize('keep_local', [True, False])
     @pytest.mark.parametrize('merge_index', [True, False])
     @pytest.mark.usefixtures('manual_integration_dir')
     def test_integration_conversion_local_and_remote(self, dataframe: Any,
                                                      manual_integration_dir: Any,
-                                                     merge_index: bool, keep_local: bool):
+                                                     merge_index: bool, keep_local: bool,
+                                                     scheme: str):
         if not MANUAL_INTEGRATION_TEST:
             pytest.skip('run local only. CI cluster does not have GCS service acct set up.')
-        out = manual_integration_dir()
+        out = manual_integration_dir(scheme)
         mds_kwargs = {
             'out': out,
             'columns': {
@@ -312,11 +323,13 @@ class TestDataFrameToMDS:
                 f'merged index is created at {mds_path[0]} when merge_index={merge_index} and ' +
                 f'keep_local={keep_local}')
 
+    @pytest.mark.parametrize('scheme', ['gs://', 's3://'])
     @pytest.mark.usefixtures('manual_integration_dir')
-    def test_integration_conversion_remote_only(self, dataframe: Any, manual_integration_dir: Any):
+    def test_integration_conversion_remote_only(self, dataframe: Any, manual_integration_dir: Any,
+                                                scheme: str):
         if not MANUAL_INTEGRATION_TEST:
             pytest.skip('run local only. CI cluster does not have GCS service acct set up.')
-        _, remote = manual_integration_dir()
+        _, remote = manual_integration_dir('s3://')
         mds_kwargs = {
             'out': remote,
             'columns': {

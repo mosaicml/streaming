@@ -11,7 +11,7 @@ import sys
 import urllib.parse
 from enum import Enum
 from tempfile import mkdtemp
-from typing import Any, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import tqdm
 
@@ -179,6 +179,17 @@ class CloudUploader:
         """
         raise NotImplementedError('Override this method in your sub-class')
 
+    def list_objects(self, prefix: Optional[str] = None) -> List[str]:
+        """List all objects in the object store with the given prefix.
+
+        Args:
+            prefix (Optional[str], optional): The prefix to search for. Defaults to None.
+
+        Returns:
+            List[str]: A list of object names that match the prefix.
+        """
+        raise NotImplementedError(f'{type(self).__name__}.list_objects is not implemented')
+
     def clear_local(self, local: str):
         """Remove the local file if it is enabled.
 
@@ -277,6 +288,29 @@ class S3Uploader(CloudUploader):
                 error.args = (f'Either bucket `{bucket_name}` does not exist! ' +
                               f'or check the bucket permission.',)
             raise error
+
+    def list_objects(self, prefix: Optional[str] = None) -> List[str]:
+        """List all objects in the S3 object store with the given prefix.
+
+        Args:
+            prefix (Optional[str], optional): The prefix to search for. Defaults to None.
+
+        Returns:
+            List[str]: A list of object names that match the prefix.
+        """
+        if prefix is None:
+            prefix = ''
+
+        obj = urllib.parse.urlparse(self.remote)
+        bucket_name = obj.netloc
+        prefix = os.path.join(obj.path.lstrip('/'), prefix)
+
+        paginator = self.s3.get_paginator('list_objects_v2')
+        pages = paginator.paginate(Bucket=bucket_name, Prefix=prefix)
+        try:
+            return [obj['Key'] for page in pages for obj in page['Contents']]
+        except KeyError:
+            return []
 
 
 class GCSUploader(CloudUploader):
@@ -396,6 +430,35 @@ class GCSUploader(CloudUploader):
         elif self.authentication == GCSAuthentication.SERVICE_ACCOUNT:
             self.gcs_client.get_bucket(bucket_name)
 
+    def list_objects(self, prefix: Optional[str] = None) -> List[str]:
+        """List all objects in the GCS object store with the given prefix.
+
+        Args:
+            prefix (Optional[str], optional): The prefix to search for. Defaults to None.
+
+        Returns:
+            List[str]: A list of object names that match the prefix.
+        """
+        if prefix is None:
+            prefix = ''
+
+        if self.authentication == GCSAuthentication.HMAC:
+            obj = urllib.parse.urlparse(self.remote)
+            bucket_name = obj.netloc
+            prefix = os.path.join(obj.path.lstrip('/'), prefix)
+
+            paginator = self.s3.get_paginator('list_objects_v2')
+            pages = paginator.paginate(Bucket=bucket_name, Prefix=prefix)
+            try:
+                return [obj['Key'] for page in pages for obj in page['Contents']]
+            except KeyError:
+                return []
+        elif self.authentication == GCSAuthentication.SERVICE_ACCOUNT:
+            from google.cloud.storage import Blob, Bucket
+
+            blob = Blob(obj.path.lstrip('/'), Bucket(self.gcs_client, obj.netloc))
+            return [blob.name for blob in blob.bucket.list_blobs(prefix=prefix)]
+
 
 class OCIUploader(CloudUploader):
     """Upload file from local machine to Oracle Cloud Infrastructure (OCI) Cloud Storage.
@@ -487,6 +550,40 @@ class OCIUploader(CloudUploader):
                 error.args = (f'Bucket `{bucket_name}` does not exist! ' +
                               f'Check the bucket permission or create the bucket.',)
             raise error
+
+    def list_objects(self, prefix: Optional[str] = None) -> List[str]:
+        """List all objects in the OCI object store with the given prefix.
+
+        Args:
+            prefix (Optional[str], optional): The prefix to search for. Defaults to None.
+
+        Returns:
+            List[str]: A list of object names that match the prefix.
+        """
+        if prefix is None:
+            prefix = ''
+
+        obj = urllib.parse.urlparse(self.remote)
+        bucket_name = obj.netloc.split('@' + self.namespace)[0]
+        prefix = os.path.join(obj.path.strip('/'), prefix)
+
+        object_names = []
+        next_start_with = None
+        response_complete = False
+        try:
+            while not response_complete:
+                response = self.client.list_objects(namespace_name=self.namespace,
+                                                    bucket_name=bucket_name,
+                                                    prefix=prefix,
+                                                    start=next_start_with).data
+                object_names.extend([resp_obj.name for resp_obj in response.objects])
+                next_start_with = response.next_start_with
+                if not next_start_with:
+                    response_complete = True
+        except Exception as e:
+            _reraise_oci_errors(self.get_uri(prefix), e)
+
+        return object_names
 
 
 class AzureUploader(CloudUploader):
@@ -863,3 +960,21 @@ class LocalUploader(CloudUploader):
                 self.clear_local(local=local_filename)
 
         _upload_file()
+
+    def list_objects(self, prefix: Optional[str] = None) -> List[str]:
+        """List all objects locally with the given prefix.
+
+        Args:
+            prefix (Optional[str], optional): The prefix to search for. Defaults to None.
+
+        Returns:
+            List[str]: A list of object names that match the prefix.
+        """
+        if prefix is None:
+            prefix = '.'
+
+        ans = []
+        for dirpath, _, files in os.walk(prefix):
+            for file in files:
+                ans.append(os.path.join(dirpath, file))
+        return ans
