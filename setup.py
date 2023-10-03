@@ -78,9 +78,6 @@ extra_deps['dev'] = [
     'pydantic==2.1.1',
     'uvicorn==0.23.2',
     'pytest-split==0.8.1',
-    'sortedcollections==2.1.0',
-    'streamlit==1.26.0',
-    'altair==5.0.1',
 ]
 
 extra_deps['docs'] = [
@@ -95,6 +92,14 @@ extra_deps['docs'] = [
     'sphinx-copybutton==0.5.2',
     'sphinx==6.2.1',
     'sphinx-tabs==3.4.1',
+]
+
+extra_deps['simulator'] = [
+    'sortedcollections>=2.1.0',
+    'streamlit>=1.26.0',
+    'altair>=5.1.1',
+    'omegaconf>=2.3.0',
+    'PyYAML>=6.0',
 ]
 
 extra_deps['all'] = sorted({dep for deps in extra_deps.values() for dep in deps})
