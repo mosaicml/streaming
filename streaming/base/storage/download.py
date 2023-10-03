@@ -4,19 +4,32 @@
 """Shard downloading from various storage providers."""
 
 import os
+import pathlib
 import shutil
 import urllib.parse
 from time import sleep, time
 from typing import Any, Dict, Optional
 
-__all__ = ['download_or_wait']
+from streaming.base.util import get_import_exception_message
+
+__all__ = [
+    'download_from_s3',
+    'download_from_sftp',
+    'download_from_gcs',
+    'download_from_oci',
+    'download_from_azure',
+    'download_from_azure_datalake',
+    'download_from_databricks_unity_catalog',
+    'download_from_dbfs',
+    'download_from_local',
+]
 
 BOTOCORE_CLIENT_ERROR_CODES = {'403', '404', 'NoSuchKey'}
 
 GCS_ERROR_NO_AUTHENTICATION = """\
 Either set the environment variables `GCS_KEY` and `GCS_SECRET` or use any of the methods in \
-https://cloud.google.com/docs/authentication/external/set-up-adc to set up Application Default Credentials. See also \
-https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/gcp.html.
+https://cloud.google.com/docs/authentication/external/set-up-adc to set up Application Default \
+Credentials. See also https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/gcp.html.
 """
 
 
@@ -320,6 +333,91 @@ def download_from_azure_datalake(remote: str, local: str) -> None:
         raise
 
 
+def download_from_databricks_unity_catalog(remote: str, local: str) -> None:
+    """Download a file from remote Databricks Unity Catalog to local.
+
+    .. note::
+        The Databricks UC Volume path must be of the form
+        `dbfs:/Volumes/<catalog-name>/<schema-name>/<volume-name>/path`.
+
+    Args:
+        remote (str): Remote path (Databricks Unity Catalog).
+        local (str): Local path (local filesystem).
+    """
+    try:
+        from databricks.sdk import WorkspaceClient
+        from databricks.sdk.core import DatabricksError
+    except ImportError as e:
+        e.msg = get_import_exception_message(e.name, 'databricks')  # pyright: ignore
+        raise e
+
+    path = pathlib.Path(remote)
+    provider_prefix = os.path.join(path.parts[0], path.parts[1])
+    if provider_prefix != 'dbfs:/Volumes':
+        raise ValueError(
+            f'Expected path prefix to be `dbfs:/Volumes` if it is a Databricks Unity Catalog, ' +
+            f'instead, got {provider_prefix} for remote={remote}.')
+
+    client = WorkspaceClient()
+    file_path = urllib.parse.urlparse(remote)
+    local_tmp = local + '.tmp'
+    try:
+        with client.files.download(file_path.path).contents as response:
+            with open(local_tmp, 'wb') as f:
+                # Download data in chunks to avoid memory issues.
+                for chunk in iter(lambda: response.read(64 * 1024 * 1024), b''):
+                    f.write(chunk)
+    except DatabricksError as e:
+        if e.error_code == 'REQUEST_LIMIT_EXCEEDED':
+            e.args = (f'Dataset download request has been rejected due to too many concurrent ' +
+                      f'operations. Increase the `download_retry` value to retry downloading ' +
+                      f'a file.',)
+        if e.error_code == 'NOT_FOUND':
+            raise FileNotFoundError(f'Object dbfs:{remote} not found.')
+        raise e
+    os.rename(local_tmp, local)
+
+
+def download_from_dbfs(remote: str, local: str) -> None:
+    """Download a file from remote Databricks File System to local.
+
+    Args:
+        remote (str): Remote path (dbfs).
+        local (str): Local path (local filesystem).
+    """
+    try:
+        from databricks.sdk import WorkspaceClient
+        from databricks.sdk.core import DatabricksError
+    except ImportError as e:
+        e.msg = get_import_exception_message(e.name, 'databricks')  # pyright: ignore
+        raise e
+
+    obj = urllib.parse.urlparse(remote)
+    if obj.scheme != 'dbfs':
+        raise ValueError(f'Expected path prefix to be `dbfs` if it is a Databricks File System, ' +
+                         f'instead, got {obj.scheme} for remote={remote}.')
+
+    client = WorkspaceClient()
+    file_path = urllib.parse.urlparse(remote)
+    local_tmp = local + '.tmp'
+    try:
+        with client.dbfs.download(file_path.path) as response:
+            with open(local_tmp, 'wb') as f:
+                # Multiple shard files are getting downloaded in parallel, so we need to
+                # read the data in chunks to avoid memory issues.
+                # Read 1MB of data at a time since that's the max limit it can read at a time.
+                for chunk in iter(lambda: response.read(1024 * 1024), b''):
+                    f.write(chunk)
+    except DatabricksError as e:
+        if e.error_code == 'PERMISSION_DENIED':
+            e.args = (f'Ensure the file path or credentials are set correctly. For ' +
+                      f'Databricks Unity Catalog, file path must starts with `dbfs:/Volumes` ' +
+                      f'and for Databricks File System, file path must starts with `dbfs`. ' +
+                      e.args[0],)
+        raise e
+    os.rename(local_tmp, local)
+
+
 def download_from_local(remote: str, local: str) -> None:
     """Download a file from remote to local.
 
@@ -368,6 +466,10 @@ def download_file(remote: Optional[str], local: str, timeout: float):
         download_from_azure(remote, local)
     elif remote.startswith('azure-dl://'):
         download_from_azure_datalake(remote, local)
+    elif remote.startswith('dbfs:/Volumes'):
+        download_from_databricks_unity_catalog(remote, local)
+    elif remote.startswith('dbfs:/'):
+        download_from_dbfs(remote, local)
     else:
         download_from_local(remote, local)
 
@@ -387,39 +489,3 @@ def wait_for_download(local: str, timeout: float = 60) -> None:
             raise TimeoutError(
                 f'Waited longer than {timeout}s for other worker to download {local}.')
         sleep(0.25)
-
-
-def download_or_wait(remote: Optional[str],
-                     local: str,
-                     wait: bool = False,
-                     retry: int = 2,
-                     timeout: float = 60) -> None:
-    """Downloads a file from remote to local, or waits for it to be downloaded.
-
-    Does not do any thread safety checks, so we assume the calling function is using ``wait``
-    correctly.
-
-    Args:
-        remote (str, optional): Remote path (S3, SFTP, or local filesystem).
-        local (str): Local path (local filesystem).
-        wait (bool): If ``true``, then do not actively download the file, but instead wait (up to
-            ``timeout`` seconds) for the file to arrive. Defaults to ``False``.
-        retry (int): Number of download re-attempts before giving up. Defaults to ``2``.
-        timeout (float): How long to wait for file to download before raising an exception.
-            Defaults to ``60``.
-    """
-    errors = []
-    for _ in range(1 + retry):
-        try:
-            if wait:
-                wait_for_download(local, timeout)
-            else:
-                download_file(remote, local, timeout)
-            break
-        except FileNotFoundError:  # Bubble up file not found error.
-            raise
-        except Exception as e:  # Retry for all other causes of failure.
-            errors.append(e)
-    if retry < len(errors):
-        raise RuntimeError(
-            f'Failed to download {remote} -> {local}. Got errors:\n{errors}') from errors[-1]

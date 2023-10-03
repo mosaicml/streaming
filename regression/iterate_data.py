@@ -108,14 +108,23 @@ def main(args: Namespace, kwargs: dict[str, str]) -> None:
             start_time = time.time()
         for batch in dataloader:
             if args.sample_order_file is not None:
-                samples = [int(sample) for sample in batch['id']]
-                obj_gather_list = [
-                    torch.zeros(len(samples), dtype=torch.int64).cuda(get_rank())
-                    for _ in range(get_world_size())
-                ]
-                all_gather(obj_gather_list,
-                           torch.Tensor(samples).to(dtype=torch.int64).cuda(get_rank()))
-                barrier()
+                key = None
+                if 'id' in batch:
+                    key = 'id'
+                elif 'number' in batch:
+                    key = 'number'
+                samples = [int(sample) for sample in batch[key]]
+                samples = torch.Tensor(samples).to(dtype=torch.int64)
+                # Only gather if more than 1 gpu
+                if destroy_dist:
+                    obj_gather_list = [
+                        torch.zeros(len(samples), dtype=torch.int64).cuda(get_rank())
+                        for _ in range(get_world_size())
+                    ]
+                    all_gather(obj_gather_list, samples.cuda(get_rank()))
+                    barrier()
+                else:
+                    obj_gather_list = [samples]
                 if get_rank() == 0:
                     with open(args.sample_order_file, 'a') as f:
                         all_samples = [

@@ -1,11 +1,12 @@
 # Configure Cloud Storage Credentials
 
 Streaming dataset supports the following cloud storage providers to stream your data directly to your instance.
-- Amazon S3
-- Any S3 compatible object store
-- Google Cloud Storage
-- Oracle Cloud Storage
-- Azure Blob Storage
+- [Amazon S3](#amazon-s3)
+- [Any S3 compatible object store](#any-s3-compatible-object-store)
+- [Google Cloud Storage](#google-cloud-storage)
+- [Oracle Cloud Storage](#oracle-cloud-storage)
+- [Azure Blob Storage](#azure-blob-storage-and-azure-datalake)
+- [Databricks](#databricks)
 
 ## Amazon S3
 
@@ -13,7 +14,7 @@ For an S3 bucket with public access, no additional setup is required, simply spe
 
 ### MosaicML platform
 
-For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [AWS S3](https://mcli.docs.mosaicml.com/en/latest/secrets/s3.html) MCLI doc on how to configure the cloud provider credentials.
+For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [AWS S3](https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/s3.html) MCLI doc on how to configure the cloud provider credentials.
 
 ### Others
 
@@ -149,7 +150,7 @@ export GOOGLE_APPLICATION_CREDENTIALS='KEY_FILE'
 
 ### MosaicML platform
 
-For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [Oracle Cloud Storage](https://mcli.docs.mosaicml.com/en/latest/secrets/oci.html) MCLI doc on how to configure the cloud provider credentials.
+For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [Oracle Cloud Storage](https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/oci.html) MCLI doc on how to configure the cloud provider credentials.
 
 ### Others
 
@@ -204,5 +205,34 @@ os.environ['AZURE_ACCOUNT_ACCESS_KEY'] = 'NN1KHxKKkj20ZO92EMiDQjx3wp2kZG4UUvfAGl
 ```{code-tab} sh
 export AZURE_ACCOUNT_NAME='test'
 export AZURE_ACCOUNT_ACCESS_KEY='NN1KHxKKkj20ZO92EMiDQjx3wp2kZG4UUvfAGlgGWRn6sPRmGY/TEST/Dri+ExAmPlEExAmPlExA+ExAmPlExA=='
+```
+````
+
+## Databricks
+
+To authenticate Databricks access for both Unity Catalog and Databricks File System (DBFS), users must set their Databricks host (`DATABRICKS_HOST`) and access token (`DATABRICKS_TOKEN`) in the run environment.
+
+See the [Databricks documentation](https://docs.databricks.com/en/dev-tools/auth.html#databricks-personal-access-token-authentication) for instructions on how to create a personal access token.
+
+### MosaicML platform
+
+For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [Environment Variables](https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/env.html) documentation on how to set the environment variables.
+
+```
+mcli create secret env DATABRICKS_HOST='hostname'
+mcli create secret env DATABRICKS_TOKEN='token key'
+```
+
+### Others
+
+````{tabs}
+```{code-tab} py
+os.environ['DATABRICKS_HOST'] = 'hostname'
+os.environ['DATABRICKS_TOKEN'] = 'token key'
+```
+
+```{code-tab} sh
+export DATABRICKS_HOST='hostname'
+export DATABRICKS_TOKEN='token key'
 ```
 ````

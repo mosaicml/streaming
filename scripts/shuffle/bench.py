@@ -11,7 +11,8 @@ from typing import Callable
 import numpy as np
 from numpy.typing import NDArray
 
-from streaming.base.shuffle import get_shuffle_py1s, get_shuffle_py2s
+from streaming.base.shuffle import (get_shuffle_naive, get_shuffle_py1b, get_shuffle_py1s,
+                                    get_shuffle_py2s)
 
 
 def parse_args() -> Namespace:
@@ -21,23 +22,60 @@ def parse_args() -> Namespace:
         Namespace: Command-line arguments.
     """
     args = ArgumentParser()
-    args.add_argument('--num_canonical_nodes',
-                      type=int,
-                      default=1,
-                      help='Number of canonical nodes')
-    args.add_argument('--seed', type=int, default=9186, help='Shuffle seed')
-    args.add_argument('--epoch', type=int, default=0, help='Current epoch')
-    args.add_argument('--timeout',
-                      type=float,
-                      default=120,
-                      help='The longest that we are willing to wait for results, in seconds')
-    args.add_argument('--samples_per_shard', type=float, default=50_000, help='Samples per shard')
-    args.add_argument('--min_power', type=int, default=10, help='Min dataset size as a power of 2')
-    args.add_argument('--max_power', type=int, default=34, help='Max dataset size as a power of 2')
-    args.add_argument('--power_interval',
-                      type=int,
-                      default=4,
-                      help='Dataset size step as a power of 2')
+    args.add_argument(
+        '--algos',
+        type=str,
+        default='',
+        help='List of algos to benchmark',
+    )
+    args.add_argument(
+        '--num_canonical_nodes',
+        type=int,
+        default=8,
+        help='Number of canonical nodes',
+    )
+    args.add_argument(
+        '--seed',
+        type=int,
+        default=9186,
+        help='Shuffle seed',
+    )
+    args.add_argument(
+        '--epoch',
+        type=int,
+        default=0,
+        help='Current epoch',
+    )
+    args.add_argument(
+        '--timeout',
+        type=float,
+        default=120,
+        help='The longest that we are willing to wait for results, in seconds',
+    )
+    args.add_argument(
+        '--samples_per_shard',
+        type=float,
+        default=50_000,
+        help='Samples per shard',
+    )
+    args.add_argument(
+        '--min_power',
+        type=int,
+        default=10,
+        help='Minimum dataset size as a power of 2',
+    )
+    args.add_argument(
+        '--max_power',
+        type=int,
+        default=34,
+        help='Maximum dataset size as a power of 2',
+    )
+    args.add_argument(
+        '--power_interval',
+        type=int,
+        default=4,
+        help='Dataset size step as a power of 2',
+    )
     return args.parse_args()
 
 
@@ -102,13 +140,20 @@ def main(args: Namespace) -> None:
     Args:
         args (Namespace): Command-line arguments.
     """
-    names = 'py1x', 'py2x'
-    get_shuffles = get_shuffle_py1s, get_shuffle_py2s
+    names = 'naive', 'py2s', 'py1s', 'py1b'
+    get_shuffles = get_shuffle_naive, get_shuffle_py2s, get_shuffle_py1s, get_shuffle_py1b
+
+    if args.algos:
+        algos = args.algos.split(',') if args.algos else []
+        algos = set(algos)
+        pairs = zip(names, get_shuffles)
+        pairs = filter(lambda p: p[0] in algos, pairs)
+        names, get_shuffles = zip(*pairs)
 
     def wrap(func: Callable):
         return Caller(func, args.num_canonical_nodes, args.seed, args.epoch, args.timeout)
 
-    callers = list(map(wrap, get_shuffles))
+    callers = list(map(wrap, get_shuffles))  # pyright: ignore
 
     text = ' '.join((s.rjust(10) for s in names))
 

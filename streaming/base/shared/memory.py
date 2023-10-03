@@ -77,7 +77,7 @@ class SharedMemory:
         """
         return self.shm.buf
 
-    # Monkey-patched "multiprocessing.resource_tracker" to avoid unwanted resource tracker warnings.
+    # Monkey-patched "multiprocessing.resource_tracker" to skip unwanted resource tracker warnings.
     # PR to remove resource tracker unlinking: https://github.com/python/cpython/pull/15989
     def fix_register(self, name: str, rtype: str) -> Any:
         """Skip registering resource tracking for shared memory.

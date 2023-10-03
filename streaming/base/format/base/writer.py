@@ -7,10 +7,12 @@ import json
 import logging
 import os
 import shutil
+import sys
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures._base import Future
 from threading import Event
+from time import sleep
 from types import TracebackType
 from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
@@ -45,8 +47,8 @@ class Writer(ABC):
             ``None``.
         hashes (List[str], optional): Optional list of hash algorithms to apply to shard files.
             Defaults to ``None``.
-        size_limit (Union[int, str], optional): Optional shard size limit, after which point to start a new
-            shard. If ``None``, puts everything in one shard. Can specify bytes
+        size_limit (Union[int, str], optional): Optional shard size limit, after which point
+            to start a new shard. If ``None``, puts everything in one shard. Can specify bytes
             human-readable format as well, for example ``"100kb"`` for 100 kilobyte
             (100*1024) and so on. Defaults to ``1 << 26``.
         extra_bytes_per_shard (int): Extra bytes per serialized shard (for computing shard size
@@ -60,6 +62,8 @@ class Writer(ABC):
             max_workers (int): Maximum number of threads used to upload output dataset files in
                 parallel to a remote location. One thread is responsible for uploading one shard
                 file to a remote location. Default to ``min(32, (os.cpu_count() or 1) + 4)``.
+            retry (int): Number of times to retry uploading a file to a remote location.
+                Default to ``2``.
     """
 
     format: str = ''  # Name of the format (like "mds", "csv", "json", etc).
@@ -94,6 +98,13 @@ class Writer(ABC):
                 raise ValueError(f'`size_limit` must be greater than zero, instead, ' +
                                  f'found as {size_limit_value}.')
 
+        # Validate keyword arguments
+        invalid_kwargs = [
+            arg for arg in kwargs.keys() if arg not in ('progress_bar', 'max_workers', 'retry')
+        ]
+        if invalid_kwargs:
+            raise ValueError(f'Invalid Writer argument(s): {invalid_kwargs} ')
+
         self.keep_local = keep_local
         self.compression = compression
         self.hashes = hashes
@@ -105,7 +116,8 @@ class Writer(ABC):
 
         self.shards = []
 
-        self.cloud_writer = CloudUploader.get(out, keep_local, kwargs.get('progress_bar', False))
+        self.cloud_writer = CloudUploader.get(out, keep_local, kwargs.get('progress_bar', False),
+                                              kwargs.get('retry', 2))
         self.local = self.cloud_writer.local
         self.remote = self.cloud_writer.remote
         # `max_workers`: The maximum number of threads that can be executed in parallel.
@@ -227,6 +239,13 @@ class Writer(ABC):
         Args:
             sample (Dict[str, Any]): Sample dict.
         """
+        if self.event.is_set():
+            # Shutdown the executor and cancel all the pending futures due to exception in one of
+            # the threads.
+            self.cancel_future_jobs()
+            raise Exception('One of the threads failed. Check other traceback for more ' +
+                            'details.')
+        # Execute the task if there is no exception in any of the async threads.
         new_sample = self.encode_sample(sample)
         new_sample_size = len(new_sample) + self.extra_bytes_per_sample
         if self.size_limit and self.size_limit < self.new_shard_size + new_sample_size:
@@ -239,6 +258,11 @@ class Writer(ABC):
         """Write the index, having written all the shards."""
         if self.new_samples:
             raise RuntimeError('Internal error: not all samples have been written.')
+        if self.event.is_set():
+            # Shutdown the executor and cancel all the pending futures due to exception in one of
+            # the threads.
+            self.cancel_future_jobs()
+            return
         basename = get_index_basename()
         filename = os.path.join(self.local, basename)
         obj = {
@@ -248,9 +272,15 @@ class Writer(ABC):
         with open(filename, 'w') as out:
             json.dump(obj, out, sort_keys=True)
         # Execute the task if there is no exception in any of the async threads.
-        if not self.event.is_set():
-            future = self.executor.submit(self.cloud_writer.upload_file, basename)
-            future.add_done_callback(self.exception_callback)
+        while self.executor._work_queue.qsize() > 0:
+            logger.debug(
+                f'Queue size: {self.executor._work_queue.qsize()}. Waiting for all ' +
+                f'shard files to get uploaded to {self.remote} before uploading index.json')
+            sleep(1)
+        logger.debug(f'Queue size: {self.executor._work_queue.qsize()}. Uploading ' +
+                     f'index.json to {self.remote}')
+        future = self.executor.submit(self.cloud_writer.upload_file, basename)
+        future.add_done_callback(self.exception_callback)
 
     def finish(self) -> None:
         """Finish writing samples."""
@@ -261,7 +291,17 @@ class Writer(ABC):
         logger.debug(f'Waiting for all shard files to get uploaded to {self.remote}')
         self.executor.shutdown(wait=True)
         if self.remote and not self.keep_local:
-            shutil.rmtree(self.local)
+            shutil.rmtree(self.local, ignore_errors=True)
+
+    def cancel_future_jobs(self) -> None:
+        """Shutting down the executor and cancel all the pending jobs."""
+        # Beginning python v3.9, ThreadPoolExecutor.shutdown() has a new parameter `cancel_futures`
+        if sys.version_info[1] <= 8:  # check if python version <=3.8
+            self.executor.shutdown(wait=False)
+        else:
+            self.executor.shutdown(wait=False, cancel_futures=True)
+        if self.remote and not self.keep_local:
+            shutil.rmtree(self.local, ignore_errors=True)
 
     def exception_callback(self, future: Future) -> None:
         """Raise an exception to the caller if exception generated by one of an async thread.
@@ -299,6 +339,11 @@ class Writer(ABC):
             exc (BaseException, optional): Exc.
             traceback (TracebackType, optional): Traceback.
         """
+        if self.event.is_set():
+            # Shutdown the executor and cancel all the pending futures due to exception in one of
+            # the threads.
+            self.cancel_future_jobs()
+            return
         self.finish()
 
 
@@ -333,6 +378,8 @@ class JointWriter(Writer):
             max_workers (int): Maximum number of threads used to upload output dataset files in
                 parallel to a remote location. One thread is responsible for uploading one shard
                 file to a remote location. Default to ``min(32, (os.cpu_count() or 1) + 4)``.
+            retry (int): Number of times to retry uploading a file to a remote location.
+                Default to ``2``.
     """
 
     def __init__(self,
@@ -364,6 +411,12 @@ class JointWriter(Writer):
         raise NotImplementedError
 
     def flush_shard(self) -> None:
+        if self.event.is_set():
+            # Shutdown the executor and cancel all the pending futures due to exception in one of
+            # the threads.
+            self.cancel_future_jobs()
+            return
+
         raw_data_basename, zip_data_basename = self._name_next_shard()
         raw_data = self.encode_joint_shard()
         raw_data_info, zip_data_info = self._process_file(raw_data, raw_data_basename,
@@ -375,11 +428,11 @@ class JointWriter(Writer):
         }
         obj.update(self.get_config())
         self.shards.append(obj)
+
         # Execute the task if there is no exception in any of the async threads.
-        if not self.event.is_set():
-            future = self.executor.submit(self.cloud_writer.upload_file, zip_data_basename or
-                                          raw_data_basename)
-            future.add_done_callback(self.exception_callback)
+        future = self.executor.submit(self.cloud_writer.upload_file, zip_data_basename or
+                                      raw_data_basename)
+        future.add_done_callback(self.exception_callback)
 
 
 class SplitWriter(Writer):
@@ -411,6 +464,8 @@ class SplitWriter(Writer):
             max_workers (int): Maximum number of threads used to upload output dataset files in
                 parallel to a remote location. One thread is responsible for uploading one shard
                 file to a remote location. Default to ``min(32, (os.cpu_count() or 1) + 4)``.
+            retry (int): Number of times to retry uploading a file to a remote location.
+                Default to ``2``.
     """
 
     extra_bytes_per_shard = 0
@@ -443,6 +498,12 @@ class SplitWriter(Writer):
         raise NotImplementedError
 
     def flush_shard(self) -> None:
+        if self.event.is_set():
+            # Shutdown the executor and cancel all the pending futures due to exception in one of
+            # the threads.
+            self.cancel_future_jobs()
+            return
+
         raw_data_basename, zip_data_basename = self._name_next_shard()
         raw_meta_basename, zip_meta_basename = self._name_next_shard('meta')
         raw_data, raw_meta = self.encode_split_shard()
@@ -461,12 +522,11 @@ class SplitWriter(Writer):
         self.shards.append(obj)
 
         # Execute the task if there is no exception in any of the async threads.
-        if not self.event.is_set():
-            future = self.executor.submit(self.cloud_writer.upload_file, zip_data_basename or
-                                          raw_data_basename)
-            future.add_done_callback(self.exception_callback)
+        future = self.executor.submit(self.cloud_writer.upload_file, zip_data_basename or
+                                      raw_data_basename)
+        future.add_done_callback(self.exception_callback)
+
         # Execute the task if there is no exception in any of the async threads.
-        if not self.event.is_set():
-            future = self.executor.submit(self.cloud_writer.upload_file, zip_meta_basename or
-                                          raw_meta_basename)
-            future.add_done_callback(self.exception_callback)
+        future = self.executor.submit(self.cloud_writer.upload_file, zip_meta_basename or
+                                      raw_meta_basename)
+        future.add_done_callback(self.exception_callback)

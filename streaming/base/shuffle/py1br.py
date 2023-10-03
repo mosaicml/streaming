@@ -22,6 +22,7 @@ def get_shuffle_py1br(shard_sizes: NDArray[np.int64],
 
     The assignment of shards to nodes is fixed across epochs, but each grouping of shards is
     processed concurrently in a different order by each node's workers each epoch.
+
     Args:
         shard_sizes (NDArray[np.int64]): Number of samples contained in each shard, in order.
         num_canonical_nodes (int): Number of canonical nodes.
@@ -29,7 +30,8 @@ def get_shuffle_py1br(shard_sizes: NDArray[np.int64],
         epoch (int): Current epoch, which is added to the seed to get a different deterministic
             shuffle each epoch.
         block_size (int): Unit of shuffle. For py1br shuffling method, the block size is chosen
-        uniformly at random in the range (0.75*block_size, 1.25*block_size). Defaults to ``1 << 18``.
+            uniformly at random in the range (0.75*block_size, 1.25*block_size).
+            Defaults to ``1 << 18``.
 
     Returns:
         NDArray[np.int64]: 1:1 mapping of sample ID to shuffled sample ID.
@@ -76,9 +78,9 @@ def get_shuffle_py1br(shard_sizes: NDArray[np.int64],
         node_stagger = stagger[node]
         while blocks_end < node_stop_sample:
             rand_block_size = epoch_rng.integers(int(0.75 * block_size), int(1.25 * block_size))
-            # don't want the block to start before the first sample of the node
+            # We don't want the block to start before the first sample of the node.
             staggered_block_start = max(blocks_end - node_stagger, node_start_sample)
-            # don't want the block to stop after the last sample of the node
+            # We don't want the block to stop after the last sample of the node.
             staggered_block_stop = min(blocks_end + rand_block_size - node_stagger,
                                        node_stop_sample)
             block_staggered_ranges.append((staggered_block_start, staggered_block_stop))

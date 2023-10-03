@@ -124,7 +124,8 @@ def each(samples: Iterable[Tuple[str, str, str]]) -> Iterable[Dict[str, Any]]:
     """Generator over each dataset sample.
 
     Args:
-        samples (Iterable[Tuple[str, str, str]]): A tuple of samples of (uid, image_filename, annotation_filename).
+        samples (Iterable[Tuple[str, str, str]]): A tuple of samples of (
+            uid, image_filename, annotation_filename).
 
     Yields:
         Iterator[Iterable[Dict[str, Any]]]: Sample dicts.

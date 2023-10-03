@@ -11,7 +11,7 @@ StreamingDataset takes four arguments to directly control shuffling.
 | `shuffle` | `bool = False` | turn shuffling on or off |
 | `shuffle_algo` | `str = 'py1s'` | which shuffling algorithm to use |
 | `shuffle_seed` | `int = 9176` | all randomness in StreamingDataset is derived from this argument |
-| `shuffle_block_size` | `int = 1 << 18` | shuffling unit used by py1b algorithm |
+| `shuffle_block_size` | `int = 1 << 18` | shuffling unit used by py1b and py1br algorithms |
 
 StreamingDataset also takes two other arguments that shuffling interacts with:
 
@@ -34,11 +34,27 @@ Statistically, this algorithm will result in all nodes downloading all shards, w
 
 ### py1b
 
-Globally shuffle shards, divide that sample space over canonical nodes, then shuffle samples in fixed-size blocks (given by `shuffle_block_size`). So named because it shuffles samples in python, once, intra-block.
+Globally shuffle shards, divide that sample space over canonical nodes, then shuffle samples in fixed-size blocks (given by `shuffle_block_size`). So named because it shuffles samples in python, once, intra-block. A canonical node, for the purposes of shuffling, is simply a collection of shards. In order to have determinism with a different number of physical nodes, the shuffle ordering is done over the canonical nodes and these are then assigned to physical nodes.
 
 Shuffle block size should be set larger or much larger than a single shard. If so, this algorithm is useful for spacing out the contents of shards to mitigate a bad or non-existent pre-shuffle (i.e. if samples from the same shard are related in some way).
 
-This algorithm requires more shards to be downloaded and stay resident to make progress than py1s or py2s, noticed as longer start/resume latency, as a multiple of shuffle block size divided by samples per shard. If you see step-like burstiness in throughput, your workers may not be downloading far enough ahead – try raising predownload (it should be scaled with block size). Step size scales with shuffle block size.
+In order to improve shuffle quality, this algorithm requires more shards to be downloaded and stay resident to make progress than py1s or py2s, noticed as longer start/resume latency, as a multiple of shuffle block size divided by samples per shard. If you see step-like burstiness in throughput, your workers may not be downloading far enough ahead – try raising predownload (it should be scaled with block size). Step size scales with shuffle block size.
+
+### py1br
+
+Globally shuffle shards, divide that sample space over canonical nodes, then shuffle samples in variable-size blocks (uniformly selected within the range `[0.75*shuffle_block_size, 1.25*shuffle_block_size)`). Shuffle blocks are also staggered -- along with variable shuffle block size, this works to prevent many simultaneous shard downloads. So named because it shuffles samples in python, once, intra-block, and blocks are randomized.
+
+Shuffle block size should be set larger or much larger than a single shard. If so, this algorithm is useful for spacing out the contents of shards to mitigate a bad or non-existent pre-shuffle (i.e. if samples from the same shard are related in some way).
+
+In order to improve shuffle quality, this algorithm requires more shards to be downloaded and stay resident to make progress than py1s or py2s, noticed as longer start/resume latency, as a multiple of shuffle block size divided by samples per shard. However, shard downloads with py1br are more balanced than with py1b, and this effect is more apparent when training with a higher number of nodes, resulting in less network bottlenecks. The shuffle quality of py1br and py1b are similar.
+
+### py1e
+
+Globally shuffle shards, divide that sample space over canonical nodes, shuffle the samples in each shard, then randomly distribute the samples from each shard over an expanded range (determined using `shuffle_block_size`). So named because it shuffles samples by extending the range of each shard, in python.
+
+Shuffle block size should be set larger or much larger than the number of samples in a single shard. This algorithm provides bounds on the range that samples from a shard can appear, allowing for a lower cache limit without decreasing throughput compared to py1b.
+
+This algorithm requires more shards to be downloaded and stay resident to make progress than py1s or py2s, noticed as longer start/resume latency, as a multiple of shuffle block size divided by samples per shard, similar to py1b. However, these shards will be downloaded in a more balanced fashion, reducing network bandwidth bottlenecks.
 
 ### py1s
 

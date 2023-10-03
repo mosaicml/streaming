@@ -44,12 +44,11 @@ classifiers = [
 install_requires = [
     'boto3>=1.21.45,<2',
     'Brotli>=1.0.9',
-    'google-cloud-storage>=2.9.0',
+    'google-cloud-storage>=2.9.0,<2.11.0',
     'matplotlib>=3.5.2,<4',
     'paramiko>=2.11.0,<4',
     'python-snappy>=0.6.1,<1',
     'torch>=1.10,<3',
-    'torchtext>=0.10',
     'torchvision>=0.10',
     'tqdm>=4.64.0,<5',
     'transformers>=4.21.3,<5',
@@ -68,20 +67,20 @@ extra_deps['dev'] = [
     'docformatter>=1.4',
     'jupyter==1.0.0',
     'pre-commit>=2.18.1,<4',
-    'pytest==7.4.0',
-    'pytest_codeblocks==0.16.1',
+    'pytest==7.4.2',
+    'pytest_codeblocks==0.17.0',
     'pytest-cov>=4,<5',
     'toml==0.10.2',
     'yamllint==1.32.0',
     'moto>=4.0,<5',
-    'fastapi==0.101.0',
-    'pydantic==2.1.1',
+    'fastapi==0.103.1',
+    'pydantic==2.3.0',
     'uvicorn==0.23.2',
     'pytest-split==0.8.1',
 ]
 
 extra_deps['docs'] = [
-    'GitPython==3.1.32',
+    'GitPython==3.1.37',
     'docutils==0.18.1',
     'furo==2023.7.26',
     'myst-parser==2.0.0',
@@ -100,6 +99,14 @@ extra_deps['simulator'] = [
     'altair>=5.1.1',
     'omegaconf>=2.3.0',
     'PyYAML>=6.0',
+]
+
+extra_deps['spark'] = [
+    'pyspark>=3,<4',
+]
+
+extra_deps['databricks'] = [
+    'databricks-sdk==0.8.0',
 ]
 
 extra_deps['all'] = sorted({dep for deps in extra_deps.values() for dep in deps})
@@ -127,5 +134,5 @@ setup(
     classifiers=classifiers,
     install_requires=install_requires,
     extras_require=extra_deps,
-    python_requires='>=3.7',
+    python_requires='>=3.8',
 )

@@ -19,7 +19,7 @@ from streaming.base.distributed import barrier, get_local_rank
 from streaming.base.format import FileInfo, Reader, get_index_basename, reader_from_json
 from streaming.base.hashing import get_hash
 from streaming.base.storage import download_file
-from streaming.base.util import wait_for_file_to_exist
+from streaming.base.util import retry, wait_for_file_to_exist
 from streaming.base.world import World
 
 
@@ -38,11 +38,11 @@ class Stream:
       * ``local``
 
     * At most one of ``proportion``, ``repeat``, or ``choose`` may exist. If provided one of these,
-      we derive the others. Note that ``proportion`` (relative) and ``repeat``/``choose`` (absolute)
+      we derive the rest. Note that ``proportion`` (relative) and ``repeat``/``choose`` (absolute)
       are mutually incompatible -- you must entirely use one or the other (or neither) for all
-      sub-datasets. If none are provided for all streams and ``epoch_size`` is unspecified, then each
-      sample from each stream is seen once per epoch. If none are provided for all streams and
-      ``epoch_size`` is specified, then streams are sampled in proportion to their size.
+      sub-datasets. If none are provided for all streams and ``epoch_size`` is unspecified, then
+      each sample from each stream is seen once per epoch. If none are provided for all streams
+      and ``epoch_size`` is specified, then streams are sampled in proportion to their size.
 
       * ``proportion``
       * ``repeat``
@@ -70,7 +70,7 @@ class Stream:
             proportion of the total combined dataset that consists of this sub-dataset. If
             using proportions, all sub-datasets provided together to the StreamingDataset init must
             define their proportions. The total combined number of samples is either the
-            StreamingDataset argument "choose" if provided, or kept the same total size as the
+            StreamingDataset argument "epoch_size" if provided, or kept the same total size as the
             underlying data if not. If provided, must be non-negative. Defaults to ``None``.
         repeat (float, optional): How much to upsample or downsample this sub-dataset, as a
             multipler on the number of samples. If provided, must be non-negative. Defaults to
@@ -307,21 +307,8 @@ class Stream:
         local = os.path.join(self.local, self.split, to_basename or from_basename)
 
         # Attempt to download, possibly repeating on failure.
-        errors = []
-        for _ in range(1 + self.download_retry):
-            try:
-                download_file(remote, local, self.download_timeout)
-            except FileNotFoundError:  # Bubble up file not found error.
-                raise
-            except Exception as e:  # Retry for all other causes of failure.
-                errors.append(e)
-                continue
-            break
-
-        if self.download_retry < len(errors):
-            raise RuntimeError(
-                f'Failed to download {remote} -> {local}. Tried {1 + self.download_retry} ' +
-                f'times, got errors:\n{errors}') from errors[-1]
+        retry(num_attempts=self.download_retry)(
+            lambda: download_file(remote, local, self.download_timeout))()
 
         return local
 

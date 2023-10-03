@@ -37,10 +37,10 @@ class Reader(Array, ABC):
         compression (str, optional): Optional compression or compression:level.
         hashes (List[str]): Optional list of hash algorithms to apply to shard files.
         samples (int): Number of samples in this shard.
-        size_limit (Union[int, str], optional): Optional shard size limit, after which point to start a new
-            shard. If None, puts everything in one shard. Can specify bytes
-            human-readable format as well, for example ``"100kb"`` for 100 kilobyte
-            (100*1024) and so on.
+        size_limit (Union[int, str], optional): Optional shard size limit, after which
+            point to start a new shard. If None, puts everything in one shard. Can
+            specify bytes in human-readable format as well, for example ``"100kb"``
+            for 100 kilobyte (100*1024) and so on.
     """
 
     def __init__(
@@ -329,8 +329,8 @@ class JointReader(Reader):
         hashes (List[str]): Optional list of hash algorithms to apply to shard files.
         raw_data (FileInfo): Uncompressed data file info.
         samples (int): Number of samples in this shard.
-        size_limit (Union[int, str], optional): Optional shard size limit, after which point to start a new
-            shard. If None, puts everything in one shard.
+        size_limit (Union[int, str], optional): Optional shard size limit, after which
+        point to start a new shard. If None, puts everything in one shard.
         zip_data (FileInfo, optional): Compressed data file info.
     """
 
@@ -362,8 +362,8 @@ class SplitReader(Reader):
         raw_data (FileInfo): Uncompressed data file info.
         raw_meta (FileInfo): Uncompressed meta file info.
         samples (int): Number of samples in this shard.
-        size_limit (Union[int, str], optional): Optional shard size limit, after which point to start a new
-            shard. If None, puts everything in one shard.
+        size_limit (Union[int, str], optional): Optional shard size limit, after which
+            point to start a new shard. If None, puts everything in one shard.
         zip_data (FileInfo, optional): Compressed data file info.
         zip_meta (FileInfo, optional): Compressed meta file info.
     """

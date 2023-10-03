@@ -11,9 +11,10 @@ import pytest
 from botocore.exceptions import ClientError
 
 from streaming.base.storage.download import (download_file, download_from_azure,
-                                             download_from_azure_datalake, download_from_gcs,
-                                             download_from_local, download_from_s3,
-                                             download_or_wait)
+                                             download_from_azure_datalake,
+                                             download_from_databricks_unity_catalog,
+                                             download_from_dbfs, download_from_gcs,
+                                             download_from_local, download_from_s3)
 from tests.conftest import GCS_URL, MY_BUCKET, R2_URL
 
 MY_PREFIX = 'train'
@@ -106,7 +107,7 @@ class TestGCSClient:
         with tempfile.NamedTemporaryFile(delete=True, suffix='.txt') as tmp:
             credentials_mock = Mock()
             mock_default.return_value = credentials_mock, None
-            download_from_gcs('gs://bucket_file', tmp.name)
+            download_from_gcs(out, tmp.name)
             mock_client.assert_called_once_with(credentials=credentials_mock)
             assert os.path.isfile(tmp.name)
 
@@ -127,6 +128,27 @@ class TestGCSClient:
         with pytest.raises(ValueError):
             mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='gs://')
             download_from_gcs(mock_remote_filepath, mock_local_filepath)
+
+
+class TestDatabricksUnityCatalog:
+
+    def test_invalid_prefix_from_db_uc(self, remote_local_file: Any):
+        with tempfile.NamedTemporaryFile(delete=True, suffix='.txt') as tmp:
+            file_name = tmp.name.split(os.sep)[-1]
+            mock_remote_filepath, _ = remote_local_file(cloud_prefix='dbfs:/Volumess',
+                                                        filename=file_name)
+            with pytest.raises(Exception, match='Expected path prefix to be.*'):
+                download_from_databricks_unity_catalog(mock_remote_filepath, tmp.name)
+
+
+class TestDatabricksFileSystem:
+
+    def test_invalid_prefix_from_dbfs(self, remote_local_file: Any):
+        with tempfile.NamedTemporaryFile(delete=True, suffix='.txt') as tmp:
+            file_name = tmp.name.split(os.sep)[-1]
+            mock_remote_filepath, _ = remote_local_file(cloud_prefix='dbfsx:/', filename=file_name)
+            with pytest.raises(Exception, match='Expected path prefix to be.*'):
+                download_from_dbfs(mock_remote_filepath, tmp.name)
 
 
 def test_download_from_local():
@@ -186,6 +208,23 @@ class TestDownload:
         mocked_requests.assert_called_once()
         mocked_requests.assert_called_once_with(mock_remote_filepath, mock_local_filepath)
 
+    @patch('streaming.base.storage.download.download_from_databricks_unity_catalog')
+    @pytest.mark.usefixtures('remote_local_file')
+    def test_download_from_databricks_unity_catalog_gets_called(self, mocked_requests: Mock,
+                                                                remote_local_file: Any):
+        mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='dbfs:/Volumes')
+        download_file(mock_remote_filepath, mock_local_filepath, 60)
+        mocked_requests.assert_called_once()
+        mocked_requests.assert_called_once_with(mock_remote_filepath, mock_local_filepath)
+
+    @patch('streaming.base.storage.download.download_from_dbfs')
+    @pytest.mark.usefixtures('remote_local_file')
+    def test_download_from_dbfs_gets_called(self, mocked_requests: Mock, remote_local_file: Any):
+        mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='dbfs:/')
+        download_file(mock_remote_filepath, mock_local_filepath, 60)
+        mocked_requests.assert_called_once()
+        mocked_requests.assert_called_once_with(mock_remote_filepath, mock_local_filepath)
+
     @patch('streaming.base.storage.download.download_from_local')
     @pytest.mark.usefixtures('remote_local_file')
     def test_download_from_local_gets_called(self, mocked_requests: Mock, remote_local_file: Any):
@@ -199,39 +238,3 @@ class TestDownload:
         with pytest.raises(ValueError):
             _, mock_local_filepath = remote_local_file()
             download_file(None, mock_local_filepath, 60)
-
-
-class TestDownloadOrWait:
-
-    @patch('streaming.base.storage.download.wait_for_download')
-    @pytest.mark.usefixtures('remote_local_file')
-    def test_wait_for_download(self, mocked_requests: Mock, remote_local_file: Any):
-        mock_remote_filepath, mock_local_filepath = remote_local_file()
-        download_or_wait(mock_remote_filepath, mock_local_filepath, True, 2, 60)
-        mocked_requests.assert_called_once()
-        mocked_requests.assert_called_once_with(mock_local_filepath, 60)
-
-    @patch('streaming.base.storage.download.download_file')
-    @pytest.mark.usefixtures('remote_local_file')
-    def test_download(self, mocked_requests: Mock, remote_local_file: Any):
-        mock_remote_filepath, mock_local_filepath = remote_local_file()
-        download_or_wait(mock_remote_filepath, mock_local_filepath, False, 2, 60)
-        mocked_requests.assert_called_once()
-        mocked_requests.assert_called_once_with(mock_remote_filepath, mock_local_filepath, 60)
-
-    @patch('streaming.base.storage.download.wait_for_download')
-    @pytest.mark.usefixtures('remote_local_file')
-    def test_failed_download_exception(self, mocked_requests: Mock, remote_local_file: Any):
-        with pytest.raises(RuntimeError):
-            mocked_requests.side_effect = Exception
-            mock_remote_filepath, mock_local_filepath = remote_local_file()
-            download_or_wait(mock_remote_filepath, mock_local_filepath, True, 2, 60)
-
-    @patch('streaming.base.storage.download.wait_for_download')
-    @pytest.mark.usefixtures('remote_local_file')
-    def test_failed_download_filenotfound_exception(self, mocked_requests: Mock,
-                                                    remote_local_file: Any):
-        with pytest.raises(FileNotFoundError):
-            mocked_requests.side_effect = FileNotFoundError
-            mock_remote_filepath, mock_local_filepath = remote_local_file()
-            download_or_wait(mock_remote_filepath, mock_local_filepath, True, 2, 60)

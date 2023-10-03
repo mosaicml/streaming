@@ -43,6 +43,8 @@ def get_shuffle_py1b(shard_sizes: NDArray[np.int64],
         num_samples += shard_size
 
     # Generate the initial ordering of shards, which is fixed over an entire training run.
+    # Because the ordering of shards is fixed the downloaded shards from the first epoch
+    # can be persisted and used for subsequent epochs in each node as well.
     run_rng = np.random.default_rng(seed)
     run_rng.shuffle(spans)
 
@@ -59,12 +61,16 @@ def get_shuffle_py1b(shard_sizes: NDArray[np.int64],
     # Populate the global sample ID mapping, shuffling within each block within each super-span.
     ids = np.empty(num_samples, np.int64)
     offset = 0
+    # Loop over each canonical node.
     for super_begin, super_end in super_spans:
+        # The super_offset is the offset of the first sample in the canonical node.
         super_offset = offset
+        # Loop over each span contained in the canonical node.
         for begin, end in spans[super_begin:super_end]:
             span_size = end - begin
             ids[offset:offset + span_size] = np.arange(begin, end)
             offset += span_size
+        # Shuffle within each block, but don't shuffle past the canonical node boundary.
         for start in range(super_offset, offset, block_size):
             stop = min(start + block_size, offset)
             epoch_rng.shuffle(ids[start:stop])

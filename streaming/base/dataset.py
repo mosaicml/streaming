@@ -4,7 +4,9 @@
 """A mid-epoch-resumable streaming/caching pytorch IterableDataset."""
 
 import json
+import logging
 import os
+import sys
 import warnings
 from concurrent.futures import ThreadPoolExecutor, wait
 from concurrent.futures._base import Future
@@ -21,15 +23,15 @@ from torch import distributed as dist
 from torch.utils.data import IterableDataset
 
 from streaming.base.array import Array
+from streaming.base.batching import generate_work
 from streaming.base.constant import (BARRIER, BARRIER_FILELOCK, CACHE_FILELOCK, CACHE_USAGE,
                                      EPOCH_DATA, EPOCH_SHAPE, NEXT_EPOCH, RESUME,
                                      SHARD_ACCESS_TIMES, SHARD_STATES, TICK)
 from streaming.base.distributed import maybe_init_dist
 from streaming.base.format import get_index_basename
-from streaming.base.partition import get_partitions
+from streaming.base.sampling import get_sampling
 from streaming.base.shared import (SharedArray, SharedBarrier, SharedMemory, SharedScalar,
                                    _get_path, get_shm_prefix)
-from streaming.base.shuffle import get_shuffle
 from streaming.base.spanner import Spanner
 from streaming.base.stream import Stream
 from streaming.base.util import bytes_to_int, number_abbrev_to_int
@@ -37,6 +39,8 @@ from streaming.base.world import World
 
 # An arbitrary time in the future, used for cold shard eviction.
 NEVER = np.iinfo(np.uint64).max
+
+logger = logging.getLogger(__name__)
 
 
 class _ShardState(IntEnum):
@@ -99,6 +103,29 @@ class _Iterator:
         self._lock = Lock()
         self._state = 0
         self._num_exited = 0
+
+        # python will attempt to join all threads on shutdown.
+        # Here, we register a call to self.non_blocking_exit to run
+        # at shutdown to prevent a deadlock.
+        # In python version >=3.9 this can be accomplished via
+        # threading._register_atexit but not with the atexit module.
+        # In older python versions, the atexit module can be used, and
+        # threading._register_atexit does not exist.
+        if sys.version_info[1] <= 8:  # check if python version <=3.8
+            import atexit
+            atexit.register(self.non_blocking_exit)
+        else:
+            from threading import _register_atexit  # pyright: ignore
+            _register_atexit(self.non_blocking_exit)
+
+    def non_blocking_exit(self) -> None:
+        """Signal threads to exit without blocking.
+
+        This will be called at process exit.
+        """
+        with self._lock:
+            if self._state == _IterState.ITERATING:
+                self._state = _IterState.EXITING
 
     def exit(self) -> None:
         """Signal threads to exit, wait until they have all exited, then return.
@@ -166,8 +193,8 @@ class StreamingDataset(Array, IterableDataset):
         * ``remote``
         * ``local``
 
-      * Knobs to control streaming behavior, which, if multiple streams are provided, become defaults
-        applied to each of them:
+      * Knobs to control streaming behavior, which, if multiple streams are provided,
+        become defaults applied to each of them:
 
         * ``split``
         * ``download_retry``
@@ -186,6 +213,11 @@ class StreamingDataset(Array, IterableDataset):
         * ``predownload``
         * ``cache_limit``
 
+      * Sampling:
+
+        * ``sampling_method``
+        * ``sampling_granularity``
+
       * Determinism:
 
         * ``partition_algo``
@@ -199,9 +231,9 @@ class StreamingDataset(Array, IterableDataset):
         * ``shuffle_seed``
         * ``shuffle_block_size``
 
-      * Sampling:
+      * Batching:
 
-        * ``sampling_method``
+        * ``batching_method``
 
 
     Args:
@@ -224,11 +256,11 @@ class StreamingDataset(Array, IterableDataset):
         keep_zip (bool): Whether to keep or delete the compressed form when decompressing
             downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
             ``False``.
-        epoch_size (Union[int, str], optional): Number of samples to draw per epoch balanced across all
-            streams. If ``None``, takes its value from the total number of underlying samples.
-            Provide this field if you are weighting streams relatively to target a larger or
-            smaller epoch size. Defaults to ``None``. Can also take in human-readable number
-            abbreviations (e.g., ``"100k"``, ``"64M"``, ``"77b"``, and so on). Defaults to ``None``.
+        epoch_size (Union[int, str], optional): Number of samples to draw per epoch balanced
+            across all streams. If ``None``, takes its value from the total number of underlying
+            samples. Provide this field if you are weighting streams relatively to target a larger
+            or smaller epoch size. Defaults to ``None``. Can also take in human-readable number
+            abbreviations (e.g., ``"100k"``, ``"64M"``, ``"77b"``, etc). Defaults to ``None``.
         predownload (int, optional): Target number of samples to download per worker in advance
             of current sample. Workers will attempt to download ahead by this many samples during,
             but not before, training. Recommendation is to provide a value greater than per device
@@ -242,6 +274,12 @@ class StreamingDataset(Array, IterableDataset):
             Set to ``None`` to disable shard eviction. Supports integer bytes as well as string
             human-readable bytes (e.g., ``100b``, ``64kb``, ``77mb``, and so on). Defaults to
             ``None``.
+        sampling_method (str): Which sampling method to use, either ``balanced`` or ``fixed``.
+            Defaults to ``balanced``.
+        sampling_granularity (int): When picking samples for a stream's final partial repeat,
+            how many samples to pick from the same shard at a time (``1`` for evenly balanced
+            across shards, ``1000`` to pick 1000 samples from the same shard at a time, etc).
+            Defaults to ``1``.
         partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
         num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
             resumption. The sample space is divided evenly according to the number of canonical
@@ -259,10 +297,11 @@ class StreamingDataset(Array, IterableDataset):
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
             ``False``.
         shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1s``.
-        shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
-        shuffle_block_size (int): Unit of shuffle. Defaults to ``1 << 18``.
-        sampling_method (str): Which sampling method to use, either ``balanced`` or ``fixed``.
-            Defaults to ``balanced``.
+        shuffle_seed (int): Seed for deterministic data shuffling. Defaults to ``9176``.
+        shuffle_block_size (int): Unit of shuffle. A canonical node's samples are split into blocks
+            of this size, and samples within each block are shuffled. Defaults to ``1 << 18``.
+        batching_method (str): Which batching method to use, either ``random``, ``stratified``, or
+            ``per_stream``. Defaults to ``random``.
     """
 
     def __init__(self,
@@ -278,6 +317,8 @@ class StreamingDataset(Array, IterableDataset):
                  epoch_size: Optional[Union[int, str]] = None,
                  predownload: Optional[int] = None,
                  cache_limit: Optional[Union[int, str]] = None,
+                 sampling_method: str = 'balanced',
+                 sampling_granularity: int = 1,
                  partition_algo: str = 'orig',
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
@@ -285,10 +326,12 @@ class StreamingDataset(Array, IterableDataset):
                  shuffle_algo: str = 'py1s',
                  shuffle_seed: int = 9176,
                  shuffle_block_size: int = 1 << 18,
-                 sampling_method: str = 'balanced') -> None:
+                 batching_method: str = 'random') -> None:
         # Global arguments (which do not live in Streams).
         self.predownload = predownload
         self.cache_limit = cache_limit
+        self.sampling_method = sampling_method
+        self.sampling_granularity = sampling_granularity
         self.partition_algo = partition_algo
         self.num_canonical_nodes = num_canonical_nodes
         self.batch_size = batch_size
@@ -296,7 +339,7 @@ class StreamingDataset(Array, IterableDataset):
         self.shuffle_algo = shuffle_algo
         self.shuffle_seed = shuffle_seed
         self.shuffle_block_size = shuffle_block_size
-        self.sampling_method = sampling_method.lower().strip()
+        self.batching_method = batching_method
 
         # Check streams vs remote/local.
         if bool(streams) == (bool(remote) or bool(local)):
@@ -306,8 +349,33 @@ class StreamingDataset(Array, IterableDataset):
         # Check sampling method is one of "balanced" or "fixed".
         if self.sampling_method not in ['balanced', 'fixed']:
             raise ValueError(
-                f'Invalid sampling method: {sampling_method}. Must be one of `balanced` or `fixed`.'
+                f'Invalid sampling method: {sampling_method}. ' + \
+                f'Must be one of `balanced` or `fixed`.'
             )
+
+        # Check sampling granularity.
+        if self.sampling_granularity <= 0:
+            raise ValueError(f'`sampling_granularity` must be a positive integer, but got: ' +
+                             f'{self.sampling_granularity}.')
+
+        # Check batching method is one of "random", "stratified", or "per_stream".
+        if self.batching_method not in ['random', 'stratified', 'per_stream']:
+            raise ValueError(
+                f'Invalid batching method: {batching_method}. ' + \
+                f'Must be one of `random`, `stratified`, or `per_stream.'
+            )
+
+        # issue deprecation warning for py1b shuffle algorithm.
+        if self.shuffle_algo == 'py1b':
+            warnings.warn('The \'py1b\' shuffle algorithm will soon be deprecated. \
+                Please use the more performant \'py1br\' algorithm instead.',
+                          DeprecationWarning,
+                          stacklevel=2)
+
+        # Check shuffle seed.
+        if self.shuffle_seed < 0:
+            raise ValueError(f'`shuffle_seed` must be a non-negative integer, but got: ' +
+                             f'{self.shuffle_seed}.')
 
         # Check that predownload is at least per device batch size.
         if self.predownload is not None and self.batch_size is not None and \
@@ -395,7 +463,17 @@ class StreamingDataset(Array, IterableDataset):
             if self.cache_limit <= min_cache_usage:
                 raise ValueError(f'Minimum cache usage ({min_cache_usage} bytes) is larger than ' +
                                  f'the cache limit ({self.cache_limit} bytes). Please raise ' +
-                                 f'`cache_limit`.')
+                                 f'`cache_limit`. Recommendation is to provide a `cache_limit` ' +
+                                 f'as high as possible to avoid thrashing.')
+            self.max_shard_size_across_all_streams = max(
+                np.array([shard.get_max_size() for shard in self.shards]))
+            if self.cache_limit < 4 * self.max_shard_size_across_all_streams:
+                raise ValueError(f'Cache limit ({self.cache_limit} bytes) is too low. ' +
+                                 f'Increase the `cache_limit` to at-least four times the ' +
+                                 f'largest shard size ({self.max_shard_size_across_all_streams} ' +
+                                 f'bytes) which includes raw (decompressed) and zip ' +
+                                 f'(compressed) file size. Recommendation is to provide a ' +
+                                 f'`cache_limit` as high as possible to avoid thrashing.')
 
         # Build the shard index (for partitioning and mapping samples to shards).
         self.samples_per_shard = np.array([shard.samples for shard in self.shards], np.int64)
@@ -411,8 +489,12 @@ class StreamingDataset(Array, IterableDataset):
         self.length = ceil(self.epoch_size / world.num_ranks)
 
         # Register/lookup our shared memory prefix and filelock root directory.
-        my_locals = [os.path.abspath(os.path.join(x.local, x.split)) for x in streams]
-        self._shm_prefix_int, self._locals_shm = get_shm_prefix(my_locals, world)
+        streams_local = [os.path.abspath(os.path.join(x.local, x.split)) for x in streams]
+        streams_remote = [
+            os.path.join(x.remote, x.split) if x.remote is not None else None for x in streams
+        ]
+        self._shm_prefix_int, self._locals_shm = get_shm_prefix(streams_local, streams_remote,
+                                                                world)
         self._filelock_root = os.path.join(os.path.sep, 'tmp', 'streaming')
         os.makedirs(self._filelock_root, exist_ok=True)
 
@@ -677,11 +759,16 @@ class StreamingDataset(Array, IterableDataset):
         self._resume_shm = SharedMemory(name=name, size=len(data))
         self._resume_shm.buf[:len(data)] = data
 
-    def _resample_streams(self, epoch: int) -> Tuple[NDArray[np.int64], NDArray[np.int64]]:
+    def resample_streams(
+            self,
+            epoch: int,
+            stream_id: Optional[int] = None) -> Tuple[NDArray[np.int64], NDArray[np.int64]]:
         """Perform the up/down-sampling needed to generate the weighted epoch.
 
         Args:
             epoch (int): What epoch this is for. Used in seeding the sampling RNG.
+            stream_id (Optional[int]): Which stream to resample. If ``None``, resample all streams.
+                Defaults to ``None``.
 
         Returns:
             Tuple[NDArray[np.int64], NDArray[np.int64]]: Sampled shard sizes and sample mapping.
@@ -694,8 +781,10 @@ class StreamingDataset(Array, IterableDataset):
         shuffle_units = []
         sample_ids = []
 
+        resampling_streams = range(self.num_streams) if stream_id is None else [stream_id]
+
         # Iterate over each stream.
-        for stream_id in range(self.num_streams):
+        for stream_id in resampling_streams:
             # stream's shard offset in list of all shards from all streams
             stream_shard_offset = self.shard_offset_per_stream[stream_id]
             num_stream_shards = self.shards_per_stream[stream_id]
@@ -703,17 +792,12 @@ class StreamingDataset(Array, IterableDataset):
 
             # Calculate choose per stream shard.
             samples_per_stream_shard = self.samples_per_shard[stream_shard_ids]
-            stream_samples = sum(samples_per_stream_shard)
-            # the number of items to choose from each stream (calculated during dataset initialization)
+            # the number of items to choose from each stream, obtained during initialization
             stream_choose = self.streams[stream_id].choose
-            if stream_choose == stream_samples:
-                choose_per_stream_shard = samples_per_stream_shard
-            else:
-                choose_per_stream_shard = \
-                    samples_per_stream_shard * stream_choose // stream_samples
-                shortfall = stream_choose - choose_per_stream_shard.sum()
-                indices = rng.choice(num_stream_shards, shortfall, False)
-                choose_per_stream_shard[indices] += 1
+            use_epoch = self.sampling_method == 'balanced'
+            choose_per_stream_shard = get_sampling(samples_per_stream_shard, stream_choose,
+                                                   self.sampling_granularity, self.shuffle_seed,
+                                                   epoch, use_epoch)
 
             # Iterate over each shard of this stream.
             for shard_id, shard_samples, shard_choose in zip(stream_shard_ids,
@@ -751,47 +835,6 @@ class StreamingDataset(Array, IterableDataset):
         shuffle_units = np.concatenate(shuffle_units).astype(np.int64)
         sample_ids = np.concatenate(sample_ids).astype(np.int64)
         return shuffle_units, sample_ids
-
-    def _generate_work(self, world: World, epoch: int, sample_in_epoch: int) -> NDArray[np.int64]:
-        """Generate this epoch's arrangement of samples.
-
-        This is only called in local rank zero.
-
-        Args:
-            world (World): World state.
-            epoch (int): Which epoch it is.
-            sample_in_epoch (int): Where we are in the epoch.
-
-        Returns:
-            NDArray[np.int64]: The epoch (num physical nodes, ranks per node, workers per rank,
-                batches per worker, batch size).
-        """
-        # Ensure that num_canonical_nodes has been set.
-        if self.num_canonical_nodes is None:
-            raise RuntimeError(f'`num_canonical_nodes` can never be None. ' +
-                               f'Provide a positive integer.')
-
-        # Sample each shard of each stream according to their proportions/repeats/samples. This
-        # gives us the resampled size of each underlying shard, and a mapping from each fake "big"
-        # sample ID to its underlying "small" sample ID.
-        shuffle_units, small_per_big = self._resample_streams(epoch)
-
-        # Partition the global sample space (of resampled "big" sample IDs) into a tensor of shape
-        # (num physical nodes, ranks per node, workers per rank, batches per worker, samples per
-        # batch) such that we have an elastically deterministic sample order.
-        big_ids = get_partitions(self.partition_algo, self.epoch_size, self.num_canonical_nodes,
-                                 world.num_nodes, world.ranks_per_node, world.workers_per_rank,
-                                 self.batch_size, sample_in_epoch)
-
-        # If we need to shuffle, shuffle in a node-aware and *underlying* shard-aware way.
-        if self.shuffle:
-            shuffle = get_shuffle(self.shuffle_algo, shuffle_units, self.num_canonical_nodes,
-                                  self.shuffle_seed, epoch, self.shuffle_block_size)
-            big_ids = np.where(big_ids != -1, shuffle[big_ids], -1)
-
-        # Now that we have partitioning and shuffled with hallucinated "big" sample IDs, we don't
-        # need them anymore, and can convert back to underlying "small" sample IDs.
-        return np.where(big_ids != -1, small_per_big[big_ids], -1)
 
     def _share_work(self, sample_ids: NDArray[np.int64]) -> Tuple[SharedMemory, SharedMemory]:
         """Put an epoch's sample ordering into shared memory.
@@ -864,7 +907,8 @@ class StreamingDataset(Array, IterableDataset):
 
         # Do expensive work that may use a lot of cores/memory just once, in the local leader.
         if world.is_local_leader:
-            epoch_sample_ids = self._generate_work(world, epoch, sample_in_epoch)
+            epoch_sample_ids = generate_work(self.batching_method, self, world, epoch,
+                                             sample_in_epoch)
             shape_shm, data_shm = self._share_work(epoch_sample_ids)
             self._shared_barrier(world.workers_per_node)
         else:
@@ -1032,8 +1076,8 @@ class StreamingDataset(Array, IterableDataset):
 
             # Do we wait on them?
             if blocking:
-                # Wait for the shard to transition out of PREPARING state (to LOCAL, although it would
-                # be possible for it to become evicted again before a TICK has elapsed).
+                # Wait for the shard to transition out of PREPARING state (to LOCAL, although
+                # it would be possible for it to become evicted again before a TICK has elapsed).
                 while self._shard_states[shard_id] == _ShardState.PREPARING:
                     sleep(TICK)
 
@@ -1240,6 +1284,9 @@ class StreamingDataset(Array, IterableDataset):
                 self.prepare_shard(shard_id, False)
             # Wait for a shard file to download completely.
             while self._shard_states[shard_id] != _ShardState.LOCAL:
+                # Background thread or a main process crashed, terminate this thread.
+                if self._event.is_set():
+                    break
                 sleep(TICK)
 
             # Step forward one sample.
@@ -1329,5 +1376,5 @@ class StreamingDataset(Array, IterableDataset):
         ready_future = self._executor.submit(self._ready_thread, it)
         ready_future.add_done_callback(self.on_exception)
         yield from map(self.__getitem__, self._each_sample_id(it))
-        wait([prepare_future, ready_future])
+        wait([prepare_future, ready_future], return_when='FIRST_EXCEPTION')
         it.exit()
