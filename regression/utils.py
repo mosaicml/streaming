@@ -39,6 +39,7 @@ def get_stream_params(kwargs: dict[str, str]) -> list[dict[str, Any]]:
     """
     stream_params = {}
     stream_params['local'] = kwargs['local_streams'].split(',')
+    stream_params['remote'] = kwargs['remote_streams'].split(',')
     if 'proportion' in kwargs:
         stream_params['proportion'] = [float(arg) for arg in kwargs['proportion'].split(',')]
     if 'repeat' in kwargs:
@@ -204,3 +205,65 @@ def delete_oci(remote_dir: str) -> None:
 
     for filenames in objects.data.objects:
         oci_client.delete_object(namespace, obj.netloc, filenames.name)
+
+
+def compare_files(files: list[str], identical: bool = False) -> None:
+    """Compares the data in multiple files line by line.
+
+    Args:
+    files: A list of file paths.
+    identical: A boolean indicating whether the files should be identical or not.
+
+    Returns:
+    A list of differences between the files, or an empty list if the files are identical.
+    """
+
+    def display(data: list[str]):
+        """Displays the data in a tabular format.
+
+        Args:
+            data (list[str]): A list of strings to be displayed.
+        """
+        for line in data:
+            print(*line)
+
+    if len(files) < 2:
+        raise Exception('Please provide at least two files to compare.')
+
+    # Initialize a list to store the file contents
+    file_contents = []
+
+    # Read the contents of each file and store them in the list
+    for file in files:
+        with open(file, 'r') as f:
+            file_contents.append(f.readlines())
+
+    # Check if all files have the same number of lines
+    num_lines = len(file_contents[0])
+    if all(len(file) == num_lines for file in file_contents):
+        logger.info('All files have the same number of lines.')
+    else:
+        raise Exception('Files have different numbers of lines. Comparison not possible.')
+
+    # Compare the data line by line
+    for line_number in range(num_lines):
+        lines = [file[line_number] for file in file_contents]
+        lines = [line.replace('\n', '').strip().split(' ') for line in lines]
+        if all(len(line) != len(lines[0]) for line in lines):
+            display(lines)
+            raise Exception(
+                f'Line {line_number + 1}: All files does not have the same sample length.')
+        if identical:
+            if all(line != lines[0] for line in lines):
+                display(lines)
+                raise Exception(f'Line {line_number + 1}: All files does not have the same data.')
+        else:
+            if any(lines[i] == lines[0] for i in range(1, len(lines))):
+                display(lines)
+                raise Exception(f'Line {line_number + 1}: All files have the same data.')
+        if all(set(line) != set(lines[0]) for line in lines):
+            display(lines)
+            raise Exception(
+                f'Line {line_number + 1}: All files does not have the same set of sample ' +
+                f'in one forward pass.')
+    logger.info(f'All files sample orders are identical in one forward pass.')
