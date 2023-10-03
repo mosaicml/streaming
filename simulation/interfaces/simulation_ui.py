@@ -1,7 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""simulator web UI using streamlit."""
+"""Simulator web UI using streamlit."""
 
 import os.path
 import sys
@@ -19,8 +19,8 @@ from core.sim_time import Time
 from core.yaml_processing import ingest_yaml, create_simulation_dataset
 from core.create_index import create_stream_index
 from core.shuffle_quality import analyze_shuffle_quality
-from interface_utils import get_train_dataset_params
-from widgets import param_inputs, get_line_chart, get_shuffle_quality_chart,\
+from interfaces.interface_utils import get_train_dataset_params
+from interfaces.widgets import param_inputs, get_line_chart, get_shuffle_quality_chart,\
     display_simulation_stats, display_shuffle_quality_graph
 import yaml
 from typing import Optional, Union

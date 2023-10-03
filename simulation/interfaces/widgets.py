@@ -1,7 +1,12 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Streamlit UI Widgets."""
+"""Streamlit widgets for simulation web UI."""
+
+import os.path
+import sys
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 import altair as alt
 from streaming.base.util import bytes_to_int

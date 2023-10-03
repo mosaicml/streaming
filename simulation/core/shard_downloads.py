@@ -1,7 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Functions for simulating shard downloads."""
+"""Functions for simulating shard downloads and calculating needed cache limit for downloads."""
 
 import os.path
 import sys

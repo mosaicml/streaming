@@ -1,5 +1,8 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
+
+"""Near replica of StreamingDataset for simulation purposes."""
+
 import os.path
 import sys
 

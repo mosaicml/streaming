@@ -13,7 +13,6 @@ from core.utils import remove_padded_samples
 from numpy.typing import NDArray
 from sortedcollections import OrderedSet
 from streaming.base.spanner import Spanner
-import numpy as np
 from typing import Optional, Tuple
 
 class NodeTracker():

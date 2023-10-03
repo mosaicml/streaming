@@ -1,7 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Test simulation results against run results from wandb."""
+"""Test simulation results against run results from a wandb project."""
 
 import os.path
 import sys
@@ -26,7 +26,8 @@ project_runs = api.runs(path=project_id, per_page=300)
 project_runs_list = [run.id for run in project_runs]
 skip = 0
 
-# C4 neox compressed from OCI parameters
+# Enter the dataset parameters here.
+# These are the params for C4 dataset, gpt-neox tokenized.
 shards = 20850
 samples_per_shard = 4093
 avg_raw_shard_size = 67092639

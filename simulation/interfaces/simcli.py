@@ -9,7 +9,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from core.main import simulate
-from interface_utils import plot_simulation
+from interfaces.interface_utils import plot_simulation
 from core.utils import get_simulation_stats
 import argparse
 from core.yaml_processing import ingest_yaml, create_simulation_dataset

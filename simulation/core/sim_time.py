@@ -1,7 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""simulator time classes straight copied from MosaicML composer."""
+"""Time classes ported from MosaicML composer. Avoids dependency on composer and its many reqs."""
 
 from __future__ import annotations
 import datetime

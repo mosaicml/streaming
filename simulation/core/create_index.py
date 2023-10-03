@@ -1,14 +1,14 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Create dataset index file from input parameters."""
+"""Create a dataset index file from input parameters."""
+
 import os.path
 import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 import json
-from core.simulation_dataset import SimulationDataset
 from streaming.base import Stream
 from typing import Optional
 import random

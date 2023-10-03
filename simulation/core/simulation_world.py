@@ -1,9 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
-import os.path
-import sys
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+"""Contains info about the nodes, ranks, and workers of the run for simulation purposes."""
 
 from streaming.base.world import World
 

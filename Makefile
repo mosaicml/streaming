@@ -29,6 +29,6 @@ web:
 	uvicorn scripts.partition.web:app --port 1337 --reload
 
 simulator:
-	streamlit run simulator/simulation/simulation_ui.py
+	streamlit run simulation/interfaces/simulation_ui.py
 
 .PHONY: test lint style

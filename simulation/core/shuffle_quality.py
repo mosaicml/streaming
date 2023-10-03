@@ -3,15 +3,16 @@
 
 """Determine shuffle quality of a run over a fixed number of samples."""
 
+import os.path
+import sys
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
 import numpy as np
 from streaming.base.partition.orig import get_partitions_orig
 from streaming.base.shuffle import get_shuffle
-import matplotlib.pyplot as plt
 from numpy.typing import NDArray
 from core.utils import remove_padded_samples
-import math
-import os
-import time
 
 def get_entropy(ordering):
     # get differences between elements

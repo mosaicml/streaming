@@ -1,7 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Functions for simulating streaming and displaying results."""
+"""Main simulation function, simulating bytes downloaded and time taken each training step."""
 
 import os.path
 import sys

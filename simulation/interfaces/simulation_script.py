@@ -1,7 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Script for simulating streaming and displaying results."""
+"""Script for simulating training downloads and throughput, and displaying results."""
 
 import os.path
 import sys
@@ -16,7 +16,7 @@ from core.utils import get_simulation_stats
 import matplotlib.pyplot as plt
 import numpy as np
 from streaming.base import Stream
-from interface_utils import plot_simulation
+from interfaces.interface_utils import plot_simulation
 
 # Input Parameters
 
