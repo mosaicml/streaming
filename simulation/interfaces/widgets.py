@@ -12,13 +12,14 @@ from concurrent.futures import Future
 from typing import Optional
 
 import altair as alt
+import humanize
 import pandas as pd
 import streamlit as st
 from core.sim_time import TimeUnit, ensure_time
 from core.utils import get_simulation_stats
 from numpy.typing import NDArray
 from streamlit.delta_generator import DeltaGenerator
-import humanize
+
 from streaming.base.util import bytes_to_int
 
 
@@ -305,11 +306,11 @@ def param_inputs(component: DeltaGenerator, input_params: dict, defaults: dict =
                                         parameters may affect model training.')
         shuffle_block_size = colR.text_input(
             'shuffle block size (samples)',
-            value='200k' if 'shuffle_block_size' not in defaults else defaults['shuffle_block_size'],
+            value='200k'
+            if 'shuffle_block_size' not in defaults else defaults['shuffle_block_size'],
             help='shuffle block size for this run. used in the `py1b`, `py1br`, and `py1e` \
                 shuffling algorithms, samples in blocks of `shuffle_block_size` are randomly \
-                shuffled inside each bucket of shards (aka canonical node).'
-        )
+                shuffled inside each bucket of shards (aka canonical node).')
         seed = colR.number_input('shuffle seed',
                                  step=1,
                                  value=42 if 'seed' not in defaults else defaults['seed'],

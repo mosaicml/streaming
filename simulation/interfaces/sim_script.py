@@ -8,13 +8,14 @@ import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
+import humanize
 from core.create_index import create_stream_index
 from core.main import simulate
 from core.sim_time import TimeUnit, ensure_time
 from core.simulation_dataset import SimulationDataset
 from core.utils import get_simulation_stats
 from interfaces.interface_utils import plot_simulation
-import humanize
+
 from streaming.base import Stream
 
 # Input Parameters
@@ -97,7 +98,8 @@ if warmup_step == total_batches:
             performant.')
 elif post_warmup_throughput_drops:
     # display warning if post-warmup throughput drops are more than 10% of the run.
-    print('⚠️ This configuration experiences some downloading-related slowdowns even after warmup.')
+    print(
+        '⚠️ This configuration experiences some downloading-related slowdowns even after warmup.')
 print('{0} steps, or {1:.1f}% of all steps, waited for shard downloads.'\
       .format(all_throughput_drops, 100 * all_throughput_drops / (total_batches)))
 if warmup_step != total_batches:

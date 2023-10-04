@@ -10,11 +10,12 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 import argparse
 
+import humanize
 from core.main import simulate
 from core.utils import get_simulation_stats
 from core.yaml_processing import create_simulation_dataset, ingest_yaml
 from interfaces.interface_utils import plot_simulation
-import humanize
+
 from streaming.base.util import bytes_to_int
 
 if __name__ == '__main__':
