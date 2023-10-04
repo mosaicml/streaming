@@ -3,6 +3,7 @@
 
 """Create a streaming dataset from toy data with various options for regression testing."""
 
+import logging
 import os
 import time
 import urllib.parse
@@ -12,11 +13,15 @@ from typing import Union
 import torch
 from torch import distributed as dist
 from torch.utils.data import DataLoader
-from utils import get_dataloader_params, get_kwargs, get_streaming_dataset_params
+from utils import (compare_sample_order, get_dataloader_params, get_kwargs,
+                   get_streaming_dataset_params)
 
 from streaming import StreamingDataset
 from streaming.base.distributed import (all_gather, barrier, get_rank, get_world_size,
                                         maybe_init_dist)
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 
 def parse_args() -> tuple[Namespace, dict[str, str]]:
@@ -30,12 +35,13 @@ def parse_args() -> tuple[Namespace, dict[str, str]]:
                       type=int,
                       default=2,
                       help='Number of epochs to iterate over the data')
-    args.add_argument('--validate-files', default=False, action='store_true', help='Verify files')
-    args.add_argument('--sample-order-file', type=str, help='File location to store sample order')
-    args.add_argument('--validate-iter-time',
+    args.add_argument('--validate-num-files',
                       default=False,
                       action='store_true',
-                      help='Test iter time')
+                      help='Verify number of dataset files')
+    args.add_argument('--sample-order-file', type=str, help='File location to store sample order')
+    args.add_argument('--validate-iter-time', default=None, help='Test iteration time')
+    args.add_argument('--cmp-sample-order', nargs='+', default=[])
 
     args, runtime_args = args.parse_known_args()
     kwargs = {get_kwargs(k): v for k, v in zip(runtime_args[::2], runtime_args[1::2])}
@@ -80,7 +86,7 @@ def get_file_count(remote: str) -> Union[int, None]:
         objects = oci_client.list_objects(namespace, obj.netloc, prefix=obj.path.lstrip('/'))
 
         files = objects.data.objects
-        return sum(1 for _ in files)
+        return sum(1 for file in files if not file.name.endswith('/'))
     else:
         raise ValueError(f'Unsupported remote directory prefix {cloud} in {remote}')
 
@@ -104,13 +110,12 @@ def main(args: Namespace, kwargs: dict[str, str]) -> None:
     iter_time = []
     start_time = 0
     for epoch in range(args.epochs):
-        if epoch > 0:
-            start_time = time.time()
+        start_time = time.time()
         for batch in dataloader:
-            if args.sample_order_file is not None:
+            if args.sample_order_file is not None and epoch == 0:
                 key = None
-                if 'id' in batch:
-                    key = 'id'
+                if 'sample' in batch:
+                    key = 'sample'
                 elif 'number' in batch:
                     key = 'number'
                 samples = [int(sample) for sample in batch[key]]
@@ -128,25 +133,33 @@ def main(args: Namespace, kwargs: dict[str, str]) -> None:
                 if get_rank() == 0:
                     with open(args.sample_order_file, 'a') as f:
                         all_samples = [
-                            str(sample) + '\n'
+                            str(sample) + ' '
                             for tensors in obj_gather_list
                             for sample in tensors.tolist()
                         ]
+                        all_samples.append('\n')
                         f.writelines(all_samples)
+        epoch_time = time.time() - start_time
+        logger.info(f'Epoch {epoch + 1} took {epoch_time} secs.')
         if epoch > 0:
-            iter_time.append(time.time() - start_time)
+            iter_time.append(epoch_time)
 
-    if args.validate_files and dataset.streams[0].remote is not None:
+    if args.validate_num_files and dataset.streams[0].remote is not None:
         num_remote_files = get_file_count(dataset.streams[0].remote)
         local_dir = dataset.streams[0].local
         num_local_files = len([
             name for name in os.listdir(local_dir) if os.path.isfile(os.path.join(local_dir, name))
         ])
-        assert num_remote_files == num_local_files, f'Expected {num_remote_files} files, got {num_local_files}'
+        assert num_remote_files == num_local_files, f'Expected {num_remote_files} files, ' + \
+                                                    f'got {num_local_files}'
 
-    # TODO: Assert the iteration time is within a certain threshold
-    if args.validate_iter_time:
-        print(f'Average iter time: {sum(iter_time) / len(iter_time)} secs.')
+    # Validate the epoch iteration time is within a certain threshold
+    if args.validate_iter_time is not None:
+        avg_iter_time = sum(iter_time) / len(iter_time)
+        logger.info(f'Average iter time: {avg_iter_time} secs.')
+        assert avg_iter_time < float(args.validate_iter_time), \
+            f'Expected avg iter time {avg_iter_time} except epoch 0 to be less than ' + \
+            f'{args.validate_iter_time} secs.'
 
     if destroy_dist:
         dist.destroy_process_group()
@@ -154,4 +167,7 @@ def main(args: Namespace, kwargs: dict[str, str]) -> None:
 
 if __name__ == '__main__':
     args, kwargs = parse_args()
-    main(args, kwargs)
+    if args.cmp_sample_order:
+        compare_sample_order(args.cmp_sample_order)
+    else:
+        main(args, kwargs)
