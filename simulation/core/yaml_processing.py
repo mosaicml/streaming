@@ -8,17 +8,19 @@ import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
+from typing import Optional
+
+from core.sim_time import Time, TimeUnit, ensure_time
+from core.simulation_dataset import SimulationDataset
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from omegaconf import SCMode
-from core.simulation_dataset import SimulationDataset
-from typing import Optional
-from core.sim_time import Time, TimeUnit, ensure_time
+
 from streaming.base import Stream
 
 
-def ingest_yaml(yaml_dict: Optional[dict] = None, filepath: Optional[str] = None
-                ) -> tuple[Optional[int], int, Time, int, dict]:
+def ingest_yaml(yaml_dict: Optional[dict] = None,
+                filepath: Optional[str] = None) -> tuple[Optional[int], int, Time, int, dict]:
     """Create SimulationDataset from yaml file and other needed args.
 
     Args:
@@ -26,25 +28,27 @@ def ingest_yaml(yaml_dict: Optional[dict] = None, filepath: Optional[str] = None
         filepath (Optional[str]): path to yaml file
 
     Returns:
-        tuple[Optional[int], int, Time, int, dict]: total_devices, workers, max_duration, 
-            global_batch_size, train_dataset parameters from yaml
+        tuple[Optional[int], Optional[int], Time, Optional[int], Optional[dict]]: total_devices,
+            workers, max_duration, global_batch_size, train_dataset parameters from yaml
     """
     config = None
     # Read in the yaml file
     if filepath is not None:
         with open(filepath) as f:
             config = om.load(f)
+            if not isinstance(config, DictConfig):
+                raise ValueError('Yaml file must be a dictionary, not a list.')
     elif yaml_dict is not None:
         config = om.create(yaml_dict)
     else:
-        raise ValueError("Must specify either filepath or yaml_dict.")
-        
+        raise ValueError('Must specify either filepath or yaml_dict.')
+
     # Get the number of devices (GPUs)
-    if 'compute' in config:
-        total_devices = config['compute']['gpus']
+    if 'compute' in config and 'gpus' in config['compute']:
+        total_devices = int(config['compute']['gpus'])
     else:
         total_devices = None
-    
+
     workers = None
     train_dataset = None
     max_duration = None
@@ -52,7 +56,7 @@ def ingest_yaml(yaml_dict: Optional[dict] = None, filepath: Optional[str] = None
     # Get the training and dataset params
     if 'parameters' in config:
         config = config['parameters']
-    
+
     # get global batch size
     if 'global_train_batch_size' in config:
         global_batch_size = config['global_train_batch_size']
@@ -69,7 +73,7 @@ def ingest_yaml(yaml_dict: Optional[dict] = None, filepath: Optional[str] = None
         if 'dataset' in train_loader:
             train_dataset = train_loader['dataset']
         else:
-            raise ValueError("dataset must be specified in the yaml file.")
+            raise ValueError('dataset must be specified in the yaml file.')
     elif 'dataset' in config:
         dataset = config['dataset']
         if 'train_dataset' in dataset:
@@ -77,37 +81,43 @@ def ingest_yaml(yaml_dict: Optional[dict] = None, filepath: Optional[str] = None
             if 'streaming_kwargs' in train_dataset:
                 # Merge streaming kwargs, if present, into train_dataset
                 train_dataset.update(train_dataset['streaming_kwargs'])
-            if 'dataloader_kwargs' in train_dataset and 'num_workers' in train_dataset['dataloader_kwargs']:
+            if 'dataloader_kwargs' in train_dataset and 'num_workers' in train_dataset[
+                    'dataloader_kwargs']:
                 workers = train_dataset['dataloader_kwargs']['num_workers']
             else:
                 workers = 1
         else:
-            raise ValueError("train_dataset must be specified in the yaml file.")
+            raise ValueError('train_dataset must be specified in the yaml file.')
     else:
-        raise ValueError("train_loader or dataset must be specified in the yaml file.")
-            
+        raise ValueError('train_loader or dataset must be specified in the yaml file.')
+
     # Get duration of training from config
     if 'max_duration' in config:
         max_duration = config['max_duration']
     elif 'trainer' in config and 'max_duration' in config['trainer']:
         max_duration = config['trainer']['max_duration']
     else:
-        raise ValueError("max_duration must be specified in the yaml file.")
-    
+        raise ValueError('max_duration must be specified in the yaml file.')
+
     # convert max_duration to epochs or batches.
     max_duration = ensure_time(max_duration, TimeUnit.EPOCH)
     time_unit = max_duration.unit
     if time_unit != TimeUnit.EPOCH and time_unit != TimeUnit.BATCH:
-        raise ValueError("Simulator currently only supports max_duration in epochs or batches.")
-    
-    # convert train_dataset to dictionary from potentially a DictConfig
+        raise ValueError('Simulator currently only supports max_duration in epochs or batches.')
+
+    # convert train_dataset to dict, if it isn't already
     if isinstance(train_dataset, DictConfig):
         train_dataset = om.to_container(train_dataset,
                                         resolve=False,
                                         throw_on_missing=True,
-                                        structured_config_mode=SCMode.INSTANTIATE)
-    
+                                        structured_config_mode=SCMode.DICT)
+
+    assert isinstance(workers, int), 'workers must be an integer.'
+    assert isinstance(global_batch_size, int), 'global_batch_size must be an integer.'
+    assert isinstance(train_dataset, dict), 'train_dataset must be a dict.'
+
     return total_devices, workers, max_duration, global_batch_size, train_dataset
+
 
 def create_simulation_dataset(nodes: int, devices: int, workers: int, global_batch_size: int,
                               train_dataset: dict) -> SimulationDataset:
@@ -129,7 +139,7 @@ def create_simulation_dataset(nodes: int, devices: int, workers: int, global_bat
         if isinstance(train_dataset['local'], list) \
             and isinstance(train_dataset['remote'], list):
             if len(train_dataset['local']) != len(train_dataset['remote']):
-                raise ValueError("local and remote must be the same length in the yaml file.")
+                raise ValueError('local and remote must be the same length in the yaml file.')
             streams = []
             for local, remote in zip(train_dataset['local'], train_dataset['remote']):
                 streams.append(Stream(local=local, remote=remote, split=train_dataset['split'] \
@@ -142,13 +152,13 @@ def create_simulation_dataset(nodes: int, devices: int, workers: int, global_bat
         streams_dict = train_dataset.get('streams', None)
         if streams_dict is not None:
             streams = []
-            streams_dict = om.to_object(streams_dict)
-            for _, stream in streams_dict.items():
-                if "path" in stream:
-                    del stream["path"]
+            assert isinstance(streams_dict, dict), 'streams must be a dict if not a list.'
+            for stream in streams_dict.values():
+                if 'path' in stream:
+                    del stream['path']
                 # Create Stream object from each dictionary entry
                 streams.append(Stream(**stream))
-    
+
     remote = train_dataset.get('remote', None)
     local = train_dataset.get('local', None)
     split = train_dataset.get('split', None)
@@ -161,9 +171,9 @@ def create_simulation_dataset(nodes: int, devices: int, workers: int, global_bat
     cache_limit = train_dataset.get('cache_limit', None)
     partition_algo = train_dataset.get('partition_algo', 'orig')
     num_canonical_nodes = train_dataset.get('num_canonical_nodes', None)
-    if global_batch_size % (devices*nodes) != 0:
-        raise ValueError("global_batch_size must be divisible by total number of devices.")
-    batch_size = global_batch_size // (devices*nodes)
+    if global_batch_size % (devices * nodes) != 0:
+        raise ValueError('global_batch_size must be divisible by total number of devices.')
+    batch_size = global_batch_size // (devices * nodes)
     shuffle = train_dataset.get('shuffle', False)
     shuffle_algo = train_dataset.get('shuffle_algo', 'py1s')
     shuffle_seed = train_dataset.get('shuffle_seed', 9176)
@@ -171,13 +181,12 @@ def create_simulation_dataset(nodes: int, devices: int, workers: int, global_bat
     sampling_method = train_dataset.get('sampling_method', 'balanced')
     sampling_granularity = train_dataset.get('sampling_granularity', 1)
     batching_method = train_dataset.get('batching_method', 'random')
-    
+
     dataset = SimulationDataset(nodes, devices, workers, streams, remote, local, split,
                                 download_retry, download_timeout, validate_hash, keep_zip,
                                 epoch_size, predownload, cache_limit, partition_algo,
                                 num_canonical_nodes, batch_size, shuffle, shuffle_algo,
-                                shuffle_seed, shuffle_block_size, sampling_method, 
+                                shuffle_seed, shuffle_block_size, sampling_method,
                                 sampling_granularity, batching_method)
-    
-    return dataset
 
+    return dataset

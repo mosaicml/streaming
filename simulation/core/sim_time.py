@@ -1,13 +1,16 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Time classes ported from MosaicML composer. Avoids dependency on composer and its many reqs."""
+"""Time classes ported from MosaicML composer.
+
+Avoids dependency on composer and its many reqs.
+"""
 
 from __future__ import annotations
-import datetime
+
 import re
 from enum import Enum
-from typing import Any, Dict, Generic, Optional, TypeVar, Union, cast
+from typing import Generic, TypeVar, Union, cast
 
 
 class TimeUnit(Enum):
@@ -28,10 +31,12 @@ class TimeUnit(Enum):
 
 
 # regex for parsing time string, matches timeunit and chars prior to unit as value
-_TIME_STR_REGEX = re.compile(r'^(.+)(' + r'|'.join([fr'{time_unit.value}' for time_unit in TimeUnit]) + r')$',
+_TIME_STR_REGEX = re.compile(r'^(.+)(' +
+                             r'|'.join([fr'{time_unit.value}' for time_unit in TimeUnit]) + r')$',
                              flags=re.IGNORECASE)
 
 TValue = TypeVar('TValue', int, float)
+
 
 class Time(Generic[TValue]):
     """Time represents static durations of training time in terms of a :class:`TimeUnit` enum.
@@ -101,7 +106,9 @@ class Time(Generic[TValue]):
             value = cast(TValue, float(value))
         else:
             if not isinstance(value, int):
-                raise TypeError(f'value {value} is of type {type(value)}. Units {unit} require integer values.')
+                raise TypeError(
+                    f'value {value} is of type {type(value)}. Units {unit} require integer values.'
+                )
         self._value, self._unit = value, TimeUnit(unit)
 
     @classmethod
@@ -218,17 +225,16 @@ class Time(Generic[TValue]):
         raise TypeError(f'Cannot convert type {other} to {self.__class__.__name__}')
 
     def _cmp(self, other: Union[int, float, Time, str]) -> int:
-        # When doing comparisions, and other is an integer (or float), we can safely infer
+        # When doing comparisons, and other is an integer (or float), we can safely infer
         # the unit from self.unit
         # E.g. calls like this should be allowed: if batch < 42: do_something()
         # This eliminates the need to call .value everywhere
-        if not isinstance(other, (int, float, Time, str)):
-            return NotImplemented
         if isinstance(other, (int, float)):
             other = type(self)(other, self.unit)
         other = self._parse(other)
         if self.unit != other.unit:
-            raise RuntimeError(f'Cannot compare {self} to {other} since they have different units.')
+            raise RuntimeError(
+                f'Cannot compare {self} to {other} since they have different units.')
         if self.value < other.value:
             return -1
         if self.value == other.value:
@@ -266,7 +272,8 @@ class Time(Generic[TValue]):
     def __sub__(self, other: Union[int, float, Time, str]) -> Time[TValue]:
         other = self._parse(other)
         if self.unit != other.unit:
-            raise RuntimeError(f'Cannot subtract {other} from {self} since they have different units.')
+            raise RuntimeError(
+                f'Cannot subtract {other} from {self} since they have different units.')
         return Time(self.value - other.value, self.unit)
 
     def __rsub__(self, other: Union[int, float, Time, str]) -> Time[TValue]:
@@ -336,10 +343,12 @@ class Time(Generic[TValue]):
         value = float(value)  # always parsing first as float b/c it could be scientific notation
         if unit != TimeUnit.DURATION:
             if int(value) != value:
-                raise TypeError(f'value {value} is not an integer. Units {unit} require integer values.')
+                raise TypeError(
+                    f'value {value} is not an integer. Units {unit} require integer values.')
             value = int(value)
         return cls(value, unit)
-    
+
+
 def ensure_time(maybe_time: Union[Time, str, int], int_unit: Union[TimeUnit, str]) -> Time:
     """Ensure ``maybe_time`` is an instance of :class:`.Time`.
 
@@ -354,6 +363,4 @@ def ensure_time(maybe_time: Union[Time, str, int], int_unit: Union[TimeUnit, str
         return Time.from_timestring(maybe_time)
     if isinstance(maybe_time, int):
         return Time(maybe_time, int_unit)
-    if isinstance(maybe_time, Time):
-        return maybe_time
-    raise TypeError(f'Unsupported type for ensure_time: {type(maybe_time)}')
+    return maybe_time

@@ -6,6 +6,7 @@
 from collections import OrderedDict
 from typing import Any
 
+
 class LastUsedOrderedSet(OrderedDict):
     """An ordered dict that can be used as an LRU cache.
 

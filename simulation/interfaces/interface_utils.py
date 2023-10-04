@@ -8,24 +8,22 @@ import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-import numpy as np
-from numpy.typing import NDArray
 from typing import Optional
+
+import numpy as np
 from core.utils import get_rolling_avg_throughput
+from numpy.typing import NDArray
+
 from streaming.base.util import number_abbrev_to_int
 
-def plot_simulation(step_times: NDArray,
-                    step_downloads: NDArray,
-                    window: int = 10):
+
+def plot_simulation(step_times: NDArray, step_downloads: NDArray, window: int = 10):
     """Plots simulation results for web UI or local script.
 
     Args:
         step_times (NDArray): time per step, as calculated by simulation
         step_downloads (NDArray): download size (bytes) per step, as calculated by simulation
         window (int, optional): window size to calculate batch throughput over. Defaults to ``10``.
-
-    Returns:
-        Optional[bytes]: bytes of plot image if ``web`` is ``True``, else plot is displayed, and returns ``None``.
     """
     import matplotlib.pyplot as plt
 
@@ -67,28 +65,36 @@ def plot_simulation(step_times: NDArray,
 
     plt.show()
 
-def get_train_dataset_params(input_params: dict, create_indices: bool = False, 
-                             old_params: Optional[dict] = None) -> dict:
+
+def get_train_dataset_params(input_params: dict, old_params: Optional[dict] = None) -> dict:
+    """Get train dataset params from input params.
+
+    Args:
+        input_params (dict): The input parameter dictionary set by the user.
+        old_params (Optional[dict], optional): Old parameters that may have been read in.
+            Defaults to ``None``.
+
+    Returns:
+        dict: The full train dataset parameters.
+    """
     train_dataset_params = {}
-    train_dataset_params["epoch_size"] = input_params["epoch_size"]
-    train_dataset_params["batch_size"] = input_params["device_batch_size"]
-    train_dataset_params["nodes"] = input_params["physical_nodes"]
-    train_dataset_params["devices"] = input_params["devices"]
-    train_dataset_params["workers"] = input_params["workers"]
-    train_dataset_params["num_canonical_nodes"] = input_params["canonical_nodes"]
-    train_dataset_params["predownload"] = input_params["predownload"]
-    train_dataset_params["cache_limit"] = input_params["cache_limit"]
-    train_dataset_params["shuffle"] = input_params["shuffle"]
-    train_dataset_params["shuffle_algo"] = input_params["shuffle_algo"]
-    train_dataset_params["shuffle_block_size"] = number_abbrev_to_int(
-        input_params["shuffle_block_size"])
-    train_dataset_params["shuffle_seed"] = input_params["seed"]
-    train_dataset_params["sampling_method"] = input_params["sampling_method"]
-    train_dataset_params["sampling_granularity"] = input_params["sampling_granularity"]
-    train_dataset_params["batching_method"] = input_params["batching_method"]
-    if create_indices:
-        train_dataset_params["indices_created"] = True
-    
+    train_dataset_params['epoch_size'] = input_params['epoch_size']
+    train_dataset_params['batch_size'] = input_params['device_batch_size']
+    train_dataset_params['nodes'] = input_params['physical_nodes']
+    train_dataset_params['devices'] = input_params['devices']
+    train_dataset_params['workers'] = input_params['workers']
+    train_dataset_params['num_canonical_nodes'] = input_params['canonical_nodes']
+    train_dataset_params['predownload'] = input_params['predownload']
+    train_dataset_params['cache_limit'] = input_params['cache_limit']
+    train_dataset_params['shuffle'] = input_params['shuffle']
+    train_dataset_params['shuffle_algo'] = input_params['shuffle_algo']
+    train_dataset_params['shuffle_block_size'] = number_abbrev_to_int(
+        input_params['shuffle_block_size'])
+    train_dataset_params['shuffle_seed'] = input_params['seed']
+    train_dataset_params['sampling_method'] = input_params['sampling_method']
+    train_dataset_params['sampling_granularity'] = input_params['sampling_granularity']
+    train_dataset_params['batching_method'] = input_params['batching_method']
+
     # If there were old params, fill them in.
     if old_params is not None:
         existing_params_set = set(train_dataset_params.keys())
@@ -99,6 +105,6 @@ def get_train_dataset_params(input_params: dict, create_indices: bool = False,
             train_dataset_params[param] = old_params[param]
     else:
         # If there are no old params, we need to set streams to what the user provided.
-        train_dataset_params["streams"] = input_params["streams"]
-    
+        train_dataset_params['streams'] = input_params['streams']
+
     return train_dataset_params

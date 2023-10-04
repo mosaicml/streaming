@@ -8,24 +8,27 @@ import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from core.node_tracker import NodeTracker
-from numpy.typing import NDArray
 from typing import Optional
 
+import numpy as np
+from core.node_tracker import NodeTracker
+from numpy.typing import NDArray
+
+
 def simulate_shard_downloads(node: NodeTracker,
-                             raw_shard_sizes: NDArray,
-                             zip_shard_sizes: NDArray,
+                             raw_shard_sizes: NDArray[np.int64],
+                             zip_shard_sizes: NDArray[np.int64],
                              current_batch_downloads: bool,
                              step_num: int,
                              cache_limit: Optional[int] = None,
                              shards_needed: Optional[set] = None,
-                             download_bytes_left: Optional[int] = None) -> tuple[bool, int]:
+                             download_bytes_left: Optional[int] = None) -> tuple[str, int]:
     """Simulate downloading a shard for a node.
 
     Args:
         node (NodeTracker): The node to simulate downloading a shard for.
-        raw_shard_sizes (NDArray): The raw sizes of all shards.
-        zip_shard_sizes (NDArray): The zip sizes of all shards.
+        raw_shard_sizes (NDArray[np.int64]): The raw sizes of all shards.
+        zip_shard_sizes (NDArray[np.int64]): The zip sizes of all shards.
         current_batch_downloads (bool): Whether we are downloading shards for the current batch.
         step_num (int): The current step number.
         cache_limit (Optional[int]): The cache limit for the node. Defaults to ``None``.
@@ -37,18 +40,17 @@ def simulate_shard_downloads(node: NodeTracker,
     Returns:
         tuple[bool, int]: A tuple of the shard download status and the download size.
     """
-    
     worker_download = node.get_next_worker_with_downloads()
     if worker_download is None:
         # No workers have shards to download.
-        return ("empty", 0)
-        
+        return ('empty', 0)
+
     # Proceed with downloading the shard for this worker.
-    download_shard = worker_download[0]
+    download_shard = int(worker_download[0])
 
     # Get the raw and zip sizes, in bytes, of the shard.
-    shard_raw_size = raw_shard_sizes[download_shard]
-    shard_zip_size = zip_shard_sizes[download_shard]
+    shard_raw_size = int(raw_shard_sizes[download_shard])
+    shard_zip_size = int(zip_shard_sizes[download_shard])
     # If shard is compressed, we download the zipped size. Otherwise, download raw size.
     download_size = shard_zip_size or shard_raw_size
 
@@ -59,8 +61,8 @@ def simulate_shard_downloads(node: NodeTracker,
         if download_bytes_left is not None:
             bytes_sufficient = (download_size <= download_bytes_left)
         else:
-            raise ValueError("Must specify download_bytes_left if not downloading for \
-                             current batch.")
+            raise ValueError('Must specify download_bytes_left if not downloading for \
+                             current batch.')
 
     if download_shard not in node.shards and bytes_sufficient:
         # Shard is not present in node, so we download it.
@@ -68,7 +70,7 @@ def simulate_shard_downloads(node: NodeTracker,
         if cache_limit and node.cache_usage + shard_raw_size > cache_limit:
             # Evict shards until we have space for this shard.
             node.evict_until_satisfied(shard_raw_size, raw_shard_sizes)
-        
+
         # Shards are assumed to be decompressed on download, so cache_usage increases by raw size.
         node.cache_usage += shard_raw_size
 
@@ -80,45 +82,46 @@ def simulate_shard_downloads(node: NodeTracker,
                 node.add_shard(download_shard)
                 shards_needed.discard(download_shard)
             else:
-                raise ValueError("Must specify shards_needed if downloading for current batch.")
+                raise ValueError('Must specify shards_needed if downloading for current batch.')
         else:
             node.add_shard(download_shard)
-
 
         if node.shard_access_starts[download_shard] == -1:
             # Shard has never been accessed before. Set its access start.
             node.shard_access_starts[download_shard] = step_num
         # For any shard access, we are accessing the shard so we need the shard until
         # at least the next step begins. Adding 0.5 ensures that we evict shards
-        # after they are used for the last time, but before they are replaced by 
+        # after they are used for the last time, but before they are replaced by
         # new downloads in the next step.
         node.shard_access_ends[download_shard] = step_num + 0.5
-        
+
         # Advance the worker download index.
         node.increment_worker_download_index()
         # We have now downloaded this shard. Remove from worker download queue.
         worker_download.pop()
-        return ("downloaded", download_size)
-    elif not(current_batch_downloads) and download_shard not in node.shards:
+        return ('downloaded', download_size)
+    elif not (current_batch_downloads) and download_shard not in node.shards \
+        and download_bytes_left is not None:
         # This is the case when we are not downloading for the current batch, and need to download
         # a shard but do not have the download bytes to fully download the shard this step.
         # We do not advance the worker download index since we still are downloading this shard.
         node.partial_shard_bytes = download_bytes_left
         # We only account for downloaded bytes when we fully download a shard.
-        return ("partial", 0)
+        return ('partial', 0)
     else:
         # The shard is already present in the node. Advance the worker download index.
         node.increment_worker_download_index()
         # Node already has this shard. Remove from worker download queue.
         worker_download.pop()
-        return ("present", 0)
-    
-def run_cache_limit(nodes: list[NodeTracker], raw_shard_sizes: NDArray) -> int:
+        return ('present', 0)
+
+
+def run_cache_limit(nodes: list[NodeTracker], raw_shard_sizes: NDArray[np.int64]) -> int:
     """Find the minimum needed cache limit across all nodes for this run.
 
     Args:
         nodes (list[NodeTracker]): The nodes, which contain shard use information.
-        raw_shard_sizes (NDArray): The raw sizes of all shards.
+        raw_shard_sizes (NDArray[np.int64]): The raw sizes of all shards.
 
     Returns:
         int: The minimum needed cache limit, in bytes, for the run.

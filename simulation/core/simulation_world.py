@@ -5,8 +5,9 @@
 
 from streaming.base.world import World
 
+
 class SimulationWorld(World):
-    """Information about the nodes, ranks and workers of this run.
+    """Contains info about the nodes, ranks, and workers of the run, for simulation.
 
     Nodes are all assumed to contain the same number of devices (via local_world_size).
 
@@ -24,25 +25,18 @@ class SimulationWorld(World):
       - worker_of_rank / workers_per_rank
       - is_leader
       - is_local_leader
+    Args:
+        nodes (int): The number of nodes.
+        devices (int): The number of devices per node.
+        workers (int): The number of workers per device.
     """
 
-    def __init__(self,
-                 nodes: int,
-                 devices: int,
-                 workers: int):
-        """Contains info about the nodes, ranks, and workers of the run, for simulation.
+    def __init__(self, nodes: int, devices: int, workers: int):
 
-        Args:
-            nodes (int): The number of nodes.
-            devices (int): The number of devices per node.
-            workers (int): The number of workers per device.
-        """
-        
         # For simulation purposes, we take in the nodes, devices, and workers from the
         # SimulationDataset, and assume we are always rank 0 and worker 0.
-        
         self.rank = 0
-        self.num_ranks = nodes*devices
+        self.num_ranks = nodes * devices
         self.ranks_per_node = devices
         self.rank_of_node = self.rank % self.ranks_per_node
         self.node = self.rank // self.ranks_per_node

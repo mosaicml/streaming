@@ -4,6 +4,7 @@
 """Mapping of global sample index to shard index for simulation purposes."""
 
 from typing import Tuple
+
 from streaming.base.spanner import Spanner
 
 

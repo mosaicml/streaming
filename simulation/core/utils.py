@@ -8,21 +8,21 @@ import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from typing import Optional, Tuple
+import numpy as np
 from core.sim_time import Time, TimeUnit
 from core.simulation_dataset import SimulationDataset
-import numpy as np
 from numpy.typing import NDArray
 
-def get_batches_epochs(dataset: SimulationDataset, max_duration: Time) -> Tuple[int, int, int]:
+
+def get_batches_epochs(dataset: SimulationDataset, max_duration: Time) -> tuple[int, int, int]:
     """Get batches per epoch, epochs, and total epochs from a Time object.
 
-        Args:
-            dataset (SimulationDataset): The dataset being simulated.
-            max_duration (Time): The maximum duration, can be specified in yaml.
+    Args:
+        dataset (SimulationDataset): The dataset being simulated.
+        max_duration (Time): The maximum duration, can be specified in yaml.
 
-        Returns:
-            Tuple[int, int, int]: batches per epoch, epochs, and the total batches.
+    Returns:
+        tuple[int, int, int]: batches per epoch, epochs, and the total batches.
     """
     # get epochs, batches_per_epoch, and total_batches from a Time obect
     dataset_batches = dataset.get_num_batches()
@@ -45,19 +45,20 @@ def get_batches_epochs(dataset: SimulationDataset, max_duration: Time) -> Tuple[
             batches_per_epoch = dataset_batches
         total_batches = max_duration.value
     else:
-        raise ValueError("Simulator currently only supports max_duration in epochs or batches.")
-    
+        raise ValueError('Simulator currently only supports max_duration in epochs or batches.')
+
     return batches_per_epoch, epochs, total_batches
+
 
 def get_total_batches(dataset: SimulationDataset, max_duration: Time) -> int:
     """Get total batches from a Time object.
 
-        Args:
-            dataset (SimulationDataset): The dataset being simulated.
-            max_duration (Time): The maximum duration, can be specified in yaml.
+    Args:
+        dataset (SimulationDataset): The dataset being simulated.
+        max_duration (Time): The maximum duration, can be specified in yaml.
 
-        Returns:
-            int: The total batches.
+    Returns:
+        int: The total batches.
     """
     dataset_batches = dataset.get_num_batches()
     total_batches = dataset_batches
@@ -68,20 +69,22 @@ def get_total_batches(dataset: SimulationDataset, max_duration: Time) -> int:
     elif max_duration.unit == TimeUnit.BATCH:
         total_batches = max_duration.value
     else:
-        raise ValueError("Simulator currently only supports max_duration in epochs or batches.")
-    
+        raise ValueError('Simulator currently only supports max_duration in epochs or batches.')
+
     return total_batches
-    
+
+
 def remove_padded_samples(samples: NDArray) -> NDArray:
     """Remove padded samples from a batch.
 
-        Args:
-            samples (NDArray): The samples to remove padded samples from.
+    Args:
+        samples (NDArray): The samples to remove padded samples from.
 
-        Returns:
-            NDArray: The samples with padded samples removed.
+    Returns:
+        NDArray: The samples with padded samples removed.
     """
     return np.delete(samples, np.where(samples == -1))
+
 
 def bytes_to_time(bytes: int, bandwidth: int) -> float:
     """Convert bytes to time.
@@ -95,6 +98,7 @@ def bytes_to_time(bytes: int, bandwidth: int) -> float:
     """
     return bytes / bandwidth
 
+
 def time_to_bytes(time: float, bandwidth: int) -> int:
     """Convert time to bytes.
 
@@ -106,6 +110,7 @@ def time_to_bytes(time: float, bandwidth: int) -> int:
         int: The bytes transferred in the time.
     """
     return int(time * bandwidth)
+
 
 def get_rolling_avg_throughput(step_times: NDArray, window: int = 10) -> NDArray:
     """Get rolling average throughput from step times.
@@ -119,9 +124,11 @@ def get_rolling_avg_throughput(step_times: NDArray, window: int = 10) -> NDArray
     """
     step_times_rolling_avg = np.convolve(step_times, np.ones(window) / window, mode='valid')
     batch_throughput_rolling_avg = 1 / step_times_rolling_avg
-    batch_throughput_rolling_avg = np.concatenate((np.array([0] * (window-1)), batch_throughput_rolling_avg))
+    batch_throughput_rolling_avg = np.concatenate(
+        (np.array([0] * (window - 1)), batch_throughput_rolling_avg))
 
     return batch_throughput_rolling_avg
+
 
 def get_simulation_stats(step_times: NDArray, time_per_sample: float,
                          device_batch_size: int) -> tuple[int, float, int, int]:
@@ -136,10 +143,9 @@ def get_simulation_stats(step_times: NDArray, time_per_sample: float,
         tuple[int, float, int, int]: number of steps with throughput drops, time till warmup,
             step number of warmup, number of steps with throughput drops after warmup
     """
-    
     # calculate percent of download-limited steps
     min_step_time = time_per_sample * device_batch_size
-    all_throughput_drops = np.count_nonzero(step_times > (min_step_time))
+    all_throughput_drops = int(np.count_nonzero(step_times > (min_step_time)))
 
     epsilon = 1e-6
 
@@ -147,19 +153,19 @@ def get_simulation_stats(step_times: NDArray, time_per_sample: float,
     max_throughput = 1 / min_step_time
     rolling_avg_throughput = get_rolling_avg_throughput(step_times)
     if np.max(rolling_avg_throughput) >= max_throughput - epsilon:
-        warmup_step = np.argmax(rolling_avg_throughput >= (max_throughput)) + 1
-        warmup_time = np.sum(step_times[:warmup_step])
+        warmup_step = int(np.argmax(rolling_avg_throughput >= (max_throughput)) + 1)
+        warmup_time = float(np.sum(step_times[:warmup_step]))
     else:
         # we never hit the max possible throughput
-        warmup_step = rolling_avg_throughput.shape[0]
-        warmup_time = np.sum(step_times)
-    
+        warmup_step = int(rolling_avg_throughput.shape[0])
+        warmup_time = float(np.sum(step_times))
+
     # see if there are throughput drops after warmup so we can notify users
     if warmup_step != rolling_avg_throughput.shape[0]:
         # if we did hit the max throughput then we check for later drops
-        post_warmup_throughput_drops = np.count_nonzero(step_times[warmup_step:] > min_step_time)
+        post_warmup_tp_drops = int(np.count_nonzero(step_times[warmup_step:] > min_step_time))
     else:
         # since warmup was the whole time, there are no post-warmup throughput drops
-        post_warmup_throughput_drops = 0
-    
-    return all_throughput_drops, warmup_time, warmup_step, post_warmup_throughput_drops
+        post_warmup_tp_drops = 0
+
+    return all_throughput_drops, warmup_time, warmup_step, post_warmup_tp_drops

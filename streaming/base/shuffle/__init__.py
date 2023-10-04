@@ -12,8 +12,6 @@ from streaming.base.shuffle.py1br import get_shuffle_py1br
 from streaming.base.shuffle.py1e import get_shuffle_py1e
 from streaming.base.shuffle.py1s import get_shuffle_py1s
 from streaming.base.shuffle.py2s import get_shuffle_py2s
-from streaming.base.shuffle.py1e import get_shuffle_py1e
-from streaming.base.shuffle.py1br import get_shuffle_py1br
 
 algos = {
     'py1b': get_shuffle_py1b,

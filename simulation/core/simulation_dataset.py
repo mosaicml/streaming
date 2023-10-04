@@ -8,21 +8,23 @@ import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from streaming.base import StreamingDataset, Stream
-from streaming.base.spanner import Spanner
-from streaming.base.format import get_index_basename
-from streaming.base.util import bytes_to_int, number_abbrev_to_int
-from streaming.base.batching import generate_work
-from typing import Optional, Sequence, Union, Tuple
-from core.simulation_world import SimulationWorld
-from core.simulation_spanner import SimulationSpanner
-import warnings
-import numpy as np
-from numpy.typing import NDArray
-from math import ceil
-import time
 import os
 import shutil
+import time
+import warnings
+from math import ceil
+from typing import Optional, Sequence, Union
+
+import numpy as np
+from core.simulation_spanner import SimulationSpanner
+from core.simulation_world import SimulationWorld
+from numpy.typing import NDArray
+
+from streaming.base import Stream, StreamingDataset
+from streaming.base.batching import generate_work
+from streaming.base.format import get_index_basename
+from streaming.base.spanner import Spanner
+from streaming.base.util import bytes_to_int, number_abbrev_to_int
 
 
 class SimulationDataset(StreamingDataset):
@@ -118,17 +120,17 @@ class SimulationDataset(StreamingDataset):
                  sampling_method: str = 'balanced',
                  sampling_granularity: int = 1,
                  batching_method: str = 'random') -> None:
-                
+
         # Time how long it takes for StreamingDataset instantiation
         t0 = time.time()
-        
+
         # Global arguments (which do not live in Streams).
         self.nodes = nodes
         self.devices = devices
         self.workers = workers
         self.cache_limit = cache_limit
         self.partition_algo = partition_algo
-        self.num_canonical_nodes = num_canonical_nodes or 64*nodes
+        self.num_canonical_nodes = num_canonical_nodes or 64 * nodes
         self.batch_size = batch_size or 1
         self.predownload = predownload if predownload is not None \
             else max(self.batch_size, 256 * self.batch_size // self.num_canonical_nodes)
@@ -150,13 +152,12 @@ class SimulationDataset(StreamingDataset):
             raise ValueError(
                 f'Invalid sampling method: {sampling_method}. Must be one of `balanced` or `fixed`.'
             )
-        
+
         # Check sampling method is one of "balanced" or "fixed".
         if self.batching_method not in ['random', 'per_stream', 'stratified']:
             raise ValueError(
                 f'Invalid batching method: {batching_method}. Must be one of `random`, \
-                    `per_stream`, or `stratified`.'
-            )
+                    `per_stream`, or `stratified`.')
 
         # Check that predownload is at least per device batch size.
         if self.predownload < self.batch_size:
@@ -169,7 +170,6 @@ class SimulationDataset(StreamingDataset):
             epoch_size_value = number_abbrev_to_int(epoch_size)
             if epoch_size_value < 0:
                 raise ValueError(f'Epoch size cannot be negative. Received {epoch_size_value}.')
-
 
         # Initialize the Stream defaults and normalize to a list of Streams.
         if streams:
@@ -212,17 +212,19 @@ class SimulationDataset(StreamingDataset):
             else:
                 filepath = os.path.join(stream.local, stream.split, get_index_basename())
                 # This suffix means a mock index file was created. Have to clean up later.
-                if stream.local.split('_')[-1] == "indexcreated":
+                if stream.local.split('_')[-1] == 'indexcreated':
                     indices_created.append(2)
                 else:
                     # Index file is local. Don't delete later.
                     indices_created.append(1)
-            self.stream_info[stream_idx] = {"path": filepath,
-                                            "local": stream.local,
-                                            "remote": stream.remote, 
-                                            "proportion": stream._proportion,
-                                            "repeat": stream._repeat,
-                                            "choose": stream._choose}
+            self.stream_info[stream_idx] = {
+                'path': filepath,
+                'local': stream.local,
+                'remote': stream.remote,
+                'proportion': stream._proportion,
+                'repeat': stream._repeat,
+                'choose': stream._choose
+            }
 
         # Initialize the SimulationWorld, which tells us about nodes/devices/workers
         self.world = SimulationWorld(self.nodes, self.devices, self.workers)
@@ -238,7 +240,7 @@ class SimulationDataset(StreamingDataset):
         index_filenames = []
         local_foldernames = []
         for stream_id, stream in enumerate(self.streams):
-            print("Processing index file for stream", stream_id+1)
+            print('Processing index file for stream', stream_id + 1)
             stream_shards = stream.get_shards(self.world)
             num_stream_samples = sum(map(len, stream_shards))
             index_filename = os.path.join(stream.local, stream.split, get_index_basename())
@@ -266,7 +268,7 @@ class SimulationDataset(StreamingDataset):
                 raise ValueError(f'Minimum cache usage ({min_cache_usage} bytes) is larger than ' +
                                  f'the cache limit ({self.cache_limit} bytes). Please raise ' +
                                  f'`cache_limit`.')
-            
+
         for stream_idx, index_filename in enumerate(index_filenames):
             if indices_created[stream_idx] == 0:
                 # Index file was downloaded from remote.
@@ -281,7 +283,6 @@ class SimulationDataset(StreamingDataset):
             else:
                 # Directory and index file were created. Delete both.
                 shutil.rmtree(local_foldernames[stream_idx])
-            
 
         # Build the shard index (for partitioning and mapping samples to shards).
         self.samples_per_shard = np.array([shard.samples for shard in self.shards], np.int64)
@@ -289,13 +290,14 @@ class SimulationDataset(StreamingDataset):
         self.spanner = SimulationSpanner(self.samples_per_shard)
 
         # Also keep track of the raw and compressed sizes of each shard, indexed by shard_id.
-        self.raw_shard_sizes = np.array([shard.get_raw_size() for shard in self.shards])
-        self.zip_shard_sizes = np.array([shard.get_zip_size() or 0 for shard in self.shards])
+        self.raw_shard_sizes = np.array([shard.get_raw_size() for shard in self.shards], np.int64)
+        self.zip_shard_sizes = np.array([shard.get_zip_size() or 0 for shard in self.shards],
+                                        np.int64)
 
-        print("Total number of shards:", self.num_shards)
-        print("Average number of samples per shard:", self.num_samples/self.num_shards)
-        print("Average raw shard size (bytes):", np.mean(self.raw_shard_sizes))
-        print("Average zip shard size (bytes):", np.mean(self.zip_shard_sizes))
+        print('Total number of shards:', self.num_shards)
+        print('Average number of samples per shard:', self.num_samples / self.num_shards)
+        print('Average raw shard size (bytes):', np.mean(self.raw_shard_sizes))
+        print('Average zip shard size (bytes):', np.mean(self.zip_shard_sizes))
 
         # Now that we know the number of underlying samples of each stream, derive each stream's
         # true proportion/repeat/choose, as well as the total epoch size.
@@ -306,11 +308,10 @@ class SimulationDataset(StreamingDataset):
         self.length = ceil(self.epoch_size / self.world.num_ranks)
 
         t1 = time.time()
-        self.instantiation_time = t1-t0
+        self.instantiation_time = t1 - t0
 
-        print("SimulationDataset created successfully.")
+        print('SimulationDataset created successfully.')
 
-    
     def get_sample_partition(self, epoch: int, sample_in_epoch: int) -> NDArray:
         """Get the dataset's partition of this epoch's sample space.
 
@@ -322,7 +323,7 @@ class SimulationDataset(StreamingDataset):
             NDArray[np.int64]: Our partition of the epoch.
         """
         return generate_work(self.batching_method, self, self.world, epoch, sample_in_epoch)
-    
+
     def get_samples_per_node(self, epoch: int, sample_in_epoch: int) -> NDArray:
         """Get the dataset's number of samples per node, worker, device.
 
@@ -336,7 +337,7 @@ class SimulationDataset(StreamingDataset):
         partition = generate_work(self.batching_method, self, self.world, epoch, sample_in_epoch)
         # Modify partition to be in traversal order, per node, device, and worker.
         return partition.reshape(self.nodes, self.devices, self.workers, -1)
-    
+
     def get_spanner(self) -> Spanner:
         """Get the dataset's spanner object, which does global sample id indexing.
 
@@ -344,23 +345,23 @@ class SimulationDataset(StreamingDataset):
             Spanner: The dataset's spanner object.
         """
         return self.spanner
-    
-    def get_raw_shard_sizes(self) -> NDArray:
+
+    def get_raw_shard_sizes(self) -> NDArray[np.int64]:
         """Get the dataset's raw shard sizes.
 
         Returns:
             NDArray[np.int64]: The dataset's raw shard sizes.
         """
         return self.raw_shard_sizes
-    
-    def get_zip_shard_sizes(self) -> NDArray:
+
+    def get_zip_shard_sizes(self) -> NDArray[np.int64]:
         """Get the dataset's zip shard sizes.
 
         Returns:
             NDArray[np.int64]: The dataset's zip shard sizes.
         """
         return self.zip_shard_sizes
-    
+
     def get_nodes(self) -> int:
         """Get the dataset's number of nodes.
 
@@ -368,7 +369,7 @@ class SimulationDataset(StreamingDataset):
             int: The dataset's number of nodes.
         """
         return self.nodes
-    
+
     def get_devices(self) -> int:
         """Get the dataset's number of devices.
 
@@ -376,7 +377,7 @@ class SimulationDataset(StreamingDataset):
             int: The dataset's number of devices.
         """
         return self.devices
-    
+
     def get_workers(self) -> int:
         """Get the dataset's number of workers.
 
@@ -384,7 +385,7 @@ class SimulationDataset(StreamingDataset):
             int: The dataset's number of workers.
         """
         return self.workers
-    
+
     def get_num_canonical_nodes(self) -> int:
         """Get the dataset's number of canonical nodes.
 
@@ -392,7 +393,7 @@ class SimulationDataset(StreamingDataset):
             int: The dataset's number of canonical nodes.
         """
         return self.num_canonical_nodes
-    
+
     def get_batch_size(self) -> int:
         """Get the dataset's batch size.
 
@@ -400,7 +401,7 @@ class SimulationDataset(StreamingDataset):
             int: The dataset's batch size.
         """
         return self.batch_size
-    
+
     def get_num_shards(self) -> int:
         """Get the dataset's number of shards.
 
@@ -408,7 +409,7 @@ class SimulationDataset(StreamingDataset):
             int: The dataset's number of shards.
         """
         return self.num_shards
-    
+
     def get_avg_samples_per_shard(self) -> int:
         """Get the dataset's average number of samples per shard.
 
@@ -416,7 +417,7 @@ class SimulationDataset(StreamingDataset):
             int: The dataset's average number of samples per shard.
         """
         return round(self.num_samples / self.num_shards)
-    
+
     def get_predownload(self) -> int:
         """Get the dataset's predownload.
 
@@ -424,15 +425,17 @@ class SimulationDataset(StreamingDataset):
             int: The dataset's predownload.
         """
         return self.predownload
-    
+
     def get_cache_limit(self) -> Optional[int]:
         """Get the dataset's cache limit.
 
         Returns:
-            int: The dataset's cache limit.
+            Optional[int]: The dataset's cache limit.
         """
+        if isinstance(self.cache_limit, str):
+            self.cache_limit = bytes_to_int(self.cache_limit)
         return self.cache_limit
-    
+
     def get_instantiation_time(self) -> float:
         """Get the dataset's instantiation time.
 
@@ -440,7 +443,7 @@ class SimulationDataset(StreamingDataset):
             float: The dataset's instantiation time.
         """
         return self.instantiation_time
-    
+
     def get_num_batches(self) -> int:
         """Get the dataset's number of batches.
 
@@ -448,7 +451,7 @@ class SimulationDataset(StreamingDataset):
             int: The dataset's number of batches.
         """
         return self.epoch_size // (self.batch_size * self.devices * self.nodes)
-    
+
     def get_stream_info(self) -> dict:
         """Get the dataset's stream info.
 
@@ -456,7 +459,7 @@ class SimulationDataset(StreamingDataset):
             dict: The dataset's stream info.
         """
         return self.stream_info
-    
+
     def get_shuffle(self) -> bool:
         """Get the dataset's shuffle.
 
@@ -464,7 +467,7 @@ class SimulationDataset(StreamingDataset):
             bool: The dataset's shuffle.
         """
         return self.shuffle
-    
+
     def get_shuffle_algo(self) -> str:
         """Get the dataset's shuffle algorithm.
 
@@ -472,7 +475,7 @@ class SimulationDataset(StreamingDataset):
             str: The dataset's shuffle algorithm.
         """
         return self.shuffle_algo
-    
+
     def get_shuffle_seed(self) -> int:
         """Get the dataset's shuffle seed.
 
@@ -480,7 +483,7 @@ class SimulationDataset(StreamingDataset):
             int: The dataset's shuffle seed.
         """
         return self.shuffle_seed
-    
+
     def get_shuffle_block_size(self) -> int:
         """Get the dataset's shuffle block size.
 
@@ -488,7 +491,7 @@ class SimulationDataset(StreamingDataset):
             int: The dataset's shuffle block size.
         """
         return self.shuffle_block_size
-    
+
     def get_epoch_size(self) -> int:
         """Get the dataset's epoch size.
 
@@ -496,7 +499,7 @@ class SimulationDataset(StreamingDataset):
             int: The dataset's epoch size.
         """
         return self.epoch_size
-    
+
     def get_sampling_method(self) -> str:
         """Get the dataset's sampling method.
 
@@ -504,7 +507,7 @@ class SimulationDataset(StreamingDataset):
             str: The dataset's sampling method.
         """
         return self.sampling_method
-    
+
     def get_sampling_granularity(self) -> int:
         """Get the dataset's sampling granularity.
 
@@ -512,7 +515,7 @@ class SimulationDataset(StreamingDataset):
             int: The dataset's sampling granularity.
         """
         return self.sampling_granularity
-    
+
     def get_batching_method(self) -> str:
         """Get the dataset's batching method.
 
