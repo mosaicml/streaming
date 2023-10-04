@@ -6,6 +6,7 @@ import os
 import shutil
 import tempfile
 import time
+import urllib.parse
 from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
 from typing import Any, List, Optional, Tuple, Union
 
@@ -23,7 +24,7 @@ MY_BUCKET = {
     'gs://': 'mosaicml-composer-tests',
     's3://': 'mosaicml-internal-temporary-composer-testing'
 }
-MANUAL_INTEGRATION_TEST = True
+MANUAL_INTEGRATION_TEST = False
 os.environ[
     'OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'  # set to yes to all fork process in spark calls
 
@@ -33,8 +34,6 @@ def manual_integration_dir() -> Any:
     """Creates a temporary directory and then deletes it when the calling function is done."""
     if MANUAL_INTEGRATION_TEST:
         os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'path/to/gooogle_api_credential.json'
-        os.environ[
-            'GOOGLE_APPLICATION_CREDENTIALS'] = '/Users/xiaohan.zhang/.mosaic/mosaicml-research-nonprod-027345ddbdfd.json'
         os.environ.pop('AWS_ACCESS_KEY_ID', None)
         os.environ.pop('AWS_SECRET_ACCESS_KEY', None)
         os.environ.pop('AWS_SECURITY_TOKEN', None)
@@ -232,43 +231,75 @@ def test_do_merge_index(manual_integration_dir: Any, keep_local: bool,
         4. All urls are tuple (local, remote). At least one url is not accessible locally -> download all
         5. All urls are str (remote) -> download all
     """
+    from decimal import Decimal
+
+    from pyspark.sql import SparkSession
+    from pyspark.sql.types import DecimalType, IntegerType, StringType, StructField, StructType
+
+    from streaming.base.converters import dataframeToMDS
+
+    def not_merged_index(index_file_path: str, out: str):
+        """Check if index_file_path is the merged index at folder out."""
+        prefix = str(urllib.parse.urlparse(out).path)
+        return os.path.dirname(index_file_path).strip('/') != prefix.strip('/')
+
+    local, remote = manual_integration_dir(scheme)
 
     if out_format != 'local':
         if not MANUAL_INTEGRATION_TEST:
             pytest.skip('Require cloud credentials. ' +
                         'skipping. Set MANUAL_INTEGRATION_TEST=True to run the check manually!')
         if out_format == 'remote':
-            out = manual_integration_dir(scheme)[1]
+            out = remote
         else:
-            out = manual_integration_dir(scheme)
+            out = (local, remote)
     else:
-        out = manual_integration_dir(scheme)[0]
+        out = local
 
-    naive_mds_partitions = [
-        'tests/resources/naive_MDSdataset/25/', 'tests/resources/naive_MDSdataset/26',
-        'tests/resources/naive_MDSdataset/27/'
+    spark = SparkSession.builder.getOrCreate()  # pyright: ignore
+    schema = StructType([
+        StructField('id', IntegerType(), nullable=False),
+        StructField('name', StringType(), nullable=False),
+        StructField('amount', DecimalType(10, 2), nullable=False)
+    ])
+    data = [(1, 'Alice', Decimal('123.45')), (2, 'Bob', Decimal('67.89')),
+            (3, 'Charlie', Decimal('987.65'))]
+    df = spark.createDataFrame(data=data, schema=schema).repartition(3)
+    mds_kwargs = {
+        'out': (local, remote),
+        'columns': {
+            'id': 'int',
+            'name': 'str'
+        },
+        'keep_local': True
+    }
+    dataframeToMDS(df, merge_index=False, mds_kwargs=mds_kwargs)
+
+    local_cu = CloudUploader.get(local, exist_ok=True, keep_local=True)
+    local_index_files = [
+        o for o in local_cu.list_objects() if o.endswith('.json') and not_merged_index(o, local)
+    ]
+    remote_cu = CloudUploader.get(remote, exist_ok=True, keep_local=True)
+    remote_index_files = [
+        os.path.join(scheme, MY_BUCKET[scheme], o)
+        for o in remote_cu.list_objects()
+        if o.endswith('.json') and not_merged_index(o, remote)
     ]
 
     if index_file_urls_pattern == 1:
-        index_file_urls = [
-            os.path.join(os.getcwd(), s, 'index.json') for s in naive_mds_partitions
-        ]
-        do_merge_index(index_file_urls, out, keep_local=keep_local)
+        do_merge_index(local_index_files, out, keep_local=keep_local)
 
     if index_file_urls_pattern == 2:
         with tempfile.TemporaryDirectory() as a_temporary_folder:
             index_file_urls = [
-                os.path.join(a_temporary_folder, s, 'index.json') for s in naive_mds_partitions
+                os.path.join(a_temporary_folder, os.path.basename(s)) for s in local_index_files
             ]
             with pytest.raises(FileNotFoundError, match=f'.* does not exist or not accessible.*'):
                 do_merge_index(index_file_urls, out, keep_local=keep_local)
             return
 
     if index_file_urls_pattern == 3:
-        index_file_urls = []
-        for s in naive_mds_partitions:
-            index_file_urls.append((os.path.join(os.getcwd(), s, 'index.json'),
-                                    os.path.join(scheme, MY_BUCKET[scheme], s, 'index.json')))
+        index_file_urls = list(zip(local_index_files, remote_index_files))
         do_merge_index(index_file_urls, out, keep_local=keep_local)
 
     if index_file_urls_pattern == 4:
@@ -277,34 +308,17 @@ def test_do_merge_index(manual_integration_dir: Any, keep_local: bool,
                         'skipping. Set MANUAL_INTEGRATION_TEST=True to run the check manually!')
 
         with tempfile.TemporaryDirectory() as a_temporary_folder:
-            index_file_urls = []
-            for s in naive_mds_partitions:
-                cu_path = (os.path.join(os.getcwd(),
-                                        s), os.path.join(scheme, MY_BUCKET[scheme], s))
-                cu = CloudUploader.get(cu_path, keep_local=True, exist_ok=True)
-                index_json = os.path.join(cu.local, 'index.json')
-                if os.path.exists(index_json):
-                    cu.upload_file('index.json')
-                index_file_urls.append((os.path.join(a_temporary_folder, s, 'index.json'),
-                                        os.path.join(scheme, MY_BUCKET[scheme], s, 'index.json')))
+            non_exist_local_files = [
+                os.path.join(a_temporary_folder, os.path.basename(s)) for s in local_index_files
+            ]
+            index_file_urls = list(zip(non_exist_local_files, remote_index_files))
             do_merge_index(index_file_urls, out, keep_local=keep_local)
 
     if index_file_urls_pattern == 5:
         if not MANUAL_INTEGRATION_TEST:
             pytest.skip('Require cloud credentials. ' +
                         'skipping. Set MANUAL_INTEGRATION_TEST=True to run the check manually!')
-
-        with tempfile.TemporaryDirectory() as a_temporary_folder:
-            index_file_urls = []
-            for s in naive_mds_partitions:
-                cu_path = (os.path.join(os.getcwd(),
-                                        s), os.path.join(scheme, MY_BUCKET[scheme], s))
-                cu = CloudUploader.get(cu_path, keep_local=True, exist_ok=True)
-                index_json = os.path.join(cu.local, 'index.json')
-                if os.path.exists(index_json):
-                    cu.upload_file('index.json')
-                index_file_urls.append(os.path.join(scheme, MY_BUCKET[scheme], s, 'index.json'))
-            do_merge_index(index_file_urls, out, keep_local=keep_local)
+        do_merge_index(remote_index_files, out, keep_local=keep_local)
 
     integrity_check(out, keep_local=keep_local, expected_n_shard_files=2)
 
