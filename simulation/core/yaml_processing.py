@@ -14,7 +14,6 @@ from core.sim_time import Time, TimeUnit, ensure_time
 from core.simulation_dataset import SimulationDataset
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
-from omegaconf import SCMode
 
 from streaming.base import Stream
 
@@ -55,7 +54,11 @@ def ingest_yaml(yaml_dict: Optional[dict] = None,
     global_batch_size = None
     # Get the training and dataset params
     if 'parameters' in config:
-        config = config['parameters']
+        config = om.create(config['parameters'])
+
+    om.resolve(config)
+
+    assert isinstance(config, DictConfig), 'config must be a dict.'
 
     # get global batch size
     if 'global_train_batch_size' in config:
@@ -107,10 +110,7 @@ def ingest_yaml(yaml_dict: Optional[dict] = None,
 
     # convert train_dataset to dict, if it isn't already
     if isinstance(train_dataset, DictConfig):
-        train_dataset = om.to_container(train_dataset,
-                                        resolve=False,
-                                        throw_on_missing=True,
-                                        structured_config_mode=SCMode.DICT)
+        train_dataset = om.to_container(train_dataset)
 
     assert isinstance(workers, int), 'workers must be an integer.'
     assert isinstance(global_batch_size, int), 'global_batch_size must be an integer.'

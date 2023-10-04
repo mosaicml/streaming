@@ -412,7 +412,7 @@ def get_shuffle_quality_chart(data: pd.DataFrame) -> alt.Chart:
     Returns:
         alt.Chart: Interactive bar chart for shuffle quality.
     """
-    bars = (alt.Chart(data, title='Shuffle Quality').mark_bar().encode(
+    bars = (alt.Chart(data, title='Shuffle Quality (higher is better)').mark_bar().encode(
         x='algo', y='quality', tooltip='quality').properties(width=550,))
     return bars.interactive()
 
