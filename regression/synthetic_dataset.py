@@ -29,13 +29,20 @@ class SequenceDataset:
     Args:
         num_samples (int): number of samples. Defaults to 100.
         column_names list[str]: A list of features' and target name. Defaults to ['id', 'sample'].
+        offset: Offset to start the sequence from. Defaults to 0.
     """
 
-    def __init__(self, num_samples: int = 100, column_names: list[str] = ['id', 'sample']) -> None:
+    def __init__(
+        self,
+        num_samples: int = 100,
+        column_names: list[str] = ['id', 'sample'],
+        offset: int = 0,
+    ) -> None:
         self.num_samples = num_samples
         self.column_encodings = ['str', 'int']
         self.column_sizes = [None, 8]
         self.column_names = column_names
+        self.offset = offset
         self._index = 0
 
     def __len__(self) -> int:
@@ -45,7 +52,7 @@ class SequenceDataset:
         if index < self.num_samples:
             return {
                 self.column_names[0]: f'{index:06}',
-                self.column_names[1]: 3 * index,
+                self.column_names[1]: (3 * index) + self.offset,
             }
         raise IndexError('Index out of bound')
 
@@ -56,7 +63,7 @@ class SequenceDataset:
         if self._index >= self.num_samples:
             raise StopIteration
         id = f'{self._index:06}'
-        data = 3 * self._index
+        data = (3 * self._index) + self.offset
         self._index += 1
         return {
             self.column_names[0]: id,
@@ -226,6 +233,8 @@ def get_dataset_params(kwargs: dict[str, str]) -> dict[str, Any]:
         dataset_params['shape'] = ast.literal_eval(kwargs['shape'])
     if 'column_names' in kwargs:
         dataset_params['column_names'] = ast.literal_eval(kwargs['column_names'])
+    if 'offset' in kwargs:
+        dataset_params['offset'] = int(kwargs['offset'])
     return dataset_params
 
 
