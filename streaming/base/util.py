@@ -254,21 +254,21 @@ def merge_index(out: Union[str, Tuple[str, str]], *, keep_local: bool = True) ->
             if o.endswith(get_index_basename()) and not_merged_index(o, cu.remote):
                 remote_index_files.append(obj.scheme + '://' + os.path.join(obj.netloc, o))
         if len(local_index_files) == len(remote_index_files):
-            do_merge_index(list(zip(local_index_files, remote_index_files)),
-                           out,
-                           keep_local=keep_local,
-                           download_timeout=60)
+            merge_index_from_list(list(zip(local_index_files, remote_index_files)),
+                                  out,
+                                  keep_local=keep_local,
+                                  download_timeout=60)
         else:
-            do_merge_index(remote_index_files, out, keep_local=keep_local, download_timeout=60)
+            merge_index_from_list(remote_index_files, out, keep_local=keep_local, download_timeout=60)
         return
 
-    do_merge_index(local_index_files, out, keep_local=keep_local, download_timeout=60)
+    merge_index_from_list(local_index_files, out, keep_local=keep_local, download_timeout=60)
 
 
-def do_merge_index(index_file_urls: List[Any],
-                   out: Union[str, Tuple[str, str]],
-                   keep_local: bool = True,
-                   download_timeout: int = 60) -> None:
+def merge_index_from_list(index_file_urls: List[Any],
+                          out: Union[str, Tuple[str, str]],
+                          keep_local: bool = True,
+                          download_timeout: int = 60) -> None:
     """Merge index.json from a list of index.json. Write to `out`, overwriting if exists.
 
     Args:

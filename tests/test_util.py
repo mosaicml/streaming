@@ -16,7 +16,7 @@ from streaming.base.constant import RESUME
 from streaming.base.shared.prefix import _get_path
 from streaming.base.storage.download import download_file
 from streaming.base.storage.upload import CloudUploader
-from streaming.base.util import (bytes_to_int, clean_stale_shared_memory, do_merge_index,
+from streaming.base.util import (bytes_to_int, clean_stale_shared_memory, merge_index_from_list,
                                  get_list_arg, merge_index, number_abbrev_to_int, retry)
 
 MY_PREFIX = 'train_' + str(time.time())
@@ -213,17 +213,16 @@ def integrity_check(out: Union[str, Tuple[str, str]],
         ), f'{local_merged_index_path} does not exist when keep_local is {keep_local}'
         merged_index = json.load(open(local_merged_index_path, 'r'))
         n_shard_files = len({b['raw_data']['basename'] for b in merged_index['shards']})
-        assert (n_shard_files == expected_n_shard_files
-               ), f'expected {expected_n_shard_files} shard files but got {n_shard_files}'
+        assert n_shard_files == expected_n_shard_files, f'expected {expected_n_shard_files} shard files but got {n_shard_files}'
 
 
 @pytest.mark.parametrize('scheme', ['gs://', 's3://'])
 @pytest.mark.parametrize('index_file_urls_pattern', [1, 2, 3, 4, 5])
-@pytest.mark.parametrize('out_format', ['local', 'remote', 'tuple'])
+@pytest.mark.parametrize('out_format', ['remote', 'local',  'tuple'])
 @pytest.mark.usefixtures('manual_integration_dir')
 @pytest.mark.parametrize('keep_local', [True, False])
-def test_do_merge_index(manual_integration_dir: Any, keep_local: bool,
-                        index_file_urls_pattern: int, out_format: str, scheme: str):
+def test_merge_index_from_list(manual_integration_dir: Any, keep_local: bool,
+                               index_file_urls_pattern: int, out_format: str, scheme: str):
     """Validate the final merge index json for following patterns of index_file_urls:
         1. All urls are str (local). All urls are accessible locally -> no download
         2. All urls are str (local). At least one url is unaccessible locally -> Error
@@ -253,8 +252,9 @@ def test_do_merge_index(manual_integration_dir: Any, keep_local: bool,
             out = remote
         else:
             out = (local, remote)
+        mds_out = (local, remote)
     else:
-        out = local
+        mds_out = out = local
 
     spark = SparkSession.builder.getOrCreate()  # pyright: ignore
     schema = StructType([
@@ -266,7 +266,7 @@ def test_do_merge_index(manual_integration_dir: Any, keep_local: bool,
             (3, 'Charlie', Decimal('987.65'))]
     df = spark.createDataFrame(data=data, schema=schema).repartition(3)
     mds_kwargs = {
-        'out': (local, remote),
+        'out': mds_out,
         'columns': {
             'id': 'int',
             'name': 'str'
@@ -279,15 +279,9 @@ def test_do_merge_index(manual_integration_dir: Any, keep_local: bool,
     local_index_files = [
         o for o in local_cu.list_objects() if o.endswith('.json') and not_merged_index(o, local)
     ]
-    remote_cu = CloudUploader.get(remote, exist_ok=True, keep_local=True)
-    remote_index_files = [
-        os.path.join(scheme, MY_BUCKET[scheme], o)
-        for o in remote_cu.list_objects()
-        if o.endswith('.json') and not_merged_index(o, remote)
-    ]
 
     if index_file_urls_pattern == 1:
-        do_merge_index(local_index_files, out, keep_local=keep_local)
+        merge_index_from_list(local_index_files, out, keep_local=keep_local)
 
     if index_file_urls_pattern == 2:
         with tempfile.TemporaryDirectory() as a_temporary_folder:
@@ -295,30 +289,53 @@ def test_do_merge_index(manual_integration_dir: Any, keep_local: bool,
                 os.path.join(a_temporary_folder, os.path.basename(s)) for s in local_index_files
             ]
             with pytest.raises(FileNotFoundError, match=f'.* does not exist or not accessible.*'):
-                do_merge_index(index_file_urls, out, keep_local=keep_local)
+                merge_index_from_list(index_file_urls, out, keep_local=keep_local)
             return
 
     if index_file_urls_pattern == 3:
+        remote_index_files = [
+            os.path.join(scheme, MY_BUCKET[scheme], MY_PREFIX, os.path.basename(o))
+            for o in local_index_files
+            if o.endswith('.json') and not_merged_index(o, local)
+        ]
         index_file_urls = list(zip(local_index_files, remote_index_files))
-        do_merge_index(index_file_urls, out, keep_local=keep_local)
+        merge_index_from_list(index_file_urls, out, keep_local=keep_local)
 
     if index_file_urls_pattern == 4:
+        if out_format == 'local':
+            return
+
         if not MANUAL_INTEGRATION_TEST:
             pytest.skip('Require cloud credentials. ' +
                         'skipping. Set MANUAL_INTEGRATION_TEST=True to run the check manually!')
 
+        remote_cu = CloudUploader.get(remote, exist_ok=True, keep_local=True)
+        remote_index_files = [
+            os.path.join(scheme, MY_BUCKET[scheme], o)
+            for o in remote_cu.list_objects()
+            if o.endswith('.json') and not_merged_index(o, remote)
+        ]
         with tempfile.TemporaryDirectory() as a_temporary_folder:
             non_exist_local_files = [
                 os.path.join(a_temporary_folder, os.path.basename(s)) for s in local_index_files
             ]
             index_file_urls = list(zip(non_exist_local_files, remote_index_files))
-            do_merge_index(index_file_urls, out, keep_local=keep_local)
+            merge_index_from_list(index_file_urls, out, keep_local=keep_local)
 
     if index_file_urls_pattern == 5:
+        if out_format == 'local':
+            return
+
         if not MANUAL_INTEGRATION_TEST:
             pytest.skip('Require cloud credentials. ' +
                         'skipping. Set MANUAL_INTEGRATION_TEST=True to run the check manually!')
-        do_merge_index(remote_index_files, out, keep_local=keep_local)
+        remote_cu = CloudUploader.get(remote, exist_ok=True, keep_local=True)
+        remote_index_files = [
+            os.path.join(scheme, MY_BUCKET[scheme], o)
+            for o in remote_cu.list_objects()
+            if o.endswith('.json') and not_merged_index(o, remote)
+        ]
+        merge_index_from_list(remote_index_files, out, keep_local=keep_local)
 
     integrity_check(out, keep_local=keep_local, expected_n_shard_files=2)
 
