@@ -20,8 +20,6 @@ algos = {
     'py1s': get_shuffle_py1s,
     'py2s': get_shuffle_py2s,
     'naive': get_shuffle_naive,
-    'py1e': get_shuffle_py1e,
-    'py1br': get_shuffle_py1br,
 }
 
 
