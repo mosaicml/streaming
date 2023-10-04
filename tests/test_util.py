@@ -5,6 +5,7 @@ import json
 import os
 import shutil
 import tempfile
+import time
 from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
 from typing import Any, List, Optional, Tuple, Union
 
@@ -15,14 +16,14 @@ from streaming.base.shared.prefix import _get_path
 from streaming.base.storage.download import download_file
 from streaming.base.storage.upload import CloudUploader
 from streaming.base.util import (bytes_to_int, clean_stale_shared_memory, do_merge_index,
-                                 get_list_arg, number_abbrev_to_int, retry)
+                                 get_list_arg, merge_index, number_abbrev_to_int, retry)
 
-MY_PREFIX = 'train'
+MY_PREFIX = 'train_' + str(time.time())
 MY_BUCKET = {
     'gs://': 'mosaicml-composer-tests',
     's3://': 'mosaicml-internal-temporary-composer-testing'
 }
-MANUAL_INTEGRATION_TEST = False
+MANUAL_INTEGRATION_TEST = True
 os.environ[
     'OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'  # set to yes to all fork process in spark calls
 
@@ -32,6 +33,8 @@ def manual_integration_dir() -> Any:
     """Creates a temporary directory and then deletes it when the calling function is done."""
     if MANUAL_INTEGRATION_TEST:
         os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'path/to/gooogle_api_credential.json'
+        os.environ[
+            'GOOGLE_APPLICATION_CREDENTIALS'] = '/Users/xiaohan.zhang/.mosaic/mosaicml-research-nonprod-027345ddbdfd.json'
         os.environ.pop('AWS_ACCESS_KEY_ID', None)
         os.environ.pop('AWS_SECRET_ACCESS_KEY', None)
         os.environ.pop('AWS_SECURITY_TOKEN', None)
@@ -59,6 +62,17 @@ def manual_integration_dir() -> Any:
                     blob.delete()
             except ImportError:
                 raise ImportError('google.cloud.storage is not imported correctly.')
+
+            try:
+                import boto3
+                s3 = boto3.client('s3')
+                response = s3.list_objects_v2(Bucket=MY_BUCKET['s3://'], Prefix=MY_PREFIX)
+                objects_to_delete = [{'Key': obj['Key']} for obj in response.get('Contents', [])]
+                if objects_to_delete:
+                    s3.delete_objects(Bucket=MY_BUCKET['s3://'],
+                                      Delete={'Objects': objects_to_delete})
+            except ImportError:
+                raise ImportError('boto3 is not imported correctly.')
 
 
 @pytest.mark.parametrize(('text', 'expected_output'), [('hello,world', ['hello', 'world']),
@@ -195,7 +209,9 @@ def integrity_check(out: Union[str, Tuple[str, str]],
             assert not os.path.exists(os.path.join(cu.local, 'index.json'))
             return
 
-        assert os.path.exists(local_merged_index_path)
+        assert os.path.exists(
+            local_merged_index_path
+        ), f'{local_merged_index_path} does not exist when keep_local is {keep_local}'
         merged_index = json.load(open(local_merged_index_path, 'r'))
         n_shard_files = len({b['raw_data']['basename'] for b in merged_index['shards']})
         assert (n_shard_files == expected_n_shard_files
@@ -204,11 +220,11 @@ def integrity_check(out: Union[str, Tuple[str, str]],
 
 @pytest.mark.parametrize('scheme', ['gs://', 's3://'])
 @pytest.mark.parametrize('index_file_urls_pattern', [1, 2, 3, 4, 5])
-@pytest.mark.parametrize('output_format', ['local', 'remote', 'tuple'])
+@pytest.mark.parametrize('out_format', ['local', 'remote', 'tuple'])
 @pytest.mark.usefixtures('manual_integration_dir')
 @pytest.mark.parametrize('keep_local', [True, False])
 def test_do_merge_index(manual_integration_dir: Any, keep_local: bool,
-                        index_file_urls_pattern: int, output_format: str, scheme: str):
+                        index_file_urls_pattern: int, out_format: str, scheme: str):
     """Validate the final merge index json for following patterns of index_file_urls:
         1. All urls are str (local). All urls are accessible locally -> no download
         2. All urls are str (local). At least one url is unaccessible locally -> Error
@@ -217,11 +233,11 @@ def test_do_merge_index(manual_integration_dir: Any, keep_local: bool,
         5. All urls are str (remote) -> download all
     """
 
-    if output_format != 'local':
+    if out_format != 'local':
         if not MANUAL_INTEGRATION_TEST:
             pytest.skip('Require cloud credentials. ' +
                         'skipping. Set MANUAL_INTEGRATION_TEST=True to run the check manually!')
-        if output_format == 'remote':
+        if out_format == 'remote':
             out = manual_integration_dir(scheme)[1]
         else:
             out = manual_integration_dir(scheme)
@@ -291,6 +307,49 @@ def test_do_merge_index(manual_integration_dir: Any, keep_local: bool,
             do_merge_index(index_file_urls, out, keep_local=keep_local)
 
     integrity_check(out, keep_local=keep_local, expected_n_shard_files=2)
+
+
+@pytest.mark.parametrize('scheme', ['gs://', 's3://'])
+@pytest.mark.parametrize('out_format', ['remote', 'local', 'tuple'])
+@pytest.mark.parametrize('n_partitions', [1, 2, 3, 4])
+@pytest.mark.parametrize('keep_local', [False, True])
+def test_merge_index(manual_integration_dir: Any, out_format: str, n_partitions: int,
+                     keep_local: bool, scheme: str):
+    from decimal import Decimal
+
+    from pyspark.sql import SparkSession
+    from pyspark.sql.types import DecimalType, IntegerType, StringType, StructField, StructType
+
+    from streaming.base.converters import dataframeToMDS
+
+    if out_format == 'remote' or out_format == 'tuple':
+        if not MANUAL_INTEGRATION_TEST:
+            pytest.skip('Require cloud credentials. ' +
+                        'skipping. Set MANUAL_INTEGRATION_TEST=True to run the check manually!')
+        if out_format == 'remote':
+            _, out = manual_integration_dir(scheme)
+        else:
+            out = manual_integration_dir(scheme)
+    else:
+        out, _ = manual_integration_dir(scheme)
+
+    spark = SparkSession.builder.getOrCreate()  # pyright: ignore
+    schema = StructType([
+        StructField('id', IntegerType(), nullable=False),
+        StructField('name', StringType(), nullable=False),
+        StructField('amount', DecimalType(10, 2), nullable=False)
+    ])
+
+    data = [(1, 'Alice', Decimal('123.45')), (2, 'Bob', Decimal('67.89')),
+            (3, 'Charlie', Decimal('987.65'))]
+
+    df = spark.createDataFrame(data=data, schema=schema).repartition(n_partitions)
+
+    mds_kwargs = {'out': out, 'columns': {'id': 'int', 'name': 'str'}, 'keep_local': keep_local}
+
+    mds_path, _ = dataframeToMDS(df, merge_index=False, mds_kwargs=mds_kwargs)
+    merge_index(mds_path, keep_local=keep_local)
+    integrity_check(mds_path, keep_local=keep_local)
 
 
 @pytest.mark.parametrize('with_args', [True, False])

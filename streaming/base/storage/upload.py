@@ -443,11 +443,10 @@ class GCSUploader(CloudUploader):
             prefix = ''
 
         obj = urllib.parse.urlparse(self.remote)
+        bucket_name = obj.netloc
 
         if self.authentication == GCSAuthentication.HMAC:
-            bucket_name = obj.netloc
             prefix = os.path.join(str(obj.path).lstrip('/'), prefix)
-
             paginator = self.gcs_client.get_paginator('list_objects_v2')
             pages = paginator.paginate(Bucket=bucket_name, Prefix=prefix)
             try:
@@ -455,10 +454,12 @@ class GCSUploader(CloudUploader):
             except KeyError:
                 return []
         elif self.authentication == GCSAuthentication.SERVICE_ACCOUNT:
-            from google.cloud.storage import Blob, Bucket
-
-            blob = Blob(str(obj.path).lstrip('/'), Bucket(self.gcs_client, obj.netloc))
-            return [blob.name for blob in blob.bucket.list_blobs(prefix=prefix)]
+            #from google.cloud.storage import Blob, Bucket
+            #blob = Blob(str(obj.path).lstrip('/'), Bucket(self.gcs_client, obj.netloc))
+            prefix = os.path.join(str(obj.path).lstrip('/'), prefix)
+            return [
+                b.name for b in self.gcs_client.get_bucket(bucket_name).list_blobs(prefix=prefix)
+            ]
 
 
 class OCIUploader(CloudUploader):
@@ -971,10 +972,10 @@ class LocalUploader(CloudUploader):
             List[str]: A list of object names that match the prefix.
         """
         if prefix is None:
-            prefix = '.'
-
+            prefix = ''
         ans = []
-        for dirpath, _, files in os.walk(prefix):
+        print('I am here 100', os.path.join(self.local, prefix))
+        for dirpath, _, files in os.walk(os.path.join(self.local, prefix)):
             for file in files:
                 ans.append(os.path.join(dirpath, file))
         return ans

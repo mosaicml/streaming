@@ -215,6 +215,56 @@ def get_import_exception_message(package_name: str, extra_deps: str) -> str:
             f'`pip install \'mosaicml-streaming[{package_name}]\'`.'
 
 
+def merge_index(out: Union[str, Tuple[str, str]], *, keep_local: bool = True) -> None:
+    """Merge index.json given the root of MDS dataset. Write merged index to the root folder.
+
+    Args:
+        out (Union[str, Tuple[str,str]]): folder that contain MDS partitions.
+            :a local directory, merge index happens locally
+            :a remote directory, download all the sub-directories index.json in a temporary sub-directories, merge locally, and then upload it to out location
+            :a (local_dir, remote_dir), check if sub-directories index.json file present locally
+                If yes, then merge locally and upload to remote_dir .
+                If not, download all the sub-directories index.json from remote to local , merge locally, and upload to remote_dir .
+        keep_local (bool): Keep local copy of the merged index file. Defaults to ``True``
+        download_timeout (int): The allowed time for downloading each json file. Defaults to 60s.
+    """
+    from streaming.base.storage.upload import CloudUploader
+
+    def not_merged_index(index_file_path: str, out: str):
+        """Check if index_file_path is the merged index at folder out."""
+        prefix = str(urllib.parse.urlparse(out).path)
+        return os.path.dirname(index_file_path).strip('/') != prefix.strip('/')
+
+    if not out:
+        logger.warning('No MDS dataset folder specified, no index merged')
+        return
+
+    cu = CloudUploader.get(out, exist_ok=True, keep_local=True)
+
+    local_index_files = []
+    cl = CloudUploader.get(cu.local, exist_ok=True, keep_local=True)
+    for o in cl.list_objects():
+        if o.endswith('.json') and not_merged_index(o, cu.local):
+            local_index_files.append(o)
+
+    if cu.remote:
+        obj = urllib.parse.urlparse(cu.remote)
+        remote_index_files = []
+        for o in cu.list_objects():
+            if o.endswith(get_index_basename()) and not_merged_index(o, cu.remote):
+                remote_index_files.append(obj.scheme + '://' + os.path.join(obj.netloc, o))
+        if len(local_index_files) == len(remote_index_files):
+            do_merge_index(list(zip(local_index_files, remote_index_files)),
+                           out,
+                           keep_local=keep_local,
+                           download_timeout=60)
+        else:
+            do_merge_index(remote_index_files, out, keep_local=keep_local, download_timeout=60)
+        return
+
+    do_merge_index(local_index_files, out, keep_local=keep_local, download_timeout=60)
+
+
 def do_merge_index(index_file_urls: List[Any],
                    out: Union[str, Tuple[str, str]],
                    keep_local: bool = True,

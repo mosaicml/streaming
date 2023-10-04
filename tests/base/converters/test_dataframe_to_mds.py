@@ -21,7 +21,7 @@ MY_BUCKET = {
     'gs://': 'mosaicml-composer-tests',
     's3://': 'mosaicml-internal-temporary-composer-testing'
 }
-MANUAL_INTEGRATION_TEST = False
+MANUAL_INTEGRATION_TEST = True
 os.environ[
     'OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'  # set to yes to all fork process in spark calls
 
@@ -31,6 +31,8 @@ def manual_integration_dir() -> Any:
     """Creates a temporary directory and then deletes it when the calling function is done."""
     if MANUAL_INTEGRATION_TEST:
         os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'path/to/gooogle_api_credential.json'
+        os.environ[
+            'GOOGLE_APPLICATION_CREDENTIALS'] = '/Users/xiaohan.zhang/.mosaic/mosaicml-research-nonprod-027345ddbdfd.json'
         os.environ.pop('AWS_ACCESS_KEY_ID', None)
         os.environ.pop('AWS_SECRET_ACCESS_KEY', None)
         os.environ.pop('AWS_SECURITY_TOKEN', None)
@@ -58,6 +60,17 @@ def manual_integration_dir() -> Any:
                     blob.delete()
             except ImportError:
                 raise ImportError('google.cloud.storage is not imported correctly.')
+
+            try:
+                import boto3
+                s3 = boto3.client('s3')
+                response = s3.list_objects_v2(Bucket=MY_BUCKET['s3://'], Prefix=MY_PREFIX)
+                objects_to_delete = [{'Key': obj['Key']} for obj in response.get('Contents', [])]
+                if objects_to_delete:
+                    s3.delete_objects(Bucket=MY_BUCKET['s3://'],
+                                      Delete={'Objects': objects_to_delete})
+            except ImportError:
+                raise ImportError('boto3 is not imported correctly.')
 
 
 class TestDataFrameToMDS:

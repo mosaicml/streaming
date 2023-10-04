@@ -160,9 +160,11 @@ def dataframeToMDS(dataframe: DataFrame,
             raise RuntimeError('TaskContext.get() returns None')
 
         if mds_path[1] == '':
-            output = (os.path.join(mds_path[0], f'{id}'), '')
+            output = os.path.join(mds_path[0], f'{id}')
+            partition_path = (output, '')
         else:
             output = (os.path.join(mds_path[0], f'{id}'), os.path.join(mds_path[1], f'{id}'))
+            partition_path = output
 
         if mds_kwargs:
             kwargs = mds_kwargs.copy()
@@ -194,8 +196,12 @@ def dataframeToMDS(dataframe: DataFrame,
                         count += 1
 
         yield pd.concat([
-            pd.Series([os.path.join(output[0], get_index_basename())], name='mds_path_local'),
-            pd.Series([os.path.join(output[1], get_index_basename()) if output[1] != '' else ''],
+            pd.Series([os.path.join(partition_path[0], get_index_basename())],
+                      name='mds_path_local'),
+            pd.Series([
+                os.path.join(partition_path[1], get_index_basename())
+                if partition_path[1] != '' else ''
+            ],
                       name='mds_path_remote'),
             pd.Series([count], name='fail_count')
         ],
@@ -249,8 +255,8 @@ def dataframeToMDS(dataframe: DataFrame,
     partitions = dataframe.mapInPandas(func=write_mds, schema=result_schema).collect()
 
     if merge_index:
-        folder_urls = [(row['mds_path_local'], row['mds_path_remote']) for row in partitions]
-        do_merge_index(folder_urls, out, keep_local=keep_local, download_timeout=60)
+        index_files = [(row['mds_path_local'], row['mds_path_remote']) for row in partitions]
+        do_merge_index(index_files, out, keep_local=keep_local, download_timeout=60)
 
     if cu.remote is not None:
         if 'keep_local' in mds_kwargs and mds_kwargs['keep_local'] == False:
