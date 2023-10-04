@@ -140,7 +140,7 @@ class TestDataFrameToMDS:
         if merge_index:
             if keep_local:
                 assert os.path.exists(os.path.join(out,
-                                                    'index.json')), 'No merged index.json found'
+                                                   'index.json')), 'No merged index.json found'
                 mgi = json.load(open(os.path.join(out, 'index.json'), 'r'))
                 nsamples = 0
                 for d in os.listdir(out):
@@ -219,7 +219,7 @@ class TestDataFrameToMDS:
         if merge_index == True:
             if keep_local:
                 assert os.path.exists(os.path.join(out,
-                                                    'index.json')), 'No merged index.json found'
+                                                   'index.json')), 'No merged index.json found'
                 mgi = json.load(open(os.path.join(out, 'index.json'), 'r'))
                 nsamples = 0
                 for d in os.listdir(out):
@@ -281,7 +281,7 @@ class TestDataFrameToMDS:
 
         if merge_index == True:
             assert os.path.exists(os.path.join(mds_path[0],
-                                                'index.json')), 'No merged index.json found'
+                                               'index.json')), 'No merged index.json found'
         else:
             assert not (os.path.exists(os.path.join(
                 mds_path[0], 'index.json'))), 'merged index is created when merge_index=False'
@@ -325,7 +325,7 @@ class TestDataFrameToMDS:
 
         if merge_index == True:
             assert os.path.exists(os.path.join(mds_path[0],
-                                                'index.json')), 'No merged index.json found'
+                                               'index.json')), 'No merged index.json found'
         else:
             assert not os.path.exists(os.path.join(mds_path[0], 'index.json')), (
                 f'merged index is created at {mds_path[0]} when merge_index={merge_index} and ' +

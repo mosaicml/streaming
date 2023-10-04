@@ -259,7 +259,10 @@ def merge_index(out: Union[str, Tuple[str, str]], *, keep_local: bool = True) ->
                                   keep_local=keep_local,
                                   download_timeout=60)
         else:
-            merge_index_from_list(remote_index_files, out, keep_local=keep_local, download_timeout=60)
+            merge_index_from_list(remote_index_files,
+                                  out,
+                                  keep_local=keep_local,
+                                  download_timeout=60)
         return
 
     merge_index_from_list(local_index_files, out, keep_local=keep_local, download_timeout=60)

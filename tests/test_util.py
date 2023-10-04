@@ -16,8 +16,8 @@ from streaming.base.constant import RESUME
 from streaming.base.shared.prefix import _get_path
 from streaming.base.storage.download import download_file
 from streaming.base.storage.upload import CloudUploader
-from streaming.base.util import (bytes_to_int, clean_stale_shared_memory, merge_index_from_list,
-                                 get_list_arg, merge_index, number_abbrev_to_int, retry)
+from streaming.base.util import (bytes_to_int, clean_stale_shared_memory, get_list_arg,
+                                 merge_index, merge_index_from_list, number_abbrev_to_int, retry)
 
 MY_PREFIX = 'train_' + str(time.time())
 MY_BUCKET = {
@@ -218,7 +218,7 @@ def integrity_check(out: Union[str, Tuple[str, str]],
 
 @pytest.mark.parametrize('scheme', ['gs://', 's3://'])
 @pytest.mark.parametrize('index_file_urls_pattern', [1, 2, 3, 4, 5])
-@pytest.mark.parametrize('out_format', ['remote', 'local',  'tuple'])
+@pytest.mark.parametrize('out_format', ['remote', 'local', 'tuple'])
 @pytest.mark.usefixtures('manual_integration_dir')
 @pytest.mark.parametrize('keep_local', [True, False])
 def test_merge_index_from_list(manual_integration_dir: Any, keep_local: bool,
@@ -265,14 +265,7 @@ def test_merge_index_from_list(manual_integration_dir: Any, keep_local: bool,
     data = [(1, 'Alice', Decimal('123.45')), (2, 'Bob', Decimal('67.89')),
             (3, 'Charlie', Decimal('987.65'))]
     df = spark.createDataFrame(data=data, schema=schema).repartition(3)
-    mds_kwargs = {
-        'out': mds_out,
-        'columns': {
-            'id': 'int',
-            'name': 'str'
-        },
-        'keep_local': True
-    }
+    mds_kwargs = {'out': mds_out, 'columns': {'id': 'int', 'name': 'str'}, 'keep_local': True}
     dataframeToMDS(df, merge_index=False, mds_kwargs=mds_kwargs)
 
     local_cu = CloudUploader.get(local, exist_ok=True, keep_local=True)
