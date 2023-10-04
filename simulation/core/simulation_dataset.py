@@ -29,21 +29,24 @@ class SimulationDataset(StreamingDataset):
     """Near replica of StreamingDataset for simulation purposes.
 
     Args:
-        streams (Sequence[Stream], optional): One or more streams to stream/cache samples from,
+        nodes (int): Number of nodes.
+        devices (int): Number of devices.
+        workers (int): Number of workers.
+        streams (Optional[Sequence[Stream]]): One or more streams to stream/cache samples from,
             which may be upsampled or downsampled. StreamingDataset uses either ``streams`` or
             ``remote``/``local``. Defaults to ``None``.
-        remote (str, optional): Remote path or directory to download the dataset from. If ``None``,
+        remote (Optional[str]): Remote path or directory to download the dataset from. If ``None``,
             its data must exist locally. StreamingDataset uses either ``streams`` or
             ``remote``/``local``. Defaults to ``None``.
-        local (str, optional): Local working directory to download shards to. This is where shards
+        local (Optional[str]): Local working directory to download shards to. This is where shards
             are cached while they are being used. Uses a temp directory if not set.
             StreamingDataset uses either ``streams`` or ``remote``/``local``. Defaults to ``None``.
-        split (str, optional): Which dataset split to use, if any. If provided, we stream from/to
+        split (Optional[str]): Which dataset split to use, if any. If provided, we stream from/to
             the ``split`` subdirs of  ``remote`` and ``local``. Defaults to ``None``.
         download_retry (int): Number of download re-attempts before giving up. Defaults to ``2``.
         download_timeout (float): Number of seconds to wait for a shard to download before raising
             an exception. Defaults to ``60``.
-        validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
+        validate_hash (Optional[str]): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
         keep_zip (bool): Whether to keep or delete the compressed form when decompressing
             downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
@@ -73,11 +76,6 @@ class SimulationDataset(StreamingDataset):
             StreamingDataset replicas take through the shards per model replica (increasing data
             source diversity). Defaults to ``None``, which is interpreted as 64 times the number
             of nodes of the initial run.
-
-            .. note::
-
-                For sequential sample ordering, set ``shuffle`` to ``False`` and
-                ``num_canonical_nodes`` to the number of physical nodes of the initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
@@ -87,6 +85,12 @@ class SimulationDataset(StreamingDataset):
         shuffle_block_size (int): Unit of shuffle. Defaults to ``1 << 18``.
         sampling_method (str): Which sampling method to use, either ``balanced`` or ``fixed``.
             Defaults to ``balanced``.
+        sampling_granularity (int): When picking samples for a stream's final partial repeat,
+            how many samples to pick from the same shard at a time (``1`` for evenly balanced
+            across shards, ``1000`` to pick 1000 samples from the same shard at a time, etc).
+            Defaults to ``1``.
+        batching_method (str): Which batching method to use, either ``random``, ``stratified``, or
+            ``per_stream``. Defaults to ``random``.
     """
 
     def __init__(self,
@@ -155,8 +159,7 @@ class SimulationDataset(StreamingDataset):
             )
 
         # Check that predownload is at least per device batch size.
-        if self.predownload is not None and self.batch_size is not None and \
-            self.predownload < self.batch_size:
+        if self.predownload < self.batch_size:
             warnings.warn(f'predownload < batch_size ({self.predownload} < {self.batch_size}).' +
                           f'This may result in slower batch time. Recommendation is to set ' +
                           f'predownload to at-least batch_size.')
@@ -308,7 +311,7 @@ class SimulationDataset(StreamingDataset):
         print("SimulationDataset created successfully.")
 
     
-    def get_sample_partition(self, epoch, sample_in_epoch) -> NDArray:
+    def get_sample_partition(self, epoch: int, sample_in_epoch: int) -> NDArray:
         """Get the dataset's partition of this epoch's sample space.
 
         Args:
@@ -320,7 +323,7 @@ class SimulationDataset(StreamingDataset):
         """
         return generate_work(self.batching_method, self, self.world, epoch, sample_in_epoch)
     
-    def get_samples_per_node(self, epoch, sample_in_epoch) -> NDArray:
+    def get_samples_per_node(self, epoch: int, sample_in_epoch: int) -> NDArray:
         """Get the dataset's number of samples per node, worker, device.
 
         Args:
@@ -328,7 +331,7 @@ class SimulationDataset(StreamingDataset):
             sample_in_epoch (int): Where we are in the epoch.
 
         Returns:
-            NDArray[np.int64]: The dataset's number of samples per node, worker, device.
+            NDArray[np.int64]: The dataset's samples per node, worker, device.
         """
         partition = generate_work(self.batching_method, self, self.world, epoch, sample_in_epoch)
         # Modify partition to be in traversal order, per node, device, and worker.
@@ -517,7 +520,3 @@ class SimulationDataset(StreamingDataset):
             str: The dataset's batching method.
         """
         return self.batching_method
-        
-
-
-

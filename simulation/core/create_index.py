@@ -15,6 +15,8 @@ import random
 import string
 
 def get_random_foldername():
+    """Generate random folder name to store the index file in."""
+    
     return ''.join(random.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits) for _ in range(16))
 
 def create_stream_index(shards: int,

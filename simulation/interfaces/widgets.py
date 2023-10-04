@@ -240,7 +240,7 @@ def param_inputs(col, input_params: dict, defaults: dict = {}):
                                     help="shuffling algorithm to use for this run. your shuffle \
                                         parameters may affect model training.")
         shuffle_block_size = col5.text_input('shuffle block size (samples)',
-                                            value="10M" if "shuffle_block_size" not in defaults
+                                            value="2M" if "shuffle_block_size" not in defaults
                                                 else defaults["shuffle_block_size"], 
                                             help="shuffle block size for this run. \
                                                 used in the `py1b`, `py1br`, and `py1e` \

@@ -108,13 +108,23 @@ def time_to_bytes(time: float, bandwidth: int) -> int:
     return int(time * bandwidth)
 
 def get_rolling_avg_throughput(step_times: NDArray, window: int = 10) -> NDArray:
+    """Get rolling average throughput from step times.
+
+    Args:
+        step_times (NDArray): time per step, as calculated by simulation
+        window (int): window size for rolling average
+
+    Returns:
+        NDArray: rolling average throughput
+    """
     step_times_rolling_avg = np.convolve(step_times, np.ones(window) / window, mode='valid')
     batch_throughput_rolling_avg = 1 / step_times_rolling_avg
     batch_throughput_rolling_avg = np.concatenate((np.array([0] * (window-1)), batch_throughput_rolling_avg))
 
     return batch_throughput_rolling_avg
 
-def get_simulation_stats(step_times, time_per_sample, device_batch_size):
+def get_simulation_stats(step_times: NDArray, time_per_sample: float,
+                         device_batch_size: int) -> tuple[int, float, int, int]:
     """Gets simulation stats for web UI.
 
     Args:
@@ -123,7 +133,8 @@ def get_simulation_stats(step_times, time_per_sample, device_batch_size):
         device_batch_size (int): batch size per device
 
     Returns:
-        Tuple[float, float, float]: percent of download-limited steps, warmup time
+        tuple[int, float, int, int]: number of steps with throughput drops, time till warmup,
+            step number of warmup, number of steps with throughput drops after warmup
     """
     
     # calculate percent of download-limited steps

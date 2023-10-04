@@ -6,11 +6,8 @@
 from collections import OrderedDict
 from typing import Any
 
-# custom ordered dictionary with setitem method to move items to the end of the dictionary if they are accessed
-
-
 class LastUsedOrderedSet(OrderedDict):
-    """An ordered set that can be used as an LRU cache.
+    """An ordered dict that can be used as an LRU cache.
 
     This is a subclass of OrderedDict, with some LRU-specific functions and all values as ``None``.
     """
@@ -19,8 +16,9 @@ class LastUsedOrderedSet(OrderedDict):
         """Set/add an item.
 
         Args:
-            key (Any): add a key.
-            move_to_end (bool, optional): whether to move the item to the end, signifying most recent access. Defaults to ``True``.
+            key (Any): key to be added.
+            move_to_end (bool, optional): whether to move the item to the end, signifying most
+                recent access. Defaults to ``True``.
         """
         super().__setitem__(key, None)
         self.move_to_end(key, last=move_to_end)

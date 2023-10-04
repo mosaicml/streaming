@@ -8,23 +8,26 @@ import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from omegaconf import ListConfig
+from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
+from omegaconf import SCMode
 from core.simulation_dataset import SimulationDataset
 from typing import Optional
 from core.sim_time import Time, TimeUnit, ensure_time
 from streaming.base import Stream
 
 
-def ingest_yaml(yaml_dict: Optional[dict] = None, filepath: Optional[str] = None) -> tuple[Optional[int], int, Time, int, dict]:
+def ingest_yaml(yaml_dict: Optional[dict] = None, filepath: Optional[str] = None
+                ) -> tuple[Optional[int], int, Time, int, dict]:
     """Create SimulationDataset from yaml file and other needed args.
 
     Args:
-        yaml_dict (Optional[dict]): yaml file, read in as a dictionary
+        yaml_dict (Optional[dict]): yaml file already converted to a dictionary
         filepath (Optional[str]): path to yaml file
 
     Returns:
-        tuple[Optional[int], int, Time, int, dict]: total_devices, workers, max_duration, global_batch_size, train_dataset from yaml
+        tuple[Optional[int], int, Time, int, dict]: total_devices, workers, max_duration, 
+            global_batch_size, train_dataset parameters from yaml
     """
     config = None
     # Read in the yaml file
@@ -97,31 +100,40 @@ def ingest_yaml(yaml_dict: Optional[dict] = None, filepath: Optional[str] = None
     if time_unit != TimeUnit.EPOCH and time_unit != TimeUnit.BATCH:
         raise ValueError("Simulator currently only supports max_duration in epochs or batches.")
     
+    # convert train_dataset to dictionary from potentially a DictConfig
+    if isinstance(train_dataset, DictConfig):
+        train_dataset = om.to_container(train_dataset,
+                                        resolve=False,
+                                        throw_on_missing=True,
+                                        structured_config_mode=SCMode.INSTANTIATE)
+    
     return total_devices, workers, max_duration, global_batch_size, train_dataset
 
-def create_simulation_dataset(nodes, devices, workers, global_batch_size, train_dataset) -> SimulationDataset:
-    """Create SimulationDataset from yaml file and other needed args.
+def create_simulation_dataset(nodes: int, devices: int, workers: int, global_batch_size: int,
+                              train_dataset: dict) -> SimulationDataset:
+    """Create SimulationDataset from input information.
 
     Args:
         nodes (int): number of physical nodes
         devices (int): number of devices per node
         workers (int): number of workers per device
         global_batch_size (int): global batch size (samples)
-        train_dataset (DictConfig): train_dataset parameters from yaml file
-        indices_created (bool): whether new indices for streams have already been created
+        train_dataset (dict): train_dataset parameters from yaml file
 
     Returns:
-        SimulationDataset: simulation dataset
+        SimulationDataset: SimulationDataset created from input information.
     """
     streams = None
     # Check for cases where local and remote may be lists and turn those into streams.
     if 'local' in train_dataset and 'remote' in train_dataset:
-        if isinstance(train_dataset['local'], ListConfig) and isinstance(train_dataset['remote'], ListConfig):
+        if isinstance(train_dataset['local'], list) \
+            and isinstance(train_dataset['remote'], list):
             if len(train_dataset['local']) != len(train_dataset['remote']):
                 raise ValueError("local and remote must be the same length in the yaml file.")
             streams = []
             for local, remote in zip(train_dataset['local'], train_dataset['remote']):
-                streams.append(Stream(local=local, remote=remote, split=train_dataset['split'] if 'split' in train_dataset else None))
+                streams.append(Stream(local=local, remote=remote, split=train_dataset['split'] \
+                                      if 'split' in train_dataset else None))
             del train_dataset['local']
             del train_dataset['remote']
 

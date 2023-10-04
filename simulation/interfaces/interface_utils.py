@@ -10,9 +10,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 import numpy as np
 from numpy.typing import NDArray
-from omegaconf import DictConfig
-from omegaconf import OmegaConf as om
-from omegaconf import SCMode
 from typing import Optional
 from core.utils import get_rolling_avg_throughput
 from streaming.base.util import number_abbrev_to_int
@@ -70,7 +67,8 @@ def plot_simulation(step_times: NDArray,
 
     plt.show()
 
-def get_train_dataset_params(input_params: dict, create_indices: bool = False, old_params: Optional[DictConfig] = None) -> DictConfig:
+def get_train_dataset_params(input_params: dict, create_indices: bool = False, 
+                             old_params: Optional[dict] = None) -> dict:
     train_dataset_params = {}
     train_dataset_params["epoch_size"] = input_params["epoch_size"]
     train_dataset_params["batch_size"] = input_params["device_batch_size"]
@@ -94,11 +92,6 @@ def get_train_dataset_params(input_params: dict, create_indices: bool = False, o
     # If there were old params, fill them in.
     if old_params is not None:
         existing_params_set = set(train_dataset_params.keys())
-
-        old_params = om.to_container(old_params,
-                                     resolve=False,
-                                     throw_on_missing=True,
-                                     structured_config_mode=SCMode.INSTANTIATE)
         old_params_set = set(old_params.keys())
         # Keep params that were set in yaml but not accessible by the user in the UI.
         # This includes the old_params "local"/"remote" or "streams".
@@ -108,4 +101,4 @@ def get_train_dataset_params(input_params: dict, create_indices: bool = False, o
         # If there are no old params, we need to set streams to what the user provided.
         train_dataset_params["streams"] = input_params["streams"]
     
-    return om.create(train_dataset_params)
+    return train_dataset_params

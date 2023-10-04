@@ -13,21 +13,21 @@ from core.utils import remove_padded_samples
 from numpy.typing import NDArray
 from sortedcollections import OrderedSet
 from streaming.base.spanner import Spanner
-from typing import Optional, Tuple
+from typing import Optional
+import numpy as np
 
 class NodeTracker():
 
-    def __init__(self, workers: int, devices: int, predownload: int,
-                 device_batch_size: int, cache_limit: Optional[int] = None):
+    def __init__(self, workers: int, devices: int, predownload: int, device_batch_size: int,
+                 total_shards: int, cache_limit: Optional[int] = None):
         """Tracker for node information during simulation.
 
         Args:
-            node_id (int): The node ID.
             workers (int): The number of workers.
             devices (int): The number of devices.
             predownload (int): The number of samples to predownload.
             device_batch_size (int): The device batch size.
-            sample_to_shard (Spanner): The mapping from samples to shards.
+            total_shards (int): Total number of shards in the dataset.
             cache_limit (Optional[int]): The cache limit for the node. Defaults to None.
         """
         self.shards = LastUsedOrderedSet()
@@ -42,12 +42,18 @@ class NodeTracker():
         self.predownload = predownload
         self.cache_limit = cache_limit
         self.worker_downloads = []
+        self.shard_access_starts = np.full(total_shards, -1)
+        self.shard_access_ends = np.full(total_shards, -1)
 
         # Use the set_epoch_samples method every epoch to set the node's samples.
         self.samples = None
     
     def initialize_worker_downloads(self, sample_to_shard: Spanner):
-        """Initialize the worker downloads."""
+        """Initialize worker downloads, making shards in the predownload sample range available.
+        
+        Args:
+            sample_to_shard (Spanner): The mapping from samples to shards.
+        """
         # For downloads, we round-robin over devices first, then workers.
         if self.samples is None:
             raise ValueError("Must set samples before initializing worker downloads.")
@@ -61,14 +67,11 @@ class NodeTracker():
                                                     for sample in download_samples])
                     self.worker_downloads.append(download_shards)
 
-    def set_shards_used(self, shards: set,
-                        shard_access_ends: NDArray,
-                        step_num: int):
-        """Set a set of shards as used.
+    def set_shards_used(self, shards: set, step_num: int):
+        """Mark a set of shards as recently used.
 
         Args:
             shards (set): The shards to set as used.
-            shard_access_ends (NDArray): The shard access end steps.
             step_num (int): The current step number.
         """
         for shard in shards:
@@ -77,7 +80,7 @@ class NodeTracker():
             # at least the next step begins. Adding 0.5 ensures that we evict shards
             # after they are used for the last time, but before they are replaced by 
             # new downloads in the next step.
-            shard_access_ends[shard] = step_num + 0.5
+            self.shard_access_ends[shard] = step_num + 0.5
     
     def add_shard(self, shard: int, used: bool = True):
         """Add a shard to the node.
@@ -109,6 +112,7 @@ class NodeTracker():
             incoming_shard_size (int): The size of the incoming shard.
             raw_shard_sizes (NDArray): The raw shard sizes.
         """
+        # We evict shards until the incoming shard fits into the node's cache.
         while self.cache_usage + incoming_shard_size > self.cache_limit:
             evicted_shard = self.evict_shard()
             self.cache_usage -= raw_shard_sizes[evicted_shard]
@@ -132,15 +136,17 @@ class NodeTracker():
             OrderedSet: The shard downloads, in order, for this worker.
         """
         if index is not None:
+            # Directly access worker_downloads through an index.
             return self.worker_downloads[index]
         elif worker is not None and device is not None:
+            # Access worker_downloads through worker and device indices.
             return self.worker_downloads[worker * self.devices + device]
         else:
             raise ValueError("Must specify either index, or worker and device.")
     
     def get_current_batch_shards(self, worker: int, 
                                  worker_sample_index: int,
-                                 sample_to_shard: Spanner) -> Tuple[set, set]:
+                                 sample_to_shard: Spanner) -> tuple[set, set]:
         """Get this node's shards for the current batch.
 
         Args:
@@ -148,9 +154,9 @@ class NodeTracker():
             worker_sample_index (int): The worker sample index.
             sample_to_shard (Spanner): The mapping from samples to shards.
         Returns:
-            Tuple[set, set]: shard ids needed by node, shard ids present in node.
+            tuple[set, set]: shard ids needed by node, shard ids present in node.
         """
-        batch_samples = remove_padded_samples(self.samples[:, worker, 
+        batch_samples = remove_padded_samples(self.samples[:, worker,
                                      worker_sample_index:
                                      worker_sample_index + self.device_batch_size].flatten())
         batch_shards = set([sample_to_shard[sample] for sample in batch_samples])
@@ -181,7 +187,7 @@ class NodeTracker():
     def update_worker_predownloads(self, worker: int,
                                        worker_sample_index: int,
                                        sample_to_shard: Spanner):
-        """Get the worker predownload samples for a worker and device.
+        """Update the worker predownload samples for a worker and device.
 
         Args:
             worker (int): The current batch worker index.
@@ -189,6 +195,7 @@ class NodeTracker():
             sample_to_shard (Spanner): The mapping from samples to shards.
         """
         for device in range(self.devices):
+            # Retrieve new samples that are now within predownload range of the worker.
             new_download_samples = remove_padded_samples(self.samples[device, worker,
                                                 worker_sample_index + self.predownload:
                                                 worker_sample_index + self.device_batch_size + 
@@ -200,7 +207,7 @@ class NodeTracker():
             
             worker_downloads = self.get_worker_download(worker=worker, device=device)
 
-            # Add in new shards to the worker's shard downloads only if the node does not yet have it.
+            # Add in new shards to the worker's shard downloads only if node does not yet have it.
             for shard in new_download_shards:
                 if shard not in self.shards:
                     worker_downloads.add(shard)

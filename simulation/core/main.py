@@ -13,7 +13,7 @@ import numpy as np
 from numpy.typing import NDArray
 from core.shard_downloads import simulate_shard_downloads, run_cache_limit
 from core.sim_time import Time
-from typing import Tuple, Union
+from typing import Union
 import time
 
 from core.simulation_dataset import SimulationDataset
@@ -25,23 +25,28 @@ def simulate(dataset: SimulationDataset,
              node_network_bandwidth: Union[float,str],
              generator: bool = False,
              max_duration: Time = None
-             ) -> Union[Tuple[int, float, int], 
-                        Tuple[NDArray, NDArray, float, int], 
-                        Tuple[float, int]]:
+             ) -> Union[tuple[int, float, int],  
+                        tuple[float, int],
+                        tuple[NDArray, NDArray, float, int]]:
     """Simulates step time and downloads using streaming for the specified input parameters.
 
-    Key Notes and Assumptions:
+    At each training step, the simulation does the following:
+       * gets the shards containing the current batch's samples.
+       * for each node, downloads shards if they are not present (round-robin through workers).
+       * predownloads more shards during model process time plus extra time from previous step.
+       * tracks the time the the step took as well as downloaded bytes.
 
-       * assume that batch time is solely made up of two things: batch processing time and batch
-         shard download wait time
-       * loop through workers round-robin style for batches and for downloads
-       * assume each node has a separate network bandwidth
+    Key Notes and Assumptions:
+       * assume that batch time is solely made up of two things: batch shard download wait time 
+         and batch processing time
+       * loop through workers in a node round-robin style for batches and for downloads
+       * assume each node has a separate, uniform network bandwidth
        * the batch has to wait until all nodes have downloaded the shards containing batch samples.
        * for shard eviction itself, use LRU shard eviction to take out the least recently used
          shard, per node.
        * shards are shared across devices on a single node, but nodes do not share shards between
          each other.
-       * if a shard is unavailable, we wait for some worker to download it.
+       * if a shard is unavailable, we download shards round-robin until we have it.
        * if a shard is available in a node, we just use it.
 
     Args:
@@ -52,8 +57,11 @@ def simulate(dataset: SimulationDataset,
         max_duration (Time, optional): max duration of simulation. Defaults to ``None``.
 
     Returns:
-        Union[Tuple[int, int], Tuple[NDArray, NDArray], np.float64]: either a Tuple of step_time,
-            shard_download, or a Tuple all step_times, shard_downloads or the startup time.
+        Union[tuple[int, float, int],
+              tuple[NDArray, NDArray, float, int],
+              tuple[float, int]]: either a tuple of step number, step time, and downloaded bytes,
+              a tuple of startup time and min needed cache limit, (both when generator=True), or a
+              tuple of all step times, downloaded bytes, startup_time, and min needed cache limit.  
     """
 
     # tracking startup time, which includes SimulationDataset instantiation time.
@@ -76,15 +84,12 @@ def simulate(dataset: SimulationDataset,
     # dataset's spanner object maps global sample id to shard id.
     sample_to_shard = dataset.get_spanner()
 
-    # track shard access ranges to compute minimum needed cache limit for the run.
-    shard_access_starts = np.full(total_shards, -1)
-    shard_access_ends = np.full(total_shards, -1)
-
     # Initialize NodeTracker objects for each node. These keep track of shards, worker downloads,
-    # cache usage, etc. for each node.
+    # cache usage, shard usage ranges, etc. for each node.
     nodes = []
     for _ in range(physical_nodes):
-        nodes.append(NodeTracker(workers, devices, predownload, device_batch_size, cache_limit))
+        nodes.append(NodeTracker(workers, devices, predownload, device_batch_size,
+                                 total_shards, cache_limit))
     
     # Time for the global batch is just device batch size * time per sample.
     # We assume all devices process their microbatch perfectly in parallel.
@@ -144,7 +149,7 @@ def simulate(dataset: SimulationDataset,
                                                                               worker_sample_index, 
                                                                               sample_to_shard)
                 # Mark all shards present as accessed most recently in this node.
-                node.set_shards_used(shards_present, shard_access_ends, step_num)
+                node.set_shards_used(shards_present, step_num)
                 # Push the predownload for the current batch workers ahead by device_batch_size.
                 node.update_worker_predownloads(curr_worker, worker_sample_index, sample_to_shard)
                 # Track bytes downloaded by this node.
@@ -158,8 +163,6 @@ def simulate(dataset: SimulationDataset,
                                                  raw_shard_sizes, 
                                                  zip_shard_sizes, 
                                                  current_batch_downloads=True,
-                                                 shard_access_starts=shard_access_starts,
-                                                 shard_access_ends=shard_access_ends,
                                                  step_num=step_num,
                                                  cache_limit=cache_limit,
                                                  shards_needed=shards_needed)
@@ -202,8 +205,6 @@ def simulate(dataset: SimulationDataset,
                                                  raw_shard_sizes, 
                                                  zip_shard_sizes, 
                                                  current_batch_downloads=False,
-                                                 shard_access_starts=shard_access_starts,
-                                                 shard_access_ends=shard_access_ends,
                                                  step_num=step_num,
                                                  cache_limit=cache_limit,
                                                  download_bytes_left=download_bytes_left)
@@ -230,9 +231,8 @@ def simulate(dataset: SimulationDataset,
             if curr_worker == workers - 1:
                 worker_sample_index += device_batch_size
     
-    # Simulation is finished. Calculate needed cache limit from shard access ranges.
-    min_cache_limit = run_cache_limit(shard_access_starts, shard_access_ends,
-                                      raw_shard_sizes, nodes)
+    # Simulation is finished. Calculate needed cache limit.
+    min_cache_limit = run_cache_limit(nodes, raw_shard_sizes)
 
     # Yield results.
     if not generator:

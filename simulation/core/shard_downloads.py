@@ -10,18 +10,33 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from core.node_tracker import NodeTracker
 from numpy.typing import NDArray
-from typing import Optional, Tuple
+from typing import Optional
 
 def simulate_shard_downloads(node: NodeTracker,
                              raw_shard_sizes: NDArray,
                              zip_shard_sizes: NDArray,
                              current_batch_downloads: bool,
-                             shard_access_starts: NDArray,
-                             shard_access_ends: NDArray,
                              step_num: int,
                              cache_limit: Optional[int] = None,
                              shards_needed: Optional[set] = None,
-                             download_bytes_left: Optional[int] = None) -> Tuple[bool, int]:
+                             download_bytes_left: Optional[int] = None) -> tuple[bool, int]:
+    """Simulate downloading a shard for a node.
+
+    Args:
+        node (NodeTracker): The node to simulate downloading a shard for.
+        raw_shard_sizes (NDArray): The raw sizes of all shards.
+        zip_shard_sizes (NDArray): The zip sizes of all shards.
+        current_batch_downloads (bool): Whether we are downloading shards for the current batch.
+        step_num (int): The current step number.
+        cache_limit (Optional[int]): The cache limit for the node. Defaults to ``None``.
+        shards_needed (Optional[set]): The shards needed for the current batch.
+            Defaults to ``None``.
+        download_bytes_left (Optional[int]): The number of download bytes left in the downloading
+            time interval. Defaults to ``None``.
+
+    Returns:
+        tuple[bool, int]: A tuple of the shard download status and the download size.
+    """
     
     worker_download = node.get_next_worker_with_downloads()
     if worker_download is None:
@@ -69,14 +84,15 @@ def simulate_shard_downloads(node: NodeTracker,
         else:
             node.add_shard(download_shard)
 
-        if shard_access_starts[download_shard] == -1:
+
+        if node.shard_access_starts[download_shard] == -1:
             # Shard has never been accessed before. Set its access start.
-            shard_access_starts[download_shard] = step_num
+            node.shard_access_starts[download_shard] = step_num
         # For any shard access, we are accessing the shard so we need the shard until
         # at least the next step begins. Adding 0.5 ensures that we evict shards
         # after they are used for the last time, but before they are replaced by 
         # new downloads in the next step.
-        shard_access_ends[download_shard] = step_num + 0.5
+        node.shard_access_ends[download_shard] = step_num + 0.5
         
         # Advance the worker download index.
         node.increment_worker_download_index()
@@ -97,11 +113,16 @@ def simulate_shard_downloads(node: NodeTracker,
         worker_download.pop()
         return ("present", 0)
     
-def run_cache_limit(shard_access_starts: NDArray, 
-                       shard_access_ends: NDArray,
-                       raw_shard_sizes: NDArray,
-                       nodes: list[NodeTracker]) -> int:
+def run_cache_limit(nodes: list[NodeTracker], raw_shard_sizes: NDArray) -> int:
+    """Find the minimum needed cache limit across all nodes for this run.
 
+    Args:
+        nodes (list[NodeTracker]): The nodes, which contain shard use information.
+        raw_shard_sizes (NDArray): The raw sizes of all shards.
+
+    Returns:
+        int: The minimum needed cache limit, in bytes, for the run.
+    """
     # Find the overall needed cache usage, as the max needed for any node at any point.
     needed_cache_usage = 0
     for node in nodes:
@@ -110,8 +131,8 @@ def run_cache_limit(shard_access_starts: NDArray,
         # Event types: 0 means a shard has been accessed, 1 means a shard has ended access.
         node_shards = node.get_all_shards()
         access_events = []
-        access_events += [(shard_access_starts[i], i, 0) for i in node_shards]
-        access_events += [(shard_access_ends[i], i, 1) for i in node_shards]
+        access_events += [(node.shard_access_starts[i], i, 0) for i in node_shards]
+        access_events += [(node.shard_access_ends[i], i, 1) for i in node_shards]
 
         # Sort the access events to get shard events, in order.
         access_events.sort(key=lambda x: x[0])

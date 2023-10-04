@@ -14,7 +14,15 @@ from streaming.base.shuffle import get_shuffle
 from numpy.typing import NDArray
 from core.utils import remove_padded_samples
 
-def get_entropy(ordering):
+def get_entropy(ordering: NDArray) -> float:
+    """Calculate the entropy of an ordering, which is initially assumed to be in ascending order.
+
+    Args:
+        ordering (NDArray): The ordering to calculate the entropy of.
+    
+    Returns:
+        float: The entropy of the ordering.
+    """
     # get differences between elements
     diffs = np.diff(ordering)
     # diffs = np.insert(diffs, ordering.shape[0]-1, ordering[0]-ordering[-1])
@@ -43,7 +51,7 @@ def get_partition_shard_info(epoch_size: int,
                              workers: int,
                              device_batch_size: int,
                              samples_per_shard: int) -> tuple[NDArray, NDArray, NDArray]:
-    """Get a partition for a shuffle.
+    """Partition up to 100 million samples and get associated shard information.
 
     Args:
         epoch_size (int): The number of samples in an epoch.
@@ -61,7 +69,7 @@ def get_partition_shard_info(epoch_size: int,
 
     num_samples = epoch_size
     if num_samples > 100000000:
-        print("Epoch size is >100 million. Using 100 million samples for shuffle quality analysis.")
+        print("Epoch size is >100 million. Using 100 million samples to analyze shuffle quality.")
         num_samples = 100000000
 
     partition = get_partitions_orig(num_samples, canonical_nodes, physical_nodes,
@@ -90,7 +98,7 @@ def get_entropy_shuffle_quality(shuffle_algo: str,
                      canonical_nodes: int,
                      seed: int,
                      shuffle_block_size: int) -> float:
-    """Evaluate the entropy of a shuffle algorithm.
+    """Get the entropy of a shuffle, assuming samples and shards were initially in ascending order.
 
     Args:
         shuffle_algo (str): The shuffle algorithm to use.
@@ -102,7 +110,7 @@ def get_entropy_shuffle_quality(shuffle_algo: str,
         shuffle_block_size (int): The shuffle block size.
     
     Returns:
-        float: The entropy of the shuffle for the first NCN*SBS samples.
+        float: The entropy of the shuffle, combining entropy from sample and shard orderings.
     """
 
     if shuffle_algo != 'none':
@@ -123,7 +131,7 @@ def analyze_all_shuffle_quality(algos: list[str],
                             shuffle_block_size: int,
                             samples_per_shard: int,
                             epoch_size: int,
-                            seed: int):
+                            seed: int) -> list[tuple[str, float]]:
     """Analyze the quality of this shuffle across algorithms.
 
     Args:
@@ -168,7 +176,7 @@ def analyze_shuffle_quality(algo: str,
                             shuffle_block_size: int,
                             samples_per_shard: int,
                             epoch_size: int,
-                            seed: int):
+                            seed: int) -> tuple[str, float]:
     """Analyze the quality of a shuffle for one algorithm.
 
     Args:

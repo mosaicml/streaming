@@ -30,10 +30,17 @@ class SimulationWorld(World):
                  nodes: int,
                  devices: int,
                  workers: int):
+        """Contains info about the nodes, ranks, and workers of the run, for simulation.
+
+        Args:
+            nodes (int): The number of nodes.
+            devices (int): The number of devices per node.
+            workers (int): The number of workers per device.
+        """
         
         # For simulation purposes, we take in the nodes, devices, and workers from the
         # SimulationDataset, and assume we are always rank 0 and worker 0.
-
+        
         self.rank = 0
         self.num_ranks = nodes*devices
         self.ranks_per_node = devices
