@@ -214,16 +214,16 @@ def get_import_exception_message(package_name: str, extra_deps: str) -> str:
             f'To use {package_name} related packages with Streaming, run ' + \
             f'`pip install \'mosaicml-streaming[{package_name}]\'`.'
 
-def auto_merge_index(*args, **kwargs):
+
+def auto_merge_index(*args, **kwargs):  # pyright: ignore
     if isinstance(args[0], list):
         return merge_index_from_list(*args, **kwargs)
-    elif len(args) + len(kwargs) in [2,3,4]:
+    elif len(args) + len(kwargs) in [2, 3, 4]:
         return merge_index_from_root(*args, **kwargs)
-    raise ValueError(f"Invalid arguments to merge_index: {args}, {kwargs}")
+    raise ValueError(f'Invalid arguments to merge_index: {args}, {kwargs}')
 
-def merge_index_from_root(out: Union[str,
-                          Tuple[str, str]],
-                          keep_local: bool = True) -> None:
+
+def merge_index_from_root(out: Union[str, Tuple[str, str]], keep_local: bool = True) -> None:
     """Merge index.json given the root of MDS dataset. Write merged index to the root folder.
 
     Args:
@@ -263,14 +263,14 @@ def merge_index_from_root(out: Union[str,
                 remote_index_files.append(obj.scheme + '://' + os.path.join(obj.netloc, o))
         if len(local_index_files) == len(remote_index_files):
             merge_index_from_list(list(zip(local_index_files, remote_index_files)),
-                        out,
-                        keep_local=keep_local,
-                        download_timeout=60)
+                                  out,
+                                  keep_local=keep_local,
+                                  download_timeout=60)
         else:
             merge_index_from_list(remote_index_files,
-                        out,
-                        keep_local=keep_local,
-                        download_timeout=60)
+                                  out,
+                                  keep_local=keep_local,
+                                  download_timeout=60)
         return
 
     merge_index_from_list(local_index_files, out, keep_local=keep_local, download_timeout=60)

@@ -16,8 +16,8 @@ from streaming.base.constant import RESUME
 from streaming.base.shared.prefix import _get_path
 from streaming.base.storage.download import download_file
 from streaming.base.storage.upload import CloudUploader
-from streaming.base.util import (bytes_to_int, clean_stale_shared_memory, get_list_arg,
-                                 auto_merge_index, number_abbrev_to_int, retry)
+from streaming.base.util import (auto_merge_index, bytes_to_int, clean_stale_shared_memory,
+                                 get_list_arg, number_abbrev_to_int, retry)
 
 MY_PREFIX = 'train_' + str(time.time())
 MY_BUCKET = {
@@ -34,7 +34,8 @@ os.environ[
 def manual_integration_dir() -> Any:
     """Creates a temporary directory and then deletes it when the calling function is done."""
     if MANUAL_INTEGRATION_TEST:
-        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/Users/xiaohan.zhang/.mosaic/mosaicml-research-nonprod-027345ddbdfd.json' #  'path/to/gooogle_api_credential.json'
+        os.environ[
+            'GOOGLE_APPLICATION_CREDENTIALS'] = '/Users/xiaohan.zhang/.mosaic/mosaicml-research-nonprod-027345ddbdfd.json'  #  'path/to/gooogle_api_credential.json'
         os.environ.pop('AWS_ACCESS_KEY_ID', None)
         os.environ.pop('AWS_SECRET_ACCESS_KEY', None)
         os.environ.pop('AWS_SECURITY_TOKEN', None)
@@ -80,7 +81,7 @@ def manual_integration_dir() -> Any:
                 response = client.list_objects(
                     namespace_name=client.get_namespace().data,
                     bucket_name=MY_BUCKET['oci://'],
-                    fields=["name"],
+                    fields=['name'],
                     prefix=MY_PREFIX,
                 )
 
@@ -91,7 +92,7 @@ def manual_integration_dir() -> Any:
                         bucket_name=MY_BUCKET['oci://'],
                         object_name=obj.name,
                     )
-                print(f"Deleted {len(response.data.objects)} objects with prefix: {MY_PREFIX}")
+                print(f'Deleted {len(response.data.objects)} objects with prefix: {MY_PREFIX}')
 
             except ImportError:
                 raise ImportError('boto3 is not imported correctly.')
@@ -361,7 +362,7 @@ def test_merge_index_from_list(manual_integration_dir: Any, keep_local: bool,
 @pytest.mark.parametrize('n_partitions', [1, 2, 3, 4])
 @pytest.mark.parametrize('keep_local', [False, True])
 def test_merge_index_from_root(manual_integration_dir: Any, out_format: str, n_partitions: int,
-                     keep_local: bool, scheme: str):
+                               keep_local: bool, scheme: str):
     from decimal import Decimal
 
     from pyspark.sql import SparkSession
