@@ -70,6 +70,28 @@ def manual_integration_dir() -> Any:
             except ImportError:
                 raise ImportError('boto3 is not imported correctly.')
 
+            try:
+                import oci
+                client = oci.object_storage.ObjectStorageClient(oci.config.from_file())
+                response = client.list_objects(
+                    namespace_name=client.get_namespace().data,
+                    bucket_name=MY_BUCKET['oci://'],
+                    fields=["name"],
+                    prefix=MY_PREFIX,
+                )
+
+                # Delete the objects
+                for obj in response.data.objects:
+                    client.delete_object(
+                        namespace_name=client.get_namespace().data,
+                        bucket_name=bucket_name,
+                        object_name=obj.name,
+                    )
+                print(f"Deleted {len(response.data.objects)} objects with prefix: {MY_PREFIX}")
+
+            except ImportError:
+                raise ImportError('boto3 is not imported correctly.')
+
 
 class TestDataFrameToMDS:
 

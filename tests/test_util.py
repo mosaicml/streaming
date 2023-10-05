@@ -74,35 +74,28 @@ def manual_integration_dir() -> Any:
             except ImportError:
                 raise ImportError('boto3 is not imported correctly.')
 
-
             try:
                 import oci
-                config = oci.config.from_file()
-                client = oci.object_storage.ObjectStorageClient(config)
-                bucket_name = MY_BUCKET['oci://']
-                prefix_to_delete = MY_PREFIX
-                # List objects with the specified prefix
+                client = oci.object_storage.ObjectStorageClient(oci.config.from_file())
                 response = client.list_objects(
                     namespace_name=client.get_namespace().data,
-                    bucket_name=bucket_name,
+                    bucket_name=MY_BUCKET['oci://'],
                     fields=["name"],
-                    prefix=prefix_to_delete,
+                    prefix=MY_PREFIX,
                 )
 
                 # Delete the objects
                 for obj in response.data.objects:
-                    object_name = obj.name
                     client.delete_object(
                         namespace_name=client.get_namespace().data,
-                        bucket_name=bucket_name,
-                        object_name=object_name,
+                        bucket_name=MY_BUCKET['oci://'],
+                        object_name=obj.name,
                     )
-                    print(f"Deleted: {object_name}")
-
-                print(f"Deleted {len(response.data.objects)} objects with prefix: {prefix_to_delete}")
+                print(f"Deleted {len(response.data.objects)} objects with prefix: {MY_PREFIX}")
 
             except ImportError:
                 raise ImportError('boto3 is not imported correctly.')
+
 
 @pytest.mark.parametrize(('text', 'expected_output'), [('hello,world', ['hello', 'world']),
                                                        ('hello', ['hello']), ('', [])])
