@@ -17,14 +17,15 @@ from streaming.base.shared.prefix import _get_path
 from streaming.base.storage.download import download_file
 from streaming.base.storage.upload import CloudUploader
 from streaming.base.util import (bytes_to_int, clean_stale_shared_memory, get_list_arg,
-                                 merge_index, merge_index_from_list, number_abbrev_to_int, retry)
+                                 auto_merge_index, number_abbrev_to_int, retry)
 
 MY_PREFIX = 'train_' + str(time.time())
 MY_BUCKET = {
     'gs://': 'mosaicml-composer-tests',
-    's3://': 'mosaicml-internal-temporary-composer-testing'
+    's3://': 'mosaicml-internal-temporary-composer-testing',
+    'oci://': 'mosaicml-internal-checkpoints',
 }
-MANUAL_INTEGRATION_TEST = False
+MANUAL_INTEGRATION_TEST = True
 os.environ[
     'OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'  # set to yes to all fork process in spark calls
 
@@ -33,7 +34,7 @@ os.environ[
 def manual_integration_dir() -> Any:
     """Creates a temporary directory and then deletes it when the calling function is done."""
     if MANUAL_INTEGRATION_TEST:
-        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'path/to/gooogle_api_credential.json'
+        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/Users/xiaohan.zhang/.mosaic/mosaicml-research-nonprod-027345ddbdfd.json' #  'path/to/gooogle_api_credential.json'
         os.environ.pop('AWS_ACCESS_KEY_ID', None)
         os.environ.pop('AWS_SECRET_ACCESS_KEY', None)
         os.environ.pop('AWS_SECURITY_TOKEN', None)
@@ -73,6 +74,35 @@ def manual_integration_dir() -> Any:
             except ImportError:
                 raise ImportError('boto3 is not imported correctly.')
 
+
+            try:
+                import oci
+                config = oci.config.from_file()
+                client = oci.object_storage.ObjectStorageClient(config)
+                bucket_name = MY_BUCKET['oci://']
+                prefix_to_delete = MY_PREFIX
+                # List objects with the specified prefix
+                response = client.list_objects(
+                    namespace_name=client.get_namespace().data,
+                    bucket_name=bucket_name,
+                    fields=["name"],
+                    prefix=prefix_to_delete,
+                )
+
+                # Delete the objects
+                for obj in response.data.objects:
+                    object_name = obj.name
+                    client.delete_object(
+                        namespace_name=client.get_namespace().data,
+                        bucket_name=bucket_name,
+                        object_name=object_name,
+                    )
+                    print(f"Deleted: {object_name}")
+
+                print(f"Deleted {len(response.data.objects)} objects with prefix: {prefix_to_delete}")
+
+            except ImportError:
+                raise ImportError('boto3 is not imported correctly.')
 
 @pytest.mark.parametrize(('text', 'expected_output'), [('hello,world', ['hello', 'world']),
                                                        ('hello', ['hello']), ('', [])])
@@ -216,7 +246,7 @@ def integrity_check(out: Union[str, Tuple[str, str]],
         assert n_shard_files == expected_n_shard_files, f'expected {expected_n_shard_files} shard files but got {n_shard_files}'
 
 
-@pytest.mark.parametrize('scheme', ['gs://', 's3://'])
+@pytest.mark.parametrize('scheme', ['oci://', 'gs://', 's3://'])
 @pytest.mark.parametrize('index_file_urls_pattern', [1, 2, 3, 4, 5])
 @pytest.mark.parametrize('out_format', ['remote', 'local', 'tuple'])
 @pytest.mark.usefixtures('manual_integration_dir')
@@ -274,15 +304,15 @@ def test_merge_index_from_list(manual_integration_dir: Any, keep_local: bool,
     ]
 
     if index_file_urls_pattern == 1:
-        merge_index_from_list(local_index_files, out, keep_local=keep_local)
+        auto_merge_index(local_index_files, out, keep_local=keep_local)
 
     if index_file_urls_pattern == 2:
         with tempfile.TemporaryDirectory() as a_temporary_folder:
             index_file_urls = [
                 os.path.join(a_temporary_folder, os.path.basename(s)) for s in local_index_files
             ]
-            with pytest.raises(FileNotFoundError, match=f'.* does not exist or not accessible.*'):
-                merge_index_from_list(index_file_urls, out, keep_local=keep_local)
+            with pytest.raises(RuntimeError, match=f'.*Failed to download index.json.*'):
+                auto_merge_index(index_file_urls, out, keep_local=keep_local)
             return
 
     if index_file_urls_pattern == 3:
@@ -292,7 +322,7 @@ def test_merge_index_from_list(manual_integration_dir: Any, keep_local: bool,
             if o.endswith('.json') and not_merged_index(o, local)
         ]
         index_file_urls = list(zip(local_index_files, remote_index_files))
-        merge_index_from_list(index_file_urls, out, keep_local=keep_local)
+        auto_merge_index(index_file_urls, out, keep_local=keep_local)
 
     if index_file_urls_pattern == 4:
         if out_format == 'local':
@@ -313,7 +343,7 @@ def test_merge_index_from_list(manual_integration_dir: Any, keep_local: bool,
                 os.path.join(a_temporary_folder, os.path.basename(s)) for s in local_index_files
             ]
             index_file_urls = list(zip(non_exist_local_files, remote_index_files))
-            merge_index_from_list(index_file_urls, out, keep_local=keep_local)
+            auto_merge_index(index_file_urls, out, keep_local=keep_local)
 
     if index_file_urls_pattern == 5:
         if out_format == 'local':
@@ -328,16 +358,16 @@ def test_merge_index_from_list(manual_integration_dir: Any, keep_local: bool,
             for o in remote_cu.list_objects()
             if o.endswith('.json') and not_merged_index(o, remote)
         ]
-        merge_index_from_list(remote_index_files, out, keep_local=keep_local)
+        auto_merge_index(remote_index_files, out, keep_local=keep_local)
 
     integrity_check(out, keep_local=keep_local, expected_n_shard_files=2)
 
 
-@pytest.mark.parametrize('scheme', ['gs://', 's3://'])
+@pytest.mark.parametrize('scheme', ['oci://', 'gs://', 's3://'])
 @pytest.mark.parametrize('out_format', ['remote', 'local', 'tuple'])
 @pytest.mark.parametrize('n_partitions', [1, 2, 3, 4])
 @pytest.mark.parametrize('keep_local', [False, True])
-def test_merge_index(manual_integration_dir: Any, out_format: str, n_partitions: int,
+def test_merge_index_from_root(manual_integration_dir: Any, out_format: str, n_partitions: int,
                      keep_local: bool, scheme: str):
     from decimal import Decimal
 
@@ -372,7 +402,7 @@ def test_merge_index(manual_integration_dir: Any, out_format: str, n_partitions:
     mds_kwargs = {'out': out, 'columns': {'id': 'int', 'name': 'str'}, 'keep_local': keep_local}
 
     mds_path, _ = dataframeToMDS(df, merge_index=False, mds_kwargs=mds_kwargs)
-    merge_index(mds_path, keep_local=keep_local)
+    auto_merge_index(mds_path, keep_local=keep_local)
     integrity_check(mds_path, keep_local=keep_local)
 
 

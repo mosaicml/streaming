@@ -214,8 +214,16 @@ def get_import_exception_message(package_name: str, extra_deps: str) -> str:
             f'To use {package_name} related packages with Streaming, run ' + \
             f'`pip install \'mosaicml-streaming[{package_name}]\'`.'
 
+def auto_merge_index(*args, **kwargs):
+    if isinstance(args[0], list):
+        return merge_index_from_list(*args, **kwargs)
+    elif len(args) + len(kwargs) in [2,3,4]:
+        return merge_index_from_root(*args, **kwargs)
+    raise ValueError(f"Invalid arguments to merge_index: {args}, {kwargs}")
 
-def merge_index(out: Union[str, Tuple[str, str]], *, keep_local: bool = True) -> None:
+def merge_index_from_root(out: Union[str,
+                          Tuple[str, str]],
+                          keep_local: bool = True) -> None:
     """Merge index.json given the root of MDS dataset. Write merged index to the root folder.
 
     Args:
@@ -255,14 +263,14 @@ def merge_index(out: Union[str, Tuple[str, str]], *, keep_local: bool = True) ->
                 remote_index_files.append(obj.scheme + '://' + os.path.join(obj.netloc, o))
         if len(local_index_files) == len(remote_index_files):
             merge_index_from_list(list(zip(local_index_files, remote_index_files)),
-                                  out,
-                                  keep_local=keep_local,
-                                  download_timeout=60)
+                        out,
+                        keep_local=keep_local,
+                        download_timeout=60)
         else:
             merge_index_from_list(remote_index_files,
-                                  out,
-                                  keep_local=keep_local,
-                                  download_timeout=60)
+                        out,
+                        keep_local=keep_local,
+                        download_timeout=60)
         return
 
     merge_index_from_list(local_index_files, out, keep_local=keep_local, download_timeout=60)
@@ -309,44 +317,30 @@ def merge_index_from_list(index_file_urls: List[Any],
         else:
             urls.append((url[0].rstrip('/').strip(), url[1].rstrip('/').strip()))
 
-    # Determine if we need to call download_file.
-    download = False
-    for url in urls:
-        if isinstance(url, tuple):
-            # If driver cannot access the local path, download = True
-            download = not os.path.exists(url[0])
-        else:
-            # If url is a remote, download = True, False otherwise
-            download = urllib.parse.urlparse(url).scheme != ''
-
-        # As long as one index file needs download, we download them all to keep it simple
-        if download:
-            break
-
     # Prepare a temp folder to download index.json from remote if necessary. Removed in the end.
     with tempfile.TemporaryDirectory() as temp_root:
         logging.warning(f'Create a temporary folder {temp_root} to store index files')
 
-        # container for absolute local folder path
+        # Copy files to a temporary directory. Download if necessary
         partitions = []
         for url in urls:
             if isinstance(url, tuple):
-                local, remote = url
+                src = url[0] if os.path.exists(url[0]) else url[1]
             else:
-                local = remote = url
+                src = url
 
-            if download:
-                # If download is needed, download url from remote to temp_root
-                path = urllib.parse.urlparse(remote).path
-                local = os.path.join(temp_root, path.lstrip('/'))
-                try:
-                    download_file(remote, local, download_timeout)
-                except Exception as ex:
-                    raise RuntimeError(f'Failed to download index.json: {remote}') from ex
+            path = urllib.parse.urlparse(src).path
+            dest = os.path.join(temp_root, path.lstrip('/'))
 
-            if not (os.path.exists(local)):
-                raise FileNotFoundError(f'Index file {local} does not exist or not accessible.')
-            partitions.append(local)
+            try:
+                download_file(src, dest, download_timeout)
+            except Exception as ex:
+                raise RuntimeError(f'Failed to download index.json: {src} to {dest}') from ex
+
+            if not (os.path.exists(dest)):
+                raise FileNotFoundError(f'Index file {dest} does not exist or not accessible.')
+
+            partitions.append(dest)
 
         # merge index files into shards
         shards = []
