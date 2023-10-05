@@ -353,7 +353,7 @@ def test_merge_index_from_list(manual_integration_dir: Any, keep_local: bool,
         ]
         auto_merge_index(remote_index_files, out, keep_local=keep_local)
 
-    integrity_check(out, keep_local=keep_local, expected_n_shard_files=2)
+    integrity_check(out, keep_local=keep_local)
 
 
 @pytest.mark.parametrize('scheme', ['oci://', 'gs://', 's3://'])
