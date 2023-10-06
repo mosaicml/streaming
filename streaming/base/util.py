@@ -281,7 +281,7 @@ def _merge_index_from_list(index_file_urls: List[Any],
             obj = urllib.parse.urlparse(src)
             scheme, bucket, path = obj.scheme, obj.netloc, obj.path
             if scheme == '' and bucket=='' and path == '':
-                raise FileNotFoundError("Check data availability! url[0] is not accessible. url[1] does not have a valid url format")
+                raise FileNotFoundError(f"Check data availability! local index {url[0]} is not accessible. remote index {url[1]} does not have a valid url format")
             dest = os.path.join(temp_root, path.lstrip('/'))
 
             try:
