@@ -307,6 +307,13 @@ def test_merge_index_from_list(manual_integration_dir: Any, keep_local: bool,
             ]
             with pytest.raises(RuntimeError, match=f'.*Failed to download index.json.*'):
                 merge_index(index_file_urls, out, keep_local=keep_local)
+
+        with tempfile.TemporaryDirectory() as a_temporary_folder:
+            index_file_urls = [
+                (os.path.join(a_temporary_folder, os.path.basename(s)), '') for s in local_index_files
+            ]
+            with pytest.raises(FileNotFoundError, match=f'.*Check data availability!.*'):
+                merge_index(index_file_urls, out, keep_local=keep_local)
             return
 
     if index_file_urls_pattern == 3:
