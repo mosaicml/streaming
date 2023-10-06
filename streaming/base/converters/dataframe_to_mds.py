@@ -11,7 +11,8 @@ from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 import pandas as pd
 
-from streaming.base.util import auto_merge_index, get_import_exception_message
+from streaming.base.util import get_import_exception_message
+from streaming.base.util import merge_index as do_merge_index
 
 try:
     from pyspark import TaskContext
@@ -256,7 +257,7 @@ def dataframeToMDS(dataframe: DataFrame,
 
     if merge_index:
         index_files = [(row['mds_path_local'], row['mds_path_remote']) for row in partitions]
-        auto_merge_index(index_files, out, keep_local=keep_local, download_timeout=60)
+        do_merge_index(index_files, out, keep_local=keep_local, download_timeout=60)
 
     if cu.remote is not None:
         if 'keep_local' in mds_kwargs and mds_kwargs['keep_local'] == False:

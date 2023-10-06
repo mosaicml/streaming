@@ -16,8 +16,8 @@ from streaming.base.constant import RESUME
 from streaming.base.shared.prefix import _get_path
 from streaming.base.storage.download import download_file
 from streaming.base.storage.upload import CloudUploader
-from streaming.base.util import (auto_merge_index, bytes_to_int, clean_stale_shared_memory,
-                                 get_list_arg, number_abbrev_to_int, retry)
+from streaming.base.util import (bytes_to_int, clean_stale_shared_memory, get_list_arg,
+                                 merge_index, number_abbrev_to_int, retry)
 
 MY_PREFIX = 'train_' + str(time.time())
 MY_BUCKET = {
@@ -298,7 +298,7 @@ def test_merge_index_from_list(manual_integration_dir: Any, keep_local: bool,
     ]
 
     if index_file_urls_pattern == 1:
-        auto_merge_index(local_index_files, out, keep_local=keep_local)
+        merge_index(local_index_files, out, keep_local=keep_local)
 
     if index_file_urls_pattern == 2:
         with tempfile.TemporaryDirectory() as a_temporary_folder:
@@ -306,7 +306,7 @@ def test_merge_index_from_list(manual_integration_dir: Any, keep_local: bool,
                 os.path.join(a_temporary_folder, os.path.basename(s)) for s in local_index_files
             ]
             with pytest.raises(RuntimeError, match=f'.*Failed to download index.json.*'):
-                auto_merge_index(index_file_urls, out, keep_local=keep_local)
+                merge_index(index_file_urls, out, keep_local=keep_local)
             return
 
     if index_file_urls_pattern == 3:
@@ -316,7 +316,7 @@ def test_merge_index_from_list(manual_integration_dir: Any, keep_local: bool,
             if o.endswith('.json') and not_merged_index(o, local)
         ]
         index_file_urls = list(zip(local_index_files, remote_index_files))
-        auto_merge_index(index_file_urls, out, keep_local=keep_local)
+        merge_index(index_file_urls, out, keep_local=keep_local)
 
     if index_file_urls_pattern == 4:
         if out_format == 'local':
@@ -337,7 +337,7 @@ def test_merge_index_from_list(manual_integration_dir: Any, keep_local: bool,
                 os.path.join(a_temporary_folder, os.path.basename(s)) for s in local_index_files
             ]
             index_file_urls = list(zip(non_exist_local_files, remote_index_files))
-            auto_merge_index(index_file_urls, out, keep_local=keep_local)
+            merge_index(index_file_urls, out, keep_local=keep_local)
 
     if index_file_urls_pattern == 5:
         if out_format == 'local':
@@ -352,7 +352,7 @@ def test_merge_index_from_list(manual_integration_dir: Any, keep_local: bool,
             for o in remote_cu.list_objects()
             if o.endswith('.json') and not_merged_index(o, remote)
         ]
-        auto_merge_index(remote_index_files, out, keep_local=keep_local)
+        merge_index(remote_index_files, out, keep_local=keep_local)
 
     integrity_check(out, keep_local=keep_local)
 
@@ -396,7 +396,7 @@ def test_merge_index_from_root(manual_integration_dir: Any, out_format: str, n_p
     mds_kwargs = {'out': out, 'columns': {'id': 'int', 'name': 'str'}, 'keep_local': keep_local}
 
     mds_path, _ = dataframeToMDS(df, merge_index=False, mds_kwargs=mds_kwargs)
-    auto_merge_index(mds_path, keep_local=keep_local)
+    merge_index(mds_path, keep_local=keep_local)
     integrity_check(mds_path, keep_local=keep_local)
 
 
