@@ -251,6 +251,7 @@ def _merge_index_from_list(index_file_urls: List[Any],
         logger.warning('Need to specify both index_file_urls and out. No index merged')
         return
 
+    print('index_file_urls = ', index_file_urls)
     # This is the index json file name, e.g., it is index.json as of 0.6.0
     index_basename = get_index_basename()
 
