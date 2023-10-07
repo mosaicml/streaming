@@ -19,9 +19,10 @@ from streaming.base.converters import dataframeToMDS
 MY_PREFIX = 'train'
 MY_BUCKET = {
     'gs://': 'mosaicml-composer-tests',
-    's3://': 'mosaicml-internal-temporary-composer-testing'
+    's3://': 'mosaicml-internal-temporary-composer-testing',
+    'oci://': 'mosaicml-internal-checkpoints',
 }
-MANUAL_INTEGRATION_TEST = False
+MANUAL_INTEGRATION_TEST = True
 os.environ[
     'OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'  # set to yes to all fork process in spark calls
 
@@ -30,7 +31,8 @@ os.environ[
 def manual_integration_dir() -> Any:
     """Creates a temporary directory and then deletes it when the calling function is done."""
     if MANUAL_INTEGRATION_TEST:
-        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'path/to/gooogle_api_credential.json'
+        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.path.join(
+            os.environ['HOME'], '.mosaic/mosaicml-research-gcs.json')
         os.environ.pop('AWS_ACCESS_KEY_ID', None)
         os.environ.pop('AWS_SECRET_ACCESS_KEY', None)
         os.environ.pop('AWS_SECURITY_TOKEN', None)
@@ -175,7 +177,8 @@ class TestDataFrameToMDS:
                 assert nsamples == sum([a['samples'] for a in mgi['shards']])
             if not keep_local:
                 assert not os.path.exists(os.path.join(
-                    out, 'index.json')), 'merged index.json is found even through keep_local = False'
+                    out,
+                    'index.json')), 'merged index.json is found even through keep_local = False'
         else:
             assert not os.path.exists(os.path.join(
                 out, 'index.json')), 'merged index is created when merge_index=False'
@@ -259,7 +262,7 @@ class TestDataFrameToMDS:
             assert not os.path.exists(os.path.join(
                 out, 'index.json')), 'merged index is created when merge_index=False'
 
-    @pytest.mark.parametrize('scheme', ['gs://', 's3://'])
+    @pytest.mark.parametrize('scheme', ['oci://', 'gs://', 's3://'])
     @pytest.mark.parametrize('keep_local', [True])  # , False])
     @pytest.mark.parametrize('merge_index', [True])  # , False])
     @pytest.mark.usefixtures('manual_integration_dir')
@@ -308,7 +311,7 @@ class TestDataFrameToMDS:
             assert not (os.path.exists(os.path.join(
                 mds_path[0], 'index.json'))), 'merged index is created when merge_index=False'
 
-    @pytest.mark.parametrize('scheme', ['gs://', 's3://'])
+    @pytest.mark.parametrize('scheme', ['oci://', 'gs://', 's3://'])
     @pytest.mark.parametrize('keep_local', [True, False])
     @pytest.mark.parametrize('merge_index', [True, False])
     @pytest.mark.usefixtures('manual_integration_dir')
@@ -353,7 +356,7 @@ class TestDataFrameToMDS:
                 f'merged index is created at {mds_path[0]} when merge_index={merge_index} and ' +
                 f'keep_local={keep_local}')
 
-    @pytest.mark.parametrize('scheme', ['gs://', 's3://'])
+    @pytest.mark.parametrize('scheme', ['oci://', 'gs://', 's3://'])
     @pytest.mark.usefixtures('manual_integration_dir')
     def test_integration_conversion_remote_only(self, dataframe: Any, manual_integration_dir: Any,
                                                 scheme: str):

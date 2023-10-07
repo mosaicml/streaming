@@ -228,7 +228,7 @@ def _merge_index_from_list(index_file_urls: List[Any],
                            out: Union[str, Tuple[str, str]],
                            keep_local: bool = True,
                            download_timeout: int = 60) -> None:
-    """Merge index.json from a list of subset of MDS dataset index.json to create joined index file.
+    """Merge index.json from a list of index files of MDS directories to create joined index.
 
     Args:
         index_file_urls (Union[str, Tuple[str,str]]): index.json from all the partitions

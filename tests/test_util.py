@@ -25,7 +25,7 @@ MY_BUCKET = {
     's3://': 'mosaicml-internal-temporary-composer-testing',
     'oci://': 'mosaicml-internal-checkpoints',
 }
-MANUAL_INTEGRATION_TEST = True
+MANUAL_INTEGRATION_TEST = False
 os.environ[
     'OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'  # set to yes to all fork process in spark calls
 
@@ -34,8 +34,8 @@ os.environ[
 def manual_integration_dir() -> Any:
     """Creates a temporary directory and then deletes it when the calling function is done."""
     if MANUAL_INTEGRATION_TEST:
-        os.environ[
-            'GOOGLE_APPLICATION_CREDENTIALS'] = '/Users/xiaohan.zhang/.mosaic/mosaicml-research-nonprod-027345ddbdfd.json'  #  'path/to/gooogle_api_credential.json'
+        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.path.join(
+            os.environ['HOME'], '.mosaic/mosaicml-research-gcs.json')
         os.environ.pop('AWS_ACCESS_KEY_ID', None)
         os.environ.pop('AWS_SECRET_ACCESS_KEY', None)
         os.environ.pop('AWS_SECURITY_TOKEN', None)

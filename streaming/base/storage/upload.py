@@ -168,7 +168,9 @@ class CloudUploader:
             if not exist_ok:
                 raise FileExistsError(f'Directory is not empty: {self.local}')
             else:
-                logger.warning(f'Directory {self.local} exists and not empty. But continue to mkdir since exist_ok is set to be True.')
+                logger.warning(
+                    f'Directory {self.local} exists and not empty. But continue to mkdir since exist_ok is set to be True.'
+                )
 
         os.makedirs(self.local, exist_ok=True)
 
