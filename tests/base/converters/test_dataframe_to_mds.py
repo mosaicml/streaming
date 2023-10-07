@@ -175,7 +175,7 @@ class TestDataFrameToMDS:
                 assert nsamples == sum([a['samples'] for a in mgi['shards']])
             if not keep_local:
                 assert not os.path.exists(os.path.join(
-                    out, 'index.json')), 'merged index.json is found even keep_local = False'
+                    out, 'index.json')), 'merged index.json is found even through keep_local = False'
         else:
             assert not os.path.exists(os.path.join(
                 out, 'index.json')), 'merged index is created when merge_index=False'

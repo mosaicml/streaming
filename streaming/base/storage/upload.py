@@ -57,8 +57,8 @@ class CloudUploader:
             out: Union[str, Tuple[str, str]],
             keep_local: bool = False,
             progress_bar: bool = False,
-            exist_ok: bool = False,
-            retry: int = 2) -> Any:
+            retry: int = 2,
+            exist_ok: bool = False) -> Any:
         """Instantiate a cloud provider uploader or a local uploader based on remote path.
 
         Args:
@@ -74,8 +74,8 @@ class CloudUploader:
                 shard file or remove it after uploading. Defaults to ``False``.
             progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
                 a remote location. Default to ``False``.
-            exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
             retry (int): Number of times to retry uploading a file. Defaults to ``2``.
+            exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
 
         Returns:
             CloudUploader: An instance of sub-class.
@@ -89,7 +89,7 @@ class CloudUploader:
             if prefix == 'dbfs:/Volumes':
                 provider_prefix = prefix
         return getattr(sys.modules[__name__],
-                       UPLOADERS[provider_prefix])(out, keep_local, progress_bar, exist_ok, retry)
+                       UPLOADERS[provider_prefix])(out, keep_local, progress_bar, retry, exist_ok)
 
     def _validate(self, out: Union[str, Tuple[str, str]]) -> None:
         """Validate the `out` argument.
@@ -123,8 +123,8 @@ class CloudUploader:
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False,
-                 exist_ok: bool = False,
-                 retry: int = 2) -> None:
+                 retry: int = 2,
+                 exist_ok: bool = False) -> None:
         """Initialize and validate local and remote path.
 
         Args:
@@ -140,8 +140,8 @@ class CloudUploader:
                 shard file or remove it after uploading. Defaults to ``False``.
             progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
                 a remote location. Default to ``False``.
-            exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
             retry (int): Number of times to retry uploading a file. Defaults to ``2``.
+            exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
 
         Raises:
             FileExistsError: Local directory must be empty.
@@ -181,13 +181,13 @@ class CloudUploader:
         Raises:
             NotImplementedError: Override this method in your sub-class.
         """
-        raise NotImplementedError('Override this method in your sub-class')
+        raise NotImplementedError(f'{type(self).__name__}.upload_file is not implemented')
 
     def list_objects(self, prefix: Optional[str] = None) -> Optional[List[str]]:
         """List all objects in the object store with the given prefix.
 
         Args:
-            prefix (Optional[str], optional): The prefix to search for. Defaults to None.
+            prefix (Optional[str], optional): The prefix to search for. Defaults to ``None``.
 
         Returns:
             List[str]: A list of object names that match the prefix.
@@ -220,17 +220,17 @@ class S3Uploader(CloudUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
-        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
         retry (int): Number of times to retry uploading a file. Defaults to ``2``.
+        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False,
-                 exist_ok: bool = False,
-                 retry: int = 2) -> None:
-        super().__init__(out, keep_local, progress_bar, exist_ok, retry)
+                 retry: int = 2,
+                 exist_ok: bool = False) -> None:
+        super().__init__(out, keep_local, progress_bar, retry, exist_ok)
 
         import boto3
         from botocore.config import Config
@@ -297,7 +297,7 @@ class S3Uploader(CloudUploader):
         """List all objects in the S3 object store with the given prefix.
 
         Args:
-            prefix (Optional[str], optional): The prefix to search for. Defaults to None.
+            prefix (Optional[str], optional): The prefix to search for. Defaults to ``None``.
 
         Returns:
             List[str]: A list of object names that match the prefix.
@@ -333,17 +333,17 @@ class GCSUploader(CloudUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
-        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
         retry (int): Number of times to retry uploading a file. Defaults to ``2``.
+        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False,
-                 exist_ok: bool = False,
-                 retry: int = 2) -> None:
-        super().__init__(out, keep_local, progress_bar, exist_ok, retry)
+                 retry: int = 2,
+                 exist_ok: bool = False) -> None:
+        super().__init__(out, keep_local, progress_bar, retry, exist_ok)
         if 'GCS_KEY' in os.environ and 'GCS_SECRET' in os.environ:
             import boto3
 
@@ -482,17 +482,17 @@ class OCIUploader(CloudUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
-        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
         retry (int): Number of times to retry uploading a file. Defaults to ``2``.
+        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False,
-                 exist_ok: bool = False,
-                 retry: int = 2) -> None:
-        super().__init__(out, keep_local, progress_bar, exist_ok, retry)
+                 retry: int = 2,
+                 exist_ok: bool = False) -> None:
+        super().__init__(out, keep_local, progress_bar, retry, exist_ok)
 
         import oci
 
@@ -561,7 +561,7 @@ class OCIUploader(CloudUploader):
         """List all objects in the OCI object store with the given prefix.
 
         Args:
-            prefix (Optional[str], optional): The prefix to search for. Defaults to None.
+            prefix (Optional[str], optional): The prefix to search for. Defaults to ``None``.
 
         Returns:
             List[str]: A list of object names that match the prefix.
@@ -607,17 +607,17 @@ class AzureUploader(CloudUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
-        exist_ok (bool): Throw error if out already exists and not empty. Defaults to ``False``.
         retry (int): Number of times to retry uploading a file. Defaults to ``2``.
+        exist_ok (bool): Throw error if out already exists and not empty. Defaults to ``False``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False,
-                 exist_ok: bool = False,
-                 retry: int = 2) -> None:
-        super().__init__(out, keep_local, progress_bar, exist_ok, retry)
+                 retry: int = 2,
+                 exist_ok: bool = False) -> None:
+        super().__init__(out, keep_local, progress_bar, retry, exist_ok)
 
         from azure.storage.blob import BlobServiceClient
 
@@ -694,17 +694,17 @@ class AzureDataLakeUploader(CloudUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
-        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
         retry (int): Number of times to retry uploading a file. Defaults to ``2``.
+        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False,
-                 exist_ok: bool = False,
-                 retry: int = 2) -> None:
-        super().__init__(out, keep_local, progress_bar, exist_ok, retry)
+                 retry: int = 2,
+                 exist_ok: bool = False) -> None:
+        super().__init__(out, keep_local, progress_bar, retry, exist_ok)
 
         from azure.storage.filedatalake import DataLakeServiceClient
 
@@ -778,17 +778,17 @@ class DatabricksUploader(CloudUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
-        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
         retry (int): Number of times to retry uploading a file. Defaults to ``2``.
+        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False,
-                 exist_ok: bool = False,
-                 retry: int = 2) -> None:
-        super().__init__(out, keep_local, progress_bar, exist_ok, retry)
+                 retry: int = 2,
+                 exist_ok: bool = False) -> None:
+        super().__init__(out, keep_local, progress_bar, retry, exist_ok)
         self.client = self._create_workspace_client()
 
     def _create_workspace_client(self):
@@ -816,17 +816,17 @@ class DatabricksUnityCatalogUploader(DatabricksUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
-        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
         retry (int): Number of times to retry uploading a file. Defaults to ``2``.
+        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False,
-                 exist_ok: bool = False,
-                 retry: int = 2) -> None:
-        super().__init__(out, keep_local, progress_bar, exist_ok, retry)
+                 retry: int = 2,
+                 exist_ok: bool = False) -> None:
+        super().__init__(out, keep_local, progress_bar, retry, exist_ok)
 
     def upload_file(self, filename: str):
         """Upload file from local instance to Databricks Unity Catalog.
@@ -864,17 +864,17 @@ class DBFSUploader(DatabricksUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
-        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
         retry (int): Number of times to retry uploading a file. Defaults to ``2``.
+        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False,
-                 exist_ok: bool = False,
-                 retry: int = 2) -> None:
-        super().__init__(out, keep_local, progress_bar, exist_ok, retry)
+                 retry: int = 2,
+                 exist_ok: bool = False) -> None:
+        super().__init__(out, keep_local, progress_bar, retry, exist_ok)
         self.dbfs_path = self.remote.lstrip('dbfs:')  # pyright: ignore
         self.check_folder_exists()
 
@@ -933,17 +933,17 @@ class LocalUploader(CloudUploader):
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
-        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
         retry (int): Number of times to retry uploading a file. Defaults to ``2``.
+        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False,
-                 exist_ok: bool = False,
-                 retry: int = 2) -> None:
-        super().__init__(out, keep_local, progress_bar, exist_ok, retry)
+                 retry: int = 2,
+                 exist_ok: bool = False) -> None:
+        super().__init__(out, keep_local, progress_bar, retry, exist_ok)
         # Create remote directory if it doesn't exist
         if self.remote:
             os.makedirs(self.remote, exist_ok=True)
@@ -970,16 +970,15 @@ class LocalUploader(CloudUploader):
         """List all objects locally with the given prefix.
 
         Args:
-            prefix (Optional[str], optional): The prefix to search for. Defaults to None.
+            prefix (Optional[str], optional): The prefix to search for. Defaults to ``None``.
 
         Returns:
             List[str]: A list of object names that match the prefix.
         """
         if prefix is None:
             prefix = ''
-        ans = []
-        print('I am here 100', os.path.join(self.local, prefix))
+        file_paths = []
         for dirpath, _, files in os.walk(os.path.join(self.local, prefix)):
             for file in files:
-                ans.append(os.path.join(dirpath, file))
-        return ans
+                file_paths.append(os.path.join(dirpath, file))
+        return file_paths

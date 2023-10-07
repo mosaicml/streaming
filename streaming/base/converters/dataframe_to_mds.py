@@ -160,7 +160,7 @@ def dataframeToMDS(dataframe: DataFrame,
         else:
             raise RuntimeError('TaskContext.get() returns None')
 
-        if mds_path[1] == '':
+        if mds_path[1] == '': # only local
             output = os.path.join(mds_path[0], f'{id}')
             partition_path = (output, '')
         else:
