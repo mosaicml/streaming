@@ -318,8 +318,8 @@ def _merge_index_from_list(index_file_urls: List[Any],
         with open(merged_index_path, 'w') as outfile:
             json.dump(obj, outfile)
 
+        # Move merged index from temp path to local part in out
         # Upload merged index to remote if out has remote part
-        # Otherwise, move it from temp root to out location
         shutil.move(merged_index_path, cu.local)
         if cu.remote is not None:
             cu.upload_file(index_basename)

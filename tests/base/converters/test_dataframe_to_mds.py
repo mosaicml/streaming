@@ -22,7 +22,7 @@ MY_BUCKET = {
     's3://': 'mosaicml-internal-temporary-composer-testing',
     'oci://': 'mosaicml-internal-checkpoints',
 }
-MANUAL_INTEGRATION_TEST = True
+MANUAL_INTEGRATION_TEST = False
 os.environ[
     'OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'  # set to yes to all fork process in spark calls
 

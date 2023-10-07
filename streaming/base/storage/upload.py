@@ -75,7 +75,8 @@ class CloudUploader:
             progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
                 a remote location. Default to ``False``.
             retry (int): Number of times to retry uploading a file. Defaults to ``2``.
-            exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
+            exist_ok (bool): When exist_ok = False, raise error if the local part of ``out`` already
+                exists and has contents. Defaults to ``False``.
 
         Returns:
             CloudUploader: An instance of sub-class.
@@ -141,7 +142,8 @@ class CloudUploader:
             progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
                 a remote location. Default to ``False``.
             retry (int): Number of times to retry uploading a file. Defaults to ``2``.
-            exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
+            exist_ok (bool): When exist_ok = False, raise error if the local part of ``out`` already
+                exists and has contents. Defaults to ``False``.
 
         Raises:
             FileExistsError: Local directory must be empty.
@@ -223,7 +225,8 @@ class S3Uploader(CloudUploader):
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
         retry (int): Number of times to retry uploading a file. Defaults to ``2``.
-        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
+        exist_ok (bool): When exist_ok = False, raise error if the local part of ``out`` already
+            exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
@@ -336,7 +339,8 @@ class GCSUploader(CloudUploader):
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
         retry (int): Number of times to retry uploading a file. Defaults to ``2``.
-        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
+        exist_ok (bool): When exist_ok = False, raise error if the local part of ``out`` already
+            exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
@@ -485,7 +489,8 @@ class OCIUploader(CloudUploader):
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
         retry (int): Number of times to retry uploading a file. Defaults to ``2``.
-        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
+        exist_ok (bool): When exist_ok = False, raise error if the local part of ``out`` already
+            exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
@@ -610,7 +615,8 @@ class AzureUploader(CloudUploader):
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
         retry (int): Number of times to retry uploading a file. Defaults to ``2``.
-        exist_ok (bool): Throw error if out already exists and not empty. Defaults to ``False``.
+        exist_ok (bool): When exist_ok = False, raise error if the local part of ``out`` already
+            exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
@@ -697,7 +703,8 @@ class AzureDataLakeUploader(CloudUploader):
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
         retry (int): Number of times to retry uploading a file. Defaults to ``2``.
-        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
+        exist_ok (bool): When exist_ok = False, raise error if the local part of ``out`` already
+            exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
@@ -781,7 +788,8 @@ class DatabricksUploader(CloudUploader):
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
         retry (int): Number of times to retry uploading a file. Defaults to ``2``.
-        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
+        exist_ok (bool): When exist_ok = False, raise error if the local part of ``out`` already
+            exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
@@ -819,7 +827,8 @@ class DatabricksUnityCatalogUploader(DatabricksUploader):
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
         retry (int): Number of times to retry uploading a file. Defaults to ``2``.
-        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
+        exist_ok (bool): When exist_ok = False, raise error if the local part of ``out`` already
+            exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
@@ -867,7 +876,8 @@ class DBFSUploader(DatabricksUploader):
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
         retry (int): Number of times to retry uploading a file. Defaults to ``2``.
-        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
+        exist_ok (bool): When exist_ok = False, raise error if the local part of ``out`` already
+            exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
@@ -936,7 +946,8 @@ class LocalUploader(CloudUploader):
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
         retry (int): Number of times to retry uploading a file. Defaults to ``2``.
-        exist_ok (bool): When exist_ok = False, raise error if out already exists and has contents. Defaults to ``False``.
+        exist_ok (bool): When exist_ok = False, raise error if the local part of ``out`` already
+            exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
