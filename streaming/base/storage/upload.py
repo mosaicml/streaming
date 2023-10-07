@@ -164,8 +164,12 @@ class CloudUploader:
             self.local = out[0]
             self.remote = out[1]
 
-        if not exist_ok and os.path.exists(self.local) and len(os.listdir(self.local)) != 0:
-            raise FileExistsError(f'Directory is not empty: {self.local}')
+        if os.path.exists(self.local) and len(os.listdir(self.local)) != 0:
+            if not exist_ok:
+                raise FileExistsError(f'Directory is not empty: {self.local}')
+            else:
+                logger.warning(f'Directory {self.local} exists and not empty. But continue to mkdir since exist_ok is set to be True.')
+
         os.makedirs(self.local, exist_ok=True)
 
     def upload_file(self, filename: str):
