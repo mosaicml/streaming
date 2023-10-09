@@ -464,8 +464,6 @@ class GCSUploader(CloudUploader):
             except KeyError:
                 return []
         elif self.authentication == GCSAuthentication.SERVICE_ACCOUNT:
-            #from google.cloud.storage import Blob, Bucket
-            #blob = Blob(str(obj.path).lstrip('/'), Bucket(self.gcs_client, obj.netloc))
             prefix = os.path.join(str(obj.path).lstrip('/'), prefix)
             return [
                 b.name for b in self.gcs_client.get_bucket(bucket_name).list_blobs(prefix=prefix)
