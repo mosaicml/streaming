@@ -18,9 +18,9 @@ from streaming.base.converters import dataframeToMDS
 
 MY_PREFIX = 'train'
 MY_BUCKET = {
-    'gs://': 'mosaicml-composer-tests',
-    's3://': 'mosaicml-internal-temporary-composer-testing',
-    'oci://': 'mosaicml-internal-checkpoints',
+    'gs://': 'testing-bucket',
+    's3://': 'testing-bucket',
+    'oci://': 'testing-bucket',
 }
 MANUAL_INTEGRATION_TEST = False
 os.environ[

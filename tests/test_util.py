@@ -21,9 +21,9 @@ from streaming.base.util import (bytes_to_int, clean_stale_shared_memory, get_li
 
 MY_PREFIX = 'train_' + str(time.time())
 MY_BUCKET = {
-    'gs://': 'mosaicml-composer-tests',
-    's3://': 'mosaicml-internal-temporary-composer-testing',
-    'oci://': 'mosaicml-internal-checkpoints',
+    'gs://': 'testing-bucket',
+    's3://': 'testing-bucket',
+    'oci://': 'testing-bucket',
 }
 MANUAL_INTEGRATION_TEST = False
 os.environ[
