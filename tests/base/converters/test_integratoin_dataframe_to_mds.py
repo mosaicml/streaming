@@ -93,7 +93,7 @@ def manual_integration_dir() -> Any:
                     )
                 print(f'Deleted {len(response.data.objects)} objects with prefix: {MY_PREFIX}')
 
-            except :
+            except:
                 print('tear down oci test folder failed, continue...')
 
 

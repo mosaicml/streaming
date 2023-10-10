@@ -216,7 +216,7 @@ def get_import_exception_message(package_name: str, extra_deps: str) -> str:
 
 
 def merge_index(*args: Any, **kwargs: Any):
-    """Redirect to one of two merge_index functions based on arguments"""
+    """Redirect to one of two merge_index functions based on arguments."""
     if isinstance(args[0], list) and len(args) + len(kwargs) in [2, 3, 4]:
         return _merge_index_from_list(*args, **kwargs)
     elif (isinstance(args[0], str) or

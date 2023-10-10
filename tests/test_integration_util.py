@@ -1,24 +1,17 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-import json
 import os
 import shutil
 import tempfile
 import time
 import urllib.parse
-from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, Tuple
 
 import pytest
 
-from streaming.base.constant import RESUME
-from streaming.base.shared.prefix import _get_path
-from streaming.base.storage.download import download_file
 from streaming.base.storage.upload import CloudUploader
-from streaming.base.util import (bytes_to_int, clean_stale_shared_memory, get_list_arg,
-                                 merge_index, number_abbrev_to_int, retry)
-
+from streaming.base.util import merge_index
 from tests.test_util import integrity_check
 
 MY_PREFIX = 'train_' + str(time.time())
@@ -75,7 +68,7 @@ def manual_integration_dir() -> Any:
                 if objects_to_delete:
                     s3.delete_objects(Bucket=MY_BUCKET['s3://'],
                                       Delete={'Objects': objects_to_delete})
-            except :
+            except:
                 print('tear down s3 test folder failed, continue....')
 
             try:
@@ -97,9 +90,8 @@ def manual_integration_dir() -> Any:
                     )
                 print(f'Deleted {len(response.data.objects)} objects with prefix: {MY_PREFIX}')
 
-            except :
+            except:
                 print('tear down oci test folder failed, continue...')
-
 
 
 @pytest.mark.parametrize('scheme', ['oci://', 'gs://', 's3://', 'dbfs:/Volumes'])
@@ -329,14 +321,16 @@ def test_merge_index_from_root_remote(manual_integration_dir: Any, out_format: s
 
 
 @pytest.mark.parametrize('scheme', ['dbfs:/Volumes'])
-@pytest.mark.parametrize('out_format', ['remote']) # , 'tuple'])
-@pytest.mark.parametrize('n_partitions', [3]) # , 2, 3, 4])
-@pytest.mark.parametrize('keep_local', [False]) # , True])
-def test_uc_volume(manual_integration_dir: Any, out_format: str,
-                   n_partitions: int, keep_local: bool, scheme: str):
+@pytest.mark.parametrize('out_format', ['remote'])  # , 'tuple'])
+@pytest.mark.parametrize('n_partitions', [3])  # , 2, 3, 4])
+@pytest.mark.parametrize('keep_local', [False])  # , True])
+def test_uc_volume(manual_integration_dir: Any, out_format: str, n_partitions: int,
+                   keep_local: bool, scheme: str):
     from decimal import Decimal
+
     from pyspark.sql import SparkSession
     from pyspark.sql.types import DecimalType, IntegerType, StringType, StructField, StructType
+
     from streaming.base.converters import dataframeToMDS
 
     if out_format == 'remote':
@@ -362,6 +356,6 @@ def test_uc_volume(manual_integration_dir: Any, out_format: str,
 
     mds_path, _ = dataframeToMDS(df, merge_index=True, mds_kwargs=mds_kwargs)
 
-    with pytest.raises(NotImplementedError, match=f'DatabricksUnityCatalogUploader.list_objects is not implemented.*'):
+    with pytest.raises(NotImplementedError,
+                       match=f'DatabricksUnityCatalogUploader.list_objects is not implemented.*'):
         merge_index(mds_path, keep_local=keep_local)
-
