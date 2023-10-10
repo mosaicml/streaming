@@ -3,12 +3,11 @@
 
 import json
 import os
-import shutil
 import tempfile
 import time
 import urllib.parse
 from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
-from typing import Any, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import pytest
 
@@ -27,6 +26,7 @@ MY_BUCKET = {
 }
 os.environ[
     'OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'  # set to yes to all fork process in spark calls
+
 
 @pytest.mark.parametrize(('text', 'expected_output'), [('hello,world', ['hello', 'world']),
                                                        ('hello', ['hello']), ('', [])])
@@ -247,7 +247,7 @@ def test_merge_index_from_list_local(local_remote_dir: Tuple[str, str], keep_loc
 
 @pytest.mark.parametrize('n_partitions', [1, 2, 3, 4])
 @pytest.mark.parametrize('keep_local', [False, True])
-def test_merge_index_from_root_local(local_remote_dir: [Tuple[str, str]], n_partitions: int,
+def test_merge_index_from_root_local(local_remote_dir: Tuple[str, str], n_partitions: int,
                                      keep_local: bool):
     from decimal import Decimal
 

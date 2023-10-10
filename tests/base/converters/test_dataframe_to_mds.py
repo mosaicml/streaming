@@ -3,9 +3,7 @@
 
 import json
 import os
-import shutil
 from decimal import Decimal
-from tempfile import mkdtemp
 from typing import Any, Tuple
 
 import pytest
@@ -13,7 +11,6 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
 from pyspark.sql.types import DecimalType, IntegerType, StringType, StructField, StructType
 
-from streaming import MDSWriter
 from streaming.base.converters import dataframeToMDS
 
 MY_PREFIX = 'train'
@@ -192,4 +189,3 @@ class TestDataFrameToMDS:
         else:
             assert not os.path.exists(os.path.join(
                 out, 'index.json')), 'merged index is created when merge_index=False'
-
