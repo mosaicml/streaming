@@ -4,6 +4,7 @@
 import json
 import os
 import shutil
+import time
 from decimal import Decimal
 from tempfile import mkdtemp
 from typing import Any, Tuple
@@ -21,7 +22,7 @@ MY_BUCKET = {
     'gs://': 'mosaicml-composer-tests',
     's3://': 'mosaicml-internal-temporary-composer-testing',
     'oci://': 'mosaicml-internal-checkpoints',
-    'dbfs:/Volumes/': 'main/mosaic_hackathon/managed-volume',
+    'dbfs:/Volumes': 'main/mosaic_hackathon/managed-volume',
 }
 MANUAL_INTEGRATION_TEST = True
 os.environ[
@@ -59,8 +60,8 @@ def manual_integration_dir() -> Any:
                 blobs = bucket.list_blobs(prefix=MY_PREFIX)
                 for blob in blobs:
                     blob.delete()
-            except ImportError:
-                raise ImportError('google.cloud.storage is not imported correctly.')
+            except:
+                print('tear down gcs test folder failed, continue...')
 
             try:
                 import boto3
@@ -70,8 +71,8 @@ def manual_integration_dir() -> Any:
                 if objects_to_delete:
                     s3.delete_objects(Bucket=MY_BUCKET['s3://'],
                                       Delete={'Objects': objects_to_delete})
-            except ImportError:
-                raise ImportError('boto3 is not imported correctly.')
+            except:
+                print('tear down s3 test folder failed, continue....')
 
             try:
                 import oci
@@ -92,8 +93,8 @@ def manual_integration_dir() -> Any:
                     )
                 print(f'Deleted {len(response.data.objects)} objects with prefix: {MY_PREFIX}')
 
-            except ImportError:
-                raise ImportError('boto3 is not imported correctly.')
+            except :
+                print('tear down oci test folder failed, continue...')
 
 
 class TestDataFrameToMDS:
@@ -263,7 +264,7 @@ class TestDataFrameToMDS:
             assert not os.path.exists(os.path.join(
                 out, 'index.json')), 'merged index is created when merge_index=False'
 
-    @pytest.mark.parametrize('scheme', ['oci://', 'gs://', 's3://'])
+    @pytest.mark.parametrize('scheme', ['oci://', 'gs://', 's3://', 'dbfs:/Volumes'])
     @pytest.mark.parametrize('keep_local', [True])  # , False])
     @pytest.mark.parametrize('merge_index', [True])  # , False])
     @pytest.mark.usefixtures('manual_integration_dir')
@@ -309,11 +310,10 @@ class TestDataFrameToMDS:
             assert not (os.path.exists(os.path.join(
                 mds_path[0], 'index.json'))), 'merged index is created when merge_index=False'
 
-    @pytest.mark.parametrize('scheme', ['oci://', 'gs://', 's3://'])
+    @pytest.mark.parametrize('scheme', ['oci://', 'gs://', 's3://', 'dbfs:/Volumes'])
     @pytest.mark.parametrize('keep_local', [True, False])
     @pytest.mark.parametrize('merge_index', [True, False])
     @pytest.mark.usefixtures('manual_integration_dir')
-    @pytest.mark.remote
     def test_integration_conversion_local_and_remote(self, dataframe: Any,
                                                      manual_integration_dir: Any,
                                                      merge_index: bool, keep_local: bool,
@@ -353,9 +353,8 @@ class TestDataFrameToMDS:
                 f'merged index is created at {mds_path[0]} when merge_index={merge_index} and ' +
                 f'keep_local={keep_local}')
 
-    @pytest.mark.parametrize('scheme', ['oci://', 'gs://', 's3://'])
+    @pytest.mark.parametrize('scheme', ['oci://', 'gs://', 's3://', 'dbfs:/Volumes'])
     @pytest.mark.usefixtures('manual_integration_dir')
-    @pytest.mark.remote
     def test_integration_conversion_remote_only(self, dataframe: Any, manual_integration_dir: Any,
                                                 scheme: str):
         _, remote = manual_integration_dir('s3://')
