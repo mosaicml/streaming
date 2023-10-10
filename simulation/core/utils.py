@@ -3,11 +3,6 @@
 
 """Peripheral functions for simulation functionality."""
 
-import os.path
-import sys
-
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
 import numpy as np
 from core.sim_time import Time, TimeUnit
 from core.simulation_dataset import SimulationDataset

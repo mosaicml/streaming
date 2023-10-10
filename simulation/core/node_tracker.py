@@ -3,11 +3,6 @@
 
 """Class for tracking node information during simulation."""
 
-import os.path
-import sys
-
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
 from typing import Optional
 
 import numpy as np

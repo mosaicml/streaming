@@ -94,11 +94,11 @@ extra_deps['docs'] = [
 ]
 
 extra_deps['simulator'] = [
-    'sortedcollections>=2.1.0',
-    'streamlit>=1.26.0',
-    'altair>=5.1.1',
-    'omegaconf>=2.3.0',
-    'PyYAML>=6.0',
+    'sortedcollections>=2.1.0,<3',
+    'streamlit>=1.26.0,<2',
+    'altair>=5.1.1,<6',
+    'omegaconf>=2.3.0,<3',
+    'PyYAML>=6.0,<7',
 ]
 
 extra_deps['spark'] = [

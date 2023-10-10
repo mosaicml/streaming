@@ -24,7 +24,7 @@ from streaming.base import Stream
 shards = 20850  # number of shards
 samples_per_shard = 4093  # number of samples per shard
 avg_raw_shard_size = 67092639  # average shard size (bytes)
-avg_zip_shard_size = None  # average compressed shard size (bytes)
+avg_zip_shard_size = 15000000  # average compressed shard size (bytes)
 
 # training
 max_duration = '1000ba'  # max duration of training (batches: "ba", epochs: "ep")

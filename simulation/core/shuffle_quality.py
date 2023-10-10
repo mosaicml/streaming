@@ -3,11 +3,6 @@
 
 """Determine shuffle quality of a run over a fixed number of samples."""
 
-import os.path
-import sys
-
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
 import numpy as np
 from core.utils import remove_padded_samples
 from numpy.typing import NDArray

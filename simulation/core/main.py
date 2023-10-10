@@ -3,11 +3,6 @@
 
 """Main simulation function, simulating bytes downloaded and time taken each training step."""
 
-import os.path
-import sys
-
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
 import time
 from typing import Generator, Union
 

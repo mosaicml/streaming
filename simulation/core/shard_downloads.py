@@ -3,11 +3,6 @@
 
 """Functions for simulating shard downloads and calculating needed cache limit for downloads."""
 
-import os.path
-import sys
-
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
 from typing import Optional
 
 import numpy as np

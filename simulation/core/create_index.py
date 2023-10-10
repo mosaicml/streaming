@@ -3,16 +3,13 @@
 
 """Create a dataset index file from input parameters."""
 
-import os.path
-import sys
-
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
 import json
 import os
 import random
 import string
 from typing import Optional
+
+from streaming.base.format import get_index_basename
 
 
 def get_random_foldername():
@@ -38,14 +35,14 @@ def create_stream_index(shards: int, samples_per_shard: int, avg_raw_shard_size:
     index_data = {'version': 2, 'shards': []}
 
     shards_list = []
-    for shard_id in range(shards):
+    for _ in range(shards):
         shard_data = {
             'column_encodings': [],
             'column_names': [],
             'column_sizes': [],
             'format': 'mds',
             'raw_data': {
-                'basename': 'shard.' + str(shard_id) + '.mds',
+                'basename': '',
                 'bytes': avg_raw_shard_size,
                 'hashes': {}
             },
@@ -57,12 +54,8 @@ def create_stream_index(shards: int, samples_per_shard: int, avg_raw_shard_size:
             'compression': None
         }
         if avg_zip_shard_size is not None:
-            shard_data['zip_data'] = {
-                'basename': 'shard.' + str(shard_id) + '.mds.zstd',
-                'bytes': avg_zip_shard_size,
-                'hashes': {}
-            }
-            shard_data['compression'] = 'zstd:16'
+            shard_data['zip_data'] = {'basename': '', 'bytes': avg_zip_shard_size, 'hashes': {}}
+            shard_data['compression'] = ''
         shards_list.append(shard_data)
 
     index_data['shards'] = shards_list
@@ -76,8 +69,9 @@ def create_stream_index(shards: int, samples_per_shard: int, avg_raw_shard_size:
         foldername = get_random_foldername()
         os.mkdir(foldername)
 
-    with open(foldername + '/index.json', 'w') as f:
-        json.dump(index_data, f)
-        f.close()
+    index_basename = get_index_basename()
 
-    return os.path.join(foldername, 'index.json')
+    with open(f'{foldername}/{index_basename}', 'w') as f:
+        json.dump(index_data, f)
+
+    return os.path.join(foldername, index_basename)

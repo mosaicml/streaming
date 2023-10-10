@@ -3,11 +3,6 @@
 
 """Ingest yaml and create SimulationDataset."""
 
-import os.path
-import sys
-
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
 from typing import Optional
 
 from core.sim_time import Time, TimeUnit, ensure_time
