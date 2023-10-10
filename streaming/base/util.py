@@ -373,7 +373,13 @@ def _merge_index_from_root(out: Union[str, Tuple[str, str]], keep_local: bool = 
         remote_index_files = []
         for file in cu.list_objects():
             if file.endswith(get_index_basename()) and not_merged_index(file, cu.remote):
-                remote_index_files.append(obj.scheme + '://' + os.path.join(obj.netloc, file))
+                join_char = '//'
+                if obj.scheme == 'dbfs':
+                    path = Path(cu.remote)
+                    prefix = os.path.join(path.parts[0], path.parts[1])
+                    if prefix == 'dbfs:/Volumes':
+                        join_char = '/'
+                remote_index_files.append(obj.scheme + join_char + os.path.join(obj.netloc, file))
         if len(local_index_files) == len(remote_index_files):
             _merge_index_from_list(list(zip(local_index_files, remote_index_files)),
                                    out,
