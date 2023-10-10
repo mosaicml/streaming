@@ -237,7 +237,7 @@ def _merge_index_from_list(index_file_urls: List[Union[str, Tuple[str, str]]],
             The pattern of index_file_urls and corresponding reaction is one of:
             1. All urls are str (local). All urls are accessible locally -> no download
             2. All urls are tuple (local, remote). All urls are accessible locally -> no download
-            3. All urls are tuple (local, remote). At least one url is not accessible locally -> download all
+            3. All urls are tuple (local, remote). Download url thtat is not accessible locally
             4. All urls are str (remote) -> download all
 
         out (Union[str, Tuple[str, str]]): path to put the merged index file
@@ -295,7 +295,7 @@ def _merge_index_from_list(index_file_urls: List[Union[str, Tuple[str, str]]],
 
             partitions.append(dest)
 
-        # merge index files into shards
+        # merge shards from all index files
         shards = []
         for partition_index in partitions:
             p = Path(partition_index)

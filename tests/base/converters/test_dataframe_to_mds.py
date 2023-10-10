@@ -266,13 +266,10 @@ class TestDataFrameToMDS:
     @pytest.mark.parametrize('keep_local', [True])  # , False])
     @pytest.mark.parametrize('merge_index', [True])  # , False])
     @pytest.mark.usefixtures('manual_integration_dir')
+    @pytest.mark.remote
     def test_patch_conversion_local_and_remote(self, dataframe: Any, scheme: str,
                                                merge_index: bool, keep_local: bool,
                                                manual_integration_dir: Any):
-        if not MANUAL_INTEGRATION_TEST:
-            pytest.skip(
-                'Overlap with integration tests. But better figure out how to run this test ' +
-                'suite with Mock.')
         mock_local, mock_remote = manual_integration_dir(scheme)
         out = (mock_local, mock_remote)
         mds_kwargs = {
@@ -315,12 +312,11 @@ class TestDataFrameToMDS:
     @pytest.mark.parametrize('keep_local', [True, False])
     @pytest.mark.parametrize('merge_index', [True, False])
     @pytest.mark.usefixtures('manual_integration_dir')
+    @pytest.mark.remote
     def test_integration_conversion_local_and_remote(self, dataframe: Any,
                                                      manual_integration_dir: Any,
                                                      merge_index: bool, keep_local: bool,
                                                      scheme: str):
-        if not MANUAL_INTEGRATION_TEST:
-            pytest.skip('run local only. CI cluster does not have GCS service acct set up.')
         out = manual_integration_dir(scheme)
         mds_kwargs = {
             'out': out,
@@ -358,10 +354,9 @@ class TestDataFrameToMDS:
 
     @pytest.mark.parametrize('scheme', ['oci://', 'gs://', 's3://'])
     @pytest.mark.usefixtures('manual_integration_dir')
+    @pytest.mark.remote
     def test_integration_conversion_remote_only(self, dataframe: Any, manual_integration_dir: Any,
                                                 scheme: str):
-        if not MANUAL_INTEGRATION_TEST:
-            pytest.skip('run local only. CI cluster does not have GCS service acct set up.')
         _, remote = manual_integration_dir('s3://')
         mds_kwargs = {
             'out': remote,
