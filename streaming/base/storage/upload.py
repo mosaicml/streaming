@@ -592,8 +592,16 @@ class OCIUploader(CloudUploader):
                 if not next_start_with:
                     response_complete = True
             return object_names
-        except Exception as _:
-            return []
+        except Exception as e:
+            if isinstance(e, oci.exceptions.ServiceError):
+                if e.status == 404:  # type: ignore
+                    if e.code == 'ObjectNotFound':  # type: ignore
+                        raise FileNotFoundError(f'Object {bucket_name}/{prefix} not found. {e.message}') from e  # type: ignore
+                    if e.code == 'BucketNotFound':  # type: ignore
+                        raise ValueError(f'Bucket {bucket_name} not found. {e.message}') from e  # type: ignore
+                    raise e
+            raise e
+        return []
 
 
 class AzureUploader(CloudUploader):
