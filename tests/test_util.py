@@ -132,7 +132,7 @@ def integrity_check(out: Union[str, Tuple[str, str]],
     Args:
         out (Union[str, Tuple[str,str]]): folder that merged index.json resides
         keep_local: whether to check local file
-        expected_n_shard_files (int): If -1, find the number in out with get_expected()
+        expected_n_shard_files (int): If -1, find the number in `out` with get_expected()
     """
 
     def get_expected(mds_root: str):
@@ -172,8 +172,9 @@ def integrity_check(out: Union[str, Tuple[str, str]],
 
 @pytest.mark.parametrize('index_file_urls_pattern', [1, 2, 3])
 @pytest.mark.parametrize('keep_local', [True, False])
+@pytest.mark.parametrize('scheme', ['gs://', 's3://', 'oci://'])
 def test_merge_index_from_list_local(local_remote_dir: Tuple[str, str], keep_local: bool,
-                                     index_file_urls_pattern: int):
+                                     index_file_urls_pattern: int, scheme: str):
     """Validate the final merge index json for following patterns of index_file_urls:
         1. All urls are str (local). All urls are accessible locally -> no download
         2. All urls are str (local). At least one url is unaccessible locally -> Error
@@ -196,7 +197,6 @@ def test_merge_index_from_list_local(local_remote_dir: Tuple[str, str], keep_loc
     local, _ = local_remote_dir
 
     mds_out = out = local
-    scheme = 's3://'
 
     spark = SparkSession.builder.getOrCreate()  # pyright: ignore
     schema = StructType([

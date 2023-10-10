@@ -215,7 +215,8 @@ def get_import_exception_message(package_name: str, extra_deps: str) -> str:
             f'`pip install \'mosaicml-streaming[{package_name}]\'`.'
 
 
-def merge_index(*args, **kwargs):  # pyright: ignore
+def merge_index(*args: Any, **kwargs: Any):
+    """Redirect to one of two merge_index functions based on arguments"""
     if isinstance(args[0], list) and len(args) + len(kwargs) in [2, 3, 4]:
         return _merge_index_from_list(*args, **kwargs)
     elif (isinstance(args[0], str) or
@@ -235,10 +236,10 @@ def _merge_index_from_list(index_file_urls: List[Union[str, Tuple[str, str]]],
             each element can take the form of a single path string or a tuple string.
 
             The pattern of index_file_urls and corresponding reaction is one of:
-            1. All urls are str (local). All urls are accessible locally -> no download
-            2. All urls are tuple (local, remote). All urls are accessible locally -> no download
-            3. All urls are tuple (local, remote). Download url thtat is not accessible locally
-            4. All urls are str (remote) -> download all
+            1. All URLS are str (local). All URLS are accessible locally -> no download
+            2. All URLS are tuple (local, remote). All URLS are accessible locally -> no download
+            3. All URLS are tuple (local, remote). Download URL that is not accessible locally
+            4. All URLS are str (remote) -> download all
 
         out (Union[str, Tuple[str, str]]): path to put the merged index file
         keep_local (bool): Keep local copy of the merged index file. Defaults to ``True``
@@ -248,7 +249,7 @@ def _merge_index_from_list(index_file_urls: List[Union[str, Tuple[str, str]]],
     from streaming.base.storage.upload import CloudUploader
 
     if not index_file_urls or not out:
-        logger.warning('Need to specify both index_file_urls and out. No index merged')
+        logger.warning('Need to specify both `index_file_urls` and `out`. No index merged')
         return
 
     # This is the index json file name, e.g., it is index.json as of 0.6.0
@@ -282,7 +283,7 @@ def _merge_index_from_list(index_file_urls: List[Union[str, Tuple[str, str]]],
             if scheme == '' and bucket == '' and path == '':
                 raise FileNotFoundError(
                     f'Check data availability! local index {url[0]} is not accessible.' +
-                    'remote index {url[1]} does not have a valid url format')
+                    f'remote index {url[1]} does not have a valid url format')
             dest = os.path.join(temp_root, path.lstrip('/'))
 
             try:
