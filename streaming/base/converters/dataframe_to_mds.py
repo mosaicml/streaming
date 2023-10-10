@@ -153,7 +153,7 @@ def dataframeToMDS(dataframe: DataFrame,
     """
 
     def write_mds(iterator: Iterable):
-        """worker node writes iterable to MDS datasets locally"""
+        """Worker node writes iterable to MDS datasets locally."""
         context = TaskContext.get()
 
         if context is not None:

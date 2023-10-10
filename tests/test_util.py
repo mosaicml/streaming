@@ -241,13 +241,13 @@ def integrity_check(out: Union[str, Tuple[str, str]],
 
 
 @pytest.mark.parametrize('scheme', ['oci://', 'gs://', 's3://'])
-@pytest.mark.parametrize('index_file_urls_pattern', [4,5])
+@pytest.mark.parametrize('index_file_urls_pattern', [4, 5])
 @pytest.mark.parametrize('out_format', ['remote', 'local', 'tuple'])
 @pytest.mark.usefixtures('manual_integration_dir')
 @pytest.mark.parametrize('keep_local', [True, False])
 @pytest.mark.remote
 def test_merge_index_from_list_remote(manual_integration_dir: Any, keep_local: bool,
-                               index_file_urls_pattern: int, out_format: str, scheme: str):
+                                      index_file_urls_pattern: int, out_format: str, scheme: str):
     """Validate the final merge index json for following patterns of index_file_urls:
         1. All urls are str (local). All urls are accessible locally -> no download
         2. All urls are str (local). At least one url is unaccessible locally -> Error
@@ -319,11 +319,12 @@ def test_merge_index_from_list_remote(manual_integration_dir: Any, keep_local: b
 
     integrity_check(out, keep_local=keep_local)
 
+
 @pytest.mark.parametrize('index_file_urls_pattern', [1, 2, 3])
 @pytest.mark.usefixtures('manual_integration_dir')
 @pytest.mark.parametrize('keep_local', [True, False])
 def test_merge_index_from_list_local(manual_integration_dir: Any, keep_local: bool,
-                               index_file_urls_pattern: int):
+                                     index_file_urls_pattern: int):
     """Validate the final merge index json for following patterns of index_file_urls:
         1. All urls are str (local). All urls are accessible locally -> no download
         2. All urls are str (local). At least one url is unaccessible locally -> Error
@@ -343,7 +344,7 @@ def test_merge_index_from_list_local(manual_integration_dir: Any, keep_local: bo
         prefix = str(urllib.parse.urlparse(out).path)
         return os.path.dirname(index_file_path).strip('/') != prefix.strip('/')
 
-    local, remote = manual_integration_dir()
+    local, _ = manual_integration_dir()
 
     mds_out = out = local
     scheme = 's3://'
@@ -398,7 +399,7 @@ def test_merge_index_from_list_local(manual_integration_dir: Any, keep_local: bo
 @pytest.mark.parametrize('n_partitions', [1, 2, 3, 4])
 @pytest.mark.parametrize('keep_local', [False, True])
 def test_merge_index_from_root_local(manual_integration_dir: Any, n_partitions: int,
-                               keep_local: bool):
+                                     keep_local: bool):
     from decimal import Decimal
 
     from pyspark.sql import SparkSession
@@ -426,13 +427,14 @@ def test_merge_index_from_root_local(manual_integration_dir: Any, n_partitions: 
     merge_index(mds_path, keep_local=keep_local)
     integrity_check(mds_path, keep_local=keep_local)
 
+
 @pytest.mark.parametrize('scheme', ['oci://', 'gs://', 's3://'])
 @pytest.mark.parametrize('out_format', ['remote', 'tuple'])
 @pytest.mark.parametrize('n_partitions', [1, 2, 3, 4])
 @pytest.mark.parametrize('keep_local', [False, True])
 @pytest.mark.remote
-def test_merge_index_from_root_remote(manual_integration_dir: Any, out_format: str, n_partitions: int,
-                               keep_local: bool, scheme: str):
+def test_merge_index_from_root_remote(manual_integration_dir: Any, out_format: str,
+                                      n_partitions: int, keep_local: bool, scheme: str):
     from decimal import Decimal
 
     from pyspark.sql import SparkSession
