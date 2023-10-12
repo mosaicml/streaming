@@ -176,11 +176,11 @@ def integrity_check(out: Union[str, Tuple[str, str]],
 def test_merge_index_from_list_local(local_remote_dir: Tuple[str, str], keep_local: bool,
                                      index_file_urls_pattern: int, scheme: str):
     """Validate the final merge index json for following patterns of index_file_urls:
-        1. All urls are str (local). All urls are accessible locally -> no download
-        2. All urls are str (local). At least one url is unaccessible locally -> Error
-        3. All urls are tuple (local, remote). All urls are accessible locally -> no download
-        4. All urls are tuple (local, remote). At least one url is not accessible locally -> download all
-        5. All urls are str (remote) -> download all
+        1. All URLs are str (local). All URLs are accessible locally -> no download
+        2. All URLs are str (local). At least one url is unaccessible locally -> Error
+        3. All URLs are tuple (local, remote). All URLs are accessible locally -> no download
+        4. All URLs are tuple (local, remote). At least one url is not accessible locally -> download all
+        5. All URLs are str (remote) -> download all
     """
     from decimal import Decimal
 

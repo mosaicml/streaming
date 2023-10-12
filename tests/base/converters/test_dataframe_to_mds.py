@@ -13,12 +13,6 @@ from pyspark.sql.types import DecimalType, IntegerType, StringType, StructField,
 
 from streaming.base.converters import dataframeToMDS
 
-MY_PREFIX = 'train'
-MY_BUCKET = {
-    'gs://': 'testing-bucket',
-    's3://': 'testing-bucket',
-    'oci://': 'testing-bucket',
-}
 os.environ[
     'OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'  # set to yes to all fork process in spark calls
 

@@ -336,10 +336,12 @@ def _merge_index_from_root(out: Union[str, Tuple[str, str]], keep_local: bool = 
     Args:
         out (Union[str, Tuple[str,str]]): folder that contain MDS partitions.
             :A local directory, merge index happens locally
-            :A remote directory, download all the sub-directories index.json in a temporary sub-directories, merge locally, and then upload it to out location
+            :A remote directory, download all the sub-directories index.json in a temporary
+                sub-directories, merge locally, and then upload it to out location
             :A (local_dir, remote_dir), check if sub-directories index.json file present locally
                 If yes, then merge locally and upload to remote_dir .
-                If not, download all the sub-directories index.json from remote to local , merge locally, and upload to remote_dir .
+                If not, download all the sub-directories index.json from remote to local,
+                merge locally, and upload to remote_dir .
         keep_local (bool): Keep local copy of the merged index file. Defaults to ``True``
     """
     from streaming.base.storage.upload import CloudUploader

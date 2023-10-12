@@ -129,8 +129,8 @@ def dataframeToMDS(dataframe: DataFrame,
     To be replaced by dataframe_to_mds
     """
     logger.warning(
-        'This signature is deprecated. Use dataframe_to_mds with the same arguments going forward.'
-    )
+        'The DataframeToMDS signature has been deprecated and will be removed in Streaming 0.8. ' +
+        'Use dataframe_to_mds with the same arguments going forward')
     return dataframe_to_mds(dataframe, merge_index, mds_kwargs, udf_iterable, udf_kwargs)
 
 
