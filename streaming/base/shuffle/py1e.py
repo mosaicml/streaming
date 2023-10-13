@@ -116,12 +116,6 @@ def get_shuffle_py1e(shard_sizes: NDArray[np.int64],
             # Update sample offset for the next shard.
             cn_sample_offset += span_size
 
-        # If warn_user is true, this means the block size for shifts was smaller than a span size.
-        # This will result in no shuffling being done on that span aka shard part, so warn user.
-        if warn_user:
-            warnings.warn('Shuffle block size was smaller than shard size for some shards. This \
-                          will result in these shards not being shuffled with other shards. Set \
-                          shuffle_block_size to a larger value for a higher quality shuffle.')
         # Get incides that would sort the sample_positions array.
         sort_indices = np.argsort(sample_positions)
 
@@ -132,5 +126,12 @@ def get_shuffle_py1e(shard_sizes: NDArray[np.int64],
         ids[offset:offset + num_cn_samples] = cn_samples
 
         offset += num_cn_samples
+
+    # If warn_user is true, this means the block size for shifts was smaller than a span size.
+    # This will result in no shuffling being done on that span aka shard part, so warn user.
+    if warn_user:
+        warnings.warn('Shuffle block size was smaller than shard size for some shards. This \
+                        will result in these shards not being shuffled with other shards. Set \
+                        shuffle_block_size to a larger value for a higher quality shuffle.')
 
     return ids
