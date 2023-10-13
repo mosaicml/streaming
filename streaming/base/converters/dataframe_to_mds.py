@@ -3,16 +3,16 @@
 
 """A utility to convert spark dataframe to MDS."""
 
-import json
 import logging
 import os
 import shutil
 from collections.abc import Iterable
-from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 import pandas as pd
 
 from streaming.base.util import get_import_exception_message
+from streaming.base.util import merge_index as do_merge_index
 
 try:
     from pyspark import TaskContext
@@ -119,52 +119,26 @@ def infer_dataframe_schema(dataframe: DataFrame,
     return schema_dict
 
 
-def do_merge_index(partitions: Iterable, mds_path: Union[str, Tuple[str, str]]) -> None:
-    """Merge index.json from partitions into one for streaming.
-
-    Args:
-        partitions (Iterable): partitions that contain pd.DataFrame
-        mds_path (Union[str, Tuple[str, str]]): (str,str)=(local,remote), str = local or remote
-            based on parse_uri(url) result
-    """
-    if not partitions:
-        logger.warning('No partitions exist, no index merged')
-        return
-
-    shards = []
-
-    for row in partitions:
-        mds_partition_index = f'{row.mds_path}/{get_index_basename()}'
-        mds_partition_basename = os.path.basename(row.mds_path)
-        obj = json.load(open(mds_partition_index))
-        for i in range(len(obj['shards'])):
-            shard = obj['shards'][i]
-            for key in ('raw_data', 'zip_data'):
-                if shard.get(key):
-                    basename = shard[key]['basename']
-                    obj['shards'][i][key]['basename'] = os.path.join(mds_partition_basename,
-                                                                     basename)
-        shards += obj['shards']
-
-    obj = {
-        'version': 2,
-        'shards': shards,
-    }
-
-    if isinstance(mds_path, str):
-        mds_index = os.path.join(mds_path, get_index_basename())
-    else:
-        mds_index = os.path.join(mds_path[0], get_index_basename())
-
-    with open(mds_index, 'w') as out:
-        json.dump(obj, out)
-
-
 def dataframeToMDS(dataframe: DataFrame,
                    merge_index: bool = True,
                    mds_kwargs: Optional[Dict[str, Any]] = None,
                    udf_iterable: Optional[Callable] = None,
                    udf_kwargs: Optional[Dict[str, Any]] = None) -> Tuple[Any, int]:
+    """Deprecated API Signature.
+
+    To be replaced by dataframe_to_mds
+    """
+    logger.warning(
+        'The DataframeToMDS signature has been deprecated and will be removed in Streaming 0.8. ' +
+        'Use dataframe_to_mds with the same arguments going forward')
+    return dataframe_to_mds(dataframe, merge_index, mds_kwargs, udf_iterable, udf_kwargs)
+
+
+def dataframe_to_mds(dataframe: DataFrame,
+                     merge_index: bool = True,
+                     mds_kwargs: Optional[Dict[str, Any]] = None,
+                     udf_iterable: Optional[Callable] = None,
+                     udf_kwargs: Optional[Dict[str, Any]] = None) -> Tuple[Any, int]:
     """Execute a spark dataframe to MDS conversion process.
 
     This method orchestrates the conversion of a spark dataframe into MDS format by processing the
@@ -194,6 +168,7 @@ def dataframeToMDS(dataframe: DataFrame,
     """
 
     def write_mds(iterator: Iterable):
+        """Worker node writes iterable to MDS datasets locally."""
         context = TaskContext.get()
 
         if context is not None:
@@ -201,12 +176,12 @@ def dataframeToMDS(dataframe: DataFrame,
         else:
             raise RuntimeError('TaskContext.get() returns None')
 
-        if isinstance(mds_path, str):  # local
-            output = os.path.join(mds_path, f'{id}')
-            out_file_path = output
+        if mds_path[1] == '':  # only local
+            output = os.path.join(mds_path[0], f'{id}')
+            partition_path = (output, '')
         else:
             output = (os.path.join(mds_path[0], f'{id}'), os.path.join(mds_path[1], f'{id}'))
-            out_file_path = output[0]
+            partition_path = output
 
         if mds_kwargs:
             kwargs = mds_kwargs.copy()
@@ -215,7 +190,7 @@ def dataframeToMDS(dataframe: DataFrame,
             kwargs = {}
 
         if merge_index:
-            kwargs['keep_local'] = True  # need to keep local to do merge
+            kwargs['keep_local'] = True  # need to keep workers' locals to do merge
 
         count = 0
 
@@ -237,10 +212,17 @@ def dataframeToMDS(dataframe: DataFrame,
                         raise RuntimeError(f'failed to write sample: {sample}') from ex
                         count += 1
 
-        yield pd.concat(
-            [pd.Series([out_file_path], name='mds_path'),
-             pd.Series([count], name='fail_count')],
-            axis=1)
+        yield pd.concat([
+            pd.Series([os.path.join(partition_path[0], get_index_basename())],
+                      name='mds_path_local'),
+            pd.Series([
+                os.path.join(partition_path[1], get_index_basename())
+                if partition_path[1] != '' else ''
+            ],
+                      name='mds_path_remote'),
+            pd.Series([count], name='fail_count')
+        ],
+                        axis=1)
 
     if dataframe is None or dataframe.isEmpty():
         raise ValueError(f'Input dataframe is None or Empty!')
@@ -275,25 +257,25 @@ def dataframeToMDS(dataframe: DataFrame,
     keep_local = False if 'keep_local' not in mds_kwargs else mds_kwargs['keep_local']
     cu = CloudUploader.get(out, keep_local=keep_local)
 
-    # Fix output format as mds_path: Tuple => remote Str => local only
+    # Fix output format as mds_path: Tuple(local, remote)
     if cu.remote is None:
-        mds_path = cu.local
+        mds_path = (cu.local, '')
     else:
         mds_path = (cu.local, cu.remote)
 
     # Prepare partition schema
     result_schema = StructType([
-        StructField('mds_path', StringType(), False),
+        StructField('mds_path_local', StringType(), False),
+        StructField('mds_path_remote', StringType(), False),
         StructField('fail_count', IntegerType(), False)
     ])
     partitions = dataframe.mapInPandas(func=write_mds, schema=result_schema).collect()
 
     if merge_index:
-        do_merge_index(partitions, mds_path)
+        index_files = [(row['mds_path_local'], row['mds_path_remote']) for row in partitions]
+        do_merge_index(index_files, out, keep_local=keep_local, download_timeout=60)
 
     if cu.remote is not None:
-        if merge_index:
-            cu.upload_file(get_index_basename())
         if 'keep_local' in mds_kwargs and mds_kwargs['keep_local'] == False:
             shutil.rmtree(cu.local, ignore_errors=True)
 
