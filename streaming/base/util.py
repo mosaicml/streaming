@@ -30,7 +30,7 @@ TCallable = TypeVar('TCallable', bound=Callable)
 
 __all__ = [
     'get_list_arg', 'wait_for_file_to_exist', 'bytes_to_int', 'number_abbrev_to_int',
-    'clean_stale_shared_memory', 'get_import_exception_message', 'retry'
+    'clean_stale_shared_memory', 'get_import_exception_message', 'merge_index', 'retry'
 ]
 
 
@@ -216,11 +216,38 @@ def get_import_exception_message(package_name: str, extra_deps: str) -> str:
 
 
 def merge_index(*args: Any, **kwargs: Any):
-    """Redirect to one of two merge_index functions based on arguments."""
+    r"""Merge index.json from partitions to form a global index.json.
+
+    This can be called as
+
+        merge_index(index_file_urls, out, keep_local, download_timeout)
+
+        merge_index(out, keep_local, download_timeout)
+
+    The first signature takes in a list of index files URLs of MDS partitions.
+    The second takes the root of a MDS dataset and parse the partition folders from there.
+
+    Args:
+        index_file_urls (List[Union[str, Tuple[str,str]]]): index.json from all the partitions.
+            Each element can take the form of a single path string or a tuple string.
+
+            1. If ``index_file_urls`` is a List of local URLs, merge locally without download.
+            2. If ``index_file_urls`` is a List of tuple (local, remote) URLs, check if local index.json are missing, download before merging.
+            3. If ``index_file_urls`` is a List of remote URLs, download all and merge.
+
+        out (Union[str, Tuple[str,str]]): folder that contain MDS partitions and to put the merged index file
+
+            1. A local directory, merge index happens locally.
+            2. A remote directory, download all the sub-directories index.json, merge locally and upload.
+            3. A tuple (local_dir, remote_dir), check if local index.json exist, download if not.
+
+        keep_local (bool): Keep local copy of the merged index file. Defaults to ``True``.
+        download_timeout (int): The allowed time for downloading each json file. Defaults to 60s.
+    """
     if isinstance(args[0], list) and len(args) + len(kwargs) in [2, 3, 4]:
         return _merge_index_from_list(*args, **kwargs)
     elif (isinstance(args[0], str) or
-          isinstance(args[0], tuple)) and len(args) + len(kwargs) in [1, 2]:
+          isinstance(args[0], tuple)) and len(args) + len(kwargs) in [1, 2, 3]:
         return _merge_index_from_root(*args, **kwargs)
     raise ValueError(f'Invalid arguments to merge_index: {args}, {kwargs}')
 
@@ -330,7 +357,9 @@ def _merge_index_from_list(index_file_urls: List[Union[str, Tuple[str, str]]],
             shutil.rmtree(cu.local, ignore_errors=True)
 
 
-def _merge_index_from_root(out: Union[str, Tuple[str, str]], keep_local: bool = True) -> None:
+def _merge_index_from_root(out: Union[str, Tuple[str, str]],
+                           keep_local: bool = True,
+                           download_timeout: int = 60) -> None:
     """Merge index.json given the root of MDS dataset. Write merged index to the root folder.
 
     Args:
@@ -343,6 +372,7 @@ def _merge_index_from_root(out: Union[str, Tuple[str, str]], keep_local: bool = 
                 If not, download all the sub-directories index.json from remote to local,
                 merge locally, and upload to remote_dir .
         keep_local (bool): Keep local copy of the merged index file. Defaults to ``True``
+        download_timeout (int): The allowed time for downloading each json file. Defaults to 60s.
     """
     from streaming.base.storage.upload import CloudUploader
 
@@ -386,15 +416,18 @@ def _merge_index_from_root(out: Union[str, Tuple[str, str]], keep_local: bool = 
             _merge_index_from_list(list(zip(local_index_files, remote_index_files)),
                                    out,
                                    keep_local=keep_local,
-                                   download_timeout=60)
+                                   download_timeout=download_timeout)
         else:
             _merge_index_from_list(remote_index_files,
                                    out,
                                    keep_local=keep_local,
-                                   download_timeout=60)
+                                   download_timeout=download_timeout)
         return
 
-    _merge_index_from_list(local_index_files, out, keep_local=keep_local, download_timeout=60)
+    _merge_index_from_list(local_index_files,
+                           out,
+                           keep_local=keep_local,
+                           download_timeout=download_timeout)
 
 
 @overload
