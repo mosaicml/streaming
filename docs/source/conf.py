@@ -371,6 +371,7 @@ def _modules_to_rst() -> List[types.ModuleType]:
         streaming.base.shared,
         streaming.base.shuffle,
         streaming.base.storage,
+        streaming.base.util,
         streaming.base.world,
     ]
     exclude_modules: List[types.Module] = [streaming.base, streaming._version]
