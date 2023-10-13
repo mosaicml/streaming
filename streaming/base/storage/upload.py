@@ -1000,7 +1000,7 @@ class LocalUploader(CloudUploader):
         if prefix is None:
             prefix = ''
         file_paths = []
-        for dirpath, _, files in os.walk(os.path.join(self.local, prefix)):
+        for dirpath, _, files in sorted(os.walk(os.path.join(self.local, prefix))):
             for file in files:
                 file_paths.append(os.path.join(dirpath, file))
         return file_paths

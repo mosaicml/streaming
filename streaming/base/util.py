@@ -276,9 +276,8 @@ def _merge_index_from_list(index_file_urls: List[Union[str, Tuple[str, str]]],
     from streaming.base.storage.upload import CloudUploader
 
     if not index_file_urls or not out:
-        logger.warning('Either index_file_urls or out are None. '+
-                       'Need to specify both `index_file_urls` and `out`. '+
-                       'No index merged')
+        logger.warning('Either index_file_urls or out are None. ' +
+                       'Need to specify both `index_file_urls` and `out`. ' + 'No index merged')
         return
 
     # This is the index json file name, e.g., it is index.json as of 0.6.0
