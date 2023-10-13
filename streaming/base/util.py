@@ -242,7 +242,7 @@ def merge_index(*args: Any, **kwargs: Any):
             3. A tuple (local_dir, remote_dir), check if local index.json exist, download if not.
 
         keep_local (bool): Keep local copy of the merged index file. Defaults to ``True``.
-        download_timeout (int): The allowed time for downloading each json file. Defaults to 60s.
+        download_timeout (int): The allowed time for downloading each json file. Defaults to 60.
     """
     if isinstance(args[0], list) and len(args) + len(kwargs) in [2, 3, 4]:
         return _merge_index_from_list(*args, **kwargs)
@@ -270,7 +270,7 @@ def _merge_index_from_list(index_file_urls: List[Union[str, Tuple[str, str]]],
 
         out (Union[str, Tuple[str, str]]): path to put the merged index file
         keep_local (bool): Keep local copy of the merged index file. Defaults to ``True``
-        download_timeout (int): The allowed time for downloading each json file. Defaults to 60s.
+        download_timeout (int): The allowed time for downloading each json file. Defaults to 60.
     """
     from streaming.base.storage.download import download_file
     from streaming.base.storage.upload import CloudUploader
@@ -372,7 +372,7 @@ def _merge_index_from_root(out: Union[str, Tuple[str, str]],
                 If not, download all the sub-directories index.json from remote to local,
                 merge locally, and upload to remote_dir .
         keep_local (bool): Keep local copy of the merged index file. Defaults to ``True``
-        download_timeout (int): The allowed time for downloading each json file. Defaults to 60s.
+        download_timeout (int): The allowed time for downloading each json file. Defaults to 60.
     """
     from streaming.base.storage.upload import CloudUploader
 
