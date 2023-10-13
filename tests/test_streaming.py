@@ -538,7 +538,7 @@ def test_py1e_shuffle_block_warning(local_remote_dir: Any, batch_size: int, size
 
     with pytest.warns(UserWarning, match=f'Shuffle block size was smaller than shard size*'):
         for _ in dataloader:
-            print('yo')
+            pass
 
 
 @pytest.mark.parametrize('batch_size', [128])
