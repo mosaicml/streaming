@@ -3,7 +3,7 @@
 
 """Functions for simulating shard downloads and calculating needed cache limit for downloads."""
 
-from typing import Optional
+from typing import Optional, Tuple
 
 import numpy as np
 from core.node_tracker import NodeTracker
@@ -17,7 +17,7 @@ def simulate_shard_downloads(node: NodeTracker,
                              step_num: int,
                              cache_limit: Optional[int] = None,
                              shards_needed: Optional[set] = None,
-                             download_bytes_left: Optional[int] = None) -> tuple[str, int]:
+                             download_bytes_left: Optional[int] = None) -> Tuple[str, int]:
     """Simulate downloading a shard for a node.
 
     Args:
@@ -33,7 +33,7 @@ def simulate_shard_downloads(node: NodeTracker,
             time interval. Defaults to ``None``.
 
     Returns:
-        tuple[bool, int]: A tuple of the shard download status and the download size.
+        Tuple[bool, int]: A tuple of the shard download status and the download size.
     """
     worker_download = node.get_next_worker_with_downloads()
     if worker_download is None:

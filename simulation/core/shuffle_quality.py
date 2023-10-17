@@ -3,6 +3,8 @@
 
 """Determine shuffle quality of a run over a fixed number of samples."""
 
+from typing import Tuple
+
 import numpy as np
 from core.utils import remove_padded_samples
 from numpy.typing import NDArray
@@ -49,7 +51,7 @@ def get_partition_shard_info(epoch_size: int,
                              workers: int,
                              device_batch_size: int,
                              samples_per_shard: int,
-                             remove_padding: bool = False) -> tuple[NDArray, NDArray, NDArray]:
+                             remove_padding: bool = False) -> Tuple[NDArray, NDArray, NDArray]:
     """Partition up to 100 million samples and get associated shard information.
 
     Args:
@@ -63,7 +65,7 @@ def get_partition_shard_info(epoch_size: int,
         remove_padding (bool): Whether to remove padding samples. Defaults to ``False``.
 
     Returns:
-        tuple[NDArray, NDArray, NDArray]: The partition, in order, the
+        Tuple[NDArray, NDArray, NDArray]: The partition, in order, the
             sizes of each shard, and the mapping of sample id to shard id.
     """
     num_samples = epoch_size
@@ -122,7 +124,7 @@ def get_entropy_shuffle_quality(shuffle_algo: str, partition: NDArray, shard_siz
 def analyze_shuffle_quality_entropy(algo: str, canonical_nodes: int, physical_nodes: int,
                                     devices: int, workers: int, device_batch_size: int,
                                     shuffle_block_size: int, samples_per_shard: int,
-                                    epoch_size: int, seed: int) -> tuple[str, float]:
+                                    epoch_size: int, seed: int) -> Tuple[str, float]:
     """Analyze the quality of a shuffle for one algorithm.
 
     Args:
@@ -138,7 +140,7 @@ def analyze_shuffle_quality_entropy(algo: str, canonical_nodes: int, physical_no
         seed (int): The seed to use for the shuffle.
 
     Returns:
-        tuple[str, float]: Shuffle algorithm and shuffle quality.
+        Tuple[str, float]: Shuffle algorithm and shuffle quality.
     """
     print(f'Analyzing shuffle quality for {algo}...')
 
