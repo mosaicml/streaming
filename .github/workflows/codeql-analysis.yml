@@ -34,6 +34,17 @@ jobs:
         # Learn more about CodeQL language support at https://git.io/codeql-language-support
 
     steps:
+      # the following step is required to avoid running out of space
+      - name: Maximize build space
+        run: |
+          df -h
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          echo "Check space..."
+          df -h
+
       - name: Checkout repository
         uses: actions/checkout@v3
 
