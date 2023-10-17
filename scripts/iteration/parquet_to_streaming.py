@@ -6,6 +6,7 @@
 import json
 import os
 from argparse import ArgumentParser, Namespace
+from tqdm import tqdm
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 from pyarrow import parquet as pq
@@ -22,6 +23,7 @@ def parse_args() -> Namespace:
     args = ArgumentParser()
     args.add_argument('--dataset', type=str, required=True)
     args.add_argument('--shard_suffix', type=str, default='.parquet')
+    args.add_argument('--tqdm', type=int, default=1)
     return args.parse_args()
 
 
@@ -138,8 +140,11 @@ def main(args: Namespace) -> None:
     Args:
         args (Namespace): Command-line arguments.
     """
+    each = each_shard_path(args.dataset, args.shard_suffix)
+    if args.tqdm:
+        each = tqdm(list(each), leave=False)
     infos = []
-    for path, dataset_rel_path in each_shard_path(args.dataset, args.shard_suffix):
+    for path, dataset_rel_path in each:
         info = get_shard_info(path, dataset_rel_path)
         infos.append(info)
     obj = {

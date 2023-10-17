@@ -31,7 +31,7 @@ def parse_args() -> Namespace:
     args.add_argument('--lance_pow', type=int, default=4)
     args.add_argument('--pq_suffix', type=str, default='.parquet')
     args.add_argument('--tqdm', type=int, default=1)
-    args.add_argument('--time_limit', type=float, default=20)
+    args.add_argument('--time_limit', type=float, default=180)
     args.add_argument('--stats', type=str, required=True)
     return args.parse_args()
 
@@ -53,16 +53,20 @@ def bench_lance_seq(dataset: LanceDataset, take_count: int, use_tqdm: int,
     if num_samples % take_count:
         raise ValueError(f'`num_samples` ({num_samples}) must be divisible by `take_count` ' +
                          f'({take_count}).')
-    shape = num_samples // take_count, take_count
+    num_batches = num_samples // take_count
+    shape = num_batches, take_count
     times = np.zeros(shape, np.float64)
     sample, = dataset.head(1).to_pylist()
     columns = sorted(sample)
     each_batch = enumerate(dataset.to_batches(columns=columns, batch_size=take_count))
     if use_tqdm:
-        each_batch = tqdm(each_batch, total=num_samples // take_count, leave=False)
+        each_batch = tqdm(each_batch, total=num_batches, leave=False)
     t0 = time()
     for i, samples in each_batch:
         samples.to_pylist()
+        assert len(samples) == take_count
+        if num_batches < i:  # ???
+            break
         times[i] = t = time() - t0
         if time_limit <= t:
             times = times[:i]
@@ -300,20 +304,6 @@ def main(args: Namespace) -> None:
         'times': (times * 1e9).astype(np.int64).tolist()
     })
 
-    for take_count in lance_take_counts:
-        times = bench_lance_seq(lance_dataset, take_count, args.tqdm, args.time_limit)
-        rate = int(len(times) / times[-1])
-        label = f'Lance seq n={take_count:04}: {rate:,}/s'
-        obj[f'lance_seq_{take_count:04}'] = to_dict(label, rate, times)
-        print(label)
-
-    for take_count in lance_take_counts:
-        times = bench_lance_rand(lance_dataset, take_count, args.tqdm, args.time_limit)
-        rate = int(len(times) / times[-1])
-        label = f'Lance rand n={take_count:04}: {rate:,}/s'
-        obj[f'lance_rand_{take_count:04}'] = to_dict(label, rate, times)
-        print(label)
-
     times = bench_pq_seq(streaming_dataset, args.pq_suffix, args.tqdm, args.time_limit)
     rate = int(len(times) / times[-1])
     label = f'PQ seq (in mem): {rate:,}/s'
@@ -353,6 +343,20 @@ def main(args: Namespace) -> None:
     label = f'Warm MDS rand: {rate:,}/s'
     obj['mds_rand'] = to_dict(label, rate, times)
     print(label)
+
+    for take_count in lance_take_counts:
+        times = bench_lance_seq(lance_dataset, take_count, args.tqdm, args.time_limit)
+        rate = int(len(times) / times[-1])
+        label = f'Lance seq n={take_count:04}: {rate:,}/s'
+        obj[f'lance_seq_{take_count:04}'] = to_dict(label, rate, times)
+        print(label)
+
+    for take_count in lance_take_counts:
+        times = bench_lance_rand(lance_dataset, take_count, args.tqdm, args.time_limit)
+        rate = int(len(times) / times[-1])
+        label = f'Lance rand n={take_count:04}: {rate:,}/s'
+        obj[f'lance_rand_{take_count:04}'] = to_dict(label, rate, times)
+        print(label)
 
     with open(args.stats, 'w') as out:
         json.dump(obj, out)

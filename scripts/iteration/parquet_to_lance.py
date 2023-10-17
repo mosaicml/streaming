@@ -22,6 +22,7 @@ def parse_args() -> Namespace:
     args = ArgumentParser()
     args.add_argument('--parquet', type=str, required=True)
     args.add_argument('--lance', type=str, required=True)
+    args.add_argument('--max_rows_per_group', type=int, default=1024)
     return args.parse_args()
 
 
@@ -32,7 +33,7 @@ def main(args: Namespace) -> None:
         args (Namespace): Command-line arguments.
     """
     dataset = pa.dataset.dataset(args.parquet, format='parquet')
-    lance.write_dataset(dataset, args.lance)
+    lance.write_dataset(dataset, args.lance, max_rows_per_group=args.max_rows_per_group)
 
 
 if __name__ == '__main__':

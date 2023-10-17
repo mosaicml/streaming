@@ -20,18 +20,18 @@ def parse_args() -> Namespace:
         Namespace: Command-line arguments.
     """
     args = ArgumentParser()
-    args.add_argument('--num_train', type=int, default=1 << 24)
-    args.add_argument('--num_val', type=int, default=1 << 20)
+    args.add_argument('--num_train', type=int, default=1)
+    args.add_argument('--num_val', type=int, default=1 << 26)
     args.add_argument('--dataset', type=str, default='data/parquet/')
-    args.add_argument('--samples_per_shard', type=int, default=1 << 17)
+    args.add_argument('--samples_per_shard', type=int, default=1 << 20)
     args.add_argument('--tqdm', type=int, default=1)
     return args.parse_args()
 
 
-_ones = ('zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen '
+ones = ('zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen '
          'fifteen sixteen seventeen eighteen nineteen').split()
 
-_tens = 'twenty thirty forty fifty sixty seventy eighty ninety'.split()
+tens = 'twenty thirty forty fifty sixty seventy eighty ninety'.split()
 
 
 def say(i: int) -> List[str]:
@@ -46,11 +46,11 @@ def say(i: int) -> List[str]:
     if i < 0:
         return ['negative'] + say(-i)
     elif i <= 19:
-        return [_ones[i]]
+        return [ones[i]]
     elif i < 100:
-        return [_tens[i // 10 - 2]] + ([_ones[i % 10]] if i % 10 else [])
+        return [tens[i // 10 - 2]] + ([ones[i % 10]] if i % 10 else [])
     elif i < 1_000:
-        return [_ones[i // 100], 'hundred'] + (say(i % 100) if i % 100 else [])
+        return [ones[i // 100], 'hundred'] + (say(i % 100) if i % 100 else [])
     elif i < 1_000_000:
         return say(i // 1_000) + ['thousand'] + (say(i % 1_000) if i % 1_000 else [])
     elif i < 1_000_000_000:
