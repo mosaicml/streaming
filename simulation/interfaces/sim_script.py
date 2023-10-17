@@ -11,8 +11,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import humanize
 from core.create_index import create_stream_index
 from core.main import simulate
+from core.sim_dataset import SimulationDataset
 from core.sim_time import TimeUnit, ensure_time
-from core.simulation_dataset import SimulationDataset
 from core.utils import get_simulation_stats
 from interfaces.interface_utils import plot_simulation
 

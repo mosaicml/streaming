@@ -3,8 +3,10 @@
 
 """Launch simulator UI from command line when this package is installed."""
 
-import subprocess
 import os
+import subprocess
+
 
 def launch_simulation_ui():
-    subprocess.run(["streamlit", "run", os.path.abspath("simulation/interfaces/sim_ui.py")])
+    """Launch the simulation UI."""
+    subprocess.run(['streamlit', 'run', os.path.abspath('simulation/interfaces/sim_ui.py')])

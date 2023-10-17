@@ -11,8 +11,8 @@ from math import ceil
 from typing import Optional, Sequence, Union
 
 import numpy as np
-from core.simulation_spanner import SimulationSpanner
-from core.simulation_world import SimulationWorld
+from core.sim_spanner import SimulationSpanner
+from core.sim_world import SimulationWorld
 from numpy.typing import NDArray
 
 from streaming.base import Stream, StreamingDataset

@@ -4,8 +4,8 @@
 """Peripheral functions for simulation functionality."""
 
 import numpy as np
+from core.sim_dataset import SimulationDataset
 from core.sim_time import Time, TimeUnit
-from core.simulation_dataset import SimulationDataset
 from numpy.typing import NDArray
 
 

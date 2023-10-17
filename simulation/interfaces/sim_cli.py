@@ -1,7 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""simcli: simulate your training yaml from the command line."""
+"""sim_cli: simulate your training yaml from the command line."""
 
 import os.path
 import sys

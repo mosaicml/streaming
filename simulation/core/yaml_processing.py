@@ -5,8 +5,8 @@
 
 from typing import Optional
 
+from core.sim_dataset import SimulationDataset
 from core.sim_time import Time, TimeUnit, ensure_time
-from core.simulation_dataset import SimulationDataset
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 

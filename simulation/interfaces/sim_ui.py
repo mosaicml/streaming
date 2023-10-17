@@ -19,8 +19,8 @@ import yaml
 from core.create_index import create_stream_index
 from core.main import simulate
 from core.shuffle_quality import analyze_shuffle_quality
+from core.sim_dataset import SimulationDataset
 from core.sim_time import Time
-from core.simulation_dataset import SimulationDataset
 from core.utils import get_total_batches
 from core.yaml_processing import create_simulation_dataset, ingest_yaml
 from interfaces.interface_utils import get_train_dataset_params

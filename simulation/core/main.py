@@ -9,8 +9,8 @@ from typing import Generator, Union
 import numpy as np
 from core.node_tracker import NodeTracker
 from core.shard_downloads import run_cache_limit, simulate_shard_downloads
+from core.sim_dataset import SimulationDataset
 from core.sim_time import Time
-from core.simulation_dataset import SimulationDataset
 from core.utils import bytes_to_time, get_batches_epochs, time_to_bytes
 from numpy.typing import NDArray
 

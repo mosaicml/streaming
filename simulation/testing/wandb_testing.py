@@ -16,8 +16,8 @@ import pandas as pd
 import wandb
 from core.create_index import create_stream_index
 from core.main import simulate
+from core.sim_dataset import SimulationDataset
 from core.sim_time import TimeUnit, ensure_time
-from core.simulation_dataset import SimulationDataset
 from numpy.typing import NDArray
 
 from streaming.base import Stream
