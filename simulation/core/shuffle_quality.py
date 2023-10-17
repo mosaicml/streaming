@@ -42,9 +42,14 @@ def get_entropy(ordering: NDArray) -> float:
     return float(diff_entropy)
 
 
-def get_partition_shard_info(epoch_size: int, canonical_nodes: int, physical_nodes: int,
-                             devices: int, workers: int, device_batch_size: int,
-                             samples_per_shard: int) -> tuple[NDArray, NDArray, NDArray]:
+def get_partition_shard_info(epoch_size: int,
+                             canonical_nodes: int,
+                             physical_nodes: int,
+                             devices: int,
+                             workers: int,
+                             device_batch_size: int,
+                             samples_per_shard: int,
+                             remove_padding: bool = False) -> tuple[NDArray, NDArray, NDArray]:
     """Partition up to 100 million samples and get associated shard information.
 
     Args:
@@ -55,6 +60,7 @@ def get_partition_shard_info(epoch_size: int, canonical_nodes: int, physical_nod
         workers (int): The number of workers.
         device_batch_size (int): The batch size per device.
         samples_per_shard (int): Average number of samples per shard.
+        remove_padding (bool): Whether to remove padding samples. Defaults to ``False``.
 
     Returns:
         tuple[NDArray, NDArray, NDArray]: The partition, in order, the
@@ -68,7 +74,8 @@ def get_partition_shard_info(epoch_size: int, canonical_nodes: int, physical_nod
     partition = get_partitions_orig(num_samples, canonical_nodes, physical_nodes, devices, workers,
                                     device_batch_size)
     partition = partition.transpose(3, 2, 0, 1, 4).flatten()
-    partition = remove_padded_samples(partition)
+    if remove_padding:
+        partition = remove_padded_samples(partition)
 
     # Construct shard sizes array.
     num_shards = num_samples // samples_per_shard
@@ -100,7 +107,7 @@ def get_entropy_shuffle_quality(shuffle_algo: str, partition: NDArray, shard_siz
         shuffle_block_size (int): The shuffle block size.
 
     Returns:
-        float: The entropy of the shuffle, combining entropy from sample and shard orderings.
+        float: The entropy metric, equal to the harmonic mean of sample and shard orderings.
     """
     if shuffle_algo != 'none':
         # Assume we are shuffling only for epoch 0.
@@ -109,50 +116,13 @@ def get_entropy_shuffle_quality(shuffle_algo: str, partition: NDArray, shard_siz
         partition = shuffle_ordering[partition]
     sample_entropy = get_entropy(partition)
     shard_entropy = get_entropy(shard_per_sample[partition])
-    return sample_entropy + shard_entropy
+    return (2 * sample_entropy * shard_entropy) / (sample_entropy + shard_entropy)
 
 
-def analyze_all_shuffle_quality(algos: list[str], canonical_nodes: int, physical_nodes: int,
-                                devices: int, workers: int, device_batch_size: int,
-                                shuffle_block_size: int, samples_per_shard: int, epoch_size: int,
-                                seed: int) -> list[tuple[str, float]]:
-    """Analyze the quality of this shuffle across algorithms.
-
-    Args:
-        algos (list[str]): The algorithms to analyze.
-        canonical_nodes (int): The number of canonical nodes.
-        physical_nodes (int): The number of physical nodes.
-        devices (int): The number of devices.
-        workers (int): The number of workers.
-        device_batch_size (int): The batch size per device.
-        shuffle_block_size (int): The shuffle block size.
-        samples_per_shard (int): Average number of samples per shard.
-        epoch_size (int): The number of samples in an epoch.
-        seed (int): The seed to use for the shuffle.
-
-    Returns:
-        list[tuple[str, float]]: Shuffle algorithms and shuffle qualities.
-    """
-    print('Analyzing shuffle quality...')
-
-    shuffle_qualities = []
-
-    # Getting partition, shard_sizes, and shard_per_sample only has to be done once for all algos.
-    partition, shard_sizes, shard_per_sample = get_partition_shard_info(
-        epoch_size, canonical_nodes, physical_nodes, devices, workers, device_batch_size,
-        samples_per_shard)
-    for algo in algos:
-        shuffle_qualities.append(
-            get_entropy_shuffle_quality(algo, partition, shard_sizes, shard_per_sample,
-                                        canonical_nodes, seed, shuffle_block_size))
-
-    return shuffle_qualities
-
-
-def analyze_shuffle_quality(algo: str, canonical_nodes: int, physical_nodes: int, devices: int,
-                            workers: int, device_batch_size: int, shuffle_block_size: int,
-                            samples_per_shard: int, epoch_size: int,
-                            seed: int) -> tuple[str, float]:
+def analyze_shuffle_quality_entropy(algo: str, canonical_nodes: int, physical_nodes: int,
+                                    devices: int, workers: int, device_batch_size: int,
+                                    shuffle_block_size: int, samples_per_shard: int,
+                                    epoch_size: int, seed: int) -> tuple[str, float]:
     """Analyze the quality of a shuffle for one algorithm.
 
     Args:
@@ -173,9 +143,14 @@ def analyze_shuffle_quality(algo: str, canonical_nodes: int, physical_nodes: int
     print(f'Analyzing shuffle quality for {algo}...')
 
     # Getting partition, shard_sizes, and shard_per_sample only has to be done once for all algos.
-    partition, shard_sizes, shard_per_sample = get_partition_shard_info(
-        epoch_size, canonical_nodes, physical_nodes, devices, workers, device_batch_size,
-        samples_per_shard)
+    partition, shard_sizes, shard_per_sample = get_partition_shard_info(epoch_size,
+                                                                        canonical_nodes,
+                                                                        physical_nodes,
+                                                                        devices,
+                                                                        workers,
+                                                                        device_batch_size,
+                                                                        samples_per_shard,
+                                                                        remove_padding=True)
 
     shuffle_quality = get_entropy_shuffle_quality(algo, partition, shard_sizes, shard_per_sample,
                                                   canonical_nodes, seed, shuffle_block_size)

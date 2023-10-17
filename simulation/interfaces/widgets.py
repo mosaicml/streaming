@@ -412,8 +412,11 @@ def get_shuffle_quality_chart(data: pd.DataFrame) -> alt.Chart:
     Returns:
         alt.Chart: Interactive bar chart for shuffle quality.
     """
-    bars = (alt.Chart(data, title='Shuffle Quality (higher is better)').mark_bar().encode(
-        x='algo', y='quality', tooltip='quality').properties(width=550,))
+    bars = (alt.Chart(data,
+                      title='Relative Shuffle Quality (1 is best)').mark_bar().encode(
+                          x='shuffling algorithm',
+                          y='relative quality',
+                          tooltip='relative quality').properties(width=550,))
     return bars.interactive()
 
 
@@ -427,6 +430,17 @@ def display_shuffle_quality_graph(futures: list[Future], component: DeltaGenerat
     # Retrieve shuffle quality result since it is available
     shuffle_algos_qualities = list(zip(*[f.result() for f in futures]))
     shuffle_algos = list(shuffle_algos_qualities[0])
-    shuffle_qualities = list(shuffle_algos_qualities[1])
-    shuffle_quality_df = pd.DataFrame({'algo': shuffle_algos, 'quality': shuffle_qualities})
+    # divide all shuffle qualities by naive shuffle quality to get a relative measure
+    naive_idx = shuffle_algos.index('naive')
+    naive_shuffle_quality = shuffle_algos_qualities[1][naive_idx]
+    shuffle_algos.remove('naive')
+    shuffle_qualities = [
+        shuffle_algos_qualities[1][i] / naive_shuffle_quality
+        for i in range(len(shuffle_algos_qualities[1]))
+        if i != naive_idx
+    ]
+    shuffle_quality_df = pd.DataFrame({
+        'shuffling algorithm': shuffle_algos,
+        'relative quality': shuffle_qualities
+    })
     component.altair_chart(get_shuffle_quality_chart(shuffle_quality_df), use_container_width=True)

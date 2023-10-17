@@ -18,7 +18,7 @@ import streamlit as st
 import yaml
 from core.create_index import create_stream_index
 from core.main import simulate
-from core.shuffle_quality import analyze_shuffle_quality
+from core.shuffle_quality import analyze_shuffle_quality_entropy
 from core.sim_dataset import SimulationDataset
 from core.sim_time import Time
 from core.utils import get_total_batches
@@ -99,9 +99,9 @@ def submit_jobs(shuffle_quality: bool, dataset: SimulationDataset, time_per_samp
             seed = input_params['seed']
             # Submit all shuffle quality analysis jobs to executor.
             futures = [
-                executor.submit(analyze_shuffle_quality, algo, canonical_nodes, physical_nodes,
-                                devices, workers, device_batch_size, shuffle_block_size,
-                                samples_per_shard, epoch_size, seed)
+                executor.submit(analyze_shuffle_quality_entropy, algo, canonical_nodes,
+                                physical_nodes, devices, workers, device_batch_size,
+                                shuffle_block_size, samples_per_shard, epoch_size, seed)
                 for algo in shuffle_quality_algos
             ]
 
