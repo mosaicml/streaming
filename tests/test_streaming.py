@@ -510,6 +510,37 @@ def test_dataloader_mid_epoch_exit(local_remote_dir: Tuple[str, str], num_sample
     assert result == 0
 
 
+@pytest.mark.parametrize('batch_size', [4])
+@pytest.mark.parametrize('size_limit', [256, 512])
+@pytest.mark.parametrize('seed', [1111])
+@pytest.mark.parametrize('shuffle', [True])
+@pytest.mark.parametrize('shuffle_block_size', [50, 100])
+@pytest.mark.usefixtures('local_remote_dir')
+def test_py1e_shuffle_block_warning(local_remote_dir: Any, batch_size: int, size_limit: int,
+                                    seed: int, shuffle: bool, shuffle_block_size: int):
+    remote_dir, local_dir = local_remote_dir
+    # Here, size_limit is in bytes. Each SequenceDataset sample is around 10 bytes, but the header
+    # will also take up some space.
+    convert_to_mds(out_root=remote_dir,
+                   dataset_name='sequencedataset',
+                   num_samples=1000,
+                   size_limit=(size_limit * 10) + 1000)
+
+    dataset = StreamingDataset(local=local_dir,
+                               remote=remote_dir,
+                               shuffle=shuffle,
+                               batch_size=batch_size,
+                               num_canonical_nodes=1,
+                               shuffle_seed=seed,
+                               shuffle_algo='py1e',
+                               shuffle_block_size=shuffle_block_size)
+    dataloader = DataLoader(dataset=dataset, batch_size=batch_size)
+
+    with pytest.warns(UserWarning, match=f'Shuffle block size was smaller than shard size*'):
+        for _ in dataloader:
+            pass
+
+
 @pytest.mark.parametrize('batch_size', [128])
 @pytest.mark.parametrize('drop_last', [False, True])
 @pytest.mark.parametrize('shuffle', [False, True])
