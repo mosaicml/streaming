@@ -531,5 +531,8 @@ class TestLocalUploader:
             f2.write('Content of file2')
 
         result = lc.list_objects(prefix='test_dir/prefix')
-        expected = [os.path.join(test_dir, 'prefix_file1.txt'), os.path.join(test_dir, 'prefix_file2.txt')]
+        expected = [
+            os.path.join(test_dir, 'prefix_file1.txt'),
+            os.path.join(test_dir, 'prefix_file2.txt')
+        ]
         assert (result == expected)
