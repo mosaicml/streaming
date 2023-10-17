@@ -14,7 +14,7 @@ For an S3 bucket with public access, no additional setup is required, simply spe
 
 ### MosaicML platform
 
-For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [AWS S3](https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/s3.html) MCLI doc on how to configure the cloud provider credentials.
+For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [AWS S3](https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/s3.html) MCLI documentation page on how to configure the cloud provider credentials.
 
 ### Others
 
@@ -96,7 +96,7 @@ export S3_ENDPOINT_URL='https://<accountid>.r2.cloudflarestorage.com'
 
 ### MosaicML platform
 
-For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [Google Cloud Storage](https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/gcp.html) MCLI doc on how to configure the cloud provider credentials.
+For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [Google Cloud Storage](https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/gcp.html) MCLI documentation page on how to configure the cloud provider credentials.
 
 
 ### GCP User Auth Credentials Mounted as Environment Variables
@@ -150,7 +150,7 @@ export GOOGLE_APPLICATION_CREDENTIALS='KEY_FILE'
 
 ### MosaicML platform
 
-For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [Oracle Cloud Storage](https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/oci.html) MCLI doc on how to configure the cloud provider credentials.
+For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [Oracle Cloud Storage](https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/oci.html) MCLI documentation page on how to configure the cloud provider credentials.
 
 ### Others
 
@@ -216,12 +216,7 @@ See the [Databricks documentation](https://docs.databricks.com/en/dev-tools/auth
 
 ### MosaicML platform
 
-For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [Environment Variables](https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/env.html) documentation on how to set the environment variables.
-
-```
-mcli create secret env DATABRICKS_HOST='hostname'
-mcli create secret env DATABRICKS_TOKEN='token key'
-```
+For [MosaicML platform](https://www.mosaicml.com/cloud) users, follow the steps mentioned in the [Databricks](https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/databricks.html) MCLI documentation page on how to configure the credentials.
 
 ### Others
 
