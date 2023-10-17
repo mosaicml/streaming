@@ -501,3 +501,35 @@ class TestLocalUploader:
         lc = LocalUploader(out=(local, remote))
         with pytest.raises(FileNotFoundError, match=f'No such file or directory:.*'):
             lc.upload_file(filename)
+
+    def test_list_objects_no_prefix(self, local_remote_dir: Tuple[str, str]):
+        local, _ = local_remote_dir
+        lc = LocalUploader(out=local)
+
+        # Generate some local files for testing
+        test_dir = os.path.join(local, 'test_dir')
+        os.makedirs(test_dir, exist_ok=True)
+        with open(os.path.join(test_dir, 'file2.txt'),
+                  'w') as f2, open(os.path.join(test_dir, 'file1.txt'), 'w') as f1:
+            f1.write('Content of file1')
+            f2.write('Content of file2')
+
+        result = lc.list_objects()
+        expected = [os.path.join(test_dir, 'file1.txt'), os.path.join(test_dir, 'file2.txt')]
+        assert (result == expected)
+
+    def test_list_objects_with_prefix(self, local_remote_dir: Tuple[str, str]):
+        local, _ = local_remote_dir
+        lc = LocalUploader(out=local)
+
+        # Generate some local files for testing
+        test_dir = os.path.join(local, 'test_dir')
+        os.makedirs(test_dir, exist_ok=True)
+        with open(os.path.join(test_dir, 'prefix_file2.txt'),
+                  'w') as f2, open(os.path.join(test_dir, 'prefix_file1.txt'), 'w') as f1:
+            f1.write('Content of file1')
+            f2.write('Content of file2')
+
+        result = lc.list_objects(prefix='test_dir/prefix')
+        expected = [os.path.join(test_dir, 'prefix_file1.txt'), os.path.join(test_dir, 'prefix_file2.txt')]
+        assert (result == expected)
