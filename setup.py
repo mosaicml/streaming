@@ -131,6 +131,9 @@ setup(
         'streaming': ['py.typed'],
     },
     packages=setuptools.find_packages(exclude=['tests*']),
+    entry_points={
+        'console_scripts': ['simulator = simulation.launcher:launch_simulation_ui',],
+    },
     classifiers=classifiers,
     install_requires=install_requires,
     extras_require=extra_deps,
