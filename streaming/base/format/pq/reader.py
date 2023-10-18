@@ -142,7 +142,7 @@ class PQReader(MDSReader):
         elif isinstance(val, str):
             return 'str'
         else:
-            raise ValueError('Unsupported column type: {type(val)}.')
+            raise TypeError('Unsupported column type: {type(val)}.')
 
     def get_columns(self, sample: Dict[str, Any]) -> Dict[str, str]:
         """Get the MDS columns given one sample.
