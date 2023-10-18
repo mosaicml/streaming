@@ -1283,6 +1283,9 @@ class StreamingDataset(Array, IterableDataset):
                 self.prepare_shard(shard_id, False)
             # Wait for a shard file to download completely.
             while self._shard_states[shard_id] != _ShardState.LOCAL:
+                # Background thread or a main process crashed, terminate this thread.
+                if self._event.is_set():
+                    break
                 sleep(TICK)
 
             # Step forward one sample.
@@ -1372,5 +1375,5 @@ class StreamingDataset(Array, IterableDataset):
         ready_future = self._executor.submit(self._ready_thread, it)
         ready_future.add_done_callback(self.on_exception)
         yield from map(self.__getitem__, self._each_sample_id(it))
-        wait([prepare_future, ready_future])
+        wait([prepare_future, ready_future], return_when='FIRST_EXCEPTION')
         it.exit()

@@ -73,14 +73,14 @@ extra_deps['dev'] = [
     'toml==0.10.2',
     'yamllint==1.32.0',
     'moto>=4.0,<5',
-    'fastapi==0.103.1',
-    'pydantic==2.3.0',
+    'fastapi==0.103.2',
+    'pydantic==2.4.2',
     'uvicorn==0.23.2',
     'pytest-split==0.8.1',
 ]
 
 extra_deps['docs'] = [
-    'GitPython==3.1.36',
+    'GitPython==3.1.37',
     'docutils==0.18.1',
     'furo==2023.7.26',
     'myst-parser==2.0.0',
