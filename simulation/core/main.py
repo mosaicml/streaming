@@ -3,6 +3,7 @@
 
 """Main simulation function, simulating bytes downloaded and time taken each training step."""
 
+import logging
 import time
 from typing import Generator, Tuple, Union
 
@@ -13,6 +14,9 @@ from core.sim_dataset import SimulationDataset
 from core.sim_time import Time
 from core.utils import bytes_to_time, get_batches_epochs, time_to_bytes
 from numpy.typing import NDArray
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 
 def simulate(
@@ -125,10 +129,10 @@ def simulate(
             if step_num >= total_batches:
                 break
 
-            # Print progress every notification_batches interval.
+            # Log progress every notification_batches interval.
             if (batch + 1) % notification_batches == 0:
-                print('Epoch: ' + str(epoch + 1) + ' | Batch ' + str(batch + 1) + '/' +
-                      str(batches_per_epoch))
+                logger.info(
+                    f' Epoch: {str(epoch + 1)} | Batch {str(batch + 1)}/{str(batches_per_epoch)}')
 
             # We round-robin over workers per device. The current batch's worker is the same
             # across every device.

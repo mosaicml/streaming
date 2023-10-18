@@ -39,61 +39,14 @@ TValue = TypeVar('TValue', int, float)
 
 
 class Time(Generic[TValue]):
-    """Time represents static durations of training time in terms of a :class:`TimeUnit` enum.
+    """Time represents static durations of training time in terms of a `TimeUnit` enum.
 
-    See the :doc:`Time Guide </trainer/time>` for more details on tracking time during training.
-
-    To construct an instance of :class:`Time`, you can either:
-
-    #. Use a value followed by a :class:`TimeUnit` enum or string. For example,
-
-    >>> Time(5, TimeUnit.EPOCH)  # describes 5 epochs.
-    Time(5, TimeUnit.EPOCH)
-    >>> Time(30_000, "tok")  # describes 30,000 tokens.
-    Time(30000, TimeUnit.TOKEN)
-    >>> Time(0.5, "dur")  # describes 50% of the training process.
-    Time(0.5, TimeUnit.DURATION)
-
-    #. Use one of the helper methods. See:
-
-    - :meth:`Time.from_epoch`
-    - :meth:`Time.from_batch`
-    - :meth:`Time.from_sample`
-    - :meth:`Time.from_token`
-    - :meth:`Time.from_duration`
-    - :meth:`Time.from_timestring`.
-
-    :class:`Time` supports addition and subtraction with other :class:`Time` instances that share the same
-    :class:`TimeUnit`. For example:
-
-    >>> Time(1, TimeUnit.EPOCH) + Time(2, TimeUnit.EPOCH)
-    Time(3, TimeUnit.EPOCH)
-
-    :class:`Time` supports multiplication. The multiplier must be either a number or have units of
-    :attr:`TimeUnit.DURATION`. The multiplicand is scaled, and its units are kept.
-
-    >>> Time(2, TimeUnit.EPOCH) * 0.5
-    Time(1, TimeUnit.EPOCH)
-
-    >>> Time(2, TimeUnit.EPOCH) * Time(0.5, TimeUnit.DURATION)
-    Time(1, TimeUnit.EPOCH)
-
-
-    :class:`Time` supports division. If the divisor is an instance of :class:`Time`, then it
-    must have the same units as the dividend, and the result has units of :attr:`TimeUnit.DURATION`.
-    For example:
-
-    >>> Time(4, TimeUnit.EPOCH) / Time(2, TimeUnit.EPOCH)
-    Time(2.0, TimeUnit.DURATION)
-
-    If the divisor is number, then the dividend is scaled, and it keeps its units. For example:
-
-    >>> Time(4, TimeUnit.EPOCH) / 2
-    Time(2, TimeUnit.EPOCH)
+    This is identical to the `Time` class in MosaicML Composer. See the Composer docs for more
+    details on tracking time during training.
 
     Args:
         value (int | float): The amount of time.
-        unit (str | TimeUnit): The :class:`TimeUnit` for ``value``.
+        unit (str | TimeUnit): The `TimeUnit` for ``value``.
     """
 
     def __init__(

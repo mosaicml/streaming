@@ -4,6 +4,7 @@
 """Create a dataset index file from input parameters."""
 
 import json
+import logging
 import os
 import random
 import string
@@ -11,9 +12,16 @@ from typing import Optional
 
 from streaming.base.format import get_index_basename
 
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
-def get_random_foldername():
-    """Generate random folder name to store the index file in."""
+
+def get_random_foldername() -> str:
+    """Generate random folder name to store the index file in.
+
+    Returns:
+        str: random alphanumeric folder name.
+    """
     return ''.join(
         random.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits)
         for _ in range(16))
@@ -65,13 +73,14 @@ def create_stream_index(shards: int, samples_per_shard: int, avg_raw_shard_size:
     try:
         os.mkdir(foldername)
     except FileExistsError:
-        print('Folder already exists, trying again...')
+        logger.warning(' Folder already exists, trying again...')
         foldername = get_random_foldername()
         os.mkdir(foldername)
 
     index_basename = get_index_basename()
+    index_path = os.path.join(foldername, index_basename)
 
-    with open(f'{foldername}/{index_basename}', 'w') as f:
+    with open(index_path, 'w') as f:
         json.dump(index_data, f)
 
-    return os.path.join(foldername, index_basename)
+    return index_path

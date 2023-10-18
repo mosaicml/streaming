@@ -99,6 +99,8 @@ extra_deps['simulator'] = [
     'altair>=5.1.1,<6',
     'omegaconf>=2.3.0,<3',
     'PyYAML>=6.0,<7',
+    'pandas>=2.0.3,<3',
+    'wandb>=0.15.5,<1',
 ]
 
 extra_deps['spark'] = [

@@ -8,6 +8,7 @@ import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
+import logging
 import os
 
 import matplotlib.pyplot as plt
@@ -21,6 +22,9 @@ from core.sim_time import TimeUnit, ensure_time
 from numpy.typing import NDArray
 
 from streaming.base import Stream
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 api = wandb.Api()
 
@@ -68,7 +72,7 @@ for run_id in project_runs_list[skip:]:
     config = run.config
 
     if '_step' not in summary:
-        print('skipping unsuccessful run')
+        logger.warning(' Skipping unsuccessful run.')
         continue
 
     # get parameters from run config and summary
@@ -171,7 +175,7 @@ for run_id in project_runs_list[skip:]:
         physical_nodes * (merged_network_use['system.network.recv'].to_numpy()),
         (merged_network_use['sim_downloads'].to_numpy()))
 
-    # print params and results to easily paste to spreadsheet
+    # log params and results to easily paste to spreadsheet
     print(run.name, seed, canonical_nodes, physical_nodes, predownload, shuffle_algo,
           shuffle_block_size, cache_limit, max_duration_value, throughput_similarity,
           network_similarity)

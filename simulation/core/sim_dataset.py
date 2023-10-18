@@ -3,6 +3,7 @@
 
 """Near replica of StreamingDataset for simulation purposes."""
 
+import logging
 import os
 import shutil
 import time
@@ -20,6 +21,9 @@ from streaming.base.batching import generate_work
 from streaming.base.format import get_index_basename
 from streaming.base.spanner import Spanner
 from streaming.base.util import bytes_to_int, number_abbrev_to_int
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 
 class SimulationDataset(StreamingDataset):
@@ -235,7 +239,7 @@ class SimulationDataset(StreamingDataset):
         index_filenames = []
         local_foldernames = []
         for stream_id, stream in enumerate(self.streams):
-            print('Processing index file for stream', stream_id + 1)
+            logger.info(f' Processing index file for stream {stream_id + 1}')
             stream_shards = stream.get_shards(self.world)
             num_stream_samples = sum(map(len, stream_shards))
             index_filename = os.path.join(stream.local, stream.split, get_index_basename())
@@ -289,10 +293,10 @@ class SimulationDataset(StreamingDataset):
         self.zip_shard_sizes = np.array([shard.get_zip_size() or 0 for shard in self.shards],
                                         np.int64)
 
-        print('Total number of shards:', self.num_shards)
-        print('Average number of samples per shard:', self.num_samples / self.num_shards)
-        print('Average raw shard size (bytes):', np.mean(self.raw_shard_sizes))
-        print('Average zip shard size (bytes):', np.mean(self.zip_shard_sizes))
+        logger.info(f' Total number of shards: {self.num_shards}')
+        logger.info(f' Average number of samples per shard: {self.num_samples / self.num_shards}')
+        logger.info(f' Average raw shard size (bytes): {np.mean(self.raw_shard_sizes)}')
+        logger.info(f' Average zip shard size (bytes): {np.mean(self.zip_shard_sizes)}')
 
         # Now that we know the number of underlying samples of each stream, derive each stream's
         # true proportion/repeat/choose, as well as the total epoch size.
@@ -305,7 +309,7 @@ class SimulationDataset(StreamingDataset):
         t1 = time.time()
         self.instantiation_time = t1 - t0
 
-        print('SimulationDataset created successfully.')
+        logger.info(' SimulationDataset created successfully.')
 
     def get_sample_partition(self, epoch: int, sample_in_epoch: int) -> NDArray:
         """Get the dataset's partition of this epoch's sample space.

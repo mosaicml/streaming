@@ -3,6 +3,7 @@
 
 """Determine shuffle quality of a run over a fixed number of samples."""
 
+import logging
 from typing import Tuple
 
 import numpy as np
@@ -11,6 +12,9 @@ from numpy.typing import NDArray
 
 from streaming.base.partition.orig import get_partitions_orig
 from streaming.base.shuffle import get_shuffle
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 
 def get_entropy(ordering: NDArray) -> float:
@@ -69,9 +73,10 @@ def get_partition_shard_info(epoch_size: int,
             sizes of each shard, and the mapping of sample id to shard id.
     """
     num_samples = epoch_size
-    if num_samples > 100000000:
-        print('Epoch size is >100 million. Using 100 million samples to analyze shuffle quality.')
-        num_samples = 100000000
+    if num_samples > 100_000_000:
+        logger.warning(
+            ' Epoch size is >100 million. Using 100 million samples to analyze shuffle quality.')
+        num_samples = 100_000_000
 
     partition = get_partitions_orig(num_samples, canonical_nodes, physical_nodes, devices, workers,
                                     device_batch_size)
@@ -142,7 +147,7 @@ def analyze_shuffle_quality_entropy(algo: str, canonical_nodes: int, physical_no
     Returns:
         Tuple[str, float]: Shuffle algorithm and shuffle quality.
     """
-    print(f'Analyzing shuffle quality for {algo}...')
+    logger.info(f' Analyzing shuffle quality for {algo}...')
 
     # Getting partition, shard_sizes, and shard_per_sample only has to be done once for all algos.
     partition, shard_sizes, shard_per_sample = get_partition_shard_info(epoch_size,

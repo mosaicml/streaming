@@ -45,7 +45,7 @@ seed = 17  # random seed
 physical_nodes = 2  # number of physical nodes
 devices = 8  # number of devices per node
 time_per_sample = 0.0175  # time to process one sample on one device (seconds)
-node_internet_bandwidth = 2e9  # network internet per node (bytes/s)
+node_internet_bandwidth = 1e7  # network internet per node (bytes/s)
 
 # ---------------------------------------------- #
 

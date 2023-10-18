@@ -23,7 +23,7 @@ class NodeTracker():
         predownload (int): The number of samples to predownload.
         device_batch_size (int): The device batch size.
         total_shards (int): Total number of shards in the dataset.
-        cache_limit (Optional[int]): The cache limit for the node. Defaults to None.
+        cache_limit (Optional[int]): The cache limit for the node. Defaults to ``None``.
     """
 
     def __init__(self,
