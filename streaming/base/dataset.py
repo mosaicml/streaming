@@ -341,6 +341,10 @@ class StreamingDataset(Array, IterableDataset):
         self.shuffle_block_size = shuffle_block_size
         self.batching_method = batching_method
 
+        # Initialize initial_physical_nodes to None. If we are resuming, then we will set it to the
+        # number of physical nodes of the initial run in the _resume function.
+        self.initial_physical_nodes = None
+
         # Check streams vs remote/local.
         if bool(streams) == (bool(remote) or bool(local)):
             raise ValueError(
@@ -678,6 +682,7 @@ class StreamingDataset(Array, IterableDataset):
         sample_in_epoch = obj['sample_in_epoch']
         self.num_canonical_nodes = obj['num_canonical_nodes']
         self.shuffle_seed = obj['shuffle_seed']
+        self.initial_physical_nodes = obj['initial_physical_nodes']
         self._set_predownload()
 
         return epoch, sample_in_epoch
@@ -736,7 +741,8 @@ class StreamingDataset(Array, IterableDataset):
             'epoch': epoch,
             'sample_in_epoch': sample_in_epoch,
             'num_canonical_nodes': self.num_canonical_nodes,
-            'shuffle_seed': self.shuffle_seed
+            'shuffle_seed': self.shuffle_seed,
+            'initial_physical_nodes': world.num_nodes
         }
 
     def load_state_dict(self, obj: Dict[str, Any]) -> None:
