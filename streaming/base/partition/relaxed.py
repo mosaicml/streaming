@@ -8,19 +8,20 @@ from typing import Optional
 
 import numpy as np
 from numpy.typing import NDArray
+
 from streaming.base.partition.orig import get_partitions_orig
 
 logger = logging.getLogger(__name__)
 
 
 def get_partitions_relaxed(num_samples: int,
-                        num_canonical_nodes: int,
-                        num_physical_nodes: int,
-                        ranks_per_node: int,
-                        workers_per_rank: int,
-                        batch_size: Optional[int] = None,
-                        drop_first: int = 0,
-                        initial_physical_nodes: Optional[int] = None) -> NDArray[np.int64]:
+                           num_canonical_nodes: int,
+                           num_physical_nodes: int,
+                           ranks_per_node: int,
+                           workers_per_rank: int,
+                           batch_size: Optional[int] = None,
+                           drop_first: int = 0,
+                           initial_physical_nodes: Optional[int] = None) -> NDArray[np.int64]:
     """Partition the given number of samples to nodes, ranks, and workers.
 
     Either canonical or physical nodes must be evenly divisible by the other when partitioning over
@@ -51,13 +52,16 @@ def get_partitions_relaxed(num_samples: int,
     if num_samples <= drop_first:
         raise ValueError(f'Resuming further into the dataset ({drop_first}) than it has samples ' +
                          f'({num_samples})')
-    
+
     if initial_physical_nodes is None:
+        print('in first case')
         # We are partitioning for the first time. Use the original partitions algorithm, which
         # also requires that NCN be divisible by PN or vice versa.
         return get_partitions_orig(num_samples, num_canonical_nodes, num_physical_nodes,
                                    ranks_per_node, workers_per_rank, batch_size, drop_first)
     else:
+        print('in second case')
+        print('initial_physical_nodes:', initial_physical_nodes)
         batch_size = batch_size or 1
         # First, make a partition over the initial number of physical nodes and device batch size.
         # We assume that ranks_per_node and workers_per_rank stay constant during resumptions.
@@ -76,16 +80,16 @@ def get_partitions_relaxed(num_samples: int,
         partition = get_partitions_orig(num_samples, num_canonical_nodes, initial_physical_nodes,
                                         ranks_per_node, workers_per_rank, initial_batch_size,
                                         drop_first)
-        
+
         # Flatten the initial partition in order of traversal.
         # partition was originally (nodes, ranks, workers, batches per worker, batch size)
         # in-order, the dimensions are (batches per worker, workers, nodes, ranks, batch size)
         partition = partition.transpose(3, 2, 0, 1, 4).flatten()
 
         # Reshape the in-order traversal of the partition to the new physical nodes and batch size.
-        partition = partition.reshape(-1, workers_per_rank, num_physical_nodes, ranks_per_node, 
+        partition = partition.reshape(-1, workers_per_rank, num_physical_nodes, ranks_per_node,
                                       batch_size)
-        
+
         # Re-transpose this partition matrix back to the original format below and return it:
         # (physical nodes, ranks per node, workers per rank, batches per worker, batch size)
         return partition.transpose(2, 3, 1, 0, 4)

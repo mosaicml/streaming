@@ -51,6 +51,8 @@ def get_partitions(algo: str,
         NDArray[np.int64]: Partitions of shape (physical nodes, ranks per node, workers per rank,
             batches per worker, batch size).
     """
+    print('partition algo:', algo)
+    print('initial_physical_nodes:', initial_physical_nodes)
     get = algos[algo]
     return get(num_samples, num_canonical_nodes, num_physical_nodes, ranks_per_node,
                workers_per_rank, batch_size, drop_first, initial_physical_nodes)
