@@ -682,7 +682,11 @@ class StreamingDataset(Array, IterableDataset):
         sample_in_epoch = obj['sample_in_epoch']
         self.num_canonical_nodes = obj['num_canonical_nodes']
         self.shuffle_seed = obj['shuffle_seed']
-        self.initial_physical_nodes = obj['initial_physical_nodes']
+        if 'initial_physical_nodes' in obj:
+            self.initial_physical_nodes = obj['initial_physical_nodes']
+        else:
+            # Ensure that we are backwards compatible with old checkpoint dataset state.
+            self.initial_physical_nodes = None
         self._set_predownload()
 
         return epoch, sample_in_epoch
@@ -737,12 +741,21 @@ class StreamingDataset(Array, IterableDataset):
             sample_in_epoch = num_samples
         else:
             sample_in_epoch = offset + num_samples
+
+        if self.initial_physical_nodes is None:
+            # In this case, we are running for the firs time, so we set initial_physical_nodes
+            # to the current number of physical nodes.
+            initial_physical_nodes = world.num_nodes
+        else:
+            # In this case, initial_physical_nodes has already been set from an initial run. We
+            # keep this value persisted in the state across the total run duration.
+            initial_physical_nodes = self.initial_physical_nodes
         return {
             'epoch': epoch,
             'sample_in_epoch': sample_in_epoch,
             'num_canonical_nodes': self.num_canonical_nodes,
             'shuffle_seed': self.shuffle_seed,
-            'initial_physical_nodes': world.num_nodes
+            'initial_physical_nodes': initial_physical_nodes,
         }
 
     def load_state_dict(self, obj: Dict[str, Any]) -> None:
