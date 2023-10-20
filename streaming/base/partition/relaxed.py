@@ -54,14 +54,11 @@ def get_partitions_relaxed(num_samples: int,
                          f'({num_samples})')
 
     if initial_physical_nodes is None:
-        print('in first case')
         # We are partitioning for the first time. Use the original partitions algorithm, which
         # also requires that NCN be divisible by PN or vice versa.
         return get_partitions_orig(num_samples, num_canonical_nodes, num_physical_nodes,
                                    ranks_per_node, workers_per_rank, batch_size, drop_first)
     else:
-        print('in second case')
-        print('initial_physical_nodes:', initial_physical_nodes)
         batch_size = batch_size or 1
         # First, make a partition over the initial number of physical nodes and device batch size.
         # We assume that ranks_per_node and workers_per_rank stay constant during resumptions.
