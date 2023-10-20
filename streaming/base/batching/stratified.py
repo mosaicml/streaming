@@ -74,6 +74,7 @@ def generate_work_stratified_batching(dataset: StreamingDataset, world: World, e
             # same as the ratio of the stream's samples to overall samples.
             # This ensures that the overall training shuffle block size is still approximately
             # equal to what is set by the user, and allows for reasoning about cache_limit as well.
+            assert isinstance(dataset.shuffle_block_size, int)
             shuffle_block_portion = int(dataset.shuffle_block_size * stream.proportion)
             stream_shuffle = get_shuffle(dataset.shuffle_algo, shuffle_units,
                                          dataset.num_canonical_nodes, dataset.shuffle_seed, epoch,
