@@ -278,7 +278,7 @@ class StreamingDataset(Array, IterableDataset):
             how many samples to pick from the same shard at a time (``1`` for evenly balanced
             across shards, ``1000`` to pick 1000 samples from the same shard at a time, etc).
             Defaults to ``1``.
-        partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
+        partition_algo (str): Which partitioning algorithm to use. Defaults to ``relaxed``.
         num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
             resumption. The sample space is divided evenly according to the number of canonical
             nodes. The higher the value, the more independent non-overlapping paths the
@@ -319,7 +319,7 @@ class StreamingDataset(Array, IterableDataset):
                  cache_limit: Optional[Union[int, str]] = None,
                  sampling_method: str = 'balanced',
                  sampling_granularity: int = 1,
-                 partition_algo: str = 'orig',
+                 partition_algo: str = 'relaxed',
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
                  shuffle: bool = False,
