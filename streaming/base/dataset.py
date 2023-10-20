@@ -283,8 +283,9 @@ class StreamingDataset(Array, IterableDataset):
             resumption. The sample space is divided evenly according to the number of canonical
             nodes. The higher the value, the more independent non-overlapping paths the
             StreamingDataset replicas take through the shards per model replica (increasing data
-            source diversity). Defaults to ``None``, which is interpreted as the number of physical
-            nodes of the initial run.
+            source diversity). If ``None``, this is interpreted as 64 times the number of physical
+            nodes of the initial run if ``shuffle_algo`` is ``py1s`` or ``py2s``, and simply the
+            number of physical nodes of the initial run otherwise. Defaults to ``None``.
 
             .. note::
 
