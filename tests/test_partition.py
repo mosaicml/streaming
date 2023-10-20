@@ -1,7 +1,6 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
 import pytest
 
 from streaming.base.partition import get_partitions
@@ -74,9 +73,13 @@ def test_partition_relaxed_resumption():
                                        ranks_per_node, workers_per_rank, new_batch_size,
                                        drop_first, initial_physical_nodes)
         # Get the inorder global batches of the new partition
-        # Note: these partitions will be completely identical, even including sample padding.
         new_partition = new_partition.transpose(3, 2, 0, 1, 4).reshape(-1, global_batch_size)
-        assert np.array_equal(initial_partition, new_partition)
+        for batch_idx in range(num_initial_batches):
+            initial_samples = set(initial_partition[batch_idx])
+            new_samples = set(new_partition[batch_idx])
+            # don't check equality for batches with padding.
+            if -1 not in initial_samples and -1 not in new_samples:
+                assert initial_samples == new_samples
 
     # For orig partitioning, test that we can only resume on a limited number of nodes.
     resumption_nodes = [1, 3, 5, 15, 30, 60, 120]
@@ -85,7 +88,7 @@ def test_partition_relaxed_resumption():
         new_partition = get_partitions('orig', num_samples, num_canonical_nodes, new_node_num,
                                        ranks_per_node, workers_per_rank, new_batch_size,
                                        drop_first)
-        # Get the inorder sample id traversal of the new partition
+        # Get the inorder global batches of the new partition
         new_partition = new_partition.transpose(3, 2, 0, 1, 4).reshape(-1, global_batch_size)
         for batch_idx in range(num_initial_batches):
             initial_samples = set(initial_partition[batch_idx])

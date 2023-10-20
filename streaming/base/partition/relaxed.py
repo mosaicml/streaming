@@ -53,9 +53,15 @@ def get_partitions_relaxed(num_samples: int,
         raise ValueError(f'Resuming further into the dataset ({drop_first}) than it has samples ' +
                          f'({num_samples})')
 
-    if initial_physical_nodes is None:
-        # We are partitioning for the first time. Use the original partitions algorithm, which
-        # also requires that NCN be divisible by PN or vice versa.
+    if initial_physical_nodes is None or (num_physical_nodes <= num_canonical_nodes and
+                                          num_canonical_nodes % num_physical_nodes == 0) or \
+                                         (num_physical_nodes > num_canonical_nodes and
+                                          num_physical_nodes % num_canonical_nodes == 0):
+        # Case 1: We are partitioning for the first time. Use the original partitions algorithm,
+        # which also requires that NCN be divisible by PN or vice versa.
+        # Case 2: PN <= NCN and PN evenly divides NCN. The original partition algo can be used,
+        # and will give better downloads per node as well.
+        # Case 3: PN > NCN and NCN evenly divides PN. The original partition algo can be used.
         return get_partitions_orig(num_samples, num_canonical_nodes, num_physical_nodes,
                                    ranks_per_node, workers_per_rank, batch_size, drop_first)
     else:
