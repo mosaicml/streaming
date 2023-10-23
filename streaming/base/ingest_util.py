@@ -79,15 +79,12 @@ class FolderObserver:
         self.file_count += 1
 
     def on_deleted(self, event: Any):
-        print(type(event))
         self.file_count -= 1
 
     def on_modified(self, event: Any):
-        print(type(event))
         pass
 
     def on_moved(self, event: Any):
-        print(type(event))
         pass
 
 
