@@ -11,7 +11,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
 from pyspark.sql.types import DecimalType, IntegerType, StringType, StructField, StructType
 
-from streaming.base.converters import dataframeToMDS
+from streaming.base.converters import dataframe_to_mds
 
 os.environ[
     'OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'  # set to yes to all fork process in spark calls
@@ -68,13 +68,13 @@ class TestDataFrameToMDS:
         }
 
         with pytest.raises(ValueError, match=f'.*is not supported by MDSWriter.*'):
-            _, _ = dataframeToMDS(dataframe.select(col('id'), col('dept'), col('properties')),
-                                  merge_index=merge_index,
-                                  mds_kwargs=mds_kwargs)
+            _, _ = dataframe_to_mds(dataframe.select(col('id'), col('dept'), col('properties')),
+                                    merge_index=merge_index,
+                                    mds_kwargs=mds_kwargs)
 
-        _, _ = dataframeToMDS(dataframe.select(col('id'), col('dept')),
-                              merge_index=merge_index,
-                              mds_kwargs=mds_kwargs)
+        _, _ = dataframe_to_mds(dataframe.select(col('id'), col('dept')),
+                                merge_index=merge_index,
+                                mds_kwargs=mds_kwargs)
 
         if keep_local:
             assert len(os.listdir(out)) > 0, f'{out} is empty'
@@ -115,7 +115,7 @@ class TestDataFrameToMDS:
         if use_columns:
             mds_kwargs['columns'] = user_defined_columns
 
-        _, _ = dataframeToMDS(decimal_dataframe, merge_index=True, mds_kwargs=mds_kwargs)
+        _, _ = dataframe_to_mds(decimal_dataframe, merge_index=True, mds_kwargs=mds_kwargs)
         assert len(os.listdir(out)) > 0, f'{out} is empty'
 
     def test_user_defined_columns(self, dataframe: Any, local_remote_dir: Tuple[str, str]):
@@ -126,7 +126,7 @@ class TestDataFrameToMDS:
             'columns': user_defined_columns,
         }
         with pytest.raises(ValueError, match=f'.*is not a column of input dataframe.*'):
-            _, _ = dataframeToMDS(dataframe, merge_index=False, mds_kwargs=mds_kwargs)
+            _, _ = dataframe_to_mds(dataframe, merge_index=False, mds_kwargs=mds_kwargs)
 
         user_defined_columns = {'id': 'strr', 'dept': 'str'}
 
@@ -135,7 +135,7 @@ class TestDataFrameToMDS:
             'columns': user_defined_columns,
         }
         with pytest.raises(ValueError, match=f'.* is not supported by MDSWriter.*'):
-            _, _ = dataframeToMDS(dataframe, merge_index=False, mds_kwargs=mds_kwargs)
+            _, _ = dataframe_to_mds(dataframe, merge_index=False, mds_kwargs=mds_kwargs)
 
     @pytest.mark.parametrize('keep_local', [True, False])
     @pytest.mark.parametrize('merge_index', [True, False])
@@ -154,7 +154,7 @@ class TestDataFrameToMDS:
             'size_limit': 1 << 26
         }
 
-        _, _ = dataframeToMDS(dataframe, merge_index=merge_index, mds_kwargs=mds_kwargs)
+        _, _ = dataframe_to_mds(dataframe, merge_index=merge_index, mds_kwargs=mds_kwargs)
 
         if keep_local:
             assert len(os.listdir(out)) > 0, f'{out} is empty'
