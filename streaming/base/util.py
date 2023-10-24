@@ -12,6 +12,7 @@ import random
 import shutil
 import tempfile
 import urllib.parse
+from collections import OrderedDict
 from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
 from pathlib import Path
 from time import sleep, time
@@ -286,7 +287,7 @@ def _merge_index_from_list(index_file_urls: List[Union[str, Tuple[str, str]]],
     cu = CloudUploader.get(out, keep_local=True, exist_ok=True)
 
     # Remove duplicates, and strip '/' from right if any
-    index_file_urls = list(set(index_file_urls))
+    index_file_urls = list(OrderedDict.fromkeys(index_file_urls))
     urls = []
     for url in index_file_urls:
         if isinstance(url, str):
