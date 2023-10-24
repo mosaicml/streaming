@@ -999,8 +999,12 @@ class LocalUploader(CloudUploader):
         """
         if prefix is None:
             prefix = ''
+        prefix = os.path.join(self.local, prefix)
+
         file_paths = []
-        for dirpath, _, files in sorted(os.walk(os.path.join(self.local, prefix))):
+        for dirpath, _, files in os.walk(self.local):
             for file in files:
-                file_paths.append(os.path.join(dirpath, file))
-        return file_paths
+                file_path = os.path.join(dirpath, file)
+                if file_path.startswith(prefix):
+                    file_paths.append(file_path)
+        return sorted(file_paths)
