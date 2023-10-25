@@ -100,7 +100,7 @@ class TestDataFrameToMDS:
             if not keep_local:
                 assert os.path.exists(
                     os.path.join(out, 'index.json')
-                ), 'merged index.json is not found keep_local = False but no remote exist'
+                ), 'merged index.json was not found keep_local is False but no remote exists'
         else:
             assert not os.path.exists(os.path.join(
                 out, 'index.json')), 'merged index is created when merge_index=False'
@@ -180,7 +180,7 @@ class TestDataFrameToMDS:
             else:
                 assert os.path.exists(
                     os.path.join(out, 'index.json')
-                ), 'merged index.json is not found when keep_local=False but no remote part exists'
+                ), 'merged index.json was not found when keep_local is False but no remote part exists'
         else:
             assert not os.path.exists(os.path.join(
                 out, 'index.json')), 'merged index is created when merge_index=False'
