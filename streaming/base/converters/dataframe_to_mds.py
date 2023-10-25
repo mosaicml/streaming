@@ -271,13 +271,19 @@ def dataframe_to_mds(dataframe: DataFrame,
     ])
     partitions = dataframe.mapInPandas(func=write_mds, schema=result_schema).collect()
 
+    keep_local_files = True
+    # If there are no remote part, we always keep the local
+    # In case user forgot to set keep_local and set out to be a local path
+    if cu.remote is not None:  # If there are no remote
+        if 'keep_local' in mds_kwargs and mds_kwargs['keep_local'] == False:
+            keep_local_files = False
+
     if merge_index:
         index_files = [(row['mds_path_local'], row['mds_path_remote']) for row in partitions]
-        do_merge_index(index_files, out, keep_local=keep_local, download_timeout=60)
+        do_merge_index(index_files, out, keep_local=keep_local_files, download_timeout=60)
 
-    if cu.remote is not None:
-        if 'keep_local' in mds_kwargs and mds_kwargs['keep_local'] == False:
-            shutil.rmtree(cu.local, ignore_errors=True)
+    if not keep_local_files:
+        shutil.rmtree(cu.local, ignore_errors=True)
 
     sum_fail_count = 0
     for row in partitions:

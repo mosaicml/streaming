@@ -98,9 +98,9 @@ class TestDataFrameToMDS:
                             nsamples += shards[0]['samples']
                 assert nsamples == sum([a['samples'] for a in mgi['shards']])
             if not keep_local:
-                assert not os.path.exists(os.path.join(
-                    out,
-                    'index.json')), 'merged index.json is found even through keep_local = False'
+                assert os.path.exists(
+                    os.path.join(out, 'index.json')
+                ), 'merged index.json was not found keep_local is False but no remote exists'
         else:
             assert not os.path.exists(os.path.join(
                 out, 'index.json')), 'merged index is created when merge_index=False'
@@ -178,8 +178,9 @@ class TestDataFrameToMDS:
                             nsamples += shards[0]['samples']
                 assert nsamples == sum([a['samples'] for a in mgi['shards']])
             else:
-                assert not os.path.exists(os.path.join(
-                    out, 'index.json')), 'merged index.json is found even keep_local=False'
+                assert os.path.exists(
+                    os.path.join(out, 'index.json')
+                ), 'merged index.json was not found when keep_local is False but no remote part exists'
         else:
             assert not os.path.exists(os.path.join(
                 out, 'index.json')), 'merged index is created when merge_index=False'
