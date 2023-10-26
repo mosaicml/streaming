@@ -749,12 +749,12 @@ class StreamingDataset(Array, IterableDataset):
         else:
             sample_in_epoch = offset + num_samples
 
-        # If `self.initial_physical_nodes` is None, we are running for the first time, so we set 
+        # If `self.initial_physical_nodes` is None, we are running for the first time, so we set
         # initial_physical_nodes to the current number of physical nodes. Otherwise, we persist
         # initial_physical_nodes as the value loaded and set from the resumption state.
         initial_physical_nodes = world.num_nodes if self.initial_physical_nodes is None \
             else self.initial_physical_nodes
-        
+
         return {
             'epoch': epoch,
             'sample_in_epoch': sample_in_epoch,
