@@ -68,7 +68,8 @@ def generate_work_stratified_batching(dataset: StreamingDataset, world: World, e
         # We also handle used samples (drop_first) at the end.
         stream_partition = get_partitions(dataset.partition_algo, samples_in_stream,
                                           dataset.num_canonical_nodes, 1, world.ranks_per_node,
-                                          world.workers_per_rank, 1, 0)
+                                          world.workers_per_rank, 1, 0,
+                                          dataset.initial_physical_nodes)
         if dataset.shuffle:
             # Ratio of stream's shuffle block size to overall shuffle block size should be the
             # same as the ratio of the stream's samples to overall samples.

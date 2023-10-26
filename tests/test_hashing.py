@@ -1,9 +1,16 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+import logging
+from typing import Any, List, Optional
+
 import pytest
 
 import streaming.base.hashing as shash
+from streaming.base import StreamingDataset
+from tests.common.utils import convert_to_mds
+
+logger = logging.getLogger(__name__)
 
 
 def test_get_hashes():
@@ -42,3 +49,31 @@ def test_get_hash(algo_name: str, data: bytes, expected_output: str):
 def test_get_hash_invalid_algo(algo_name: str, data: bytes):
     with pytest.raises(ValueError):
         _ = shash.get_hash(algo_name, data)
+
+
+@pytest.mark.parametrize('hashes', [None, ['sha1'], ['sha384', 'xxh128']])
+@pytest.mark.parametrize('compression', [None, 'zstd:7'])
+@pytest.mark.usefixtures('local_remote_dir')
+def test_validate_checksum(local_remote_dir: Any, hashes: Optional[List[str]], compression: str):
+    num_samples = 117
+    remote_dir, local_dir = local_remote_dir
+    convert_to_mds(out_root=remote_dir,
+                   dataset_name='sequencedataset',
+                   num_samples=num_samples,
+                   compression=compression,
+                   hashes=hashes,
+                   size_limit=1 << 8)
+
+    # Build StreamingDataset
+    hash = hashes[0] if hashes is not None else None
+    dataset = StreamingDataset(local=local_dir, remote=remote_dir, validate_hash=hash)
+
+    # Append sample ID
+    sample_order = []
+    for sample in dataset:
+        sample_order.append(sample['id'])
+
+    # Test length
+    assert len(
+        dataset
+    ) == num_samples, f'Got dataset length={len(dataset)} samples, expected {num_samples}'
