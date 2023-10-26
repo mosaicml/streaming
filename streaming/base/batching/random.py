@@ -59,7 +59,7 @@ def generate_work_random_batching(dataset: StreamingDataset, world: World, epoch
     if dataset.shuffle:
         if not isinstance(dataset.shuffle_block_size, int):
             raise TypeError(f'Dataset `shuffle_block_size` must be an integer. ' +
-                            f'Got {dataset.shuffle_block_size} instead.')
+                            f'Got {type(dataset.shuffle_block_size)} instead.')
         shuffle = get_shuffle(dataset.shuffle_algo, shuffle_units, dataset.num_canonical_nodes,
                               dataset.shuffle_seed, epoch, dataset.shuffle_block_size)
         big_ids = np.where(big_ids != -1, shuffle[big_ids], -1)
