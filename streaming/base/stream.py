@@ -81,7 +81,7 @@ class Stream:
             to ``None``.
         download_timeout (float, optional): Number of seconds to wait for a shard to download
             before raising an exception. Defaults to ``None``.
-        validate_hash (List[str], optional): Optional hash or checksum algorithm to use to validate
+        validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
         keep_zip (bool, optional): Whether to keep or delete the compressed form when decompressing
             downloaded shards. If ``False``, keep if and only if remote is local or no remote.
@@ -98,7 +98,7 @@ class Stream:
                  choose: Optional[int] = None,
                  download_retry: Optional[int] = None,
                  download_timeout: Optional[float] = None,
-                 validate_hash: Optional[List[str]] = None,
+                 validate_hash: Optional[str] = None,
                  keep_zip: Optional[bool] = None) -> None:
         self.remote = remote
         self._local = local
@@ -168,28 +168,6 @@ class Stream:
         if self.remote is not None:
             hash = hashlib.blake2s(self.remote.encode('utf-8'), digest_size=16).hexdigest()
         return os.path.join(root, hash, self.split)
-
-    def _validate_hashes(self, hashes: List[str], file_info: FileInfo, filename: str,
-                         data: bytes) -> None:
-        """Validate the hashes of a file.
-
-        Args:
-            hashes (List[str]): Hashing algorithm name(s).
-            file_info (FileInfo): File information.
-            filename (str): Filename.
-            data (bytes): Data in the file.
-        """
-        # Validate what was downloaded.
-        if sorted(hashes) != sorted(file_info.hashes.keys()):
-            raise ValueError(f'Hash algorithms provided to validate ({hashes}) ' +
-                             f'do not match those provided during dataset creation ' +
-                             f'({sorted(file_info.hashes.keys())})')
-        for algo in hashes:
-            if algo not in file_info.hashes:
-                raise ValueError(f'Invalid Hash algorithm name: {algo}. Check the ' +
-                                 f'hash algorithm name during dataset creation.')
-            if get_hash(algo, data) != file_info.hashes[algo]:
-                raise ValueError(f'Checksum failure: {filename}')
 
     def apply_default(self, default: dict) -> None:
         """Apply defaults, setting any unset fields.
@@ -347,9 +325,15 @@ class Stream:
         # Load compressed.
         data = open(zip_filename, 'rb').read()
 
-        # Validate the hash.
+        # Validate what was downloaded.
         if self.validate_hash:
-            self._validate_hashes(self.validate_hash, zip_info, zip_filename, data)
+            if self.validate_hash not in zip_info.hashes:
+                raise ValueError(
+                    f'Hash algorithm `{self.validate_hash}` provided for data ' +
+                    f'validation do not match with those provided during dataset ' +
+                    f'creation `{sorted(zip_info.hashes.keys())}`. Provide one of those.')
+            if get_hash(self.validate_hash, data) != zip_info.hashes[self.validate_hash]:
+                raise ValueError(f'Checksum failure: {zip_filename}')
 
         # Decompress and save that.
         data = decompress(compression, data)  # pyright: ignore
@@ -386,10 +370,6 @@ class Stream:
         raw_filename = os.path.join(self.local, self.split, raw_info.basename)
         if os.path.isfile(raw_filename):
             # Has raw.
-            # Validate the hash.
-            if self.validate_hash:
-                data = open(raw_filename, 'rb').read()
-                self._validate_hashes(self.validate_hash, raw_info, raw_filename, data)
             if zip_info and not self.safe_keep_zip:
                 zip_filename = os.path.join(self.local, self.split, zip_info.basename)
                 if os.path.isfile(zip_filename):
@@ -415,10 +395,16 @@ class Stream:
                 self._download_file(raw_info.basename)
                 delta += raw_info.bytes
 
-                # Validate the hash.
+                # Validate.
                 if self.validate_hash:
+                    if self.validate_hash not in raw_info.hashes:
+                        raise ValueError(
+                            f'Hash algorithm `{self.validate_hash}` provided for data ' +
+                            f'validation do not match with those provided during dataset ' +
+                            f'creation `{sorted(raw_info.hashes.keys())}`. Provide one of those.')
                     data = open(raw_filename, 'rb').read()
-                    self._validate_hashes(self.validate_hash, raw_info, raw_filename, data)
+                    if get_hash(self.validate_hash, data) != raw_info.hashes[self.validate_hash]:
+                        raise ValueError(f'Checksum failure: {raw_filename}')
         return delta
 
     def prepare_shard(self, shard: Reader) -> int:

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-from typing import Any, List
+from typing import Any, List, Optional
 
 import pytest
 
@@ -54,7 +54,7 @@ def test_get_hash_invalid_algo(algo_name: str, data: bytes):
 @pytest.mark.parametrize('hashes', [None, ['sha1'], ['sha384', 'xxh128']])
 @pytest.mark.parametrize('compression', [None, 'zstd:7'])
 @pytest.mark.usefixtures('local_remote_dir')
-def test_validate_checksum(local_remote_dir: Any, hashes: List[str], compression: str):
+def test_validate_checksum(local_remote_dir: Any, hashes: Optional[List[str]], compression: str):
     num_samples = 117
     remote_dir, local_dir = local_remote_dir
     convert_to_mds(out_root=remote_dir,
@@ -65,7 +65,8 @@ def test_validate_checksum(local_remote_dir: Any, hashes: List[str], compression
                    size_limit=1 << 8)
 
     # Build StreamingDataset
-    dataset = StreamingDataset(local=local_dir, remote=remote_dir, validate_hash=hashes)
+    hash = hashes[0] if hashes is not None else None
+    dataset = StreamingDataset(local=local_dir, remote=remote_dir, validate_hash=hash)
 
     # Append sample ID
     sample_order = []

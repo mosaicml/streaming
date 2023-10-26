@@ -27,7 +27,7 @@ class StreamingCIFAR10(StreamingVisionDataset):
         download_retry (int): Number of download re-attempts before giving up. Defaults to ``2``.
         download_timeout (float): Number of seconds to wait for a shard to download before raising
             an exception. Defaults to ``60``.
-        validate_hash (List[str], optional): Optional hash or checksum algorithm to use to validate
+        validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
         keep_zip (bool): Whether to keep or delete the compressed form when decompressing
             downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to

@@ -3,7 +3,7 @@
 
 """Base classes for computer vision :class:`StreamingDataset`s."""
 
-from typing import Any, Callable, List, Optional, Tuple
+from typing import Any, Callable, Optional, Tuple
 
 from torchvision.datasets import VisionDataset
 from torchvision.transforms.functional import to_tensor
@@ -61,7 +61,7 @@ class StreamingVisionDataset(StreamingDataset, VisionDataset):
         download_retry (int): Number of download re-attempts before giving up. Defaults to ``2``.
         download_timeout (float): Number of seconds to wait for a shard to download before raising
             an exception. Defaults to ``60``.
-        validate_hash (List[str], optional): Optional hash or checksum algorithm to use to validate
+        validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
         keep_zip (bool): Whether to keep or delete the compressed form when decompressing
             downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
@@ -115,7 +115,7 @@ class StreamingVisionDataset(StreamingDataset, VisionDataset):
                  split: Optional[str] = None,
                  download_retry: int = 2,
                  download_timeout: float = 60,
-                 validate_hash: Optional[List[str]] = None,
+                 validate_hash: Optional[str] = None,
                  keep_zip: bool = False,
                  epoch_size: Optional[int] = None,
                  predownload: Optional[int] = None,

@@ -4,7 +4,7 @@ Streaming supports a variety of hash and checksum algorithms to verify data inte
 
 We optionally hash shards while serializing a streaming dataset, saving the resulting hashes in the index, which is written last. After the dataset is finished being written, we may hash the index file itself, the results of which must be stored elsewhere. Hashing during writing is controlled by the Writer argument `hashes: Optional[List[str]] = None`. We generally weakly recommend writing streaming datasets with one cryptographic hash algorithm and one fast hash algorithm for offline dataset validation in the future.
 
-Then, we optionally validate shard hashes upon download while reading a streaming dataset. Hashing during reading is controlled separately by the StreamingDataset argument `validate_hash: Optional[List[str]] = None`. We recommend reading streaming datasets for training purposes without validating hashes because of the extra cost in time and computation.
+Then, we optionally validate shard hashes upon download while reading a streaming dataset. Hashing during reading is controlled separately by the StreamingDataset argument `validate_hash: Optional[str] = None`. We recommend reading streaming datasets for training purposes without validating hashes because of the extra cost in time and computation.
 
 Available cryptographic hash functions:
 
