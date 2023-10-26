@@ -682,11 +682,9 @@ class StreamingDataset(Array, IterableDataset):
         sample_in_epoch = obj['sample_in_epoch']
         self.num_canonical_nodes = obj['num_canonical_nodes']
         self.shuffle_seed = obj['shuffle_seed']
-        if 'initial_physical_nodes' in obj:
-            self.initial_physical_nodes = obj['initial_physical_nodes']
-        else:
-            # Ensure that we are backwards compatible with old checkpoint dataset state.
-            self.initial_physical_nodes = None
+        # Ensure that we are backwards compatible with old checkpoint dataset state, since the
+        # 'initial_physical_nodes' key may not be present.
+        self.initial_physical_nodes = obj.get('initial_physical_nodes', None)
         self._set_predownload()
 
         return epoch, sample_in_epoch
@@ -743,7 +741,7 @@ class StreamingDataset(Array, IterableDataset):
             sample_in_epoch = offset + num_samples
 
         if self.initial_physical_nodes is None:
-            # In this case, we are running for the firs time, so we set initial_physical_nodes
+            # In this case, we are running for the first time, so we set initial_physical_nodes
             # to the current number of physical nodes.
             initial_physical_nodes = world.num_nodes
         else:
