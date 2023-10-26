@@ -329,8 +329,8 @@ class Stream:
         if self.validate_hash:
             if self.validate_hash not in zip_info.hashes:
                 raise ValueError(
-                    f'Hash algorithm `{self.validate_hash}` provided for data ' +
-                    f'validation do not match with those provided during dataset ' +
+                    f'Hash algorithm `{self.validate_hash}` chosen for data ' +
+                    f'validation does not match with those provided during dataset ' +
                     f'creation `{sorted(zip_info.hashes.keys())}`. Provide one of those.')
             if get_hash(self.validate_hash, data) != zip_info.hashes[self.validate_hash]:
                 raise ValueError(f'Checksum failure: {zip_filename}')
@@ -399,8 +399,8 @@ class Stream:
                 if self.validate_hash:
                     if self.validate_hash not in raw_info.hashes:
                         raise ValueError(
-                            f'Hash algorithm `{self.validate_hash}` provided for data ' +
-                            f'validation do not match with those provided during dataset ' +
+                            f'Hash algorithm `{self.validate_hash}` chosen for data ' +
+                            f'validation does not match with those provided during dataset ' +
                             f'creation `{sorted(raw_info.hashes.keys())}`. Provide one of those.')
                     data = open(raw_filename, 'rb').read()
                     if get_hash(self.validate_hash, data) != raw_info.hashes[self.validate_hash]:
