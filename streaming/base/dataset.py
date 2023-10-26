@@ -382,7 +382,7 @@ class StreamingDataset(Array, IterableDataset):
             raise ValueError(f'`shuffle_seed` must be a non-negative integer, but got: ' +
                              f'{self.shuffle_seed}.')
 
-        # Check that predownload is at least per device batch size, and set it if currently None.
+        # Check that predownload is at least per device batch size, and set it if currently `None`.
         if self.predownload is not None and self.batch_size is not None and \
             self.predownload < self.batch_size:
             warnings.warn(f'predownload < batch_size ({self.predownload} < {self.batch_size}).' +
