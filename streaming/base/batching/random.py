@@ -53,7 +53,8 @@ def generate_work_random_batching(dataset: StreamingDataset, world: World, epoch
     # batch) such that we have an elastically deterministic sample order.
     big_ids = get_partitions(dataset.partition_algo, dataset.epoch_size,
                              dataset.num_canonical_nodes, world.num_nodes, world.ranks_per_node,
-                             world.workers_per_rank, dataset.batch_size, sample_in_epoch)
+                             world.workers_per_rank, dataset.batch_size, sample_in_epoch,
+                             dataset.initial_physical_nodes)
 
     # If we need to shuffle, shuffle in a node-aware and *underlying* shard-aware way.
     if dataset.shuffle:

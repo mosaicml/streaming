@@ -57,7 +57,7 @@ def generate_work_per_stream_batching(dataset: StreamingDataset, world: World, e
         stream_partition = get_partitions(dataset.partition_algo, samples_in_stream,
                                           dataset.num_canonical_nodes, world.num_nodes,
                                           world.ranks_per_node, world.workers_per_rank, batch_size,
-                                          0)
+                                          0, dataset.initial_physical_nodes)
         if dataset.shuffle:
             # Ratio of stream's shuffle block size to overall shuffle block size should be the
             # same as the ratio of the stream's samples to overall samples.
