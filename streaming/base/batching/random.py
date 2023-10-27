@@ -53,10 +53,14 @@ def generate_work_random_batching(dataset: StreamingDataset, world: World, epoch
     # batch) such that we have an elastically deterministic sample order.
     big_ids = get_partitions(dataset.partition_algo, dataset.epoch_size,
                              dataset.num_canonical_nodes, world.num_nodes, world.ranks_per_node,
-                             world.workers_per_rank, dataset.batch_size, sample_in_epoch)
+                             world.workers_per_rank, dataset.batch_size, sample_in_epoch,
+                             dataset.initial_physical_nodes)
 
     # If we need to shuffle, shuffle in a node-aware and *underlying* shard-aware way.
     if dataset.shuffle:
+        if not isinstance(dataset.shuffle_block_size, int):
+            raise TypeError(f'Dataset `shuffle_block_size` must be an integer. ' +
+                            f'Got {type(dataset.shuffle_block_size)} instead.')
         shuffle = get_shuffle(dataset.shuffle_algo, shuffle_units, dataset.num_canonical_nodes,
                               dataset.shuffle_seed, epoch, dataset.shuffle_block_size)
         big_ids = np.where(big_ids != -1, shuffle[big_ids], -1)

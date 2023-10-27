@@ -80,7 +80,7 @@ extra_deps['dev'] = [
 ]
 
 extra_deps['docs'] = [
-    'GitPython==3.1.37',
+    'GitPython==3.1.40',
     'docutils==0.18.1',
     'furo==2023.7.26',
     'myst-parser==2.0.0',
@@ -90,7 +90,7 @@ extra_deps['docs'] = [
     'sphinx-argparse==0.4.0',
     'sphinx-copybutton==0.5.2',
     'sphinx==6.2.1',
-    'sphinx-tabs==3.4.1',
+    'sphinx-tabs==3.4.4',
 ]
 
 extra_deps['simulator'] = [

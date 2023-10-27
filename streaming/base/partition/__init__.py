@@ -9,9 +9,11 @@ import numpy as np
 from numpy.typing import NDArray
 
 from streaming.base.partition.orig import get_partitions_orig
+from streaming.base.partition.relaxed import get_partitions_relaxed
 
 algos = {
     'orig': get_partitions_orig,
+    'relaxed': get_partitions_relaxed,
 }
 
 
@@ -22,7 +24,8 @@ def get_partitions(algo: str,
                    ranks_per_node: int,
                    workers_per_rank: int,
                    batch_size: Optional[int] = None,
-                   drop_first: int = 0) -> NDArray[np.int64]:
+                   drop_first: int = 0,
+                   initial_physical_nodes: Optional[int] = None) -> NDArray[np.int64]:
     """Partition the given number of samples to nodes, ranks, and workers.
 
     Either canonical or physical nodes must be evenly divisible by the other.
@@ -41,6 +44,8 @@ def get_partitions(algo: str,
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
         drop_first (int): Number of samples seen already, which are dropped. Defaults to ``0``.
+        initial_physical_nodes (int, optional): Number of physical nodes at the start of training.
+            Defaults to ``None``.
 
     Returns:
         NDArray[np.int64]: Partitions of shape (physical nodes, ranks per node, workers per rank,
@@ -48,4 +53,4 @@ def get_partitions(algo: str,
     """
     get = algos[algo]
     return get(num_samples, num_canonical_nodes, num_physical_nodes, ranks_per_node,
-               workers_per_rank, batch_size, drop_first)
+               workers_per_rank, batch_size, drop_first, initial_physical_nodes)

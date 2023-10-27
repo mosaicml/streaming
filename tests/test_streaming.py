@@ -11,6 +11,7 @@ import pytest
 from torch.utils.data import DataLoader
 
 from streaming.base import Stream, StreamingDataLoader, StreamingDataset
+from streaming.base.util import clean_stale_shared_memory
 from tests.common.utils import convert_to_mds
 
 
@@ -761,6 +762,8 @@ def test_streamingdataloader_mid_epoch_resumption(local_remote_dir: Any, batch_s
 
     del dataloader
     del dataset
+
+    clean_stale_shared_memory()
 
     dataset = StreamingDataset(local=local_dir,
                                remote=remote_dir,
