@@ -290,7 +290,9 @@ class Time(Generic[TValue]):
             raise ValueError(f'Invalid time string: {timestring}')
         match = match[0]
         match = [x for x in match if x != '']
-        assert len(match) == 2, 'each match should have a number followed by the key'
+        if len(match) != 2:
+            raise ValueError(f'Each match should have a number followed by the key. Instead, ' +
+                             f'got a match, {match}, of length {len(match)}.')
         value = match[0]
         unit = TimeUnit(match[1])
         value = float(value)  # always parsing first as float b/c it could be scientific notation

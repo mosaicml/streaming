@@ -82,7 +82,9 @@ if __name__ == '__main__':
 
     # Simulate Run
     results = next(simulate(dataset, time_per_sample, node_network_bandwidth, max_duration))
-    assert len(results) == 4, 'Simulation with generate=False should return 4 final results.'
+    if len(results) != 4:
+        raise ValueError(f'Simulation with generate=False should return 4 final results. ' +
+                         f'Instead, received `results` of length {len(results)}.')
     step_times, step_downloads, startup_time, min_cache_limit = results
 
     print('Simulation Finished.')

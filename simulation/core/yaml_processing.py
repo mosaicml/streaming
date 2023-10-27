@@ -53,7 +53,8 @@ def ingest_yaml(yaml_dict: Optional[dict] = None,
 
     om.resolve(config)
 
-    assert isinstance(config, DictConfig), 'config must be a dict.'
+    if not isinstance(config, DictConfig):
+        raise TypeError(f'`config` must be of type DictConfig. Got type {type(config)}.')
 
     # get global batch size
     if 'global_train_batch_size' in config:
@@ -107,9 +108,14 @@ def ingest_yaml(yaml_dict: Optional[dict] = None,
     if isinstance(train_dataset, DictConfig):
         train_dataset = om.to_container(train_dataset)
 
-    assert isinstance(workers, int), 'workers must be an integer.'
-    assert isinstance(global_batch_size, int), 'global_batch_size must be an integer.'
-    assert isinstance(train_dataset, dict), 'train_dataset must be a dict.'
+    if not isinstance(workers, int):
+        raise ValueError(f'`workers` must be an int. Instead, got {type(workers)}.')
+    if not isinstance(global_batch_size, int):
+        raise ValueError(f'`global_batch_size` must be an int. Instead, got ' +
+                         f'{type(global_batch_size)}.')
+    if not isinstance(train_dataset, dict):
+        raise ValueError(f'`train_dataset` must be a dict. Instead, got ' +
+                         f'{type(train_dataset)}.')
 
     return total_devices, workers, max_duration, global_batch_size, train_dataset
 
@@ -147,7 +153,9 @@ def create_simulation_dataset(nodes: int, devices: int, workers: int, global_bat
         streams_dict = train_dataset.get('streams', None)
         if streams_dict is not None:
             streams = []
-            assert isinstance(streams_dict, dict), 'streams must be a dict if not a list.'
+            if not isinstance(streams_dict, dict):
+                raise TypeError(f'`streams` must be of type dict, if not a list. ' +
+                                f'Got type {type(streams_dict)}.')
             for stream in streams_dict.values():
                 if 'path' in stream:
                     del stream['path']

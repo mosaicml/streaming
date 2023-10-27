@@ -78,7 +78,7 @@ def submit_jobs(shuffle_quality: bool, dataset: SimulationDataset, time_per_samp
     # Initialize min_cache_limit to be 0. Will be replaced by the simulated value.
     min_cache_limit = 0
     # Define partial function to pass to executor map for simulation.
-    with ProcessPoolExecutor(max_workers=8) as executor:
+    with ProcessPoolExecutor() as executor:
         # Submit shuffle quality job to executor.
         if shuffle_quality:
             col1.write('Starting shuffle quality analysis...')
@@ -92,7 +92,7 @@ def submit_jobs(shuffle_quality: bool, dataset: SimulationDataset, time_per_samp
             shuffle_block_size = number_abbrev_to_int(input_params['shuffle_block_size'])
             samples_per_shard = dataset.get_avg_samples_per_shard()
             epoch_size = dataset.get_epoch_size()
-            if epoch_size > 100000000:
+            if epoch_size > 100_000_000:
                 st.warning('Epoch size is over 100 million samples. Shuffle quality analysis \
                            will be conducted only on the first 100 million samples.',
                            icon='⚠️')
@@ -113,8 +113,9 @@ def submit_jobs(shuffle_quality: bool, dataset: SimulationDataset, time_per_samp
                 step = total_batches - 1
                 time_to_first_batch, min_cache_limit = output
             else:
-                assert len(output) == 3, 'Simulation with generate=True should return 3 results \
-                    per step.'
+                if len(output) != 3:
+                    raise ValueError(f'Simulation with generate=True should return 3 results per' +
+                                     f' step. Instead, output was length {len(output)}.')
 
                 step, step_time, shard_download = output
                 gen_step_times.append(step_time)

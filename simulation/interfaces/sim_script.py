@@ -78,7 +78,9 @@ results = next(
              node_network_bandwidth=node_internet_bandwidth,
              max_duration=max_duration))
 
-assert len(results) == 4, 'Simulation with generate=False should return 4 final results.'
+if len(results) != 4:
+    raise ValueError(f'Simulation with generate=False should return 4 final results. ' +
+                     f'Instead, received `results` of length {len(results)}.')
 step_times, step_downloads, startup_time, min_cache_limit = results
 global_batch_size = device_batch_size * devices * physical_nodes
 

@@ -138,7 +138,9 @@ for run_id in project_runs_list[skip:]:
                  node_network_bandwidth=node_network_bandwidth,
                  max_duration=max_duration))
 
-    assert len(results) == 4, 'Simulation with generate=False should return 4 final results.'
+    if len(results) != 4:
+        raise ValueError(f'Simulation with generate=False should return 4 final results. ' +
+                         f'Instead, received `results` of length {len(results)}.')
     step_times, step_downloads, startup_time, min_cache_limit = results
 
     immediate_batch_throughput = 1 / step_times

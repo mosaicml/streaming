@@ -175,84 +175,84 @@ def param_inputs(component: DeltaGenerator, input_params: dict, defaults: dict =
         defaults (dict): Dictionary of default values for input params. Defaults to empty dict, {}.
     """
     # split the input column component into left, middle, and right sub columns.
-    colL, colM, colR = component.columns(3)
+    col_l, col_m, col_r = component.columns(3)
 
     # dataset
     streams = {}
-    colL.write('**Dataset Parameters**')
+    col_l.write('**Dataset Parameters**')
     if 'streams' in defaults:
         key = 0
         for stream in defaults['streams'].values():
             # Case is only possible when reading in streams from yaml file. Stream will have path.
-            stream_entry(colL, streams, key, add_stream=False, defaults=stream)
+            stream_entry(col_l, streams, key, add_stream=False, defaults=stream)
             key += 1
         streams = defaults['streams']
     else:
-        stream_entry(colL, streams, 0, add_stream=True)
-    colL.text('')
+        stream_entry(col_l, streams, 0, add_stream=True)
+    col_l.text('')
     input_params['streams'] = streams
 
     # training
-    colM.write('**Training Parameters**')
+    col_m.write('**Training Parameters**')
     if 'max_duration' in defaults:
         default_max_duration = defaults['max_duration']
         default_value = int(default_max_duration.value)
         default_unit_index = 0 if default_max_duration.unit == TimeUnit.BATCH else 1
-        time_value = colM.number_input('training duration',
-                                       step=1,
-                                       value=default_value,
-                                       help='training duration value, in specified units.')
-        time_units = colM.selectbox('units', ['batches', 'epochs'],
-                                    index=default_unit_index,
-                                    help='units of training duration.')
+        time_value = col_m.number_input('training duration',
+                                        step=1,
+                                        value=default_value,
+                                        help='training duration value, in specified units.')
+        time_units = col_m.selectbox('units', ['batches', 'epochs'],
+                                     index=default_unit_index,
+                                     help='units of training duration.')
     else:
-        time_value = colM.number_input('training duration',
-                                       step=1,
-                                       value=1000,
-                                       help='training duration value, in specified units.')
-        time_units = colM.selectbox('units', ['batches', 'epochs'],
-                                    help='units of training duration.')
+        time_value = col_m.number_input('training duration',
+                                        step=1,
+                                        value=1000,
+                                        help='training duration value, in specified units.')
+        time_units = col_m.selectbox('units', ['batches', 'epochs'],
+                                     help='units of training duration.')
     # Get Time object from inputs
     time_string = str(time_value)
     time_string += 'ba' if time_units == 'batches' else 'ep'
     max_duration = ensure_time(time_string, TimeUnit.EPOCH)
-    epoch_size = colM.text_input('epoch size (samples)',
-                                 value='',
-                                 help='epoch size for this run, in samples.')
+    epoch_size = col_m.text_input('epoch size (samples)',
+                                  value='',
+                                  help='epoch size for this run, in samples.')
     epoch_size = None if epoch_size == '' or epoch_size == 'None' else int(epoch_size)
-    device_batch_size = colM.number_input(
+    device_batch_size = col_m.number_input(
         'device batch size',
         step=1,
         value=16 if 'device_batch_size' not in defaults else defaults['device_batch_size'],
         help='number of samples per device (GPU) per batch. \
                                             the global batch size is `device_batch_size * \
                                             devices_per_node * physical_nodes`')
-    colM.text('')
+    col_m.text('')
     input_params['max_duration'] = max_duration
     input_params['epoch_size'] = epoch_size
     input_params['device_batch_size'] = device_batch_size
 
     # hardware and network
-    colM.write('**Hardware and Network Parameters**')
-    physical_nodes = colM.number_input(
+    col_m.write('**Hardware and Network Parameters**')
+    physical_nodes = col_m.number_input(
         'number of physical nodes',
         step=1,
         value=1 if 'physical_nodes' not in defaults else defaults['physical_nodes'],
         help='number of physical nodes for this run. \
                                         a node typically consists of 8 devices (GPUs).')
-    devices = colM.number_input('devices per node',
-                                step=1,
-                                value=8 if 'devices' not in defaults else defaults['devices'],
-                                help='number of devices (GPUs) per node for this run. \
+    devices = col_m.number_input('devices per node',
+                                 step=1,
+                                 value=8 if 'devices' not in defaults else defaults['devices'],
+                                 help='number of devices (GPUs) per node for this run. \
                                     there are typically 8 devices per node.')
-    time_per_sample = colM.number_input(
+    time_per_sample = col_m.number_input(
         'process time per sample (s)',
         step=0.0005,
         value=0.0175 if 'time_per_sample' not in defaults else defaults['time_per_sample'],
         format='%.4f',
         help='time for one device to process one \
                                         sample from your dataset.')
-    node_network_bandwidth = colM.text_input(
+    node_network_bandwidth = col_m.text_input(
         'network bandwidth per node (bytes/s)',
         value='500MB'
         if 'node_network_bandwidth' not in defaults else defaults['node_network_bandwidth'],
@@ -260,35 +260,35 @@ def param_inputs(component: DeltaGenerator, input_params: dict, defaults: dict =
                                             each node. in practice, network bandwidth is \
                                             variable and is affected by many factors, \
                                             including cluster demand.')
-    colM.text('')
+    col_m.text('')
     input_params['physical_nodes'] = physical_nodes
     input_params['devices'] = devices
     input_params['time_per_sample'] = time_per_sample
     input_params['node_network_bandwidth'] = node_network_bandwidth
 
     # streaming
-    colR.write('**Streaming Parameters**')
-    workers = colR.number_input('workers per device',
-                                step=1,
-                                value=8 if 'workers' not in defaults else defaults['workers'],
-                                help='number of dataloader workers per device (GPU).')
-    canonical_nodes = colR.number_input(
+    col_r.write('**Streaming Parameters**')
+    workers = col_r.number_input('workers per device',
+                                 step=1,
+                                 value=8 if 'workers' not in defaults else defaults['workers'],
+                                 help='number of dataloader workers per device (GPU).')
+    canonical_nodes = col_r.number_input(
         'number of canonical nodes',
         step=1,
         value=2 if 'canonical_nodes' not in defaults else defaults['canonical_nodes'],
         help='number of canonical nodes to split your dataset \
                                             into. a canonical node is a bucket of shards that is \
                                             assigned to a particular physical node.')
-    predownload = colR.text_input(
+    predownload = col_r.text_input(
         'predownload per worker (samples)',
         value='None' if 'predownload' not in defaults else defaults['predownload'],
         help='number of samples ahead each worker should download. \
                                     predownload does not occur before the first batch; \
                                     rather, it occurs while training is ongoing.')
     predownload = None if predownload == '' or predownload == 'None' else int(predownload)
-    shuffle = colR.checkbox(label='shuffle',
-                            value=True if 'shuffle' not in defaults else defaults['shuffle'],
-                            help='whether or not to shuffle the samples for this run.')
+    shuffle = col_r.checkbox(label='shuffle',
+                             value=True if 'shuffle' not in defaults else defaults['shuffle'],
+                             help='whether or not to shuffle the samples for this run.')
     shuffle_algo='py1e' if len(defaults) == 0 or 'shuffle_algo' not in defaults \
         else defaults['shuffle_algo']
     shuffle_block_size='1M' if len(defaults) == 0 or 'shuffle_block_size' not in defaults \
@@ -299,36 +299,37 @@ def param_inputs(component: DeltaGenerator, input_params: dict, defaults: dict =
         default_index = 0
         if 'shuffle_algo' in defaults:
             default_index = algos.index(defaults['shuffle_algo'])
-        shuffle_algo = colR.selectbox('shuffling algorithm',
-                                      algos,
-                                      index=default_index,
-                                      help='shuffling algorithm to use for this run. your shuffle \
+        shuffle_algo = col_r.selectbox(
+            'shuffling algorithm',
+            algos,
+            index=default_index,
+            help='shuffling algorithm to use for this run. your shuffle \
                                         parameters may affect model training.')
-        shuffle_block_size = colR.text_input(
+        shuffle_block_size = col_r.text_input(
             'shuffle block size (samples)',
             value='200k'
             if 'shuffle_block_size' not in defaults else defaults['shuffle_block_size'],
             help='shuffle block size for this run. used in the `py1b`, `py1br`, and `py1e` \
                 shuffling algorithms, samples in blocks of `shuffle_block_size` are randomly \
                 shuffled inside each bucket of shards (aka canonical node).')
-        seed = colR.number_input('shuffle seed',
-                                 step=1,
-                                 value=42 if 'seed' not in defaults else defaults['seed'],
-                                 help='random seed for shuffling.')
-    cache_limit = colR.text_input(
+        seed = col_r.number_input('shuffle seed',
+                                  step=1,
+                                  value=42 if 'seed' not in defaults else defaults['seed'],
+                                  help='random seed for shuffling.')
+    cache_limit = col_r.text_input(
         'cache limit (bytes)',
         value='None' if 'cache_limit' not in defaults else defaults['cache_limit'],
         help='cache limit per node for this run. \
                                     setting cache limit too low will impact throughput.')
     cache_limit = None if cache_limit == '' or cache_limit == 'None' else bytes_to_int(cache_limit)
     sampling_methods = ['balanced', 'fixed']
-    sampling_method = colR.selectbox('sampling method',
-                                     sampling_methods,
-                                     index=0 if 'sampling_method' not in defaults else
-                                     sampling_methods.index(defaults['sampling_method']),
-                                     help="sampling method for this run. controls how samples are\
+    sampling_method = col_r.selectbox('sampling method',
+                                      sampling_methods,
+                                      index=0 if 'sampling_method' not in defaults else
+                                      sampling_methods.index(defaults['sampling_method']),
+                                      help="sampling method for this run. controls how samples are\
                                         chosen each epoch. can be either 'balanced' or 'fixed'.")
-    sampling_granularity = colR.number_input(
+    sampling_granularity = col_r.number_input(
         'sampling granularity',
         step=1,
         value=1 if 'sampling_granularity' not in defaults else defaults['sampling_granularity'],
@@ -336,13 +337,13 @@ def param_inputs(component: DeltaGenerator, input_params: dict, defaults: dict =
                                         samples are balanced across shards. higher values will\
                                         cause more samples to be drawn from each shard at a time.')
     batching_methods = ['random', 'per_stream', 'stratified']
-    batching_method = colR.selectbox('batching method',
-                                     batching_methods,
-                                     index=0 if 'batching_method' not in defaults else
-                                     batching_methods.index(defaults['batching_method']),
-                                     help='batching method for this run. controls how batches\
+    batching_method = col_r.selectbox('batching method',
+                                      batching_methods,
+                                      index=0 if 'batching_method' not in defaults else
+                                      batching_methods.index(defaults['batching_method']),
+                                      help='batching method for this run. controls how batches\
                                         are constructed.')
-    colR.text('')
+    col_r.text('')
     input_params['workers'] = workers
     input_params['canonical_nodes'] = canonical_nodes
     input_params['predownload'] = predownload
