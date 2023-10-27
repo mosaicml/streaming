@@ -1,4 +1,4 @@
-name: Publish mosaicml-streaming to PyPI / GitHub
+name: Publish mosaicml-streaming to PyPI
 
 on:
   push:
@@ -17,7 +17,7 @@ jobs:
       - pre-commit
       - test
 
-    name: Build/publish to PyPI and create GitHub release
+    name: Build and Publish mosaicml-streaming PyPI Package
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source
@@ -34,12 +34,6 @@ jobs:
           python -m build
           twine check --strict dist/*
 
-      - name: Publish distribution 📦 to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          user: __token__
-          password: ${{ secrets.PYPI_API_TOKEN }}
-
       # - name: Publish distribution 📦 to Test PyPI
       #   uses: pypa/gh-action-pypi-publish@release/v1
       #   with:
@@ -47,29 +41,8 @@ jobs:
       #     password: ${{ secrets.TEST_PYPI_API_TOKEN }}
       #     repository_url: https://test.pypi.org/legacy/
 
-      - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # This token is provided by Actions, you do not need to create your own token
+      - name: Publish distribution 📦 to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          tag_name: ${{ github.ref }}
-          release_name: ${{ github.ref }}
-          draft: false
-          prerelease: false
-
-      - name: Get Asset name
-        run: |
-          export PKG=$(ls dist/ | grep tar)
-          set -- $PKG
-          echo "name=$1" >> $GITHUB_ENV
-      - name: Upload Release Asset (sdist) to GitHub
-        id: upload-release-asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/${{ env.name }}
-          asset_name: ${{ env.name }}
-          asset_content_type: application/zip
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
