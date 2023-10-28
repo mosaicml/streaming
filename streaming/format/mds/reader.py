@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Union
 import numpy as np
 from typing_extensions import Self
 
-from streaming.format.base.reader import FileInfo, JointReader
+from streaming.format.reader import FileInfo, JointReader
 from streaming.format.mds.encodings import mds_decode
 
 __all__ = ['MDSReader']

@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
-from streaming.format.base.writer import SplitWriter
+from streaming.format.writer import SplitWriter
 from streaming.format.xsv.encodings import is_xsv_encoding, xsv_encode
 
 __all__ = ['XSVWriter', 'CSVWriter', 'TSVWriter']

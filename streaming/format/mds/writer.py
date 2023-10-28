@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
-from streaming.format.base.writer import JointWriter
+from streaming.format.writer import JointWriter
 from streaming.format.mds.encodings import (get_mds_encoded_size, get_mds_encodings,
                                                  is_mds_encoding, mds_encode)
 

@@ -5,7 +5,7 @@
 
 from typing import Any, Dict, Optional, Union
 
-from streaming.format.base import FileInfo, Reader
+from streaming.format import FileInfo, Reader
 from streaming.format.delta import index_delta
 from streaming.format.index import get_index_basename
 from streaming.format.json import JSONReader, JSONWriter
