@@ -16,7 +16,7 @@ def index_delta(*,
                 max_file_bytes: Optional[Union[int, str]] = '200mb',
                 columns: Optional[Dict[str, Optional[str]]] = None,
                 show_progress: bool = True) -> Dict[str, Any]:
-    """Initialize from a local and/or remote Delta table directory.
+    """Index a local and/or remote Delta table directory for use by Streaming.
 
     Args:
         local (str): Where the dataset is cached on the local filesystem.

@@ -14,7 +14,7 @@ def index_lance(*,
                 download_timeout: Union[float, str] = '1m',
                 max_file_bytes: Optional[Union[int, str]] = '200mb',
                 columns: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
-    """Initialize from a local and/or remote Lance dataset directory.
+    """Index a local and/or remote Lance dataset directory for use by Streaming.
 
     Args:
         local (str): Where the dataset is cached on the local filesystem.
