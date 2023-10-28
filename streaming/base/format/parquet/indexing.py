@@ -21,7 +21,7 @@ def index_parquet(*,
                   same_schema: bool = True,
                   columns: Optional[Dict[str, str]] = None,
                   show_progress: bool = True) -> Dict[str, Any]:
-    """Index a local and/or remote Parquet dataset directory for use by Streaming.
+    r"""Index a local and/or remote Parquet dataset directory for use by Streaming.
 
     "Parquet dataset" means the samples live in a collection of naked Parquet files. There is not
     any kind of index or manifest we can count on existing, so we will have to create one.
