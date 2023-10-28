@@ -5,6 +5,8 @@
 
 from typing import Any, Dict, Optional, Union
 
+__all__ = ['index_delta']
+
 
 def index_delta(*,
                 local: str,

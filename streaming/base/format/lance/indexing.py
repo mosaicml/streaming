@@ -5,6 +5,8 @@
 
 from typing import Any, Dict, Optional, Union
 
+__all__ = ['index_lance']
+
 
 def index_lance(*,
                 local: str,
