@@ -37,7 +37,7 @@ def parse_args() -> Namespace:
     args.add_argument('--num_train', type=int, default=1 << 21)
     args.add_argument('--num_val', type=int, default=1 << 17)
 
-    args.add_argument('--data_root', type=str, default='data/compare-backends/')
+    args.add_argument('--data_root', type=str, default='data/backendss/')
     args.add_argument('--csv', type=str, default='csv')
     args.add_argument('--jsonl', type=str, default='jsonl')
     args.add_argument('--lance', type=str, default='lance')
