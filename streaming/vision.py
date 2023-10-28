@@ -4,7 +4,7 @@
 """Base classes for computer vision :class:`StreamingDataset`s."""
 
 import os
-from typing import Any, Callable, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 from torch.utils.data import Dataset
@@ -58,7 +58,7 @@ class StreamingVisionDataset(StreamingDataset, VisionDataset):
                  transforms: Optional[Callable] = None,
                  transform: Optional[Callable] = None,
                  target_transform: Optional[Callable] = None,
-                 **kwargs) -> None:
+                 **kwargs: Dict[str, Any]) -> None:
         StreamingDataset.__init__(self, **kwargs)
 
         has_transforms = transforms is not None
