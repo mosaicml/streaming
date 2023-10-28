@@ -5,14 +5,14 @@
 
 from typing import Any, Dict, Optional, Union
 
-from streaming.base.format.base import FileInfo, Reader
-from streaming.base.format.delta import index_delta
-from streaming.base.format.index import get_index_basename
-from streaming.base.format.json import JSONReader, JSONWriter
-from streaming.base.format.lance import index_lance
-from streaming.base.format.mds import MDSReader, MDSWriter
-from streaming.base.format.parquet import index_parquet
-from streaming.base.format.xsv import (CSVReader, CSVWriter, TSVReader, TSVWriter, XSVReader,
+from streaming.format.base import FileInfo, Reader
+from streaming.format.delta import index_delta
+from streaming.format.index import get_index_basename
+from streaming.format.json import JSONReader, JSONWriter
+from streaming.format.lance import index_lance
+from streaming.format.mds import MDSReader, MDSWriter
+from streaming.format.parquet import index_parquet
+from streaming.format.xsv import (CSVReader, CSVWriter, TSVReader, TSVWriter, XSVReader,
                                        XSVWriter)
 
 __all__ = [

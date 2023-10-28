@@ -9,7 +9,7 @@ COCO is a large-scale object detection, segmentation, and captioning dataset. Pl
 
 from typing import Any, Callable, Optional
 
-from streaming.base import StreamingDataset
+from streaming import StreamingDataset
 
 __all__ = ['StreamingCOCO']
 

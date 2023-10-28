@@ -48,7 +48,7 @@ def retry(  # type: ignore
     Example:
         .. testcode::
 
-            from streaming.base.util import retry
+            from streaming.util import retry
 
             num_tries = 0
 

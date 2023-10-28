@@ -3,6 +3,6 @@
 
 """Integration with Parquet datasets."""
 
-from streaming.base.format.parquet.indexing import index_parquet
+from streaming.format.parquet.indexing import index_parquet
 
 __all__ = ['index_parquet']

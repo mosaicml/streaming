@@ -364,17 +364,17 @@ def _modules_to_rst() -> List[types.ModuleType]:
     """Return the list of modules for which to generate API reference rst files."""
     document_modules: List[types.Module] = [
         streaming,
-        streaming.base.compression,
-        streaming.base.format,
-        streaming.base.hashing,
-        streaming.base.partition,
-        streaming.base.shared,
-        streaming.base.shuffle,
-        streaming.base.storage,
-        streaming.base.util,
-        streaming.base.world,
+        streaming.compression,
+        streaming.format,
+        streaming.hashing,
+        streaming.partition,
+        streaming.shared,
+        streaming.shuffle,
+        streaming.storage,
+        streaming.util,
+        streaming.world,
     ]
-    exclude_modules: List[types.Module] = [streaming.base, streaming._version]
+    exclude_modules: List[types.Module] = [streaming, streaming._version]
     for name in streaming.__dict__:
         obj = streaming.__dict__[name]
         if isinstance(obj, types.ModuleType) and obj not in exclude_modules:

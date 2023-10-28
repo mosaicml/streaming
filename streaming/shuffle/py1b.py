@@ -10,7 +10,7 @@ at the cost of having to download more shards to make progress.
 import numpy as np
 from numpy.typing import NDArray
 
-from streaming.base.shuffle.py1s import divide_spans
+from streaming.shuffle.py1s import divide_spans
 
 
 def get_shuffle_py1b(shard_sizes: NDArray[np.int64],

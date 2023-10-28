@@ -9,7 +9,7 @@ from typing import Optional
 import numpy as np
 from numpy.typing import NDArray
 
-from streaming.base.partition.orig import get_partitions_orig
+from streaming.partition.orig import get_partitions_orig
 
 logger = logging.getLogger(__name__)
 

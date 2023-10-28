@@ -8,8 +8,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Dict, Iterator, List, Optional, Set, Union
 
-from streaming.base.array import Array
-from streaming.base.util import normalize_bytes
+from streaming.array import Array
+from streaming.util import normalize_bytes
 
 __all__ = ['FileInfo', 'Reader', 'JointReader', 'SplitReader']
 

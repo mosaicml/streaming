@@ -3,6 +3,6 @@
 
 """Integration with Delta tables."""
 
-from streaming.base.format.delta.indexing import index_delta
+from streaming.format.delta.indexing import index_delta
 
 __all__ = ['index_delta']

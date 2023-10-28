@@ -7,7 +7,7 @@ from typing import Any, Dict, Optional, Tuple
 
 import pytest
 
-from streaming.base import StreamingDataset
+from streaming import StreamingDataset
 
 
 def get_dataset(name: str,

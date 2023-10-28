@@ -5,7 +5,7 @@
 
 from typing import Any
 
-from streaming.base.shared.array import SharedArray
+from streaming.shared.array import SharedArray
 
 
 class SharedScalar:

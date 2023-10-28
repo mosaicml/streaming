@@ -12,8 +12,8 @@ import numpy as np
 from PIL import Image
 from tqdm import tqdm
 
-from streaming.base import MDSWriter
-from streaming.base.util import unpack_strs
+from streaming import MDSWriter
+from streaming.util import unpack_strs
 
 
 def parse_args() -> Namespace:

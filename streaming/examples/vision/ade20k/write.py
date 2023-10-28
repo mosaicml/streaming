@@ -11,8 +11,8 @@ from typing import Any, Dict, Iterable, List, Tuple
 
 from tqdm import tqdm
 
-from streaming.base import MDSWriter
-from streaming.base.util.pretty import unpack_strs
+from streaming import MDSWriter
+from streaming.util.pretty import unpack_strs
 
 
 def parse_args() -> Namespace:

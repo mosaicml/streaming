@@ -106,7 +106,7 @@ def each(samples):
 It's time to call the {class}`streaming.MDSWriter` with the above initialized parameters and write the samples by iterating over a dataset.
 <!--pytest-codeblocks:cont-->
 ```python
-from streaming.base import MDSWriter
+from streaming import MDSWriter
 
 dataset = RandomClassificationDataset()
 with MDSWriter(out=output_dir, columns=columns, compression=compression, hashes=hashes, size_limit=limit) as out:

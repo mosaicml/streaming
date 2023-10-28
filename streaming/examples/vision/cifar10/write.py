@@ -7,7 +7,7 @@ from argparse import ArgumentParser, Namespace
 
 from torchvision.datasets import CIFAR10
 
-from streaming.base.util import unpack_strs
+from streaming.util import unpack_strs
 from streaming.vision.convert.base import convert_image_class_dataset
 
 

@@ -9,8 +9,8 @@ from time import time
 
 import numpy as np
 
-from streaming.base.partition import get_partitions
-from streaming.base.shuffle import get_shuffle
+from streaming.partition import get_partitions
+from streaming.shuffle import get_shuffle
 
 
 def parse_args() -> Namespace:

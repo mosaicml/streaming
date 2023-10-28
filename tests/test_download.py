@@ -10,7 +10,7 @@ import boto3
 import pytest
 from botocore.exceptions import ClientError
 
-from streaming.base.storage.download import (download_file, download_from_azure,
+from streaming.storage.download import (download_file, download_from_azure,
                                              download_from_azure_datalake,
                                              download_from_databricks_unity_catalog,
                                              download_from_dbfs, download_from_gcs,
@@ -167,7 +167,7 @@ def test_download_from_local():
 
 class TestDownload:
 
-    @patch('streaming.base.storage.download.download_from_s3')
+    @patch('streaming.storage.download.download_from_s3')
     @pytest.mark.usefixtures('remote_local_file')
     def test_download_from_s3_gets_called(self, mocked_requests: Mock, remote_local_file: Any):
         mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='s3://')
@@ -175,7 +175,7 @@ class TestDownload:
         mocked_requests.assert_called_once()
         mocked_requests.assert_called_once_with(mock_remote_filepath, mock_local_filepath, 60)
 
-    @patch('streaming.base.storage.download.download_from_gcs')
+    @patch('streaming.storage.download.download_from_gcs')
     @pytest.mark.usefixtures('remote_local_file')
     def test_download_from_gcs_gets_called(self, mocked_requests: Mock, remote_local_file: Any):
         mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='gs://')
@@ -183,7 +183,7 @@ class TestDownload:
         mocked_requests.assert_called_once()
         mocked_requests.assert_called_once_with(mock_remote_filepath, mock_local_filepath)
 
-    @patch('streaming.base.storage.download.download_from_azure')
+    @patch('streaming.storage.download.download_from_azure')
     @pytest.mark.usefixtures('remote_local_file')
     def test_download_from_azure_gets_called(self, mocked_requests: Mock, remote_local_file: Any):
         mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='azure://')
@@ -191,7 +191,7 @@ class TestDownload:
         mocked_requests.assert_called_once()
         mocked_requests.assert_called_once_with(mock_remote_filepath, mock_local_filepath)
 
-    @patch('streaming.base.storage.download.download_from_azure_datalake')
+    @patch('streaming.storage.download.download_from_azure_datalake')
     @pytest.mark.usefixtures('remote_local_file')
     def test_download_from_azure_datalake_gets_called(self, mocked_requests: Mock,
                                                       remote_local_file: Any):
@@ -200,7 +200,7 @@ class TestDownload:
         mocked_requests.assert_called_once()
         mocked_requests.assert_called_once_with(mock_remote_filepath, mock_local_filepath)
 
-    @patch('streaming.base.storage.download.download_from_sftp')
+    @patch('streaming.storage.download.download_from_sftp')
     @pytest.mark.usefixtures('remote_local_file')
     def test_download_from_sftp_gets_called(self, mocked_requests: Mock, remote_local_file: Any):
         mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='sftp://')
@@ -208,7 +208,7 @@ class TestDownload:
         mocked_requests.assert_called_once()
         mocked_requests.assert_called_once_with(mock_remote_filepath, mock_local_filepath)
 
-    @patch('streaming.base.storage.download.download_from_databricks_unity_catalog')
+    @patch('streaming.storage.download.download_from_databricks_unity_catalog')
     @pytest.mark.usefixtures('remote_local_file')
     def test_download_from_databricks_unity_catalog_gets_called(self, mocked_requests: Mock,
                                                                 remote_local_file: Any):
@@ -217,7 +217,7 @@ class TestDownload:
         mocked_requests.assert_called_once()
         mocked_requests.assert_called_once_with(mock_remote_filepath, mock_local_filepath)
 
-    @patch('streaming.base.storage.download.download_from_dbfs')
+    @patch('streaming.storage.download.download_from_dbfs')
     @pytest.mark.usefixtures('remote_local_file')
     def test_download_from_dbfs_gets_called(self, mocked_requests: Mock, remote_local_file: Any):
         mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='dbfs:/')
@@ -225,7 +225,7 @@ class TestDownload:
         mocked_requests.assert_called_once()
         mocked_requests.assert_called_once_with(mock_remote_filepath, mock_local_filepath)
 
-    @patch('streaming.base.storage.download.download_from_local')
+    @patch('streaming.storage.download.download_from_local')
     @pytest.mark.usefixtures('remote_local_file')
     def test_download_from_local_gets_called(self, mocked_requests: Mock, remote_local_file: Any):
         mock_remote_filepath, mock_local_filepath = remote_local_file()

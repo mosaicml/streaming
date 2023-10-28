@@ -10,9 +10,9 @@ from typing import Any, Dict, Optional
 import numpy as np
 from torch.utils.data import Dataset
 
-from streaming.base.array import Array
-from streaming.base.format import get_index_basename, reader_from_json
-from streaming.base.spanner import Spanner
+from streaming.array import Array
+from streaming.format import get_index_basename, reader_from_json
+from streaming.spanner import Spanner
 
 __all__ = ['LocalDataset']
 

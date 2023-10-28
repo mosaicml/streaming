@@ -13,9 +13,9 @@ from time import sleep, time
 from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Union
 from urllib.parse import urlparse
 
-from streaming.base.hashing import get_hash
-from streaming.base.storage import CloudUploader, download_file
-from streaming.base.util.pretty import normalize_bytes, normalize_duration
+from streaming.hashing import get_hash
+from streaming.storage import CloudUploader, download_file
+from streaming.util.pretty import normalize_bytes, normalize_duration
 
 __all__ = ['wait_for_file_to_exist', 'walk_dir', 'list_dataset_files', 'smart_download_file']
 

@@ -11,8 +11,8 @@ from glob import glob
 from multiprocessing import Pool
 from typing import Dict, Iterator, List, Tuple
 
-from streaming.base import MDSWriter
-from streaming.base.util import unpack_strs
+from streaming import MDSWriter
+from streaming.util import unpack_strs
 
 
 def parse_args() -> Namespace:

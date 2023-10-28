@@ -7,7 +7,7 @@ from typing import Any, Optional
 
 import numpy as np
 
-from streaming.base import StreamingDataset
+from streaming import StreamingDataset
 
 __all__ = ['StreamingEnWiki']
 

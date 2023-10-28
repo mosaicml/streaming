@@ -10,8 +10,8 @@ from typing import Any, Callable, Dict, Iterable, Optional, Union
 from pyarrow import parquet as pq
 from tqdm import tqdm
 
-from streaming.base.format.mds.encodings import get_mds_encoded_size
-from streaming.base.storage.extra import list_dataset_files, smart_download_file
+from streaming.format.mds.encodings import get_mds_encoded_size
+from streaming.storage.extra import list_dataset_files, smart_download_file
 
 __all__ = ['index_parquet']
 

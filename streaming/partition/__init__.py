@@ -8,8 +8,8 @@ from typing import Optional
 import numpy as np
 from numpy.typing import NDArray
 
-from streaming.base.partition.orig import get_partitions_orig
-from streaming.base.partition.relaxed import get_partitions_relaxed
+from streaming.partition.orig import get_partitions_orig
+from streaming.partition.relaxed import get_partitions_relaxed
 
 algos = {
     'orig': get_partitions_orig,

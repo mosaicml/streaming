@@ -7,9 +7,9 @@ import os
 from time import sleep
 from typing import Any, Optional
 
-from streaming.base import StreamingDataset
-from streaming.base.dataset import TICK, _Iterator
-from streaming.base.storage import download_file
+from streaming import StreamingDataset
+from streaming.dataset import TICK, _Iterator
+from streaming.storage import download_file
 
 
 class StreamingInsideWebVid(StreamingDataset):

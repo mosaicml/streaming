@@ -9,7 +9,7 @@ more details about this dataset.
 
 from typing import Any, Callable, Optional, Tuple
 
-from streaming.base import StreamingDataset
+from streaming import StreamingDataset
 
 __all__ = ['StreamingADE20K']
 

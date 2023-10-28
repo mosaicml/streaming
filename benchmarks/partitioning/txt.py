@@ -6,7 +6,7 @@
 import math
 from argparse import ArgumentParser, Namespace
 
-from streaming.base.partition import get_partitions
+from streaming.partition import get_partitions
 
 
 def parse_args() -> Namespace:

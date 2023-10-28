@@ -11,7 +11,7 @@ from typing import Any, Dict, Optional
 
 from transformers.models.auto.tokenization_auto import AutoTokenizer
 
-from streaming.base import StreamingDataset
+from streaming import StreamingDataset
 
 __all__ = ['StreamingPile']
 

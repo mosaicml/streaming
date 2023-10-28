@@ -13,7 +13,7 @@ from collections import OrderedDict
 from pathlib import Path
 from typing import Any, List, Tuple, Union
 
-from streaming.base.format.index import get_index_basename
+from streaming.format.index import get_index_basename
 
 __all__ = ['merge_index']
 
@@ -77,8 +77,8 @@ def _merge_index_from_list(index_file_urls: List[Union[str, Tuple[str, str]]],
         keep_local (bool): Keep local copy of the merged index file. Defaults to ``True``
         download_timeout (int): The allowed time for downloading each json file. Defaults to 60.
     """
-    from streaming.base.storage.download import download_file
-    from streaming.base.storage.upload import CloudUploader
+    from streaming.storage.download import download_file
+    from streaming.storage.upload import CloudUploader
 
     if not index_file_urls or not out:
         logger.warning('Either index_file_urls or out are None. ' +
@@ -180,7 +180,7 @@ def _merge_index_from_root(out: Union[str, Tuple[str, str]],
         keep_local (bool): Keep local copy of the merged index file. Defaults to ``True``
         download_timeout (int): The allowed time for downloading each json file. Defaults to 60.
     """
-    from streaming.base.storage.upload import CloudUploader
+    from streaming.storage.upload import CloudUploader
 
     def not_merged_index(index_file_path: str, out: str):
         """Check if index_file_path is the merged index at folder out.

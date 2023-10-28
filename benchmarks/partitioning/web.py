@@ -16,7 +16,7 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
-from streaming.base.partition import get_partitions
+from streaming.partition import get_partitions
 
 INDEX = '''
 <!doctype html>

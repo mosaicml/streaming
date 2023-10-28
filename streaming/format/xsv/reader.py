@@ -10,8 +10,8 @@ from typing import Any, Dict, List, Optional, Union
 import numpy as np
 from typing_extensions import Self
 
-from streaming.base.format.base.reader import FileInfo, SplitReader
-from streaming.base.format.xsv.encodings import xsv_decode
+from streaming.format.base.reader import FileInfo, SplitReader
+from streaming.format.xsv.encodings import xsv_decode
 
 __all__ = ['XSVReader', 'CSVReader', 'TSVReader']
 

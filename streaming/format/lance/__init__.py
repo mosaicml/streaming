@@ -3,6 +3,6 @@
 
 """Integration with Lance datasets."""
 
-from streaming.base.format.lance.indexing import index_lance
+from streaming.format.lance.indexing import index_lance
 
 __all__ = ['index_lance']

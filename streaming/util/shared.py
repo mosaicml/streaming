@@ -7,9 +7,9 @@ from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
 
 import torch.distributed as dist
 
-from streaming.base.constant import SHM_TO_CLEAN
-from streaming.base.distributed import get_local_rank, maybe_init_dist
-from streaming.base.shared.prefix import _get_path
+from streaming.constant import SHM_TO_CLEAN
+from streaming.distributed import get_local_rank, maybe_init_dist
+from streaming.shared.prefix import _get_path
 
 
 def clean_stale_shared_memory() -> None:

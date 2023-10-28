@@ -6,8 +6,8 @@
 import json
 from argparse import ArgumentParser, Namespace
 
-from streaming.base.format import index_parquet
-from streaming.base.util.pretty import unpack_str2str
+from streaming.format import index_parquet
+from streaming.util.pretty import unpack_str2str
 
 
 def parse_args() -> Namespace:

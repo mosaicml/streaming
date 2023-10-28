@@ -7,7 +7,7 @@ from argparse import ArgumentParser, Namespace
 
 import numpy as np
 
-from streaming.base.util.pretty import unpack_strs
+from streaming.util.pretty import unpack_strs
 
 
 def parse_args() -> Namespace:

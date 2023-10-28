@@ -5,7 +5,7 @@
 
 from torch.utils.data import get_worker_info
 
-from streaming.base import distributed as dist
+from streaming import distributed as dist
 
 
 class World:
