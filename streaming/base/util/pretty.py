@@ -12,16 +12,43 @@ __all__ = [
 ]
 
 
-def get_list_arg(text: str) -> List[str]:
-    """Pass a list as a comma-delimted string.
+def get_list_arg(text: str, sep: str = ',') -> List[str]:
+    """Pass a list as a comma-delimited string.
 
     Args:
-        text (str): Text to split.
+        text (str): Text to parse.
 
     Returns:
-        List[str]: Splits, if any.
+        List[str]: List of items.
     """
-    return text.split(',') if text else []
+    if not text:
+        return []
+
+    return text.split(sep)
+
+
+def parse_str2str(text: str, sep: str = ',', eq: str = '=') -> Dict[str, str]:
+    """Pass a dict as a comma- and equals-delimited string.
+
+    Args:
+        text (str): Text to parse.
+        sep (str): Separator text. Defaults to ``,``.
+        eq (str): Assignment text. Deffaults to ``=``.
+
+    Returns:
+        Dict[str, str]: Mapping of str to str.
+    """
+    if not text:
+        return {}
+
+    ret = {}
+    parts = text.split(sep)
+    for part in parts:
+        key, val = part.split(eq)
+        if key in ret:
+            raise ValueError(f'Repeated key: {key} (text: {text}).')
+        ret[key] = val
+    return ret
 
 
 def _normalize_arg(text: str, units: Dict[str, int], to_type: type) -> Union[int, float]:

@@ -126,7 +126,7 @@ def _shard_info_to_schema(info: Dict[str, Any]) -> Dict[str, Any]:
         Dict[str, Any]: MDS schema.
     """
     ret = {}
-    for key in ['column_names', 'column_encoding', 'column_sizes']:
+    for key in ['column_names', 'column_encodings', 'column_sizes']:
         ret[key] = info[key]
     return ret
 
@@ -164,6 +164,9 @@ def index_parquet(*,
       * If we are default listing all files instead, and just have a local, it is assumed to be
         complete.
       * If we are listing files, and remote is provided, the remote must be authoritative.
+
+    TODO: use num_procs.
+    TODO: use columns.
 
     Args:
         local (str): Where the dataset is cached on the local filesystem.

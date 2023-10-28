@@ -92,7 +92,7 @@ def _filter(keep: Optional[Union[str, Pattern, Callable[[str], bool]]],
         paths (Iterable[str], optional): Iterable of paths to filter. If empty, is the empty list.
     """
     paths = paths or []
-    if keep is None:
+    if not keep:
         pass
     elif isinstance(keep, str):
         keep_regex = re.compile(keep)
