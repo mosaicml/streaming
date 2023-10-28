@@ -7,8 +7,8 @@ from collections import defaultdict
 from typing import Dict, List, Union
 
 __all__ = [
-    'unpack_strs', 'unpack_str2str', 'normalize_dec_bytes', 'normalize_bin_bytes', 'normalize_bytes',
-    'normalize_count', 'normalize_duration'
+    'unpack_strs', 'unpack_str2str', 'normalize_dec_bytes', 'normalize_bin_bytes',
+    'normalize_bytes', 'normalize_count', 'normalize_duration'
 ]
 
 

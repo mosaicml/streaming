@@ -18,7 +18,7 @@ include = [
 exclude = [
     "build/**",
     "node_modules/**",
-    "streaming/text/convert/enwiki/**",
+    "streaming/examples/text/enwiki_tok/**",
     "docs/source/conf.py"
 ]
 
