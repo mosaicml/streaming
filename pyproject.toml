@@ -18,8 +18,8 @@ include = [
 exclude = [
     "build/**",
     "node_modules/**",
-    "streaming/examples/text/enwiki_tok/**",
-    "docs/source/conf.py"
+    "docs/source/conf.py",
+    "examples/text/enwiki_tok/**",
 ]
 
 # Disable checks for missing imports, as a conditional install of streaming will not include them
