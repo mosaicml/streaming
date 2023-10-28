@@ -108,18 +108,18 @@ def stream_entry(component: DeltaGenerator,
     else:
         shards = component.number_input('number of shards',
                                         step=1,
-                                        value=20850,
+                                        value=2000,
                                         help='number of \
                                         total shards across your whole dataset.',
                                         key=str(key) + 'shards')
         samples_per_shard = component.number_input('samples per shard',
                                                    step=1,
-                                                   value=4093,
+                                                   value=4000,
                                                    help='average number of samples contained \
                                                 in each shard.',
                                                    key=str(key) + 'samples')
         avg_raw_shard_size = component.text_input('avg raw shard size (bytes)',
-                                                  value='67MB',
+                                                  value='60MB',
                                                   help='average raw size, in bytes, \
                                             of a single shard.',
                                                   key=str(key) + 'rawsize')
@@ -272,13 +272,21 @@ def param_inputs(component: DeltaGenerator, input_params: dict, defaults: dict =
                                  step=1,
                                  value=8 if 'workers' not in defaults else defaults['workers'],
                                  help='number of dataloader workers per device (GPU).')
-    canonical_nodes = col_r.number_input(
+    # canonical_nodes = col_r.number_input(
+    #     'number of canonical nodes',
+    #     step=1,
+    #     value=2 if 'canonical_nodes' not in defaults else defaults['canonical_nodes'],
+    #     help='number of canonical nodes to split your dataset \
+    #                                         into. a canonical node is a bucket of shards that is \
+    #                                         assigned to a particular physical node.')
+    canonical_nodes = col_r.text_input(
         'number of canonical nodes',
-        step=1,
-        value=2 if 'canonical_nodes' not in defaults else defaults['canonical_nodes'],
+        value='None' if 'canonical_nodes' not in defaults else defaults['canonical_nodes'],
         help='number of canonical nodes to split your dataset \
                                             into. a canonical node is a bucket of shards that is \
                                             assigned to a particular physical node.')
+    canonical_nodes = None if canonical_nodes == '' or canonical_nodes == 'None' \
+        else int(canonical_nodes)
     predownload = col_r.text_input(
         'predownload per worker (samples)',
         value='None' if 'predownload' not in defaults else defaults['predownload'],
@@ -291,7 +299,7 @@ def param_inputs(component: DeltaGenerator, input_params: dict, defaults: dict =
                              help='whether or not to shuffle the samples for this run.')
     shuffle_algo='py1e' if len(defaults) == 0 or 'shuffle_algo' not in defaults \
         else defaults['shuffle_algo']
-    shuffle_block_size='1M' if len(defaults) == 0 or 'shuffle_block_size' not in defaults \
+    shuffle_block_size=None if len(defaults) == 0 or 'shuffle_block_size' not in defaults \
         else defaults['shuffle_block_size']
     seed = 42 if len(defaults) == 0 or 'seed' not in defaults else defaults['seed']
     if shuffle:
@@ -307,7 +315,7 @@ def param_inputs(component: DeltaGenerator, input_params: dict, defaults: dict =
                                         parameters may affect model training.')
         shuffle_block_size = col_r.text_input(
             'shuffle block size (samples)',
-            value='200k'
+            value='None'
             if 'shuffle_block_size' not in defaults else defaults['shuffle_block_size'],
             help='shuffle block size for this run. used in the `py1b`, `py1br`, and `py1e` \
                 shuffling algorithms, samples in blocks of `shuffle_block_size` are randomly \
@@ -316,6 +324,8 @@ def param_inputs(component: DeltaGenerator, input_params: dict, defaults: dict =
                                   step=1,
                                   value=42 if 'seed' not in defaults else defaults['seed'],
                                   help='random seed for shuffling.')
+        if shuffle_block_size == '' or shuffle_block_size == 'None':
+            shuffle_block_size = None
     cache_limit = col_r.text_input(
         'cache limit (bytes)',
         value='None' if 'cache_limit' not in defaults else defaults['cache_limit'],

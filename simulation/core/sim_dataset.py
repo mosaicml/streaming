@@ -61,29 +61,36 @@ class SimulationDataset(StreamingDataset):
             of current sample. Workers will attempt to download ahead by this many samples during,
             but not before, training. Recommendation is to provide a value greater than per device
             batch size to ensure at-least per device batch size number of samples cached locally.
-            If ``None``, its value gets derived using per device batch size and number of
-            canonical nodes ``max(batch_size, 256 * batch_size // num_canonical_nodes)``.
-            Defaults to ``None``.
+            If ``None``, its value is set to ``8 * batch_size``. Defaults to ``None``.
         cache_limit (Union[int, str], optional): Maximum size in bytes of this StreamingDataset's
             shard cache. Before downloading a shard, the least recently used resident shard(s)
             may be evicted (deleted from the local cache) in order to stay under the limit.
             Set to ``None`` to disable shard eviction. Supports integer bytes as well as string
             human-readable bytes (e.g., ``100b``, ``64kb``, ``77mb``, and so on). Defaults to
             ``None``.
-        partition_algo (str): Which partitioning algorithm to use. Defaults to ``orig``.
+        partition_algo (str): Which partitioning algorithm to use. Defaults to ``relaxed``.
         num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
             resumption. The sample space is divided evenly according to the number of canonical
             nodes. The higher the value, the more independent non-overlapping paths the
             StreamingDataset replicas take through the shards per model replica (increasing data
-            source diversity). Defaults to ``None``, which is interpreted as 64 times the number
-            of nodes of the initial run.
+            source diversity). If ``None``, this is interpreted as 64 times the number of physical
+            nodes of the initial run if ``shuffle_algo`` is ``py1s`` or ``py2s``, and simply the
+            number of physical nodes of the initial run otherwise. Defaults to ``None``.
+
+            .. note::
+
+                For sequential sample ordering, set ``shuffle`` to ``False`` and
+                ``num_canonical_nodes`` to the number of physical nodes of the initial run.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
             ``False``.
-        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1s``.
+        shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1e``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
-        shuffle_block_size (int): Unit of shuffle. Defaults to ``1 << 18``.
+        shuffle_block_size (int, optional): Unit of shuffle. A canonical node's samples are split
+            into blocks of this size, and samples within each block are shuffled. If ``None``, its
+            value is calculated as ``max(4_000_000 // num_canonical_nodes), 1 << 18)``. Defaults to
+            ``None``.
         sampling_method (str): Which sampling method to use, either ``balanced`` or ``fixed``.
             Defaults to ``balanced``.
         sampling_granularity (int): When picking samples for a stream's final partial repeat,
@@ -109,13 +116,13 @@ class SimulationDataset(StreamingDataset):
                  epoch_size: Optional[Union[int, str]] = None,
                  predownload: Optional[int] = None,
                  cache_limit: Optional[Union[int, str]] = None,
-                 partition_algo: str = 'orig',
+                 partition_algo: str = 'relaxed',
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
                  shuffle: bool = False,
-                 shuffle_algo: str = 'py1s',
+                 shuffle_algo: str = 'py1e',
                  shuffle_seed: int = 9176,
-                 shuffle_block_size: int = 1 << 18,
+                 shuffle_block_size: Optional[int] = None,
                  sampling_method: str = 'balanced',
                  sampling_granularity: int = 1,
                  batching_method: str = 'random') -> None:
@@ -129,10 +136,8 @@ class SimulationDataset(StreamingDataset):
         self.workers = workers
         self.cache_limit = cache_limit
         self.partition_algo = partition_algo
-        self.num_canonical_nodes = num_canonical_nodes or 64 * nodes
-        self.batch_size = batch_size or 1
-        self.predownload = predownload if predownload is not None \
-            else max(self.batch_size, 256 * self.batch_size // self.num_canonical_nodes)
+        self.predownload = predownload
+        self.batch_size = batch_size
         self.shuffle = shuffle
         self.shuffle_algo = shuffle_algo
         self.shuffle_seed = shuffle_seed
@@ -140,6 +145,20 @@ class SimulationDataset(StreamingDataset):
         self.sampling_method = sampling_method
         self.sampling_granularity = sampling_granularity
         self.batching_method = batching_method
+        self.num_canonical_nodes = num_canonical_nodes
+
+        self.initial_physical_nodes = nodes
+
+        # Set num_canonical_nodes based on the shuffling algorithm chosen.
+        if self.num_canonical_nodes is None:
+            if self.shuffle_algo in ['py1s', 'py2s']:
+                self.num_canonical_nodes = 64 * self.nodes
+            else:
+                self.num_canonical_nodes = self.nodes
+
+        # Set shuffle_block_size if not provided, based on num_canonical_nodes.
+        if self.shuffle_block_size is None:
+            self.shuffle_block_size = max(4_000_000 // self.num_canonical_nodes, 1 << 18)
 
         # Check streams vs remote/local.
         if bool(streams) == (bool(remote) or bool(local)):
@@ -158,11 +177,17 @@ class SimulationDataset(StreamingDataset):
                 f'Invalid batching method: {batching_method}. Must be one of `random`, \
                     `per_stream`, or `stratified`.')
 
-        # Check that predownload is at least per device batch size.
-        if self.predownload < self.batch_size:
+        # Check that predownload is at least per device batch size, and set it if currently `None`.
+        if self.predownload is not None and self.batch_size is not None and \
+            self.predownload < self.batch_size:
             warnings.warn(f'predownload < batch_size ({self.predownload} < {self.batch_size}).' +
                           f'This may result in slower batch time. Recommendation is to set ' +
                           f'predownload to at-least batch_size.')
+        elif self.predownload is None:
+            self.predownload = 8 * self.batch_size if self.batch_size is not None else 64
+
+        self.batch_size = batch_size or 1
+
         # Convert epoch size from string to int, if needed. Cannot be negative.
         epoch_size_value = None
         if epoch_size:
@@ -391,6 +416,9 @@ class SimulationDataset(StreamingDataset):
         Returns:
             int: The dataset's number of canonical nodes.
         """
+        if not isinstance(self.num_canonical_nodes, int):
+            raise TypeError(f'`self.num_canonical_nodes` must be an int. ' +
+                            f'Got {type(self.num_canonical_nodes)} instead.')
         return self.num_canonical_nodes
 
     def get_batch_size(self) -> int:
@@ -399,6 +427,9 @@ class SimulationDataset(StreamingDataset):
         Returns:
             int: The dataset's batch size.
         """
+        if not isinstance(self.batch_size, int):
+            raise TypeError(f'`self.batch_size` must be an int. ' +
+                            f'Got {type(self.batch_size)} instead.')
         return self.batch_size
 
     def get_num_shards(self) -> int:
@@ -423,6 +454,9 @@ class SimulationDataset(StreamingDataset):
         Returns:
             int: The dataset's predownload.
         """
+        if not isinstance(self.predownload, int):
+            raise TypeError(f'`self.predownload` must be an int. ' +
+                            f'Got {type(self.predownload)} instead.')
         return self.predownload
 
     def get_cache_limit(self) -> Optional[int]:
@@ -449,6 +483,9 @@ class SimulationDataset(StreamingDataset):
         Returns:
             int: The dataset's number of batches.
         """
+        if self.batch_size is None:
+            raise ValueError(f'Cannot get number of batches without `batch size`, had ' +
+                             f'`batch_size` of `None`')
         return self.epoch_size // (self.batch_size * self.devices * self.nodes)
 
     def get_stream_info(self) -> dict:
@@ -489,6 +526,9 @@ class SimulationDataset(StreamingDataset):
         Returns:
             int: The dataset's shuffle block size.
         """
+        if not isinstance(self.shuffle_block_size, int):
+            raise TypeError(f'`self.shuffle_block_size` must be an int. ' +
+                            f'Got {type(self.shuffle_block_size)} instead.')
         return self.shuffle_block_size
 
     def get_epoch_size(self) -> int:

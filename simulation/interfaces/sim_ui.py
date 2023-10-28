@@ -85,11 +85,15 @@ def submit_jobs(shuffle_quality: bool, dataset: SimulationDataset, time_per_samp
             input_params = st.session_state['input_params']
             # Use multiprocessing to get the shuffle quality results.
             canonical_nodes = input_params['canonical_nodes']
+            if canonical_nodes is None:
+                canonical_nodes = dataset.get_num_canonical_nodes()
             physical_nodes = input_params['physical_nodes']
             devices = input_params['devices']
             workers = input_params['workers']
             device_batch_size = input_params['device_batch_size']
-            shuffle_block_size = number_abbrev_to_int(input_params['shuffle_block_size'])
+            shuffle_block_size = number_abbrev_to_int(input_params['shuffle_block_size']) \
+                if input_params['shuffle_block_size'] is not None \
+                    else dataset.get_shuffle_block_size()
             samples_per_shard = dataset.get_avg_samples_per_shard()
             epoch_size = dataset.get_epoch_size()
             if epoch_size > 100_000_000:

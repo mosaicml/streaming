@@ -89,7 +89,8 @@ def get_train_dataset_params(input_params: dict, old_params: Optional[dict] = No
     train_dataset_params['shuffle'] = input_params['shuffle']
     train_dataset_params['shuffle_algo'] = input_params['shuffle_algo']
     train_dataset_params['shuffle_block_size'] = number_abbrev_to_int(
-        input_params['shuffle_block_size'])
+        input_params['shuffle_block_size']) if input_params['shuffle_block_size'] is not None \
+        else None
     train_dataset_params['shuffle_seed'] = input_params['seed']
     train_dataset_params['sampling_method'] = input_params['sampling_method']
     train_dataset_params['sampling_granularity'] = input_params['sampling_granularity']
