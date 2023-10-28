@@ -3,6 +3,9 @@
 
 """A dataset, or sub-dataset if mixing, from which we stream/cache samples."""
 
+# TODO: we have generalized `keep_zip` to `keep_packed` in Stream arguments, but must still accept
+# `keep_zip`.
+
 import hashlib
 import json
 import os
@@ -57,7 +60,7 @@ class Stream:
       * ``download_retry``
       * ``download_timeout``
       * ``validate_hash``
-      * ``keep_zip``
+      * ``keep_packed``
 
     Args:
         remote (str, optional): Remote path or directory to download the dataset from. If ``None``,
@@ -84,9 +87,9 @@ class Stream:
             before raising an exception. Defaults to ``None``.
         validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
-        keep_zip (bool, optional): Whether to keep or delete the compressed form when decompressing
-            downloaded shards. If ``False``, keep if and only if remote is local or no remote.
-            Defaults to ``None``.
+        keep_packed (bool): Whether to keep or drop the packed form of shards after unpacking, e.g.
+            compressed shards after decompression or Parquet shards after conversion to MDS. If
+            ``False``, keep iff remote is local or no remote. Defaults to ``False``.
     """
 
     def __init__(self,
@@ -100,7 +103,7 @@ class Stream:
                  download_retry: Optional[int] = None,
                  download_timeout: Optional[float] = None,
                  validate_hash: Optional[str] = None,
-                 keep_zip: Optional[bool] = None) -> None:
+                 keep_packed: Optional[bool] = None) -> None:
         self.remote = remote
         self._local = local
         self.split = split or ''
@@ -157,10 +160,10 @@ class Stream:
         else:
             self.local = local
 
-        self._keep_zip = keep_zip
-        if keep_zip is not None:
-            self.keep_zip = keep_zip
-            self.safe_keep_zip = self.keep_zip or self.remote in {None, self.local}
+        self._keep_packed = keep_packed
+        if keep_packed is not None:
+            self.keep_packed = keep_packed
+            self.safe_keep_packed = self.keep_packed or self.remote in {None, self.local}
 
     def _get_temporary_directory(self) -> str:
         """Construct a path to a temporary directory based on remote and split."""
@@ -189,9 +192,9 @@ class Stream:
             self.download_timeout = default['download_timeout']
         if self.validate_hash is None:
             self.validate_hash = default['validate_hash'] or None
-        if self._keep_zip is None:
-            self.keep_zip = default['keep_zip']
-            self.safe_keep_zip = default['keep_zip'] or self.remote in {None, self.local}
+        if self._keep_packed is None:
+            self.keep_packed = default['keep_packed']
+            self.safe_keep_packed = default['keep_packed'] or self.remote in {None, self.local}
 
     @classmethod
     def validate_weights(cls, streams: Sequence[Self]) -> Tuple[bool, bool]:
@@ -344,7 +347,7 @@ class Stream:
         os.rename(tmp_filename, raw_filename)
 
         # Maybe remove compressed to save space.
-        if not self.safe_keep_zip:
+        if not self.safe_keep_packed:
             os.remove(zip_filename)
 
     def _prepare_shard_part(self,
@@ -371,7 +374,7 @@ class Stream:
         raw_filename = os.path.join(self.local, self.split, raw_info.basename)
         if os.path.isfile(raw_filename):
             # Has raw.
-            if zip_info and not self.safe_keep_zip:
+            if zip_info and not self.safe_keep_packed:
                 zip_filename = os.path.join(self.local, self.split, zip_info.basename)
                 if os.path.isfile(zip_filename):
                     # If don't keep zip and it has a zip, drop the zip.
@@ -389,7 +392,7 @@ class Stream:
                 # Validate and decompress.
                 self._decompress_shard_part(zip_info, zip_filename, raw_filename, compression)
                 delta += raw_info.bytes
-                if not self.safe_keep_zip:
+                if not self.safe_keep_packed:
                     delta -= zip_info.bytes
             else:
                 # Download raw.
@@ -491,7 +494,7 @@ class Stream:
 
         # Determine which shards are present, making local dir consistent.
         for i, shard in enumerate(shards):
-            cache_usage_per_shard[i] = shard.set_up_local(listing, self.safe_keep_zip)
+            cache_usage_per_shard[i] = shard.set_up_local(listing, self.safe_keep_packed)
 
     def get_index_size(self) -> int:
         """Get the size of the index file in bytes.

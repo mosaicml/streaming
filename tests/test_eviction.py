@@ -13,14 +13,14 @@ from streaming import MDSWriter, StreamingDataset
 from tests.common.utils import convert_to_mds
 
 
-def validate(remote: str, local: str, dataset: StreamingDataset, keep_zip: bool,
+def validate(remote: str, local: str, dataset: StreamingDataset, keep_packed: bool,
              is_shard_evicted: bool):
     """Validate the number of files in a local directory in comparison to remote directory."""
     if is_shard_evicted:
         ops = operator.lt
     else:
         ops = operator.eq
-    if keep_zip:
+    if keep_packed:
         if dataset.shards[0].compression:
             # Local has raw + zip, remote has zip.
             assert ops(
@@ -40,57 +40,57 @@ def validate(remote: str, local: str, dataset: StreamingDataset, keep_zip: bool,
             assert ops(set(os.listdir(local)), set(os.listdir(remote)))
 
 
-def shard_eviction_disabled(remote: str, local: str, keep_zip: bool):
+def shard_eviction_disabled(remote: str, local: str, keep_packed: bool):
     """
     With shard eviction disabled.
     """
-    dataset = StreamingDataset(remote=remote, local=local, keep_zip=keep_zip)
+    dataset = StreamingDataset(remote=remote, local=local, keep_packed=keep_packed)
     for _ in range(2):
         for sample in dataset:  # pyright: ignore
             pass
 
-    validate(remote, local, dataset, keep_zip, False)
+    validate(remote, local, dataset, keep_packed, False)
     rmtree(local, ignore_errors=False)
 
 
-def shard_eviction_too_high(remote: str, local: str, keep_zip: bool):
+def shard_eviction_too_high(remote: str, local: str, keep_packed: bool):
     """
     With no shard evictions because cache_limit is bigger than the dataset.
     """
     dataset = StreamingDataset(remote=remote,
                                local=local,
-                               keep_zip=keep_zip,
+                               keep_packed=keep_packed,
                                cache_limit=1_000_000)
     dataloader = DataLoader(dataset=dataset, num_workers=8)
     for _ in range(2):
         for _ in dataloader:
             pass
-    validate(remote, local, dataset, keep_zip, False)
+    validate(remote, local, dataset, keep_packed, False)
     rmtree(local, ignore_errors=False)
 
 
-def shard_eviction(remote: str, local: str, keep_zip: bool):
+def shard_eviction(remote: str, local: str, keep_packed: bool):
     """
     With shard eviction because cache_limit is smaller than the whole dataset.
     """
-    cache_limit = '120kb' if keep_zip else '100kb'
+    cache_limit = '120kb' if keep_packed else '100kb'
     dataset = StreamingDataset(remote=remote,
                                local=local,
-                               keep_zip=keep_zip,
+                               keep_packed=keep_packed,
                                cache_limit=cache_limit)
     dataloader = DataLoader(dataset=dataset, num_workers=8)
     for _ in range(2):
         for _ in dataloader:
             pass
-    validate(remote, local, dataset, keep_zip, True)
+    validate(remote, local, dataset, keep_packed, True)
     rmtree(local, ignore_errors=False)
 
 
-def manual_shard_eviction(remote: str, local: str, keep_zip: bool):
+def manual_shard_eviction(remote: str, local: str, keep_packed: bool):
     """
     Manually downloading and evicting shards.
     """
-    dataset = StreamingDataset(remote=remote, local=local, keep_zip=keep_zip)
+    dataset = StreamingDataset(remote=remote, local=local, keep_packed=keep_packed)
 
     for shard_id in range(dataset.num_shards):
         dataset.prepare_shard(shard_id)
@@ -109,7 +109,7 @@ def manual_shard_eviction(remote: str, local: str, keep_zip: bool):
     rmtree(local, ignore_errors=False)
 
 
-def cache_limit_too_low(remote: str, local: str, keep_zip: bool):
+def cache_limit_too_low(remote: str, local: str, keep_packed: bool):
     """
     With impossible shard eviction settings because cache_limit is set too low.
     """

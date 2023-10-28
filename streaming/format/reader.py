@@ -122,14 +122,15 @@ class Reader(Array, ABC):
         """
         return self._evict_raw() + self._evict_zip()
 
-    def set_up_local(self, listing: Set[str], safe_keep_zip: bool) -> int:
+    def set_up_local(self, listing: Set[str], safe_keep_packed: bool) -> int:
         """Bring what shard files are present to a consistent state, returning whether present.
 
         Args:
             listing (Set[str]): The listing of all files under dirname/[split/]. This is listed
                 once and then saved because there could potentially be very many shard files.
-            safe_keep_zip (bool): Whether to keep zip files when decompressing. Possible when
-                compression was used. Necessary when local is the remote or there is no remote.
+            safe_keep_packed (bool): Whether to keep the packed form of shards after unpacking,
+                e.g. compressed shards after decompression or Parquet shards after conversion to
+                MDS, after taking into account whether local is remote.
 
         Returns:
             bool: Whether the shard is present.
@@ -168,7 +169,7 @@ class Reader(Array, ABC):
 
         # Enumerate cases of raw/zip presence.
         if self.compression:
-            if safe_keep_zip:
+            if safe_keep_packed:
                 if has_raw:
                     if has_zip:
                         # Present (normalized).
@@ -242,7 +243,7 @@ class Reader(Array, ABC):
 
         "Max" in this case means both the raw (decompressed) and zip (compressed) versions are
         resident (assuming it has a zip form). This is the maximum disk usage the shard can reach.
-        When compressed was used, even if keep_zip is ``False``, the zip form must still be
+        When compressed was used, even if seep_zip is ``False``, the zip form must still be
         resident at the same time as the raw form during shard decompression.
 
         Returns:
@@ -250,21 +251,21 @@ class Reader(Array, ABC):
         """
         return self.get_raw_size() + (self.get_zip_size() or 0)
 
-    def get_persistent_size(self, keep_zip: bool) -> int:
+    def get_persistent_size(self, keep_packed: bool) -> int:
         """Get the persistent size of this shard.
 
         "Persistent" in this case means whether both raw and zip are present is subject to
-        keep_zip. If we are not keeping zip files after decompression, they don't count to the
+        keep_packed. If we are not keeping zip files after decompression, they don't count to the
         shard's persistent size on disk.
 
         Args:
-            keep_zip (bool): Whether to keep zip files after decompressing.
+            keep_packed (bool): Whether to keep zip files after decompressing.
 
         Returns:
             int: Size in bytes.
         """
         if self.compression:
-            if keep_zip:
+            if keep_packed:
                 size = self.get_max_size()
             else:
                 size = self.get_raw_size()

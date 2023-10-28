@@ -3,6 +3,9 @@
 
 """A mid-epoch-resumable streaming/caching pytorch IterableDataset."""
 
+# TODO: we have generalized `keep_zip` to `keep_packed` in StreamingDataaset arguments, but must
+# still accept `keep_zip`.
+
 import json
 import logging
 import os
@@ -200,7 +203,7 @@ class StreamingDataset(Array, IterableDataset):
         * ``download_retry``
         * ``download_timeout``
         * ``validate_hash``
-        * ``keep_zip``
+        * ``keep_packed``
 
       * Absolute dataset size, if streams were weighted relatively:
 
@@ -253,9 +256,9 @@ class StreamingDataset(Array, IterableDataset):
             an exception. Defaults to ``60``.
         validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
-        keep_zip (bool): Whether to keep or delete the compressed form when decompressing
-            downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
-            ``False``.
+        keep_packed (bool): Whether to keep or drop the packed form of shards after unpacking, e.g.
+            compressed shards after decompression or Parquet shards after conversion to MDS. If
+            ``False``, keep iff remote is local or no remote. Defaults to ``False``.
         epoch_size (Union[int, str], optional): Number of samples to draw per epoch balanced
             across all streams. If ``None``, takes its value from the total number of underlying
             samples. Provide this field if you are weighting streams relatively to target a larger
@@ -314,7 +317,7 @@ class StreamingDataset(Array, IterableDataset):
                  download_retry: int = 2,
                  download_timeout: float = 60,
                  validate_hash: Optional[str] = None,
-                 keep_zip: bool = False,
+                 keep_packed: bool = False,
                  epoch_size: Optional[Union[int, str]] = None,
                  predownload: Optional[int] = None,
                  cache_limit: Optional[Union[int, str]] = None,
@@ -410,7 +413,7 @@ class StreamingDataset(Array, IterableDataset):
                 'download_retry': download_retry,
                 'download_timeout': download_timeout,
                 'validate_hash': validate_hash,
-                'keep_zip': keep_zip,
+                'keep_packed': keep_packed,
             }
             for stream in streams:
                 stream.apply_default(default)
@@ -421,7 +424,7 @@ class StreamingDataset(Array, IterableDataset):
                              download_retry=download_retry,
                              download_timeout=download_timeout,
                              validate_hash=validate_hash,
-                             keep_zip=keep_zip)
+                             keep_packed=keep_packed)
             streams = [default]
 
         # Validate the stream weighting scheme (relative or absolute) to catch errors before we go

@@ -76,8 +76,8 @@ def get_streaming_dataset_params(kwargs: dict[str, str]) -> dict[str, Any]:
         dataset_params['download_timeout'] = float(kwargs['download_timeout'])
     if 'validate_hash' in kwargs:
         dataset_params['validate_hash'] = kwargs['validate_hash']
-    if 'keep_zip' in kwargs:
-        dataset_params['keep_zip'] = kwargs['keep_zip'].lower().capitalize() == 'True'
+    if 'keep_packed' in kwargs:
+        dataset_params['keep_packed'] = kwargs['keep_packed'].lower().capitalize() == 'True'
     if 'epoch_size' in kwargs:
         dataset_params['epoch_size'] = kwargs['epoch_size']
     if 'predownload' in kwargs:
