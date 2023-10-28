@@ -3,9 +3,6 @@
 
 """A mid-epoch-resumable streaming/caching pytorch IterableDataset."""
 
-# TODO: we have generalized `keep_zip` to `keep_packed` in StreamingDataaset arguments, but must
-# still accept `keep_zip`.
-
 import json
 import logging
 import os
@@ -38,6 +35,7 @@ from streaming.shared import (SharedArray, SharedBarrier, SharedMemory, SharedSc
 from streaming.spanner import Spanner
 from streaming.stream import Stream
 from streaming.util import normalize_bytes, normalize_count
+from streaming.util.migration import get_keep_packed
 from streaming.world import World
 
 # An arbitrary time in the future, used for cold shard eviction.
@@ -256,9 +254,11 @@ class StreamingDataset(Array, IterableDataset):
             an exception. Defaults to ``60``.
         validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
-        keep_packed (bool): Whether to keep or drop the packed form of shards after unpacking, e.g.
-            compressed shards after decompression or Parquet shards after conversion to MDS. If
-            ``False``, keep iff remote is local or no remote. Defaults to ``False``.
+        keep_packed (bool, optional): Whether to keep or drop the packed form of shards after
+            unpacking, e.g. compressed shards after decompression or Parquet shards after
+            conversion to MDS. If ``False``, keep iff remote is local or no remote. Defaults to
+            ``None``, which is normalized to ``False``, in order to distinguish setting it on
+            purpose from receiving the default.
         epoch_size (Union[int, str], optional): Number of samples to draw per epoch balanced
             across all streams. If ``None``, takes its value from the total number of underlying
             samples. Provide this field if you are weighting streams relatively to target a larger
@@ -306,6 +306,9 @@ class StreamingDataset(Array, IterableDataset):
             ``None``.
         batching_method (str): Which batching method to use, either ``random``, ``stratified``, or
             ``per_stream``. Defaults to ``random``.
+        keep_zip (bool, optional): This argument is deprecated. It has been replaced by
+            ``keep_packed``, which is more general, for which it serves as a fallback. Defaults to
+            ``None``.
     """
 
     def __init__(self,
@@ -317,7 +320,7 @@ class StreamingDataset(Array, IterableDataset):
                  download_retry: int = 2,
                  download_timeout: float = 60,
                  validate_hash: Optional[str] = None,
-                 keep_packed: bool = False,
+                 keep_packed: Optional[bool] = None,
                  epoch_size: Optional[Union[int, str]] = None,
                  predownload: Optional[int] = None,
                  cache_limit: Optional[Union[int, str]] = None,
@@ -330,7 +333,8 @@ class StreamingDataset(Array, IterableDataset):
                  shuffle_algo: str = 'py1e',
                  shuffle_seed: int = 9176,
                  shuffle_block_size: Optional[int] = None,
-                 batching_method: str = 'random') -> None:
+                 batching_method: str = 'random',
+                 keep_zip: Optional[bool] = None) -> None:
         # Global arguments (which do not live in Streams).
         self.predownload = predownload
         self.cache_limit = cache_limit
@@ -344,6 +348,8 @@ class StreamingDataset(Array, IterableDataset):
         self.shuffle_seed = shuffle_seed
         self.shuffle_block_size = shuffle_block_size
         self.batching_method = batching_method
+
+        keep_packed = get_keep_packed(keep_packed, keep_zip)
 
         # Initialize initial_physical_nodes to None. If we are resuming, then we will set it to the
         # number of physical nodes of the initial run in the _resume function.

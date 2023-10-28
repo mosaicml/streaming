@@ -3,9 +3,6 @@
 
 """A dataset, or sub-dataset if mixing, from which we stream/cache samples."""
 
-# TODO: we have generalized `keep_zip` to `keep_packed` in Stream arguments, but must still accept
-# `keep_zip`.
-
 import hashlib
 import json
 import os
@@ -23,6 +20,7 @@ from streaming.format import FileInfo, Reader, get_index_basename, reader_from_j
 from streaming.hashing import get_hash
 from streaming.storage import download_file
 from streaming.storage.extra import wait_for_file_to_exist
+from streaming.util.migration import get_keep_packed
 from streaming.util.retrying import retry
 from streaming.world import World
 
@@ -87,9 +85,14 @@ class Stream:
             before raising an exception. Defaults to ``None``.
         validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
-        keep_packed (bool): Whether to keep or drop the packed form of shards after unpacking, e.g.
-            compressed shards after decompression or Parquet shards after conversion to MDS. If
-            ``False``, keep iff remote is local or no remote. Defaults to ``False``.
+        keep_packed (bool, optional): Whether to keep or drop the packed form of shards after
+            unpacking, e.g. compressed shards after decompression or Parquet shards after
+            conversion to MDS. If ``False``, keep iff remote is local or no remote. Defaults to
+            ``None``, which is normalized to ``False``, in order to distinguish setting it on
+            purpose from receiving the default.
+        keep_zip (bool, optional): This argument is deprecated. It has been replaced by
+            ``keep_packed``, which is more general, for which it serves as a fallback. Defaults to
+            ``None``.
     """
 
     def __init__(self,
@@ -103,7 +106,8 @@ class Stream:
                  download_retry: Optional[int] = None,
                  download_timeout: Optional[float] = None,
                  validate_hash: Optional[str] = None,
-                 keep_packed: Optional[bool] = None) -> None:
+                 keep_packed: Optional[bool] = None,
+                 keep_zip: Optional[bool] = None) -> None:
         self.remote = remote
         self._local = local
         self.split = split or ''
@@ -160,6 +164,7 @@ class Stream:
         else:
             self.local = local
 
+        keep_packed = get_keep_packed(keep_packed, keep_zip)
         self._keep_packed = keep_packed
         if keep_packed is not None:
             self.keep_packed = keep_packed
