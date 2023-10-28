@@ -6,15 +6,18 @@
 from typing import Any, Dict, Optional
 
 from streaming.base.format.base import FileInfo, Reader
+from streaming.base.format.delta import index_delta
 from streaming.base.format.index import get_index_basename
 from streaming.base.format.json import JSONReader, JSONWriter
+from streaming.base.format.lance import index_lance
 from streaming.base.format.mds import MDSReader, MDSWriter
+from streaming.base.format.parquet import index_parquet
 from streaming.base.format.xsv import (CSVReader, CSVWriter, TSVReader, TSVWriter, XSVReader,
                                        XSVWriter)
 
 __all__ = [
-    'CSVWriter', 'FileInfo', 'get_index_basename', 'JSONWriter', 'MDSWriter', 'Reader',
-    'reader_from_json', 'TSVWriter', 'XSVWriter'
+    'CSVWriter', 'FileInfo', 'JSONWriter', 'MDSWriter', 'Reader', 'TSVWriter', 'XSVWriter',
+    'get_index_basename', 'index_delta', 'index_lance', 'index_parquet', 'reader_from_json'
 ]
 
 _readers = {
