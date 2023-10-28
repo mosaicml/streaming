@@ -15,8 +15,8 @@ from streaming.base.constant import RESUME
 from streaming.base.shared.prefix import _get_path
 from streaming.base.storage.download import download_file
 from streaming.base.storage.upload import CloudUploader
-from streaming.base.util import (clean_stale_shared_memory, unpack_strs, merge_index,
-                                 normalize_bytes, normalize_count, retry)
+from streaming.base.util import (clean_stale_shared_memory, merge_index, normalize_bytes,
+                                 normalize_count, retry, unpack_strs)
 
 MY_PREFIX = 'train_' + str(time.time())
 MY_BUCKET = {
@@ -24,8 +24,8 @@ MY_BUCKET = {
     's3://': 'testing-bucket',
     'oci://': 'testing-bucket',
 }
-os.environ[
-    'OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'  # set to yes to all fork process in spark calls
+# set to yes to all fork process in spark calls
+os.environ['OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'
 
 
 @pytest.mark.parametrize(('text', 'expected_output'), [('hello,world', ['hello', 'world']),
@@ -167,7 +167,8 @@ def integrity_check(out: Union[str, Tuple[str, str]],
         ), f'{local_merged_index_path} does not exist when keep_local is {keep_local}'
         merged_index = json.load(open(local_merged_index_path, 'r'))
         n_shard_files = len({b['raw_data']['basename'] for b in merged_index['shards']})
-        assert n_shard_files == expected_n_shard_files, f'expected {expected_n_shard_files} shard files but got {n_shard_files}'
+        assert n_shard_files == expected_n_shard_files, \
+            f'expected {expected_n_shard_files} shard files but got {n_shard_files}'
 
 
 @pytest.mark.parametrize('index_file_urls_pattern', [1, 2, 3])
@@ -179,7 +180,8 @@ def test_merge_index_from_list_local(local_remote_dir: Tuple[str, str], keep_loc
         1. All URLs are str (local). All URLs are accessible locally -> no download
         2. All URLs are str (local). At least one url is unaccessible locally -> Error
         3. All URLs are tuple (local, remote). All URLs are accessible locally -> no download
-        4. All URLs are tuple (local, remote). At least one url is not accessible locally -> download all
+        4. All URLs are tuple (local, remote). At least one url is not accessible locally -> \
+            download all
         5. All URLs are str (remote) -> download all
     """
     from decimal import Decimal

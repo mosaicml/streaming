@@ -13,8 +13,8 @@ from pyspark.sql.types import DecimalType, IntegerType, StringType, StructField,
 
 from streaming.base.converters import dataframe_to_mds
 
-os.environ[
-    'OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'  # set to yes to all fork process in spark calls
+# set to yes to all fork process in spark calls
+os.environ['OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'
 
 
 class TestDataFrameToMDS:
@@ -178,9 +178,9 @@ class TestDataFrameToMDS:
                             nsamples += shards[0]['samples']
                 assert nsamples == sum([a['samples'] for a in mgi['shards']])
             else:
-                assert os.path.exists(
-                    os.path.join(out, 'index.json')
-                ), 'merged index.json was not found when keep_local is False but no remote part exists'
+                assert os.path.exists(os.path.join(out, 'index.json')), (
+                    'merged index.json was not found when keep_local is False but no remote ' +
+                    'part exists')
         else:
             assert not os.path.exists(os.path.join(
                 out, 'index.json')), 'merged index is created when merge_index=False'

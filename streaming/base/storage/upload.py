@@ -75,14 +75,15 @@ class CloudUploader:
             progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
                 a remote location. Default to ``False``.
             retry (int): Number of times to retry uploading a file. Defaults to ``2``.
-            exist_ok (bool): When exist_ok = False, raise error if the local part of ``out`` already
-                exists and has contents. Defaults to ``False``.
+            exist_ok (bool): When exist_ok = False, raise error if the local part of ``out``
+                already exists and has contents. Defaults to ``False``.
 
         Returns:
             CloudUploader: An instance of sub-class.
         """
         cls._validate(cls, out)
-        obj = urllib.parse.urlparse(out) if isinstance(out, str) else urllib.parse.urlparse(out[1])
+        obj = urllib.parse.urlparse(out) if isinstance(out, str) else \
+            urllib.parse.urlparse(out[1])
         provider_prefix = obj.scheme
         if obj.scheme == 'dbfs':
             path = pathlib.Path(out) if isinstance(out, str) else pathlib.Path(out[1])
@@ -142,8 +143,8 @@ class CloudUploader:
             progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
                 a remote location. Default to ``False``.
             retry (int): Number of times to retry uploading a file. Defaults to ``2``.
-            exist_ok (bool): When exist_ok = False, raise error if the local part of ``out`` already
-                exists and has contents. Defaults to ``False``.
+            exist_ok (bool): When exist_ok = False, raise error if the local part of ``out``
+                already exists and has contents. Defaults to ``False``.
 
         Raises:
             FileExistsError: Local directory must be empty.
@@ -171,8 +172,8 @@ class CloudUploader:
                 raise FileExistsError(f'Directory is not empty: {self.local}')
             else:
                 logger.warning(
-                    f'Directory {self.local} exists and not empty. But continue to mkdir since exist_ok is set to be True.'
-                )
+                    f'Directory {self.local} exists and not empty. But continue to mkdir since ' +
+                    f'exist_ok is set to be True.')
 
         os.makedirs(self.local, exist_ok=True)
 
@@ -774,7 +775,7 @@ class AzureDataLakeUploader(CloudUploader):
             error: Container does not exist.
         """
         container_name = urllib.parse.urlparse(remote).netloc
-        if self.azure_service.get_file_system_client(file_system=container_name).exists() is False:
+        if not self.azure_service.get_file_system_client(file_system=container_name).exists():
             raise FileNotFoundError(
                 f'Either container `{container_name}` does not exist! ' +
                 f'or check the container permission.',)
