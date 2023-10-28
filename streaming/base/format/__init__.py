@@ -53,7 +53,7 @@ def index_backend(backend: str,
                   version: Optional[int] = None,
                   num_procs: Optional[int] = 0,
                   download_timeout: Union[float, str] = '1m',
-                  max_file_bytes: Union[int, str] = '200mb',
+                  max_file_bytes: Optional[Union[int, str]] = '200mb',
                   same_schema: bool = True,
                   columns: Optional[Dict[str, Any]] = None,
                   show_progress: bool = True) -> Dict[str, Any]:
