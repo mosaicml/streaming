@@ -22,7 +22,7 @@ from streaming.base.compression import compress, get_compression_extension, is_c
 from streaming.base.format.index import get_index_basename
 from streaming.base.hashing import get_hash, is_hash
 from streaming.base.storage.upload import CloudUploader
-from streaming.base.util import bytes_to_int
+from streaming.base.util import normalize_bytes
 
 __all__ = ['JointWriter', 'SplitWriter']
 
@@ -93,7 +93,7 @@ class Writer(ABC):
 
         size_limit_value = None
         if size_limit:
-            size_limit_value = bytes_to_int(size_limit)
+            size_limit_value = normalize_bytes(size_limit)
             if size_limit_value < 0:
                 raise ValueError(f'`size_limit` must be greater than zero, instead, ' +
                                  f'found as {size_limit_value}.')

@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Iterator, List, Optional, Set, Union
 
 from streaming.base.array import Array
-from streaming.base.util import bytes_to_int
+from streaming.base.util import normalize_bytes
 
 __all__ = ['FileInfo', 'Reader', 'JointReader', 'SplitReader']
 
@@ -54,8 +54,7 @@ class Reader(Array, ABC):
     ) -> None:
 
         if size_limit:
-            if (isinstance(size_limit, str)):
-                size_limit = bytes_to_int(size_limit)
+            size_limit = normalize_bytes(size_limit)
             if size_limit < 0:
                 raise ValueError(f'`size_limit` must be greater than zero, instead, ' +
                                  f'found as {size_limit}.')

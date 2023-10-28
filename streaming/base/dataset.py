@@ -34,7 +34,7 @@ from streaming.base.shared import (SharedArray, SharedBarrier, SharedMemory, Sha
                                    _get_path, get_shm_prefix)
 from streaming.base.spanner import Spanner
 from streaming.base.stream import Stream
-from streaming.base.util import bytes_to_int, number_abbrev_to_int
+from streaming.base.util import normalize_bytes, normalize_count
 from streaming.base.world import World
 
 # An arbitrary time in the future, used for cold shard eviction.
@@ -394,7 +394,7 @@ class StreamingDataset(Array, IterableDataset):
         # Convert epoch size from string to int, if needed. Cannot be negative.
         epoch_size_value = None
         if epoch_size:
-            epoch_size_value = number_abbrev_to_int(epoch_size)
+            epoch_size_value = normalize_count(epoch_size)
             if epoch_size_value < 0:
                 raise ValueError(f'Epoch size cannot be negative. Received {epoch_size_value}.')
 
@@ -465,8 +465,7 @@ class StreamingDataset(Array, IterableDataset):
 
         # Check that cache limit is possible.
         if self.cache_limit:
-            if isinstance(self.cache_limit, str):
-                self.cache_limit = bytes_to_int(self.cache_limit)
+            self.cache_limit = normalize_bytes(self.cache_limit)
             min_cache_usage = sum((stream.get_index_size() for stream in streams))
             if self.cache_limit <= min_cache_usage:
                 raise ValueError(f'Minimum cache usage ({min_cache_usage} bytes) is larger than ' +
