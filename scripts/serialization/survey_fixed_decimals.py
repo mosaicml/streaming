@@ -7,7 +7,7 @@ from argparse import ArgumentParser, Namespace
 
 import numpy as np
 
-from streaming.base.util.pretty import parse_strs
+from streaming.base.util.pretty import unpack_strs
 
 
 def parse_args() -> Namespace:
@@ -109,7 +109,7 @@ def main(args: Namespace) -> None:
     print('- dec range: Range of decimal places (half left, half right).')
     print()
 
-    byte_widths = list(map(int, parse_strs(args.byte_widths)))
+    byte_widths = list(map(int, unpack_strs(args.byte_widths)))
     for byte_width in byte_widths:
         for is_signed in [False, True]:
             survey(args.min_exp_range, args.max_exp_range, byte_width, is_signed)

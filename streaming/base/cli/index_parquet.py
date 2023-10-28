@@ -7,7 +7,7 @@ import json
 from argparse import ArgumentParser, Namespace
 
 from streaming.base.format import index_parquet
-from streaming.base.util.pretty import parse_str2str
+from streaming.base.util.pretty import unpack_str2str
 
 
 def parse_args() -> Namespace:
@@ -55,7 +55,7 @@ def main(args: Namespace) -> None:
     Args:
         args (Namespace): Command-line arguments.
     """
-    columns = parse_str2str(args.columns)
+    columns = unpack_str2str(args.columns)
     obj = index_parquet(local=args.local,
                         remote=args.remote,
                         split=args.split,

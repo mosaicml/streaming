@@ -7,12 +7,12 @@ from collections import defaultdict
 from typing import Dict, List, Union
 
 __all__ = [
-    'parsea_strs', 'parse_str2str', 'normalize_dec_bytes', 'normalize_bin_bytes', 'normalize_bytes',
+    'unpack_strs', 'unpack_str2str', 'normalize_dec_bytes', 'normalize_bin_bytes', 'normalize_bytes',
     'normalize_count', 'normalize_duration'
 ]
 
 
-def parse_strs(text: str, sep: str = ',') -> List[str]:
+def unpack_strs(text: str, sep: str = ',') -> List[str]:
     """Pass a list as a comma-delimited string.
 
     Args:
@@ -27,7 +27,7 @@ def parse_strs(text: str, sep: str = ',') -> List[str]:
     return text.split(sep)
 
 
-def parse_str2str(text: str, sep: str = ',', eq: str = '=') -> Dict[str, str]:
+def unpack_str2str(text: str, sep: str = ',', eq: str = '=') -> Dict[str, str]:
     """Pass a dict as a comma- and equals-delimited string.
 
     Args:

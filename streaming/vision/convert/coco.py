@@ -15,7 +15,7 @@ from torch.utils.data import Dataset
 from tqdm import tqdm
 
 from streaming.base import MDSWriter
-from streaming.base.util import parse_strs
+from streaming.base.util import unpack_strs
 
 
 def parse_args() -> Namespace:
@@ -226,7 +226,7 @@ def main(args: Namespace) -> None:
             raise ValueError(f'Number of samples in a dataset doesn\'t match. Expected ' +
                              f'{expected_num_samples}, but got {len(dataset)}')
 
-        hashes = parse_strs(args.hashes)
+        hashes = unpack_strs(args.hashes)
 
         if args.progress_bar:
             dataset = tqdm(each(dataset, shuffle), leave=args.leave, total=len(dataset))

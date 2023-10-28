@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader, IterableDataset, get_worker_info
 from tqdm import tqdm
 
 from streaming.base import MDSWriter
-from streaming.base.util.pretty import parse_strs
+from streaming.base.util.pretty import unpack_strs
 
 
 def parse_args() -> Namespace:
@@ -141,7 +141,7 @@ def main(args: Namespace) -> None:
         ('validation', 'val', 364608, 8),
     ]
     columns = {'text': 'str', 'timestamp': 'str', 'url': 'str'}
-    hashes = parse_strs(args.hashes)
+    hashes = unpack_strs(args.hashes)
     for old_split, new_split, num_samples, num_workers in splits:
         dataset = get(old_split)
         split_dir = os.path.join(args.out_root, new_split)

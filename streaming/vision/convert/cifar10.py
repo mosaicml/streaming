@@ -7,7 +7,7 @@ from argparse import ArgumentParser, Namespace
 
 from torchvision.datasets import CIFAR10
 
-from streaming.base.util import parse_strs
+from streaming.base.util import unpack_strs
 from streaming.vision.convert.base import convert_image_class_dataset
 
 
@@ -76,8 +76,8 @@ def main(args: Namespace) -> None:
     Args:
         args (Namespace): command-line arguments.
     """
-    splits = parse_strs(args.splits)
-    hashes = parse_strs(args.hashes)
+    splits = unpack_strs(args.splits)
+    hashes = unpack_strs(args.hashes)
     for split in splits:
         dataset = CIFAR10(root=args.in_root, train=(split == 'train'), download=True)
         convert_image_class_dataset(dataset, args.out_root, split, args.compression, hashes,

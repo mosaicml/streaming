@@ -12,7 +12,7 @@ from multiprocessing import Pool
 from typing import Dict, Iterator, List, Tuple
 
 from streaming.base import MDSWriter
-from streaming.base.util import parse_strs
+from streaming.base.util import unpack_strs
 
 
 def parse_args() -> Namespace:
@@ -190,7 +190,7 @@ def main(args: Namespace) -> None:
     Args:
         args (Namespace): Command-line arguments.
     """
-    hashes = parse_strs(args.hashes)
+    hashes = unpack_strs(args.hashes)
 
     # Find the original JSONL files to convert.
     pattern = os.path.join(args.in_root, 'train', '*.jsonl')

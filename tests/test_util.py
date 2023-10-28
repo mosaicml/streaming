@@ -15,7 +15,7 @@ from streaming.base.constant import RESUME
 from streaming.base.shared.prefix import _get_path
 from streaming.base.storage.download import download_file
 from streaming.base.storage.upload import CloudUploader
-from streaming.base.util import (clean_stale_shared_memory, parse_strs, merge_index,
+from streaming.base.util import (clean_stale_shared_memory, unpack_strs, merge_index,
                                  normalize_bytes, normalize_count, retry)
 
 MY_PREFIX = 'train_' + str(time.time())
@@ -30,8 +30,8 @@ os.environ[
 
 @pytest.mark.parametrize(('text', 'expected_output'), [('hello,world', ['hello', 'world']),
                                                        ('hello', ['hello']), ('', [])])
-def test_parse_strs(text: str, expected_output: List[Optional[str]]):
-    output = parse_strs(text)
+def test_unpack_strs(text: str, expected_output: List[Optional[str]]):
+    output = unpack_strs(text)
     assert output == expected_output
 
 
