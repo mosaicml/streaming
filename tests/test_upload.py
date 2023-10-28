@@ -11,9 +11,8 @@ import boto3
 import pytest
 
 from streaming.storage.upload import (AzureDataLakeUploader, AzureUploader, CloudUploader,
-                                           DatabricksUnityCatalogUploader, DBFSUploader,
-                                           GCSAuthentication, GCSUploader, LocalUploader,
-                                           S3Uploader)
+                                      DatabricksUnityCatalogUploader, DBFSUploader,
+                                      GCSAuthentication, GCSUploader, LocalUploader, S3Uploader)
 from tests.conftest import MY_BUCKET, R2_URL
 
 MY_PREFIX = 'train'

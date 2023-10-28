@@ -12,7 +12,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from streaming.shuffle import (get_shuffle_naive, get_shuffle_py1b, get_shuffle_py1s,
-                                    get_shuffle_py2s)
+                               get_shuffle_py2s)
 
 
 def parse_args() -> Namespace:

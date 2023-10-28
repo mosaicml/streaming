@@ -11,10 +11,9 @@ import pytest
 from botocore.exceptions import ClientError
 
 from streaming.storage.download import (download_file, download_from_azure,
-                                             download_from_azure_datalake,
-                                             download_from_databricks_unity_catalog,
-                                             download_from_dbfs, download_from_gcs,
-                                             download_from_local, download_from_s3)
+                                        download_from_azure_datalake,
+                                        download_from_databricks_unity_catalog, download_from_dbfs,
+                                        download_from_gcs, download_from_local, download_from_s3)
 from tests.conftest import GCS_URL, MY_BUCKET, R2_URL
 
 MY_PREFIX = 'train'

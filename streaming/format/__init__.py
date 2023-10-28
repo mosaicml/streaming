@@ -12,8 +12,7 @@ from streaming.format.json import JSONReader, JSONWriter
 from streaming.format.lance import index_lance
 from streaming.format.mds import MDSReader, MDSWriter
 from streaming.format.parquet import index_parquet
-from streaming.format.xsv import (CSVReader, CSVWriter, TSVReader, TSVWriter, XSVReader,
-                                       XSVWriter)
+from streaming.format.xsv import CSVReader, CSVWriter, TSVReader, TSVWriter, XSVReader, XSVWriter
 
 __all__ = [
     'CSVWriter', 'FileInfo', 'JSONWriter', 'MDSWriter', 'Reader', 'TSVWriter', 'XSVWriter',

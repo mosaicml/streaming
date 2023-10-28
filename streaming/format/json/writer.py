@@ -8,8 +8,8 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
-from streaming.format.writer import SplitWriter
 from streaming.format.json.encodings import is_json_encoded, is_json_encoding
+from streaming.format.writer import SplitWriter
 
 __all__ = ['JSONWriter']
 

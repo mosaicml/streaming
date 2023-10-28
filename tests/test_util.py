@@ -16,7 +16,7 @@ from streaming.shared.prefix import _get_path
 from streaming.storage.download import download_file
 from streaming.storage.upload import CloudUploader
 from streaming.util import (clean_stale_shared_memory, merge_index, normalize_bytes,
-                                 normalize_count, retry, unpack_strs)
+                            normalize_count, retry, unpack_strs)
 
 MY_PREFIX = 'train_' + str(time.time())
 MY_BUCKET = {
