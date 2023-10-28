@@ -13,7 +13,7 @@ from PIL import Image
 from tqdm import tqdm
 
 from streaming.base import MDSWriter
-from streaming.base.util import get_list_arg
+from streaming.base.util import parse_strs
 
 
 def parse_args() -> Namespace:
@@ -133,10 +133,10 @@ def main(args: Namespace) -> None:
     Args:
         args (Namespace): command-line arguments.
     """
-    splits = get_list_arg(args.splits)
+    splits = parse_strs(args.splits)
     columns = {'i': 'int', 'x': 'jpeg', 'y': 'int'}
-    hashes = get_list_arg(args.hashes)
-    extensions = set(get_list_arg(args.extensions))
+    hashes = parse_strs(args.hashes)
+    extensions = set(parse_strs(args.extensions))
     class_names = None
     for split in splits:
         pattern = os.path.join(args.in_root, split, '*', '*')

@@ -7,12 +7,12 @@ from collections import defaultdict
 from typing import Dict, List, Union
 
 __all__ = [
-    'get_list_arg', 'normalize_dec_bytes', 'normalize_bin_bytes', 'normalize_bytes',
+    'parsea_strs', 'parse_str2str', 'normalize_dec_bytes', 'normalize_bin_bytes', 'normalize_bytes',
     'normalize_count', 'normalize_duration'
 ]
 
 
-def get_list_arg(text: str, sep: str = ',') -> List[str]:
+def parse_strs(text: str, sep: str = ',') -> List[str]:
     """Pass a list as a comma-delimited string.
 
     Args:

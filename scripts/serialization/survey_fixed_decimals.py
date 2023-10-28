@@ -7,6 +7,8 @@ from argparse import ArgumentParser, Namespace
 
 import numpy as np
 
+from streaming.base.util.pretty import parse_strs
+
 
 def parse_args() -> Namespace:
     """Parse command-line arguments.
@@ -107,8 +109,7 @@ def main(args: Namespace) -> None:
     print('- dec range: Range of decimal places (half left, half right).')
     print()
 
-    get_list_arg = lambda x: x.split(',') if x else []
-    byte_widths = list(map(int, get_list_arg(args.byte_widths)))
+    byte_widths = list(map(int, parse_strs(args.byte_widths)))
     for byte_width in byte_widths:
         for is_signed in [False, True]:
             survey(args.min_exp_range, args.max_exp_range, byte_width, is_signed)

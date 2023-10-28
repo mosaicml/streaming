@@ -10,7 +10,7 @@ from typing import List
 from tqdm import tqdm
 
 from streaming.base import MDSWriter
-from streaming.base.util import get_list_arg
+from streaming.base.util import parse_strs
 
 
 def parse_args() -> Namespace:
@@ -108,7 +108,7 @@ def main(args: Namespace) -> None:
     Args:
         args (Namespace): command-line arguments.
     """
-    hashes = get_list_arg(args.hashes)
+    hashes = parse_strs(args.hashes)
 
     basenames = [f'part-{i:05}-of-00500' for i in range(500)]
     split = 'train'

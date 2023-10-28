@@ -12,7 +12,7 @@ from typing import Any, Dict, Iterable, List, Tuple
 from tqdm import tqdm
 
 from streaming.base import MDSWriter
-from streaming.base.util import get_list_arg
+from streaming.base.util.pretty import parse_strs
 
 
 def parse_args() -> Namespace:
@@ -164,7 +164,7 @@ def main(args: Namespace) -> None:
 
         out_dir = os.path.join(args.out_root, split)
 
-        hashes = get_list_arg(args.hashes)
+        hashes = parse_strs(args.hashes)
         if args.progress_bar:
             samples = tqdm(samples, leave=args.leave)
 
