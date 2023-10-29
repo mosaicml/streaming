@@ -19,7 +19,7 @@ from streaming.format.mds.encodings import (get_mds_encoded_size, get_mds_encodi
                                             is_mds_encoding, mds_encode)
 from streaming.format.writer import JointWriter
 
-__all__ = ['MDSWriter']
+__all__ = ['MDSWriter', 'write_mds_dataset', 'write_bare_mds_shard']
 
 
 class MDSWriter(JointWriter):
@@ -183,19 +183,19 @@ def infer_columns(sample: Dict[str, Any]) -> Dict[str, str]:
     return ret
 
 
-def write_dataset(samples: Iterable[Dict[str, Any]],
-                  out: Union[str, Tuple[str, str]],
-                  *,
-                  num_samples: Optional[int] = None,
-                  keep_local: bool = False,
-                  columns: Optional[Dict[str, str]] = None,
-                  compression: Optional[str] = None,
-                  hashes: Optional[List[str]] = None,
-                  max_file_bytes: Optional[Union[int, str]] = '32mib',
-                  num_upload_threads: Optional[int] = None,
-                  upload_retry: int = 2,
-                  show_write_progress: bool = True,
-                  show_upload_progress: bool = True) -> None:
+def write_mds_dataset(samples: Iterable[Dict[str, Any]],
+                      out: Union[str, Tuple[str, str]],
+                      *,
+                      num_samples: Optional[int] = None,
+                      keep_local: bool = False,
+                      columns: Optional[Dict[str, str]] = None,
+                      compression: Optional[str] = None,
+                      hashes: Optional[List[str]] = None,
+                      max_file_bytes: Optional[Union[int, str]] = '32mib',
+                      num_upload_threads: Optional[int] = None,
+                      upload_retry: int = 2,
+                      show_write_progress: bool = True,
+                      show_upload_progress: bool = True) -> None:
     """Write the samples as an MDS dataset.
 
     Args:
@@ -247,11 +247,11 @@ def write_dataset(samples: Iterable[Dict[str, Any]],
             writer.write(sample)
 
 
-def write_shard(*args: Any,
-                tmp_dir: Optional[str] = None,
-                shard_basename: str = 'shard.00000.mds',
-                **kwargs: Dict[str, Any]) -> Dict[str, Any]:
-    """Write the samples as a single MDS shard.
+def write_bare_mds_shard(*args: Any,
+                         tmp_dir: Optional[str] = None,
+                         shard_basename: str = 'shard.00000.mds',
+                         **kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    """Write the samples as a single MDS shard, returning shard metadata.
 
     Args:
         *args (Any): Positional arguments for ``write_dataset()``.
