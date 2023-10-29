@@ -4,9 +4,10 @@
 """:class:`MDSWriter` writes samples to ``.mds`` files that can be read by :class:`MDSReader`."""
 
 import json
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
+from tqdm import tqdm
 
 from streaming.format.mds.encodings import (get_mds_encoded_size, get_mds_encodings,
                                             is_mds_encoding, mds_encode)
@@ -139,3 +140,54 @@ class MDSWriter(JointWriter):
         offsets += len(num_samples.tobytes()) + len(offsets.tobytes()) + len(self.config_data)
         sample_data = b''.join(self.new_samples)
         return num_samples.tobytes() + offsets.tobytes() + self.config_data + sample_data
+
+
+def write_dataset(samples: Iterable[Dict[str, Any]],
+                  out: Union[str, Tuple[str, str]],
+                  *,
+                  num_samples: Optional[int] = None,
+                  keep_local: bool = False,
+                  columns: Optional[Dict[str, str]] = None,
+                  compression: Optional[str] = None,
+                  hashes: Optional[List[str]] = None,
+                  max_file_bytes: Optional[Union[int, str]] = '32mib',
+                  num_upload_threads: Optional[int] = None,
+                  upload_retry: int = 2,
+                  show_write_progress: bool = True,
+                  show_upload_progress: bool = True) -> None:
+    """Write the samples as an MDS dataset.
+
+    Args:
+        samples (Iterable[Dict[str, Any]]): Iterable of sample dicts.
+        out (str | Tuple[str, str]): Dataaset save directory, or pair of (local, remote).
+        num_samples ((int, optional): If ``samples`` is a generator, specify ``num_samples``to
+            still get a useful progress bar. Defaults to ``None``.
+        keep_local (bool): Whether to keep local files after upload. Defaults to ``False``.
+        columns (Dict[str, str], optional): Any column types to override, given by column name.
+            Defaults to ``None``.
+        compression (str, optional): What compression scheme to use, if any. Defaults to ``None``.
+        hashes (List[str], optional): List of hashes to apply to dataset files.
+        max_file_bytes (int | str, optional): Maximum shard size ,in bytes. Defaults to ``32mib``.
+        num_upload_threads (int, optional): Number of threads used to upload shards. Defaults to
+            ``None``, which means to take the default, which is scaled for CPU count, etc.
+        upload_retry (int): Number of upload reattempts before bailing. Defaults to ``2``.
+        show_write_progress (bool): Show a progress bar for write progress. Defaults to ``True``.
+        show_upload_progress (bool): Show a progress bar for upload progress. Defaults to ``True``.
+    """
+    # TODO:borrow the first sample to derive any inferred columns, then return it to its Iterable..
+    # TODO: Use the part.00000/ subdir trick to make datasets easily appendable to.
+    total = len(samples) if hasattr(samples, '__len__') else num_samples  # pyright: ignore
+    if show_write_progress:
+        samples = tqdm(samples, total=total, leave=False)
+    columns = columns or {}
+    with MDSWriter(columns=columns,
+                   out=out,
+                   keep_local=keep_local,
+                   compression=compression,
+                   hashes=hashes,
+                   size_limit=max_file_bytes,
+                   progress_bar=show_upload_progress,
+                   max_workers=num_upload_threads,
+                   retry=upload_retry) as writer:
+        for sample in samples:
+            writer.write(sample)
