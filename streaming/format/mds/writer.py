@@ -288,7 +288,7 @@ def write_bare_mds_shard(*args: Any,
 
     # Serialize a uni-shard dataset to the temp directory.
     kwargs.__dict__['out'] = tmp_dir
-    write_dataset(*args, **kwargs)
+    write_mds_dataset(*args, **kwargs)
 
     # Move the shard from its dataset to the desired location.
     shard_source = os.path.join(tmp_dir, shard_basename)

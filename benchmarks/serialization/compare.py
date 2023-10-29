@@ -29,7 +29,8 @@ from typing import Any, Callable, Dict, Iterator, List
 
 import numpy as np
 import pandas as pd
-from datasets import Dataset, disable_caching, load_dataset, load_from_disk  # pyright: ignore
+from datasets import disable_caching  # pyright: ignore
+from datasets import Dataset, load_dataset, load_from_disk
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
