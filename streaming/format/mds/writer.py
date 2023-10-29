@@ -4,6 +4,7 @@
 """:class:`MDSWriter` writes samples to ``.mds`` files that can be read by :class:`MDSReader`."""
 
 import json
+from itertools import chain
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
@@ -142,6 +143,41 @@ class MDSWriter(JointWriter):
         return num_samples.tobytes() + offsets.tobytes() + self.config_data + sample_data
 
 
+_type2enc = {
+    int: 'int',
+    str: 'str',
+}
+
+
+def infer_column(field: Any) -> str:
+    """Infer the best MDS encoding for a column, given an example field.
+
+    Args:
+        field (Any): The example.
+
+    Returns:
+        MDS encoding signature.
+    """
+    ty = type(field)
+    return _type2enc[ty]
+
+
+def infer_columns(sample: Dict[str, Any]) -> Dict[str, str]:
+    """Infer dataset columns given a sample.
+
+    Args:
+        sample (Dict[str, Any]): Mapping of field name to value.
+
+    Returns:
+        Dict[str, str]: Mapping of field name to type.
+    """
+    ret = {}
+    for key in sorted(sample):
+        val = sample[key]
+        ret[key] = infer_column(val)
+    return ret
+
+
 def write_dataset(samples: Iterable[Dict[str, Any]],
                   out: Union[str, Tuple[str, str]],
                   *,
@@ -163,8 +199,7 @@ def write_dataset(samples: Iterable[Dict[str, Any]],
         num_samples ((int, optional): If ``samples`` is a generator, specify ``num_samples``to
             still get a useful progress bar. Defaults to ``None``.
         keep_local (bool): Whether to keep local files after upload. Defaults to ``False``.
-        columns (Dict[str, str], optional): Any column types to override, given by column name.
-            Defaults to ``None``.
+        columns (Dict[str, str], optional): Inferred column overrides. Defaults to ``None``.
         compression (str, optional): What compression scheme to use, if any. Defaults to ``None``.
         hashes (List[str], optional): List of hashes to apply to dataset files.
         max_file_bytes (int | str, optional): Maximum shard size ,in bytes. Defaults to ``32mib``.
@@ -174,12 +209,25 @@ def write_dataset(samples: Iterable[Dict[str, Any]],
         show_write_progress (bool): Show a progress bar for write progress. Defaults to ``True``.
         show_upload_progress (bool): Show a progress bar for upload progress. Defaults to ``True``.
     """
-    # TODO:borrow the first sample to derive any inferred columns, then return it to its Iterable..
     # TODO: Use the part.00000/ subdir trick to make datasets easily appendable to.
+
+    # First, count the number of samples to write from the input Iterable, falling back to the
+    # user-provided hint if it has no size.
     total = len(samples) if hasattr(samples, '__len__') else num_samples  # pyright: ignore
+
+    # If user did not tell us the schema, pop a sample off the front of the iterator, infer
+    # columns, then put it back lol.
+    it = iter(samples)
+    if not columns:
+        head = next(it)
+        columns = infer_columns(head)
+        it = chain([head], it)
+
+    # Now that we have an iteator for reals, wrap it with the "write" progress bar.
     if show_write_progress:
-        samples = tqdm(samples, total=total, leave=False)
-    columns = columns or {}
+        it = tqdm(it, total=total, leave=False)
+
+    # Finally walk/write the samples.
     with MDSWriter(columns=columns,
                    out=out,
                    keep_local=keep_local,
