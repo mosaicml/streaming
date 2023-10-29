@@ -10,14 +10,17 @@ import os
 import re
 from re import Pattern
 from time import sleep, time
-from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Union
 from urllib.parse import urlparse
 
 from streaming.hashing import get_hash
 from streaming.storage import CloudUploader, download_file
 from streaming.util.pretty import normalize_bytes, normalize_duration
 
-__all__ = ['wait_for_file_to_exist', 'walk_dir', 'list_dataset_files', 'smart_download_file']
+__all__ = [
+    'wait_for_file_to_exist', 'walk_prefix', 'walk_dir', 'list_dataset_files',
+    'smart_download_file'
+]
 
 
 def wait_for_file_to_exist(filename: str, poll_interval: float, timeout: float,
@@ -42,6 +45,86 @@ def wait_for_file_to_exist(filename: str, poll_interval: float, timeout: float,
         dt = time() - start_time
         if dt > timeout:
             raise RuntimeError(f'{err_msg}' + f'{timeout:.3f} < {dt:.3f} secs.')
+
+
+def _normalize_path(path: str) -> Tuple[str, bool]:
+    """Analyze the path, returning normalized form and whether it is local.
+
+    Args:
+        path (str): Path to analyze.
+
+    Returns:
+        Tuple[str, bool]: Normalized path, and whether it is local.
+    """
+    obj = urlparse(path)
+    if obj.scheme == '':
+        is_local = True
+    elif obj.scheme == 'file':
+        is_local = True
+        path = obj.path
+    else:
+        is_local = False
+    return path, is_local
+
+
+def _normalize_dir(dirname: str) -> str:
+    """Normalize a dirname to contain one trailing slash.
+
+    Args:
+        dirname (str): Directory path.
+
+    Returns:
+        str: Normalized directory path.
+    """
+    return dirname.rstrip(os.path.sep) + os.path.sep
+
+
+def walk_prefix(prefix: str) -> List[str]:
+    """Walk all the files under a path prefix in sorted order.
+
+    Notes:
+      * If you choose a non-directory as a prefix, returned paths will indeed be relative to your
+        non-directory, which may seem funky.
+      * There is some special case handling so that if your path is a local directory with or
+        without a trailing slash, returned paths will nevertheless never start with a slash, lest
+        they assume "absolute" power.
+
+    Args:
+        prefix (str): Path prefix.
+
+    Returns:
+        List[str]: All file paths under the prefix, which are all relative to the given prefix.
+    """
+    prefix, is_local = _normalize_path(prefix)
+
+    if is_local:
+        # Prefix points to local filesystem.
+        prefix_rel_files = []
+        if os.path.isdir(prefix):
+            # Prefix is a directory, so include everything under the directory.
+            root = _normalize_dir(prefix)
+            for abs_dir, _, file_bases in os.walk(root):
+                root_rel_dir = abs_dir.lstrip(root)
+                for base in file_bases:
+                    root_rel_file = os.path.join(root_rel_dir, base)
+                    prefix_rel_files.append(root_rel_file)
+        else:
+            # Prefix has other stuff tacked onto it after the directory, so include everything
+            # under the prefix's parent directory which also matches the prefix's basename.
+            root = os.path.dirname(prefix)
+            for abs_dir, _, file_bases in os.walk(root):
+                for base in file_bases:
+                    abs_file = os.path.join(abs_dir, base)
+                    if abs_file.startswith(prefix):
+                        prefix_rel_file = abs_file.lstrip(prefix)
+                        prefix_rel_files.append(prefix_rel_file)
+    else:
+        # Prefix points to some non-local storage.
+        neither = CloudUploader.get(prefix, exist_ok=True)
+        prefix_rel_files = neither.list_objects(prefix)
+
+    # TODO: verify all implementations do a global sort on returned paths, then remove this line.
+    return sorted(prefix_rel_files)
 
 
 def walk_dir(root: str) -> List[str]:
@@ -124,6 +207,7 @@ def _get_overlap(want: Set[str], have: Set[str]) -> Dict[str, Any]:
 
 
 def list_dataset_files(
+        *,
         local: str,
         remote: Optional[str] = None,
         split: Optional[str] = None,
