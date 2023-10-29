@@ -4,12 +4,17 @@
 """:class:`MDSWriter` writes samples to ``.mds`` files that can be read by :class:`MDSReader`."""
 
 import json
+import os
 from itertools import chain
+from shutil import rmtree
+from tempfile import mkdtemp
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from urllib.parse import urlparse
 
 import numpy as np
 from tqdm import tqdm
 
+from streaming.format.index import get_index_basename
 from streaming.format.mds.encodings import (get_mds_encoded_size, get_mds_encodings,
                                             is_mds_encoding, mds_encode)
 from streaming.format.writer import JointWriter
@@ -202,7 +207,8 @@ def write_dataset(samples: Iterable[Dict[str, Any]],
         columns (Dict[str, str], optional): Inferred column overrides. Defaults to ``None``.
         compression (str, optional): What compression scheme to use, if any. Defaults to ``None``.
         hashes (List[str], optional): List of hashes to apply to dataset files.
-        max_file_bytes (int | str, optional): Maximum shard size ,in bytes. Defaults to ``32mib``.
+        max_file_bytes (int | str, optional): Optional maximum shard size, in bytes. If no limit,
+            we will write exactly one (potentially very large) shard. Defaults to ``32mib``.
         num_upload_threads (int, optional): Number of threads used to upload shards. Defaults to
             ``None``, which means to take the default, which is scaled for CPU count, etc.
         upload_retry (int): Number of upload reattempts before bailing. Defaults to ``2``.
@@ -219,9 +225,9 @@ def write_dataset(samples: Iterable[Dict[str, Any]],
     # columns, then put it back lol.
     it = iter(samples)
     if not columns:
-        head = next(it)
-        columns = infer_columns(head)
-        it = chain([head], it)
+        sample = next(it)  # If samples is empty, user goofed.
+        columns = infer_columns(sample)
+        it = chain([sample], it)
 
     # Now that we have an iteator for reals, wrap it with the "write" progress bar.
     if show_write_progress:
@@ -237,5 +243,64 @@ def write_dataset(samples: Iterable[Dict[str, Any]],
                    progress_bar=show_upload_progress,
                    max_workers=num_upload_threads,
                    retry=upload_retry) as writer:
-        for sample in samples:
+        for sample in it:
             writer.write(sample)
+
+
+def write_shard(*args: Any,
+                tmp_dir: Optional[str] = None,
+                shard_basename: str = 'shard.00000.mds',
+                **kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    """Write the samples as a single MDS shard.
+
+    Args:
+        *args (Any): Positional arguments for ``write_dataset()``.
+        tmp_dir (str, optional): Write the MDS dataset to this specific directory instead of
+            lettting python tempfile pick one for us. Empties and removes the diretory when done.
+            This argument is useful if your shard is very large and your system's standard temp
+            root is across a filesystem boundary from the local cache dir you are using.
+        shard_basename (str): Path to shard, relative to dataset. Defaults to ``shard.00000.mds``.
+        **kwargs (Dict[str, Any]): Keyword arguments for ``write_dataset()``.
+
+    Returns:
+        Dict[str, Any]: JSON dict of the shard metadata.
+    """
+    # We happen to only have a need for this restricted use case.
+    shard_dest = kwargs.get('out')
+    if not isinstance(shard_dest, str) or urlparse(shard_dest).scheme:
+        raise ValueError(f'Streaming is restricted to only writing MDS datasets of one unlimited' +
+                         f'shard when the output is just a local abs/rel path with no file:// ' +
+                         f'prefix, but got: {shard_dest}.')
+
+    # Verify our actions are aligned with our goals, which is one shard of technically unlimited
+    # size because of specific weird reasons (i.e., mirroring Parquets to MDS).
+    if kwargs.get('max_file_bytes'):
+        raise ValueError('We question your values.')
+    kwargs.__dict__['max_file_bytes'] = None
+
+    # Fall back to using python tempfile.
+    if not tmp_dir:
+        tmp_dir = mkdtemp()
+
+    # Verify scratch dir not present.
+    if os.path.exists(tmp_dir):
+        raise ValueError(f'Scratch path already exists: {tmp_dir}.')
+
+    # Serialize a uni-shard dataset to the temp directory.
+    kwargs.__dict__['out'] = tmp_dir
+    write_dataset(*args, **kwargs)
+
+    # Move the shard from its dataset to the desired location.
+    shard_source = os.path.join(tmp_dir, shard_basename)
+    os.rename(shard_source, shard_dest)
+
+    # Get the shard metadata from the index (could also get it from the MDS shard itself).
+    index_path = os.path.join(tmp_dir, get_index_basename())
+    obj = json.load(open(index_path))
+    info, = obj['shards']
+
+    # Cleanup.
+    rmtree(tmp_dir)
+
+    # Return shard metadata.
+    return info
