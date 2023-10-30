@@ -8,6 +8,7 @@ import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
+import math
 from concurrent.futures import ProcessPoolExecutor
 from io import StringIO
 from typing import Union
@@ -137,7 +138,7 @@ def submit_jobs(shuffle_quality: bool, dataset: SimulationDataset, time_per_samp
                 steps.append(step + 1)
 
             # update plots and percentages at regular intervals
-            plot_interval = (total_batches) // 15
+            plot_interval = math.ceil(total_batches / 15)
             if step == 1 or step % plot_interval == 0 or step == total_batches - 1:
                 rolling_throughput_df = pd.DataFrame({
                     'step': steps,
@@ -251,7 +252,7 @@ if use_yaml:
         physical_nodes = col1.number_input(
             'number of physical nodes',
             step=1,
-            value=1,
+            value=total_devices // 8 if total_devices is not None else 1,
             help=
             'number of physical nodes for this run. a node typically consists of 8 devices (GPUs).'
         )
@@ -278,7 +279,7 @@ if use_yaml:
             help='time for one device to process one sample from your dataset.')
         time_per_sample = float(time_per_sample)
         node_internet_bandwidth = col1.text_input('network bandwidth per node (bytes/s)',
-                                                  value='1GB',
+                                                  value='500MB',
                                                   help='network bandwidth available to each \
                                                 node. in practice, network bandwidth is \
                                                 variable and is affected by many factors, \
@@ -344,6 +345,12 @@ if use_yaml:
                 col1.write('Starting Simulation...')
                 submit_jobs(shuffle_quality, dataset, time_per_sample, node_internet_bandwidth,
                             max_duration)
+    else:
+        # In this case, no file is uploaded, and we should clear dataset and input params if needed
+        if 'input_params' in st.session_state:
+            del st.session_state['input_params']
+        if 'orig_dataset' in st.session_state:
+            del st.session_state['orig_dataset']
 else:
     submitted = col1.button('Simulate Run', use_container_width=True)
     col1.text('')

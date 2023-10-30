@@ -104,6 +104,8 @@ def stream_entry(component: DeltaGenerator,
             path_type = component.selectbox('path type', ['local', 'remote'],
                                             key=str(key) + 'path_type')
             stream_entries['path_type'] = path_type
+        if path[-1] != '/':
+            path += '/'
         stream_entries['path'] = path
     else:
         shards = component.number_input('number of shards',
@@ -142,21 +144,21 @@ def stream_entry(component: DeltaGenerator,
                                     represents.',
         key=str(key) + 'proportion',
         disabled=(not add_stream))
-    proportion = float(proportion) if proportion != 'None' else None
+    proportion = None if proportion == 'None' or proportion == '' else float(proportion)
     repeat = component.text_input('repeat',
                                   value='None' if defaults is None else defaults['repeat'],
                                   help='number of times to repeat the samples in this \
                                 stream.',
                                   key=str(key) + 'repeat',
                                   disabled=(not add_stream))
-    repeat = float(repeat) if repeat != 'None' else None
+    repeat = None if repeat == 'None' or repeat == '' else float(repeat)
     choose = component.text_input('choose',
                                   value='None' if defaults is None else defaults['choose'],
                                   help='number of samples to choose from this \
                                 stream.',
                                   key=str(key) + 'choose',
                                   disabled=(not add_stream))
-    choose = int(choose) if choose != 'None' else None
+    choose = None if choose == 'None' or choose == '' else int(choose)
     stream_entries['proportion'] = proportion
     stream_entries['repeat'] = repeat
     stream_entries['choose'] = choose
@@ -272,13 +274,6 @@ def param_inputs(component: DeltaGenerator, input_params: dict, defaults: dict =
                                  step=1,
                                  value=8 if 'workers' not in defaults else defaults['workers'],
                                  help='number of dataloader workers per device (GPU).')
-    # canonical_nodes = col_r.number_input(
-    #     'number of canonical nodes',
-    #     step=1,
-    #     value=2 if 'canonical_nodes' not in defaults else defaults['canonical_nodes'],
-    #     help='number of canonical nodes to split your dataset \
-    #                                         into. a canonical node is a bucket of shards that is \
-    #                                         assigned to a particular physical node.')
     canonical_nodes = col_r.text_input(
         'number of canonical nodes',
         value='None' if 'canonical_nodes' not in defaults else defaults['canonical_nodes'],
