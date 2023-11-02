@@ -4,7 +4,7 @@
 """Base classes for computer vision :class:`StreamingDataset`s."""
 
 import os
-from typing import Any, Callable, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 from torch.utils.data import Dataset
