@@ -5,7 +5,7 @@
 
 from typing import Any, Dict, Optional
 
-from streaming.base.format.base import FileInfo, Reader
+from streaming.base.format.reader import FileInfo, Reader
 from streaming.base.format.index import get_index_basename
 from streaming.base.format.json import JSONReader, JSONWriter
 from streaming.base.format.mds import MDSReader, MDSWriter
