@@ -1,0 +1,1 @@
+"""WebVid streaming dataset."""
