@@ -1,0 +1,1 @@
+"""ImageNet streaming dataset example."""

@@ -1,0 +1,1 @@
+"""COCO streaming dataset example."""
