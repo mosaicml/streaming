@@ -11,7 +11,7 @@ from core.utils import remove_padded_samples
 from numpy.typing import NDArray
 from sortedcollections import OrderedSet
 
-from streaming.base.spanner import Spanner
+from streaming.spanner import Spanner
 
 
 class NodeTracker():

@@ -10,7 +10,7 @@ from core.sim_time import Time, TimeUnit, ensure_time
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
-from streaming.base import Stream
+from streaming import Stream
 
 
 def ingest_yaml(yaml_dict: Optional[dict] = None,

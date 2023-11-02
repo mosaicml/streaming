@@ -28,7 +28,7 @@ from interfaces.interface_utils import get_train_dataset_params
 from interfaces.widgets import (display_shuffle_quality_graph, display_simulation_stats,
                                 get_line_chart, param_inputs)
 
-from streaming.base.util import bytes_to_int, number_abbrev_to_int
+from streaming.util import bytes_to_int, number_abbrev_to_int
 
 # set up page
 st.set_page_config(layout='wide')

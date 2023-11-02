@@ -20,7 +20,7 @@ from core.utils import get_simulation_stats
 from numpy.typing import NDArray
 from streamlit.delta_generator import DeltaGenerator
 
-from streaming.base.util import bytes_to_int
+from streaming.util import bytes_to_int
 
 
 def get_line_chart(data: pd.DataFrame,
