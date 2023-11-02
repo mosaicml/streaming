@@ -15,8 +15,7 @@ from typing import Any, List, Optional, Tuple, Union
 
 import tqdm
 
-from streaming.storage.download import (BOTOCORE_CLIENT_ERROR_CODES,
-                                             GCS_ERROR_NO_AUTHENTICATION)
+from streaming.storage.download import BOTOCORE_CLIENT_ERROR_CODES, GCS_ERROR_NO_AUTHENTICATION
 from streaming.util import get_import_exception_message, retry
 
 __all__ = [

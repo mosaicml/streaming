@@ -9,8 +9,7 @@ from streaming.format.index import get_index_basename
 from streaming.format.json import JSONReader, JSONWriter
 from streaming.format.mds import MDSReader, MDSWriter
 from streaming.format.reader import FileInfo, Reader
-from streaming.format.xsv import (CSVReader, CSVWriter, TSVReader, TSVWriter, XSVReader,
-                                       XSVWriter)
+from streaming.format.xsv import CSVReader, CSVWriter, TSVReader, TSVWriter, XSVReader, XSVWriter
 
 __all__ = [
     'CSVWriter', 'FileInfo', 'get_index_basename', 'JSONWriter', 'MDSWriter', 'Reader',

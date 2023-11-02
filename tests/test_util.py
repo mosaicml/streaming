@@ -15,8 +15,8 @@ from streaming.constant import RESUME
 from streaming.shared.prefix import _get_path
 from streaming.storage.download import download_file
 from streaming.storage.upload import CloudUploader
-from streaming.util import (bytes_to_int, clean_stale_shared_memory, get_list_arg,
-                                 merge_index, number_abbrev_to_int, retry)
+from streaming.util import (bytes_to_int, clean_stale_shared_memory, get_list_arg, merge_index,
+                            number_abbrev_to_int, retry)
 
 MY_PREFIX = 'train_' + str(time.time())
 MY_BUCKET = {

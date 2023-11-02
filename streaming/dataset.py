@@ -24,14 +24,14 @@ from torch.utils.data import IterableDataset
 
 from streaming.array import Array
 from streaming.batching import generate_work
-from streaming.constant import (BARRIER, BARRIER_FILELOCK, CACHE_FILELOCK, CACHE_USAGE,
-                                     EPOCH_DATA, EPOCH_SHAPE, NEXT_EPOCH, RESUME,
-                                     SHARD_ACCESS_TIMES, SHARD_STATES, TICK)
+from streaming.constant import (BARRIER, BARRIER_FILELOCK, CACHE_FILELOCK, CACHE_USAGE, EPOCH_DATA,
+                                EPOCH_SHAPE, NEXT_EPOCH, RESUME, SHARD_ACCESS_TIMES, SHARD_STATES,
+                                TICK)
 from streaming.distributed import maybe_init_dist
 from streaming.format import get_index_basename
 from streaming.sampling import get_sampling
-from streaming.shared import (SharedArray, SharedBarrier, SharedMemory, SharedScalar,
-                                   _get_path, get_shm_prefix)
+from streaming.shared import (SharedArray, SharedBarrier, SharedMemory, SharedScalar, _get_path,
+                              get_shm_prefix)
 from streaming.spanner import Spanner
 from streaming.stream import Stream
 from streaming.util import bytes_to_int, number_abbrev_to_int
