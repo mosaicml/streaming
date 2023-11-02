@@ -1,1 +1,1 @@
-"""WebVid streaming dataset."""
+"""WebVid streaming dataset example."""
