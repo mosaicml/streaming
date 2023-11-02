@@ -5,7 +5,7 @@ from typing import Callable
 
 import numpy as np
 
-from streaming.base.shuffle import (get_shuffle_py1b, get_shuffle_py1br, get_shuffle_py1e,
+from streaming.shuffle import (get_shuffle_py1b, get_shuffle_py1br, get_shuffle_py1e,
                                     get_shuffle_py1s, get_shuffle_py2s)
 
 

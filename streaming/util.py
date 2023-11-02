@@ -20,10 +20,10 @@ from typing import Any, Callable, List, Sequence, Tuple, Type, TypeVar, Union, c
 
 import torch.distributed as dist
 
-from streaming.base.constant import SHM_TO_CLEAN
-from streaming.base.distributed import get_local_rank, maybe_init_dist
-from streaming.base.format.index import get_index_basename
-from streaming.base.shared.prefix import _get_path
+from streaming.constant import SHM_TO_CLEAN
+from streaming.distributed import get_local_rank, maybe_init_dist
+from streaming.format.index import get_index_basename
+from streaming.shared.prefix import _get_path
 
 logger = logging.getLogger(__name__)
 
@@ -273,8 +273,8 @@ def _merge_index_from_list(index_file_urls: List[Union[str, Tuple[str, str]]],
         keep_local (bool): Keep local copy of the merged index file. Defaults to ``True``
         download_timeout (int): The allowed time for downloading each json file. Defaults to 60.
     """
-    from streaming.base.storage.download import download_file
-    from streaming.base.storage.upload import CloudUploader
+    from streaming.storage.download import download_file
+    from streaming.storage.upload import CloudUploader
 
     if not index_file_urls or not out:
         logger.warning('Either index_file_urls or out are None. ' +
@@ -376,7 +376,7 @@ def _merge_index_from_root(out: Union[str, Tuple[str, str]],
         keep_local (bool): Keep local copy of the merged index file. Defaults to ``True``
         download_timeout (int): The allowed time for downloading each json file. Defaults to 60.
     """
-    from streaming.base.storage.upload import CloudUploader
+    from streaming.storage.upload import CloudUploader
 
     def not_merged_index(index_file_path: str, out: str):
         """Check if index_file_path is the merged index at folder out.
@@ -464,7 +464,7 @@ def retry(  # type: ignore
     Example:
         .. testcode::
 
-            from streaming.base.util import retry
+            from streaming.util import retry
 
             num_tries = 0
 

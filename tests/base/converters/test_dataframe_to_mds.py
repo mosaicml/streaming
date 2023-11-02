@@ -11,7 +11,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
 from pyspark.sql.types import DecimalType, IntegerType, StringType, StructField, StructType
 
-from streaming.base.converters import dataframe_to_mds
+from streaming.converters import dataframe_to_mds
 
 os.environ[
     'OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'  # set to yes to all fork process in spark calls

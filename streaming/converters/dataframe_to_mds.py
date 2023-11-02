@@ -11,8 +11,8 @@ from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 import pandas as pd
 
-from streaming.base.util import get_import_exception_message
-from streaming.base.util import merge_index as do_merge_index
+from streaming.util import get_import_exception_message
+from streaming.util import merge_index as do_merge_index
 
 try:
     from pyspark import TaskContext
@@ -26,9 +26,9 @@ except ImportError as e:
     raise e
 
 from streaming import MDSWriter
-from streaming.base.format.index import get_index_basename
-from streaming.base.format.mds.encodings import _encodings
-from streaming.base.storage.upload import CloudUploader
+from streaming.format.index import get_index_basename
+from streaming.format.mds.encodings import _encodings
+from streaming.storage.upload import CloudUploader
 
 logger = logging.getLogger(__name__)
 

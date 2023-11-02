@@ -18,11 +18,11 @@ from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 from typing_extensions import Self
 
-from streaming.base.compression import compress, get_compression_extension, is_compression
-from streaming.base.format.index import get_index_basename
-from streaming.base.hashing import get_hash, is_hash
-from streaming.base.storage.upload import CloudUploader
-from streaming.base.util import bytes_to_int
+from streaming.compression import compress, get_compression_extension, is_compression
+from streaming.format.index import get_index_basename
+from streaming.hashing import get_hash, is_hash
+from streaming.storage.upload import CloudUploader
+from streaming.util import bytes_to_int
 
 __all__ = ['JointWriter', 'SplitWriter']
 

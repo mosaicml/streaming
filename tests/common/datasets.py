@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
-from streaming.base import MDSWriter
+from streaming import MDSWriter
 
 
 class SequenceDataset:

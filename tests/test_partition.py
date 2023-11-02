@@ -4,7 +4,7 @@
 import numpy as np
 import pytest
 
-from streaming.base.partition import get_partitions
+from streaming.partition import get_partitions
 
 
 @pytest.mark.parametrize('partition_algo', ['orig', 'relaxed'])

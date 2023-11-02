@@ -12,8 +12,8 @@ from torchvision.datasets import VisionDataset
 from torchvision.transforms.functional import to_tensor
 from tqdm import tqdm
 
-from streaming.base import MDSWriter
-from streaming.base.dataset import StreamingDataset
+from streaming import MDSWriter
+from streaming.dataset import StreamingDataset
 
 __all__ = ['StreamingVisionDataset']
 

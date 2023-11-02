@@ -10,7 +10,7 @@ from typing import List
 import numpy as np
 from tqdm import tqdm
 
-from streaming.base.partition import get_partitions
+from streaming.partition import get_partitions
 
 
 def parse_args() -> Namespace:

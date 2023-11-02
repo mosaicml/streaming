@@ -7,7 +7,7 @@ from typing import Any, Dict, Optional, Tuple
 
 import pytest
 
-from streaming.base import StreamingDataset
+from streaming import StreamingDataset
 from streaming.text import StreamingC4
 from streaming.vision import StreamingADE20K, StreamingCIFAR10, StreamingCOCO, StreamingImageNet
 

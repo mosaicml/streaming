@@ -10,12 +10,12 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray
 
-from streaming.base.partition import get_partitions
-from streaming.base.shuffle import get_shuffle
-from streaming.base.world import World
+from streaming.partition import get_partitions
+from streaming.shuffle import get_shuffle
+from streaming.world import World
 
 if TYPE_CHECKING:
-    from streaming.base.dataset import StreamingDataset
+    from streaming.dataset import StreamingDataset
 
 logger = logging.getLogger(__name__)
 

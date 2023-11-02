@@ -12,8 +12,8 @@ from datasets.arrow_dataset import Dataset
 from torch.utils.data import DataLoader, IterableDataset, get_worker_info
 from tqdm import tqdm
 
-from streaming.base import MDSWriter
-from streaming.base.util import get_list_arg
+from streaming import MDSWriter
+from streaming.util import get_list_arg
 
 
 def parse_args() -> Namespace:

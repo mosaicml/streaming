@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from numpy.typing import NDArray
 
-from streaming.base.array import Array
+from streaming.array import Array
 
 
 class Range(Array):

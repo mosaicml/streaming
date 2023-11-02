@@ -14,9 +14,9 @@ from typing import Iterator, List, Tuple, Union
 import numpy as np
 from torch import distributed as dist
 
-from streaming.base.constant import LOCALS, TICK
-from streaming.base.shared import SharedMemory
-from streaming.base.world import World
+from streaming.constant import LOCALS, TICK
+from streaming.shared import SharedMemory
+from streaming.world import World
 
 
 def _each_prefix_int() -> Iterator[int]:
@@ -128,7 +128,7 @@ def _check_and_find(streams_local: List[str], streams_remote: List[Union[str, No
                             f'Reused local directory: {streams_local} vs ' +
                             f'{their_locals}. Provide a different one. If using ' +
                             f'a unique local directory, try deleting the local directory and ' +
-                            f'call `streaming.base.util.clean_stale_shared_memory()` only once ' +
+                            f'call `streaming.util.clean_stale_shared_memory()` only once ' +
                             f'in your script to clean up the stale shared memory before ' +
                             f'instantiation of `StreamingDataset`.')
     return prefix_int

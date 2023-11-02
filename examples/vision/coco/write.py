@@ -14,8 +14,8 @@ from PIL import Image
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
-from streaming.base import MDSWriter
-from streaming.base.util import get_list_arg
+from streaming import MDSWriter
+from streaming.util import get_list_arg
 
 
 def parse_args() -> Namespace:

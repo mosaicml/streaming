@@ -13,7 +13,7 @@ import numpy as np
 from pyarrow import parquet as pq
 
 from streaming import MDSWriter
-from streaming.base.storage import CloudUploader
+from streaming.storage import CloudUploader
 
 
 def parse_args() -> Namespace:

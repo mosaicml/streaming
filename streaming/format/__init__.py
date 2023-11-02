@@ -5,11 +5,11 @@
 
 from typing import Any, Dict, Optional
 
-from streaming.base.format.reader import FileInfo, Reader
-from streaming.base.format.index import get_index_basename
-from streaming.base.format.json import JSONReader, JSONWriter
-from streaming.base.format.mds import MDSReader, MDSWriter
-from streaming.base.format.xsv import (CSVReader, CSVWriter, TSVReader, TSVWriter, XSVReader,
+from streaming.format.index import get_index_basename
+from streaming.format.json import JSONReader, JSONWriter
+from streaming.format.mds import MDSReader, MDSWriter
+from streaming.format.reader import FileInfo, Reader
+from streaming.format.xsv import (CSVReader, CSVWriter, TSVReader, TSVWriter, XSVReader,
                                        XSVWriter)
 
 __all__ = [

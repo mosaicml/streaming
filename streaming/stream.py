@@ -13,14 +13,14 @@ import numpy as np
 from numpy.typing import NDArray
 from typing_extensions import Self
 
-from streaming.base.compression import decompress
-from streaming.base.constant import TICK
-from streaming.base.distributed import barrier, get_local_rank
-from streaming.base.format import FileInfo, Reader, get_index_basename, reader_from_json
-from streaming.base.hashing import get_hash
-from streaming.base.storage import download_file
-from streaming.base.util import retry, wait_for_file_to_exist
-from streaming.base.world import World
+from streaming.compression import decompress
+from streaming.constant import TICK
+from streaming.distributed import barrier, get_local_rank
+from streaming.format import FileInfo, Reader, get_index_basename, reader_from_json
+from streaming.hashing import get_hash
+from streaming.storage import download_file
+from streaming.util import retry, wait_for_file_to_exist
+from streaming.world import World
 
 
 class Stream:
