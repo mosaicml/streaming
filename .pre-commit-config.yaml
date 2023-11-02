@@ -2,7 +2,7 @@ default_language_version:
   python: python3
 # Skip the pre-commit check for below directories to have
 # a consistency with the official tfrecord preprocessing scripts
-exclude: "^(streaming/text/convert/enwiki/)"
+exclude: "^(examples/text/enwiki_tok/)"
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
