@@ -4,6 +4,7 @@
 """:class:`MDSWriter` writes samples to ``.mds`` files that can be read by :class:`MDSReader`."""
 
 import json
+import time
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -123,7 +124,8 @@ class MDSWriter(JointWriter):
         obj.update({
             'column_names': self.column_names,
             'column_encodings': self.column_encodings,
-            'column_sizes': self.column_sizes
+            'column_sizes': self.column_sizes,
+            'write_timestamp': time.time(),
         })
         return obj
 

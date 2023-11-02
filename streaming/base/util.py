@@ -350,7 +350,9 @@ def _merge_index_from_list(index_file_urls: List[Union[str, Tuple[str, str]]],
 
         # Move merged index from temp path to local part in out
         # Upload merged index to remote if out has remote part
-        shutil.move(merged_index_path, cu.local)
+        dst_index_path = os.path.join(cu.local, os.path.basename(merged_index_path))
+        shutil.copy(merged_index_path, dst_index_path)
+        os.remove(merged_index_path)
         if cu.remote is not None:
             cu.upload_file(index_basename)
 

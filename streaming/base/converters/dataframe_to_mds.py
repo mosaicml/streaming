@@ -280,12 +280,10 @@ def dataframe_to_mds(dataframe: DataFrame,
         def merge_and_log(df: DataFrame, batch_id: int):
             partitions = df.collect()
             if len(partitions) == 0:
+                logger.warning(f'[Batch #{batch_id}] No records to write')
                 return
 
             if merge_index:
-                index_files = [
-                    (row['mds_path_local'], row['mds_path_remote']) for row in partitions
-                ]
                 lock_file_path = os.path.join(out, '.merge.lock')
                 # Acquire the lock.
                 while True:
@@ -295,20 +293,19 @@ def dataframe_to_mds(dataframe: DataFrame,
                         time.sleep(1)  # File already exists, wait and try again
                     else:
                         break
-                do_merge_index(index_files, out, keep_local=keep_local, download_timeout=60)
+                do_merge_index(out, keep_local=keep_local, download_timeout=60)
                 # Release the lock.
                 os.close(fd)
+                os.remove(lock_file_path)
 
-            sum_fail_count = 0
             for row in partitions:
-                sum_fail_count += row['fail_count']
+                logger.warning(f"[Batch #{batch_id}] {row['fail_count']} failed record(s) for {row['mds_path_local']}")
 
-            if sum_fail_count > 0:
-                logger.warning(
-                    f'[Batch #{batch_id}] Total failed records = {sum_fail_count}\nOverall records {dataframe.count()}'
-                )
-
-        mapped_df.writeStream.foreachBatch(merge_and_log).start()
+        mapped_df \
+            .writeStream \
+            .foreachBatch(merge_and_log) \
+            .start() \
+            .awaitTermination()
         return None, 0
     else:
         partitions = mapped_df.collect()
