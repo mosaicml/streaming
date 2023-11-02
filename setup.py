@@ -93,6 +93,16 @@ extra_deps['docs'] = [
     'sphinx-tabs==3.4.4',
 ]
 
+extra_deps['simulator'] = [
+    'sortedcollections>=2.1.0,<3',
+    'streamlit>=1.26.0,<2',
+    'altair>=5.1.1,<6',
+    'omegaconf>=2.3.0,<3',
+    'PyYAML>=6.0,<7',
+    'pandas>=2.0.3,<3',
+    'wandb>=0.15.5,<1',
+]
+
 extra_deps['spark'] = [
     'pyspark>=3,<4',
 ]
@@ -123,6 +133,9 @@ setup(
         'streaming': ['py.typed'],
     },
     packages=setuptools.find_packages(exclude=['tests*']),
+    entry_points={
+        'console_scripts': ['simulator = simulation.launcher:launch_simulation_ui',],
+    },
     classifiers=classifiers,
     install_requires=install_requires,
     extras_require=extra_deps,
