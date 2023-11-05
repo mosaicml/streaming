@@ -311,6 +311,9 @@ class Tabulator:
 
         self.left = left
 
+        self.box_horiz = chr(0x2500)
+        self.box_vert = chr(0x2502)
+
     @classmethod
     def from_conf(cls, conf: str, left: Optional[str] = None) -> Self:
         """Initialize a Tabulator from a text table defining its columns.
@@ -347,18 +350,18 @@ class Tabulator:
             fields.append(txt)
 
         left_txt = self.left or ''
-        fields_txt = f' | '.join(fields)
-        return f'{left_txt}| {fields_txt} |'
+        fields_txt = f' {self.box_vert} '.join(fields)
+        return f'{left_txt}{self.box_vert} {fields_txt} {self.box_vert}'
 
     def draw_header(self) -> str:
         info = dict(zip(self.col_names, self.col_names))
         return self.draw_row(info)
 
     def draw_divider(self) -> str:
-        seps = ('-' * width for width in self.col_widths)
+        seps = (self.box_horiz * width for width in self.col_widths)
         info = dict(zip(self.col_names, seps))
         text = self.draw_row(info)
-        return text.replace('|', '+')
+        return text.replace(self.box_vert, self.box_horiz)
 
 
 def main(args: Namespace) -> None:
