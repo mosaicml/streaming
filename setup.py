@@ -67,7 +67,7 @@ extra_deps['dev'] = [
     'docformatter>=1.4',
     'jupyter==1.0.0',
     'pre-commit>=2.18.1,<4',
-    'pytest==7.4.2',
+    'pytest==7.4.3',
     'pytest_codeblocks==0.17.0',
     'pytest-cov>=4,<5',
     'toml==0.10.2',
@@ -86,11 +86,21 @@ extra_deps['docs'] = [
     'myst-parser==2.0.0',
     'nbsphinx==0.9.2',
     'pandoc==2.3',
-    'pypandoc==1.11',
+    'pypandoc==1.12',
     'sphinx-argparse==0.4.0',
     'sphinx-copybutton==0.5.2',
     'sphinx==6.2.1',
     'sphinx-tabs==3.4.4',
+]
+
+extra_deps['simulator'] = [
+    'sortedcollections>=2.1.0,<3',
+    'streamlit>=1.26.0,<2',
+    'altair>=5.1.1,<6',
+    'omegaconf>=2.3.0,<3',
+    'PyYAML>=6.0,<7',
+    'pandas>=2.0.3,<3',
+    'wandb>=0.15.5,<1',
 ]
 
 extra_deps['spark'] = [
@@ -123,6 +133,9 @@ setup(
         'streaming': ['py.typed'],
     },
     packages=setuptools.find_packages(exclude=['tests*']),
+    entry_points={
+        'console_scripts': ['simulator = simulation.launcher:launch_simulation_ui',],
+    },
     classifiers=classifiers,
     install_requires=install_requires,
     extras_require=extra_deps,
