@@ -60,6 +60,7 @@ If you have any questions, please feel free to reach out to us on [Twitter](htt
    fundamentals/shuffling.md
    fundamentals/sampling.md
    fundamentals/batching.md
+   fundamentals/simulator.md
 
 .. toctree::
    :hidden:
