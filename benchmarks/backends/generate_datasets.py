@@ -341,14 +341,13 @@ class Tabulator:
         fields = []
         for just, name, width in self.cols:
             val = info[name]
-            txt = str(val)
+
+            txt = val if isinstance(val, str) else str(val)
             if width < len(txt):
                 raise ValueError(f'Field is too wide for its column: column (just: {just}, ' +
                                  f'name: {name}, width: {width}) vs field {txt}.')
-            if just == '<':
-                txt = txt.ljust(width)
-            else:
-                txt = txt.rjust(width)
+
+            txt = txt.ljust(width) if just == '<' else txt.rjust(width)
             fields.append(txt)
 
         left_txt = self.left or ''
@@ -359,7 +358,7 @@ class Tabulator:
         info = dict(zip(self.col_names, self.col_names))
         return self.draw_row(info)
 
-    def draw_divider(self) -> str:
+    def draw_line(self) -> str:
         seps = (self.box_horiz * width for width in self.col_widths)
         info = dict(zip(self.col_names, seps))
         text = self.draw_row(info)
