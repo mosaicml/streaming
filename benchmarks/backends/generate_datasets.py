@@ -5,10 +5,11 @@
 
 import os
 from argparse import ArgumentParser, Namespace
+from collections import defaultdict
 from functools import partial
 from shutil import rmtree
 from time import time
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import lance
 import pyarrow as pa
@@ -17,7 +18,7 @@ import pyspark.sql
 from delta import configure_spark_with_delta_pip
 from pyarrow import parquet as pq
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType
-from task import generate_dataset
+from task import generate
 from tqdm import tqdm
 from typing_extensions import Self
 from wurlitzer import pipes
@@ -37,10 +38,11 @@ def _parse_args() -> Namespace:
     args.add_argument('--seed', type=int, default=1337)
 
     # Dataset and shard sizes.
-    args.add_argument('--num_train', type=int, default=1 << 21)
-    args.add_argument('--num_val', type=int, default=1 << 17)
+    args.add_argument('--small', type=int, default=1 << 16)
+    args.add_argument('--medium', type=int, default=1 << 20)
+    args.add_argument('--large', type=int, default=1 << 24)
     args.add_argument('--size_limit', type=int, default=1 << 23)
-    args.add_argument('--samples_per_shard', type=int, default=1 << 17)
+    args.add_argument('--samples_per_shard', type=int, default=1 << 18)
 
     # Output root.
     args.add_argument('--data_root', type=str, default='data/backends/')
@@ -197,7 +199,7 @@ def _write_delta(nums: List[int], txts: List[str], root: str, samples_per_shard:
         root (str): Root directory.
         samples_per_shard (int): Maximum numbero of samples per shard.
     """
-    builder = pyspark.sql.SparkSession.builder.appName('deltatorch-example')  # pyright: ignore
+    builder = pyspark.sql.SparkSession.builder.appName('prolix')  # pyright: ignore
     builder = builder.config('spark.sql.extensions', 'io.delta.sql.DeltaSparkSessionExtension')
     builder = builder.config('spark.sql.catalog.spark_catalog',
                              'org.apache.spark.sql.delta.catalog.DeltaCatalog')
@@ -364,6 +366,27 @@ class Tabulator:
         return text.replace(self.box_vert, self.box_horiz)
 
 
+def _splits_by_size(dataset: Dict[str, Tuple[List[int], List[str]]]) -> Iterable[str]:
+    """Order a dataset's splits by their size in samples, then by name.
+
+    Argxs:
+        dataset (Dict[str, Tuple[List[int], List[str]]]): Mapping of split name to split data.
+
+    Returns:
+        Iterable[str]: Ordered split names.
+    """
+    size2splits = defaultdict(list)
+    for split, (nums, _) in dataset.items():
+        size2splits[len(nums)].append(split)
+
+    splits_by_size = []
+    for size in sorted(size2splits):
+        for split in sorted(size2splits[size]):
+            splits_by_size.append(split)
+
+    return splits_by_size
+
+
 def main(args: Namespace) -> None:
     """Generate identical datasets in various formats for performance comparison.
 
@@ -374,6 +397,11 @@ def main(args: Namespace) -> None:
     format_names = args.formats.split(',') if args.formats else []
     show_progress = bool(args.show_progress)
     quiet_delta = bool(args.quiet_delta)
+    split2size = {
+        'small': args.small,
+        'medium': args.medium,
+        'large': args.large,
+    }
 
     # Wipe output directory if exists.
     if os.path.exists(args.data_root):
@@ -400,9 +428,9 @@ def main(args: Namespace) -> None:
 
     # Now, generate the dataset.
     t0 = time()
-    dataset = generate_dataset(args.num_train, args.num_val, show_progress)
+    dataset = generate(split2size, show_progress)
     elapsed = time() - t0
-    print(f'Dataset generation: {elapsed:.3f} sec.')
+    print(f'Generate: {elapsed:.3f} sec.')
 
     # Confgure the text table printer for dataset writing info.
     conf = '''
@@ -418,13 +446,14 @@ def main(args: Namespace) -> None:
     left = 4 * ' '
     tab = Tabulator.from_conf(conf, left)
 
-    # Write each split in each desired format.
-    for split, nums, txts in dataset:
+    # Write each split in each desired formats, in order of size.
+    for split in _splits_by_size(dataset):
         print()
-        print(f'Split {split}:')
-        print(tab.draw_divider())
+        print(f'Write split: {split}')
+        print(tab.draw_line())
         print(tab.draw_header())
-        print(tab.draw_divider())
+        print(tab.draw_line())
+        nums, txts = dataset[split]
         for format_name in format_names:
             format_subdir = getattr(args, format_name)
             split_root = os.path.join(args.data_root, 'gold', format_subdir, split)
@@ -447,7 +476,7 @@ def main(args: Namespace) -> None:
                 'max bytes/file': pretty_int(max(file_sizes)),
             }
             print(tab.draw_row(obj))
-        print(tab.draw_divider())
+        print(tab.draw_line())
 
 
 if __name__ == '__main__':

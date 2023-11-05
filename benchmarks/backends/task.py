@@ -39,8 +39,8 @@ def _generate_int(rng: Generator,
 
     is_pos = rng.uniform() < pos_prob
     max_digits = np.log10(high) if is_pos else np.log10(-low)
-    power = rng.uniform(0, max_digits)
-    magnitude = int(10**power)
+    exponent = rng.uniform(0, max_digits)
+    magnitude = int(10**exponent)
     sign = is_pos * 2 - 1
     return sign * magnitude
 
@@ -148,23 +148,22 @@ def _split(items: List[T], sizes: List[int]) -> List[List[T]]:
     Returns:
         List[List[Any]]: Each split of items.
     """
-    arr = np.asarray(sizes, np.int64)
-    ends = arr.cumsum()
-    begins = ends - arr[0]
-
-    if len(items) != ends[-1]:
+    total = sum(sizes)
+    if len(items) != total:
         raise ValueError(f'Number of items must match the combined size of the splits: ' +
-                         f'{len(items)} items vs splits of size {sizes} = {ends[-1]}.')
+                         f'{len(items)} items vs splits of size {sizes} = {total}.')
 
     splits = []
-    for begin, end in zip(begins, ends):
-        split = items[begin:end]
+    begin = 0
+    for size in sizes:
+        split = items[begin:begin + size]
         splits.append(split)
+        begin += size
 
     return splits
 
 
-def generate(splits: Dict[str, int],
+def generate(split2size: Dict[str, int],
              seed: int = 0x1337,
              pos_prob: float = 0.75,
              low: int = -1_000_000_000,
@@ -173,7 +172,7 @@ def generate(splits: Dict[str, int],
     """Generate a dataset, made of splits, to be saved in different forms for comparison.
 
     Args:
-        splits (Dict[str, int]): Mapping of split name to size in samples.
+        split2size (Dict[str, int]): Mapping of split name to size in samples.
         seed (int): Seed for the random number generator. Defaults to ``0x1337``.
         pos_prob (float): Probability of output being positive. Defaults to ``0.75``.
         low (int): Minimum of output range. Must be negative. Defaults to ``-1_000_000_000``.
@@ -185,8 +184,8 @@ def generate(splits: Dict[str, int],
     """
     split_sizes = []
     total = 0
-    for name in sorted(splits):
-        size = splits[name]
+    for split in sorted(split2size):
+        size = split2size[split]
         split_sizes.append(size)
         total += size
 
@@ -197,6 +196,7 @@ def generate(splits: Dict[str, int],
     texts_per_split = _split(texts, split_sizes)
 
     dataset = {}
-    for index, name in enumerate(sorted(splits)):
+    for index, name in enumerate(sorted(split2size)):
         dataset[name] = nums_per_split[index], texts_per_split[index]
+
     return dataset
