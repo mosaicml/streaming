@@ -9,7 +9,7 @@ from collections import defaultdict
 from functools import partial
 from shutil import rmtree
 from time import time
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import lance
 import pyarrow as pa
@@ -48,7 +48,7 @@ def _parse_args() -> Namespace:
     args.add_argument('--data_root', type=str, default='data/backends/')
 
     # Formats to output.
-    args.add_argument('--formats', type=str, default='csv,jsonl,lance,mds,parquet,delta')
+    args.add_argument('--formats', type=str, default='csv,delta,jsonl,lance,mds,parquet')
 
     # Output subdir per format.
     args.add_argument('--csv', type=str, default='csv')
@@ -287,7 +287,7 @@ class Tabulator:
 
     Args:
         cols (List[Tuple[str, str, int]]: Each column config (i.e., just, name, width).
-        left (str, optional): Optional string that is printed before each line (e.g., indents).
+        left (str, optional): Print this before each line (e.g., indenting). Defaults to ``None``.
     """
 
     def __init__(self, cols: List[Tuple[str, str, int]], left: Optional[str] = None) -> None:
@@ -313,8 +313,8 @@ class Tabulator:
 
         self.left = left
 
-        self.box_horiz = chr(0x2500)
-        self.box_vert = chr(0x2502)
+        self.box_chr_horiz = chr(0x2500)
+        self.box_chr_vert = chr(0x2502)
 
     @classmethod
     def from_conf(cls, conf: str, left: Optional[str] = None) -> Self:
@@ -337,10 +337,18 @@ class Tabulator:
             cols.append((just, name, width))
         return cls(cols, left)
 
-    def draw_row(self, info: Dict[str, str]) -> str:
+    def draw_row(self, row: Dict[str, Any]) -> str:
+        """Draw a row, given a mapping of column name to field value.
+
+        Args:
+            row (Dict[str, Any]): Mapping of column name to field value.
+
+        Returns:
+            str: Text line.
+        """
         fields = []
         for just, name, width in self.cols:
-            val = info[name]
+            val = row[name]
 
             txt = val if isinstance(val, str) else str(val)
             if width < len(txt):
@@ -351,18 +359,28 @@ class Tabulator:
             fields.append(txt)
 
         left_txt = self.left or ''
-        fields_txt = f' {self.box_vert} '.join(fields)
-        return f'{left_txt}{self.box_vert} {fields_txt} {self.box_vert}'
+        fields_txt = f' {self.box_chr_vert} '.join(fields)
+        return f'{left_txt}{self.box_chr_vert} {fields_txt} {self.box_chr_vert}'
 
     def draw_header(self) -> str:
-        info = dict(zip(self.col_names, self.col_names))
-        return self.draw_row(info)
+        """Draw a header row.
+
+        Returns:
+            str: Text line.
+        """
+        row = dict(zip(self.col_names, self.col_names))
+        return self.draw_row(row)
 
     def draw_line(self) -> str:
-        seps = (self.box_horiz * width for width in self.col_widths)
-        info = dict(zip(self.col_names, seps))
-        text = self.draw_row(info)
-        return text.replace(self.box_vert, self.box_horiz)
+        """Draw a divider row.
+
+        Returns:
+            str: Text line.
+        """
+        seps = (self.box_chr_horiz * width for width in self.col_widths)
+        row = dict(zip(self.col_names, seps))
+        line = self.draw_row(row)
+        return line.replace(self.box_chr_vert, self.box_chr_horiz)
 
 
 def _splits_by_size(dataset: Dict[str, Tuple[List[int], List[str]]]) -> Iterable[str]:
@@ -446,6 +464,7 @@ def main(args: Namespace) -> None:
     tab = Tabulator.from_conf(conf, left)
 
     # Write each split in each desired formats, in order of size.
+    pretty_int = lambda num: f'{num:,}'
     for split in _splits_by_size(dataset):
         print()
         print(f'Write split: {split}')
@@ -463,8 +482,7 @@ def main(args: Namespace) -> None:
             elapsed = time() - t0
 
             file_sizes = _get_file_sizes(split_root)
-            pretty_int = lambda num: f'{num:,}'
-            obj = {
+            row = {
                 'format': format_name,
                 'sec': f'{elapsed:.3f}',
                 'samples': pretty_int(len(nums)),
@@ -474,7 +492,7 @@ def main(args: Namespace) -> None:
                 'bytes/file': pretty_int(sum(file_sizes) // len(file_sizes)),
                 'max bytes/file': pretty_int(max(file_sizes)),
             }
-            print(tab.draw_row(obj))
+            print(tab.draw_row(row))
         print(tab.draw_line())
 
 
