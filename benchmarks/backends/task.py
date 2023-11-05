@@ -3,10 +3,85 @@
 
 """Generate infinite samples for a 'saying numbers as words' task."""
 
-from typing import List, Tuple
+from typing import Dict, List, Tuple, TypeVar
 
 import numpy as np
+from numpy.random import Generator
 from tqdm import tqdm
+
+
+def _generate_int(rng: Generator,
+                  pos_prob: float = 0.75,
+                  low: int = -1_000_000_000,
+                  high: int = 1_000_000_000) -> int:
+    """Pick a random integer to say in words.
+
+    This is a synthetic dataset whose random numbers need to be distinct, deterministic given a
+    seed, and little else. We choose a distribution that seems the most pleasing to us.
+
+    Properties:
+      * About 80% positive and 20% negative.
+      * Magnitude of up to a billion on either side of zero.
+      * Strongly skewed toward the origin, i.e. chosen uniformly across base-10 digit lengths (at
+        least until running out of integers of that length anyway).
+
+    Args:
+        rng (Generator): NumPy random number generator.
+        pos_prob (float): Probability of output being positive. Defaults to ``0.75``.
+        low (int): Minimum of output range. Must be negative. Defaults to ``-1_000_000_000``.
+        high (int): Maximum of output range. Must be positive. Defaults to ``1_000_000_000``.
+    """
+    if not 0 <= pos_prob <= 1:
+        raise ValueError(f'Invalid positive probability ``pos_prob``: 0 <= {pos_prob} <= 1.')
+
+    if not low < 0 < high:
+        raise ValueError(f'Invalid sampling range ``low`` and/or ``high``: {low} < 0 < {high}.')
+
+    is_pos = rng.uniform() < pos_prob
+    max_digits = np.log10(high) if is_pos else np.log10(-low)
+    power = rng.uniform(0, max_digits)
+    magnitude = int(10**power)
+    sign = is_pos * 2 - 1
+    return sign * magnitude
+
+
+def _generate_ints(count: int,
+                   seed: int = 0x1337,
+                   pos_prob: float = 0.75,
+                   low: int = -1_000_000_000,
+                   high: int = 1_000_000_000,
+                   show_progress: bool = True) -> List[int]:
+    """Sample until we have the given number of distinct integers.
+
+    Args:
+        count (int): How many samples to draw.
+        seed (int): Seed for the random number generator. Defaults to ``0x1337``.
+        pos_prob (float): Probability of output being positive. Defaults to ``0.75``.
+        low (int): Minimum of output range. Must be negative. Defaults to ``-1_000_000_000``.
+        high (int): Maximum of output range. Must be positive. Defaults to ``1_000_000_000``.
+        show_progress (bool): Whether to display a progress bar. Defaults to ``True``.
+
+    Returns:
+        List[int]: The integers that were drawn.
+    """
+    rng = np.random.default_rng(seed)
+    nums = set()
+    progress_bar = tqdm(total=count, leave=False) if show_progress else None
+    while len(nums) < count:
+        num = _generate_int(rng)
+        if num in nums:
+            continue
+
+        nums.add(num)
+        if progress_bar:
+            progress_bar.update(1)
+    if progress_bar:
+        progress_bar.close()
+
+    nums = sorted(nums)
+    rng.shuffle(nums)
+    return nums
+
 
 _ones = ('zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen '
          'fifteen sixteen seventeen eighteen nineteen').split()
@@ -14,94 +89,114 @@ _ones = ('zero one two three four five six seven eight nine ten eleven twelve th
 _tens = 'twenty thirty forty fifty sixty seventy eighty ninety'.split()
 
 
-def _say(i: int) -> List[str]:
-    """Get the word form of a number.
+def _int_to_words(num: int) -> List[str]:
+    """Say an integer as a list of words.
 
     Args:
-        i (int): The number.
+        num (int): The integer.
 
     Returns:
-        List[str]: The number in word form.
+        List[str]: The integer as a list of words.
     """
-    if i < 0:
-        return ['negative'] + _say(-i)
-    elif i <= 19:
-        return [_ones[i]]
-    elif i < 100:
-        return [_tens[i // 10 - 2]] + ([_ones[i % 10]] if i % 10 else [])
-    elif i < 1_000:
-        return [_ones[i // 100], 'hundred'] + (_say(i % 100) if i % 100 else [])
-    elif i < 1_000_000:
-        return _say(i // 1_000) + ['thousand'] + (_say(i % 1_000) if i % 1_000 else [])
-    elif i < 1_000_000_000:
-        return _say(i // 1_000_000) + ['million'] + (_say(i % 1_000_000) if i % 1_000_000 else [])
+    if num < 0:
+        return ['negative'] + _int_to_words(-num)
+    elif num <= 19:
+        return [_ones[num]]
+    elif num < 100:
+        tens = [_tens[num // 10 - 2]]
+        ones = [_ones[num % 10]] if num % 10 else []
+        return tens + ones
+    elif num < 1_000:
+        hundreds = [_ones[num // 100], 'hundred']
+        etc = _int_to_words(num % 100) if num % 100 else []
+        return hundreds + etc
+    elif num < 1_000_000:
+        thousands = _int_to_words(num // 1_000) + ['thousand']
+        etc = _int_to_words(num % 1_000) if num % 1_000 else []
+        return thousands + etc
+    elif num < 1_000_000_000:
+        millions = _int_to_words(num // 1_000_000) + ['million']
+        etc = _int_to_words(num % 1_000_000) if num % 1_000_000 else []
+        return millions + etc
     else:
-        raise ValueError('Integer must be less than a billion, but got: {i}')
+        raise ValueError('Integer out of range: -1,000,000,000 < {num} < +1,000,000,000.')
 
 
-def _generate_number() -> int:
-    """Generate a random integer to say.
-
-    Returns:
-        int: The integer.
-    """
-    sign = (np.random.uniform() < 0.8) * 2 - 1
-    expt = np.random.uniform(0, 9)
-    mag = int(10**expt)
-    return sign * mag
-
-
-def _generate_numbers(num_train: int, num_val: int,
-                      show_progress: bool) -> Tuple[List[int], List[int]]:
-    """Get two non-overlapping splits of integers to say.
+def _int_to_text(num: int) -> str:
+    """Say an integer as text.
 
     Args:
-        num_train (int): Number of training samples.
-        num_val (int): Number of validation samples.
-        show_progress (bool): Whether to display a progress bar.
+        num (int): The integer.
 
     Returns:
-        Tuple[List[int], List[int]]: The two generated splits.
+        str: The integer as text.
     """
-    total = num_train + num_val
-    nums = set()
-    pbar = tqdm(total=total, leave=False) if show_progress else None
-    while len(nums) < total:
-        num = _generate_number()
-        if num in nums:
-            continue
-        nums.add(num)
-        if pbar:
-            pbar.update(1)
-    if pbar:
-        pbar.close()
-    nums = sorted(nums)
-    np.random.shuffle(nums)
-    train_nums = nums[:num_train]
-    val_nums = nums[num_train:]
-    return train_nums, val_nums
+    words = _int_to_words(num)
+    return ' '.join(words)
 
 
-_split_type = Tuple[str, List[int], List[str]]
+T = TypeVar('T')
 
 
-def generate_dataset(num_train: int, num_val: int, show_progress: bool) -> List[_split_type]:
-    """Generate the dataset, which will be saved in different forms for comparison.
+def _split(items: List[T], sizes: List[int]) -> List[List[T]]:
+    """Divide the given items across the splits given by their sizes.
 
     Args:
-        num_train (int): Number of train samples.
-        num_val (int): Number of val samples.
-        show_progress (bool): Whether to show a progress bar.
+        items (List[Any]): The items to divide across the spans.
+        sizes (List[int]): Number of items per split.
 
     Returns:
-        List[Tuple[str, List[int], List[str]]]: List of dataset splits.
+        List[List[Any]]: Each split of items.
     """
-    train_nums, val_nums = _generate_numbers(num_train, num_val, show_progress)
+    arr = np.asarray(sizes, np.int64)
+    ends = arr.cumsum()
+    begins = ends - arr[0]
 
-    train_txts = [' '.join(_say(num)) for num in train_nums]
-    val_txts = [' '.join(_say(num)) for num in val_nums]
+    if len(items) != ends[-1]:
+        raise ValueError(f'Number of items must match the combined size of the splits: ' +
+                         f'{len(items)} items vs splits of size {sizes} = {ends[-1]}.')
 
-    return [
-        ('train', train_nums, train_txts),
-        ('val', val_nums, val_txts),
-    ]
+    splits = []
+    for begin, end in zip(begins, ends):
+        split = items[begin:end]
+        splits.append(split)
+
+    return splits
+
+
+def generate(splits: Dict[str, int],
+             seed: int = 0x1337,
+             pos_prob: float = 0.75,
+             low: int = -1_000_000_000,
+             high: int = 1_000_000_000,
+             show_progress: bool = True) -> Dict[str, Tuple[List[int], List[str]]]:
+    """Generate a dataset, made of splits, to be saved in different forms for comparison.
+
+    Args:
+        splits (Dict[str, int]): Mapping of split name to size in samples.
+        seed (int): Seed for the random number generator. Defaults to ``0x1337``.
+        pos_prob (float): Probability of output being positive. Defaults to ``0.75``.
+        low (int): Minimum of output range. Must be negative. Defaults to ``-1_000_000_000``.
+        high (int): Maximum of output range. Must be positive. Defaults to ``1_000_000_000``.
+        show_progress (bool): Whether to show a progress bar. Defaults to ``True``.
+
+    Returns:
+        Dict[str, Tuple[List[int], List[str]]]: Mapping of split name to nums and texts.
+    """
+    split_sizes = []
+    total = 0
+    for name in sorted(splits):
+        size = splits[name]
+        split_sizes.append(size)
+        total += size
+
+    nums = _generate_ints(total, seed, low, high, show_progress)
+    nums_per_split = _split(nums, split_sizes)
+
+    texts = list(map(_int_to_text, nums))
+    texts_per_split = _split(texts, split_sizes)
+
+    dataset = {}
+    for index, name in enumerate(sorted(splits)):
+        dataset[name] = nums_per_split[index], texts_per_split[index]
+    return dataset
