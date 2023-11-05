@@ -8,7 +8,7 @@ from argparse import ArgumentParser, Namespace
 from functools import partial
 from shutil import rmtree
 from time import time
-from typing import List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import lance
 import pyarrow as pa
@@ -19,25 +19,36 @@ from pyarrow import parquet as pq
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 from task import generate_dataset
 from tqdm import tqdm
+from typing_extensions import Self
 from wurlitzer import pipes
 
 from streaming import CSVWriter, JSONWriter, MDSWriter
 
 
-def parse_args() -> Namespace:
+def _parse_args() -> Namespace:
     """Parse command-line arguments.
 
     Returns:
         Namespace: Command-line arguments.
     """
     args = ArgumentParser()
-    args.add_argument('--show_progress', type=int, default=1)
 
+    # Reproducibility.
     args.add_argument('--seed', type=int, default=1337)
+
+    # Dataset and shard sizes.
     args.add_argument('--num_train', type=int, default=1 << 21)
     args.add_argument('--num_val', type=int, default=1 << 17)
+    args.add_argument('--size_limit', type=int, default=1 << 23)
+    args.add_argument('--samples_per_shard', type=int, default=1 << 17)
 
-    args.add_argument('--data_root', type=str, default='data/backendss/')
+    # Output root.
+    args.add_argument('--data_root', type=str, default='data/backends/')
+
+    # Formats to output.
+    args.add_argument('--formats', type=str, default='csv,jsonl,lance,mds,parquet,delta')
+
+    # Output subdir per format.
     args.add_argument('--csv', type=str, default='csv')
     args.add_argument('--jsonl', type=str, default='jsonl')
     args.add_argument('--lance', type=str, default='lance')
@@ -45,17 +56,18 @@ def parse_args() -> Namespace:
     args.add_argument('--parquet', type=str, default='parquet')
     args.add_argument('--delta', type=str, default='delta')
 
-    args.add_argument('--size_limit', type=int, default=1 << 23)
-    args.add_argument('--samples_per_shard', type=int, default=1 << 17)
+    # Logging.
+    args.add_argument('--show_progress', type=int, default=1)
     args.add_argument('--quiet_delta', type=int, default=1)
+
     return args.parse_args()
 
 
-def _save_csv(nums: List[int],
-              txts: List[str],
-              root: str,
-              size_limit: Optional[int],
-              show_progress: bool = True) -> None:
+def _write_csv(nums: List[int],
+               txts: List[str],
+               root: str,
+               size_limit: Optional[int],
+               show_progress: bool = True) -> None:
     """Save the dataset in Streaming CSV form.
 
     Args:
@@ -65,21 +77,27 @@ def _save_csv(nums: List[int],
         size_limit (int, optional): Maximum shard size in bytes, or no limit.
         show_progress (bool): Whether to show a progress bar while saving. Defaults to ``True``.
     """
-    columns = {'num': 'int', 'txt': 'str'}
+    columns = {
+        'num': 'int',
+        'txt': 'str',
+    }
     with CSVWriter(out=root, columns=columns, size_limit=size_limit) as out:
         each_sample = zip(nums, txts)
         if show_progress:
             each_sample = tqdm(each_sample, total=len(nums), leave=False)
         for num, txt in each_sample:
-            sample = {'num': num, 'txt': txt}
+            sample = {
+                'num': num,
+                'txt': txt,
+            }
             out.write(sample)
 
 
-def _save_jsonl(nums: List[int],
-                txts: List[str],
-                root: str,
-                size_limit: Optional[int],
-                show_progress: bool = True) -> None:
+def _write_jsonl(nums: List[int],
+                 txts: List[str],
+                 root: str,
+                 size_limit: Optional[int],
+                 show_progress: bool = True) -> None:
     """Save the dataset Streaming JSONL form.
 
     Args:
@@ -89,21 +107,27 @@ def _save_jsonl(nums: List[int],
         size_limit (int, optional): Maximum shard size in bytes, or no limit.
         show_progress (bool): Whether to show a progress bar while saving. Defaults to ``True``.
     """
-    columns = {'num': 'int', 'txt': 'str'}
+    columns = {
+        'num': 'int',
+        'txt': 'str',
+    }
     with JSONWriter(out=root, columns=columns, size_limit=size_limit) as out:
         each_sample = zip(nums, txts)
         if show_progress:
             each_sample = tqdm(each_sample, total=len(nums), leave=False)
         for num, txt in each_sample:
-            sample = {'num': num, 'txt': txt}
+            sample = {
+                'num': num,
+                'txt': txt,
+            }
             out.write(sample)
 
 
-def _save_mds(nums: List[int],
-              txts: List[str],
-              root: str,
-              size_limit: Optional[int],
-              show_progress: bool = True) -> None:
+def _write_mds(nums: List[int],
+               txts: List[str],
+               root: str,
+               size_limit: Optional[int],
+               show_progress: bool = True) -> None:
     """Save the dataset in Streaming MDS form.
 
     Args:
@@ -113,21 +137,27 @@ def _save_mds(nums: List[int],
         size_limit (int, optional): Maximum shard size in bytes, or no limit.
         show_progress (bool): Whether to show a progress bar while saving. Defaults to ``True``.
     """
-    columns = {'num': 'int', 'txt': 'str'}
+    columns = {
+        'num': 'int',
+        'txt': 'str',
+    }
     with MDSWriter(out=root, columns=columns, size_limit=size_limit) as out:
         each_sample = zip(nums, txts)
         if show_progress:
             each_sample = tqdm(each_sample, total=len(nums), leave=False)
         for num, txt in each_sample:
-            sample = {'num': num, 'txt': txt}
+            sample = {
+                'num': num,
+                'txt': txt,
+            }
             out.write(sample)
 
 
-def _save_parquet(nums: List[int],
-                  txts: List[str],
-                  root: str,
-                  samples_per_shard: int,
-                  show_progress: bool = True) -> None:
+def _write_parquet(nums: List[int],
+                   txts: List[str],
+                   root: str,
+                   samples_per_shard: int,
+                   show_progress: bool = True) -> None:
     """Save the dataset in Streaming MDS form.
 
     Args:
@@ -158,8 +188,7 @@ def _save_parquet(nums: List[int],
         pq.write_table(table, path)
 
 
-def _wrapped_save_delta(nums: List[int], txts: List[str], root: str,
-                        samples_per_shard: int) -> None:
+def _write_delta(nums: List[int], txts: List[str], root: str, samples_per_shard: int) -> None:
     """Save the dataset in Streaming MDS form.
 
     Args:
@@ -182,29 +211,29 @@ def _wrapped_save_delta(nums: List[int], txts: List[str], root: str,
     df.write.format('delta').option('maxRecordsPerFile', samples_per_shard).save(root)
 
 
-def _save_delta(nums: List[int],
-                txts: List[str],
-                root: str,
-                samples_per_shard: int,
-                quiet: bool = True) -> None:
-    """Save the dataset in Streaming MDS form.
+def _do_write_delta(nums: List[int],
+                    txts: List[str],
+                    root: str,
+                    samples_per_shard: int,
+                    quietly: bool = True) -> None:
+    """Save the dataset in Streaming MDS form, possibly capturing stdout/stderr.
 
     Args:
         nums (List[int]): The sample numbers.
         txts (List[str]): The sample texts.
         root (str): Root directory.
         samples_per_shard (int): Maximum numbero of samples per shard.
-        quiet (bool): Whether to capture the Delta logging. Defaults to ``True``.
+        quietly (bool): Whether to capture the Delta logging. Defaults to ``True``.
     """
-    bang_on_pipes = lambda: _wrapped_save_delta(nums, txts, root, samples_per_shard)
-    if quiet:
+    write = lambda: _write_delta(nums, txts, root, samples_per_shard)
+    if quietly:
         with pipes():
-            bang_on_pipes()
+            write()
     else:
-        bang_on_pipes()
+        write()
 
 
-def _save_lance(nums: List[int], txts: List[str], root: str, samples_per_shard: int) -> None:
+def _write_lance(nums: List[int], txts: List[str], root: str, samples_per_shard: int) -> None:
     """Save the dataset in Lance form.
 
     Args:
@@ -219,7 +248,7 @@ def _save_lance(nums: List[int], txts: List[str], root: str, samples_per_shard: 
     lance.write_dataset(table, root, mode='create', max_rows_per_file=samples_per_shard)
 
 
-def _stat(root: str):
+def _get_file_sizes(root: str) -> List[int]:
     """Inventory what was written, collecting total files and total bytes.
 
     Args:
@@ -228,14 +257,108 @@ def _stat(root: str):
     Returns:
         Tuple[int, int]: Total files and total bytes written.
     """
-    rf = 0
-    rz = 0
-    for p, _, ff in os.walk(root):
-        rf += len(ff)
-        for f in ff:
-            g = os.path.join(p, f)
-            rz += os.stat(g).st_size
-    return rf, rz
+    sizes = []
+    for parent, _, file_basenames in sorted(os.walk(root)):
+        for basename in sorted(file_basenames):
+            path = os.path.join(parent, basename)
+            size = os.stat(path).st_size
+            sizes.append(size)
+    return sizes
+
+
+class Tabulator:
+    """Line by line text table printer.
+
+    Example:
+        conf = '''
+            < format 8
+            > sec 6
+            > samples 12
+            > usec/sp 8
+            > bytes 14
+            > files 6
+            > bytes/file 12
+            > max bytes/file 14
+        '''
+        left = 4 * ' '
+        tab = Tabulator.from_conf(conf, left)
+
+    Args:
+        cols (List[Tuple[str, str, int]]: Each column config (i.e., just, name, width).
+        left (str, optional): Optional string that is printed before each line (e.g., indents).
+    """
+
+    def __init__(self, cols: List[Tuple[str, str, int]], left: Optional[str] = None) -> None:
+        self.cols = cols
+        self.col_justs = []
+        self.col_names = []
+        self.col_widths = []
+        for just, name, width in cols:
+            if just not in {'<', '>'}:
+                raise ValueError(f'Invalid justify (must be one of "<" or ">"): {just}.')
+
+            if not name:
+                raise ValueError('Name must be non-empty.')
+            elif width < len(name):
+                raise ValueError(f'Name is too wide for its column width: {width} vs {name}.')
+
+            if width <= 0:
+                raise ValueError(f'Width must be positive, but got: {width}.')
+
+            self.col_justs.append(just)
+            self.col_names.append(name)
+            self.col_widths.append(width)
+
+        self.left = left
+
+    @classmethod
+    def from_conf(cls, conf: str, left: Optional[str] = None) -> Self:
+        """Initialize a Tabulator from a text table defining its columns.
+
+        Args:
+            conf (str): The table config.
+            left (str, optional): Optional string that is printed before each line (e.g., indents).
+        """
+        cols = []
+        for line in conf.strip().split('\n'):
+            words = line.split()
+
+            if len(words) < 3:
+                raise ValueError(f'Invalid col config (must be "just name width"): {line}.')
+
+            just = words[0]
+            name = ' '.join(words[1:-1])
+            width = int(words[-1])
+            cols.append((just, name, width))
+        return cls(cols)
+
+    def draw_row(self, info: Dict[str, str]) -> str:
+        fields = []
+        for just, name, width in self.cols:
+            val = info[name]
+            txt = str(val)
+            if width < len(txt):
+                raise ValueError(f'Field is too wide for its column: column (just: {just}, ' +
+                                 f'name: {name}, width: {width}) vs field {txt}.')
+            if just == '<':
+                txt = txt.ljust(width)
+            else:
+                txt = txt.rjust(width)
+            fields.append(txt)
+
+        left_txt = self.left or ''
+        fields_txt = ' | '.join(fields)
+        return f'{left_txt} | {fields_txt} |'
+
+    def draw_header(self) -> str:
+        info = dict(zip(self.col_names, self.col_names))
+        return self.draw_row(info)
+
+    def draw_divider(self) -> str:
+        seps = ('-' * width for width in self.col_widths)
+        info = dict(zip(self.col_names, seps))
+        text = self.draw_row(info)
+        return text.replace('|', '+')
 
 
 def main(args: Namespace) -> None:
@@ -244,50 +367,85 @@ def main(args: Namespace) -> None:
     Args:
         args (Namespace): Command-line arguments.
     """
-    if os.path.exists(args.data_root):
-        rmtree(args.data_root)
-
-    kinds = 'csv', 'jsonl', 'lance', 'mds', 'parquet', 'delta'
-
+    # Normalize arguments.
+    format_names = args.formats.split(',') if args.formats else []
     show_progress = bool(args.show_progress)
     quiet_delta = bool(args.quiet_delta)
 
-    kind2save = {
+    # Wipe output directory if exists.
+    if os.path.exists(args.data_root):
+        rmtree(args.data_root)
+
+    # Given args, now we know how to configure saving the dataset in each format.
+    format2write = {
         'csv':
-            partial(_save_csv, size_limit=args.size_limit, show_progress=show_progress),
+            partial(_write_csv, size_limit=args.size_limit, show_progress=show_progress),
         'delta':
-            partial(_save_delta, samples_per_shard=args.samples_per_shard, quiet=quiet_delta),
+            partial(_do_write_delta, quietly=quiet_delta,
+                    samples_per_shard=args.samples_per_shard),
         'jsonl':
-            partial(_save_jsonl, size_limit=args.size_limit, show_progress=show_progress),
+            partial(_write_jsonl, size_limit=args.size_limit, show_progress=show_progress),
         'lance':
-            partial(_save_lance, samples_per_shard=args.samples_per_shard),
+            partial(_write_lance, samples_per_shard=args.samples_per_shard),
         'mds':
-            partial(_save_mds, size_limit=args.size_limit, show_progress=show_progress),
+            partial(_write_mds, size_limit=args.size_limit, show_progress=show_progress),
         'parquet':
-            partial(_save_parquet,
+            partial(_write_parquet,
                     samples_per_shard=args.samples_per_shard,
                     show_progress=show_progress),
     }
 
-    start = time()
+    # Now, generate the dataset.
+    t0 = time()
     dataset = generate_dataset(args.num_train, args.num_val, show_progress)
-    elapsed = time() - start
+    elapsed = time() - t0
     print(f'Dataset generation: {elapsed:.3f} sec.')
 
+    # Confgure the text table printer for dataset writing info.
+    conf = '''
+        < format 8
+        > sec 6
+        > samples 12
+        > usec/sp 8
+        > bytes 14
+        > files 6
+        > bytes/file 12
+        > max bytes/file 14
+    '''
+    left = 4 * ' '
+    tab = Tabulator.from_conf(conf, left)
+
+    # Write each split in each desired format.
     for split, nums, txts in dataset:
+        print()
         print(f'Split {split}:')
-        for kind in kinds:
-            kind_subdir = getattr(args, kind)
-            split_root = os.path.join(args.data_root, 'gold', kind_subdir, split)
-            save = kind2save[kind]
-            start = time()
-            save(nums, txts, split_root)
-            elapsed = time() - start
-            num_files, num_bytes = _stat(split_root)
-            bytes_per_file = num_bytes // num_files
-            print(f'* Saving dataset as {kind:8}: {elapsed:8.3f} sec; {num_files:3,} files; ' +
-                  f'{num_bytes:12,} bytes; {bytes_per_file:12,} bytes/file.')
+        print(tab.draw_divider())
+        print(tab.draw_header())
+        print(tab.draw_divider())
+        for format_name in format_names:
+            format_subdir = getattr(args, format_name)
+            split_root = os.path.join(args.data_root, 'gold', format_subdir, split)
+            write = format2write[format_name]
+
+            t0 = time()
+            write(nums, txts, split_root)
+            elapsed = time() - t0
+
+            file_sizes = _get_file_sizes(split_root)
+            pretty_int = lambda num: f'{num:,}'
+            obj = {
+                'format': format_name,
+                'sec': f'{elapsed:.3f}',
+                'samples': pretty_int(len(nums)),
+                'usec/sp': f'{1e6 * elapsed / len(nums):.3f}',
+                'bytes': pretty_int(sum(file_sizes)),
+                'files': pretty_int(len(file_sizes)),
+                'bytes/file': pretty_int(sum(file_sizes) // len(file_sizes)),
+                'max bytes/file': pretty_int(max(file_sizes)),
+            }
+            print(tab.draw_row(obj))
+        print(tab.draw_divider())
 
 
 if __name__ == '__main__':
-    main(parse_args())
+    main(_parse_args())
