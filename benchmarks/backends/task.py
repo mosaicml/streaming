@@ -196,7 +196,7 @@ def generate(split2size: Dict[str, int],
     texts_per_split = _split(texts, split_sizes)
 
     dataset = {}
-    for index, name in enumerate(sorted(split2size)):
-        dataset[name] = nums_per_split[index], texts_per_split[index]
+    for index, split in enumerate(sorted(split2size)):
+        dataset[split] = nums_per_split[index], texts_per_split[index]
 
     return dataset
