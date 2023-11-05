@@ -330,7 +330,7 @@ class Tabulator:
             name = ' '.join(words[1:-1])
             width = int(words[-1])
             cols.append((just, name, width))
-        return cls(cols)
+        return cls(cols, left)
 
     def draw_row(self, info: Dict[str, str]) -> str:
         fields = []
@@ -347,8 +347,8 @@ class Tabulator:
             fields.append(txt)
 
         left_txt = self.left or ''
-        fields_txt = ' | '.join(fields)
-        return f'{left_txt} | {fields_txt} |'
+        fields_txt = f' | '.join(fields)
+        return f'{left_txt}| {fields_txt} |'
 
     def draw_header(self) -> str:
         info = dict(zip(self.col_names, self.col_names))
