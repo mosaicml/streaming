@@ -131,6 +131,7 @@ setup(
     include_package_data=True,
     package_data={
         'streaming': ['py.typed'],
+        'simulation': ['py.typed'],
     },
     packages=setuptools.find_packages(exclude=['tests*']),
     entry_points={

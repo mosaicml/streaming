@@ -12,5 +12,4 @@ def launch_simulation_ui():
     absolute_cwd_path = os.path.dirname(os.path.abspath(__file__))
     sim_file_relative_path = 'interfaces/sim_ui.py'
     absolute_sim_path = os.path.join(absolute_cwd_path, sim_file_relative_path)
-    print(absolute_sim_path)
     subprocess.run(['streamlit', 'run', absolute_sim_path])
