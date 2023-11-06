@@ -101,6 +101,7 @@ extra_deps['simulator'] = [
     'PyYAML>=6.0,<7',
     'pandas>=2.0.3,<3',
     'wandb>=0.15.5,<1',
+    'humanize>=4.7.0,<5',
 ]
 
 extra_deps['spark'] = [
