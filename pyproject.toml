@@ -518,8 +518,6 @@ convention = "google"
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["D"]
 
-
-
 # Ignore directories
 [tool.yapfignore]
 ignore_patterns = [
