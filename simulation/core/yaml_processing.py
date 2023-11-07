@@ -61,6 +61,8 @@ def ingest_yaml(yaml_dict: Optional[dict] = None,
         global_batch_size = config['global_train_batch_size']
     elif 'batch_size' in config:
         global_batch_size = config['batch_size']
+    elif 'dataset' in config and 'train_batch_size' in config['dataset']:
+        global_batch_size = config['dataset']['train_batch_size']
 
     # get number of workers and training dataset params
     if 'train_loader' in config:
