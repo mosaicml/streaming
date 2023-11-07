@@ -7,9 +7,7 @@ from typing import Any, Dict, Optional, Tuple
 
 import pytest
 
-from streaming.base import StreamingDataset
-from streaming.text import StreamingC4
-from streaming.vision import StreamingADE20K, StreamingCIFAR10, StreamingCOCO, StreamingImageNet
+from streaming import StreamingDataset
 
 
 def get_dataset(name: str,
@@ -20,55 +18,6 @@ def get_dataset(name: str,
                 other_kwargs: Optional[Dict[str, Any]] = None) -> Tuple[int, StreamingDataset]:
     other_kwargs = {} if other_kwargs is None else other_kwargs
     dataset_map = {
-        'ade20k': {
-            'remote': 's3://mosaicml-internal-dataset-ade20k/mds/2/',
-            'num_samples': {
-                'train': 20206,
-                'val': 2000,
-            },
-            'class': StreamingADE20K,
-            'kwargs': {},
-        },
-        'imagenet1k': {
-            'remote': 's3://mosaicml-internal-dataset-imagenet1k/mds/2/',
-            'num_samples': {
-                'train': 1281167,
-                'val': 50000,
-            },
-            'class': StreamingImageNet,
-            'kwargs': {},
-        },
-        'coco': {
-            'remote': 's3://mosaicml-internal-dataset-coco/mds/2/',
-            'num_samples': {
-                'train': 117266,
-                'val': 4952,
-            },
-            'class': StreamingCOCO,
-            'kwargs': {},
-        },
-        'c4': {
-            'remote': 's3://mosaicml-internal-dataset-c4/mds/2/',
-            'num_samples': {
-                'train': 364868892,
-                'val': 364608,
-            },
-            'class': StreamingC4,
-            'kwargs': {
-                'tokenizer_name': 'bert-base-uncased',
-                'max_seq_len': 512,
-                'group_method': 'truncate'
-            },
-        },
-        'cifar10': {
-            'remote': 's3://mosaicml-internal-dataset-cifar10/mds/2/',
-            'num_samples': {
-                'train': 50000,
-                'val': 10000,
-            },
-            'class': StreamingCIFAR10,
-            'kwargs': {},
-        },
         'test_streaming_upload': {
             'remote': 's3://streaming-upload-test-bucket/',
             'num_samples': {

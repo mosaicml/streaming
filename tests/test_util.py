@@ -11,12 +11,12 @@ from typing import List, Optional, Tuple, Union
 
 import pytest
 
-from streaming.base.constant import RESUME
-from streaming.base.shared.prefix import _get_path
-from streaming.base.storage.download import download_file
-from streaming.base.storage.upload import CloudUploader
-from streaming.base.util import (bytes_to_int, clean_stale_shared_memory, get_list_arg,
-                                 merge_index, number_abbrev_to_int, retry)
+from streaming.constant import RESUME
+from streaming.shared.prefix import _get_path
+from streaming.storage.download import download_file
+from streaming.storage.upload import CloudUploader
+from streaming.util import (clean_stale_shared_memory, merge_index, normalize_bytes,
+                            normalize_count, retry, unpack_strs)
 
 MY_PREFIX = 'train_' + str(time.time())
 MY_BUCKET = {
@@ -24,18 +24,18 @@ MY_BUCKET = {
     's3://': 'testing-bucket',
     'oci://': 'testing-bucket',
 }
-os.environ[
-    'OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'  # set to yes to all fork process in spark calls
+# set to yes to all fork process in spark calls
+os.environ['OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'
 
 
 @pytest.mark.parametrize(('text', 'expected_output'), [('hello,world', ['hello', 'world']),
                                                        ('hello', ['hello']), ('', [])])
-def test_get_list_arg(text: str, expected_output: List[Optional[str]]):
-    output = get_list_arg(text)
+def test_unpack_strs(text: str, expected_output: List[Optional[str]]):
+    output = unpack_strs(text)
     assert output == expected_output
 
 
-def test_bytes_to_int():
+def test_normalize_bytes():
     input_to_expected = [
         ('1234', 1234),
         ('1b', 1),
@@ -63,18 +63,18 @@ def test_bytes_to_int():
         (325388903.203984, 325388903),
     ]
     for size_pair in input_to_expected:
-        output = bytes_to_int(size_pair[0])
+        output = normalize_bytes(size_pair[0])
         assert output == size_pair[1]
 
 
-def test_bytes_to_int_Exception():
+def test_normalize_bytes_Exception():
     input_data = ['', '12kbb', '27mxb', '79kkb']
     for value in input_data:
         with pytest.raises(ValueError, match=f'Unsupported value/suffix.*'):
-            _ = bytes_to_int(value)
+            _ = normalize_bytes(value)
 
 
-def test_number_abbrev_to_int():
+def test_normalize_count():
     input_to_expected = [
         ('1234', 1234),
         ('1k', 1000),
@@ -99,15 +99,15 @@ def test_number_abbrev_to_int():
         (325388903.203984, 325388903),
     ]
     for size_pair in input_to_expected:
-        output = number_abbrev_to_int(size_pair[0])
+        output = normalize_count(size_pair[0])
         assert output == size_pair[1]
 
 
-def test_number_abbrev_to_int_Exception():
+def test_normalize_count_Exception():
     input_data = ['', '12kbb', '27mxb', '79bk', '79bb', '79 b    m', 'p 64', '64p']
     for value in input_data:
         with pytest.raises(ValueError, match=f'Unsupported value/suffix.*'):
-            _ = number_abbrev_to_int(value)
+            _ = normalize_count(value)
 
 
 def test_clean_stale_shared_memory():
@@ -167,7 +167,8 @@ def integrity_check(out: Union[str, Tuple[str, str]],
         ), f'{local_merged_index_path} does not exist when keep_local is {keep_local}'
         merged_index = json.load(open(local_merged_index_path, 'r'))
         n_shard_files = len({b['raw_data']['basename'] for b in merged_index['shards']})
-        assert n_shard_files == expected_n_shard_files, f'expected {expected_n_shard_files} shard files but got {n_shard_files}'
+        assert n_shard_files == expected_n_shard_files, \
+            f'expected {expected_n_shard_files} shard files but got {n_shard_files}'
 
 
 @pytest.mark.parametrize('index_file_urls_pattern', [1, 2, 3])
@@ -179,7 +180,8 @@ def test_merge_index_from_list_local(local_remote_dir: Tuple[str, str], keep_loc
         1. All URLs are str (local). All URLs are accessible locally -> no download
         2. All URLs are str (local). At least one url is unaccessible locally -> Error
         3. All URLs are tuple (local, remote). All URLs are accessible locally -> no download
-        4. All URLs are tuple (local, remote). At least one url is not accessible locally -> download all
+        4. All URLs are tuple (local, remote). At least one url is not accessible locally -> \
+            download all
         5. All URLs are str (remote) -> download all
     """
     from decimal import Decimal
@@ -187,7 +189,7 @@ def test_merge_index_from_list_local(local_remote_dir: Tuple[str, str], keep_loc
     from pyspark.sql import SparkSession
     from pyspark.sql.types import DecimalType, IntegerType, StringType, StructField, StructType
 
-    from streaming.base.converters import dataframeToMDS
+    from streaming.converters import dataframeToMDS
 
     def not_merged_index(index_file_path: str, out: str):
         """Check if index_file_path is the merged index at folder out."""
@@ -254,7 +256,7 @@ def test_merge_index_from_root_local(local_remote_dir: Tuple[str, str], n_partit
     from pyspark.sql import SparkSession
     from pyspark.sql.types import DecimalType, IntegerType, StringType, StructField, StructType
 
-    from streaming.base.converters import dataframeToMDS
+    from streaming.converters import dataframeToMDS
 
     out, _ = local_remote_dir
 
