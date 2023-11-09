@@ -64,6 +64,7 @@ extra_deps = {}
 
 extra_deps['dev'] = [
     'datasets>=2.4.0,<3',
+    'pyarrow>14.0.0',
     'docformatter>=1.4',
     'jupyter==1.0.0',
     'pre-commit>=2.18.1,<4',
