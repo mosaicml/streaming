@@ -43,6 +43,8 @@ class World:
         self.ranks_per_node = dist.get_local_world_size()
         self.rank_of_node = self.rank % self.ranks_per_node
 
+        print(f'rank={self.rank}, num_ranks={self.num_ranks}, ranks_per_node={self.ranks_per_node}, rank_of_node={self.rank_of_node}')
+
         self.node = self.rank // self.ranks_per_node
         self.num_nodes = self.num_ranks // self.ranks_per_node
         self.is_multinode = 1 < self.num_nodes
