@@ -185,18 +185,20 @@ def get_shm_prefix(streams_local: List[str],
     _check_self(streams_local)
 
     # First, the local leader registers the first available shm prefix, recording its locals.
-    print("are we the local leader?", world.is_local_leader)
-    print("we are the worker of node...", world.worker_of_node)
     if world.is_local_leader:
-        print("WE ARE THE LOCAL LEADER. LETS GOOOOOO")
         prefix_int = _check_and_find_retrying(streams_local, streams_remote, retry)
         name = _get_path(prefix_int, LOCALS)
         data = _pack_locals(streams_local, prefix_int)
         shm = SharedMemory(name, True, len(data))
         shm.buf[:len(data)] = data
 
+    print("is dist available?", dist.is_available())
+    print("is dist initialized?", dist.is_initialized())
     if dist.is_available() and dist.is_initialized():
+        print("we are here. distributed barrier time.")
         dist.barrier()
+
+    print("no barrier. moving ahead !!!!!")
 
     # Non-local leaders go next, searching for match.
     if not world.is_local_leader:
