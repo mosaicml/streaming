@@ -7,7 +7,7 @@ The most widely used dataset for Image Classification algorithms. Please refer t
 2012 Classification Dataset <http://image-net.org/>`_ for more details.
 """
 
-from streaming.vision.base import StreamingVisionDataset
+from streaming.vision import StreamingVisionDataset
 
 __all__ = ['StreamingImageNet']
 

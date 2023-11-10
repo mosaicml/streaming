@@ -19,8 +19,8 @@
     └── part-00499-of-00500
     ```
 
-3. Run the [enwiki_text.py](https://github.com/mosaicml/streaming/blob/main/streaming/text/convert/enwiki_text.py) script. The script converts the `train` and `val` dataset splits into their own split directories. For more advanced use cases, please see the supported arguments for [enwiki_text.py](https://github.com/mosaicml/streaming/blob/main/streaming/text/convert/enwiki_text.py) and modify as necessary.
+3. Run the [write.py](https://github.com/mosaicml/streaming/blob/main/examples/text/enwiki_txt/write.py) script. The script converts the `train` and `val` dataset splits into their own split directories. For more advanced use cases, please see the supported arguments for [write.py](https://github.com/mosaicml/streaming/blob/main/examples/text/enwiki_txt/write.py) and modify as necessary.
     <!--pytest.mark.skip-->
     ```
-    python enwiki_text.py --in_root <Above directory> --out_root <local or remote directory path to save output MDS shard files>
+    python write.py --in_root <Above directory> --out_root <local or remote directory path to save output MDS shard files>
     ```

@@ -8,7 +8,7 @@ from time import time
 
 import numpy as np
 
-from streaming.multimodal.webvid import StreamingOutsideGIWebVid
+from examples.multimodal.webvid.read import StreamingOutsideGIWebVid
 
 
 def parse_args() -> Namespace:
@@ -18,12 +18,12 @@ def parse_args() -> Namespace:
         Namespace: Command-line arguments.
     """
     args = ArgumentParser()
-    args.add_argument('--local', type=str, required=True, help='Streaming dataset local')
+    args.add_argument('--local', type=str, required=True, help='Streaming dataset local',)
     args.add_argument('--extra_local',
                       type=str,
                       required=True,
                       help='Streaming dataset extra local')
-    args.add_argument('--remote', type=str, required=True, help='Streaming dataset remote')
+    args.add_argument('--remote', type=str, required=True, help='Streaming dataset remote',)
     args.add_argument('--extra_remote',
                       type=str,
                       required=True,

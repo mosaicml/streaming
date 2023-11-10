@@ -27,7 +27,7 @@ cd streaming/
 **3. Download metadata from the-eye.eu (parquet format)**
 <!--pytest.mark.skip-->
 ```
-./streaming/multimodal/convert/laion/laion400m/download_meta.sh
+./examples/multimodal/laion400m/download_meta.sh
 ```
 
 **4. Download data from the web (into parquet format, converting to mds format)**
@@ -35,13 +35,13 @@ cd streaming/
 The img2dataset download script saves samples in parquet files.
 <!--pytest.mark.skip-->
 ```
-./streaming/multimodal/convert/laion/laion400m/download_data.sh
+./examples/multimodal/laion400m/download_data.sh
 ```
 
 At the same time, do our conversion and uploading which uses MDS (you will want to run them at the same time, or disk usage can get excessive):
 <!--pytest.mark.skip-->
 ```
-./streaming/multimodal/convert/laion/laion400m/convert_and_upload.sh
+./examples/multimodal/laion400m/convert_and_upload.sh
 ```
 
 **Optional**

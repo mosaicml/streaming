@@ -6,7 +6,7 @@ from argparse import ArgumentParser, Namespace
 import numpy as np
 from PIL import Image
 
-from streaming.vision.convert.base import convert_image_class_dataset
+from streaming.vision import convert_image_class_dataset
 
 
 def parse_args() -> Namespace:

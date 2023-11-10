@@ -7,7 +7,7 @@ It is one of the most widely used datasets for machine learning research. Please
 `CIFAR-10 Dataset <https://www.cs.toronto.edu/~kriz/cifar.html>`_ for more details.
 """
 
-from streaming.vision.base import StreamingVisionDataset
+from streaming.vision import StreamingVisionDataset
 
 __all__ = ['StreamingCIFAR10']
 
