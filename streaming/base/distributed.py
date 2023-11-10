@@ -121,8 +121,12 @@ def maybe_init_dist() -> bool:
     """
     if get_world_size() == 1 or not dist.is_available() or dist.is_initialized():
         return False
-    if torch.cuda.is_available() and dist.is_nccl_available():
-        backend = 'nccl'
+    # if torch.cuda.is_available() and dist.is_nccl_available():
+    #     backend = 'nccl'
+    # else:
+    #     backend = 'gloo'
+    if torch.cuda.is_available():
+        backend = 'cuda:mpi'
     else:
         backend = 'gloo'
     dist.init_process_group(backend=backend, rank=get_rank(), world_size=get_world_size())
