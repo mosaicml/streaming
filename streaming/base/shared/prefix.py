@@ -185,7 +185,10 @@ def get_shm_prefix(streams_local: List[str],
     _check_self(streams_local)
 
     # First, the local leader registers the first available shm prefix, recording its locals.
+    print("are we the local leader?", world.is_local_leader)
+    print("we are the worker of node...", world.worker_of_node)
     if world.is_local_leader:
+        print("WE ARE THE LOCAL LEADER. LETS GOOOOOO")
         prefix_int = _check_and_find_retrying(streams_local, streams_remote, retry)
         name = _get_path(prefix_int, LOCALS)
         data = _pack_locals(streams_local, prefix_int)
