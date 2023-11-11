@@ -169,7 +169,7 @@ from torch.utils.data import DataLoader
 dataloader = DataLoader(dataset=dataset)
 ```
 
-You've now seen an in-depth look at how to prepare and use streaming datasets with PyTorch. To continue learning about Streaming, please continue to explore our [examples](../examples/cifar10.ipynb/)!
+You've now seen an in-depth look at how to prepare and use streaming datasets with PyTorch. To continue learning about Streaming, please continue to explore our [examples](../notebooks/cifar10.ipynb/)!
 
 ## Other options
 
