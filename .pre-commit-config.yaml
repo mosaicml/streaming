@@ -6,7 +6,7 @@ exclude: "^(examples/text/enwiki_tok/)"
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: v0.0.282
+    rev: v0.1.4
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
@@ -83,17 +83,6 @@ repos:
       - id: docformatter
         args: [--in-place, --wrap-summaries=99, --wrap-descriptions=99]
         exclude: "(tests)"
-  - repo: https://github.com/PyCQA/pydocstyle
-    hooks:
-      - id: pydocstyle
-        name: pydocstyle
-        entry: pydocstyle
-        language: python
-        types: [python]
-        exclude: "(tests|.ci|.github)"
-        additional_dependencies:
-          - "toml"
-    rev: 6.1.1
   - repo: https://github.com/adrienverge/yamllint.git
     rev: v1.28.0
     hooks:

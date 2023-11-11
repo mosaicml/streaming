@@ -489,13 +489,21 @@ use_tabs = false
 [tool.ruff]
 select = [
     "C4",
-    # TODO port pydocstyle
-    # "D", # pydocstyle
+    "D", # pydocstyle
     "PERF",
 ]
 
 ignore = [
     "C408",
+    "D102",
+    "D105",
+    "D107",
+    "D203", # default ignore
+    "D212", # default ignore
+    "D213", # default ignore
+    "D401",
+    "D404", # default ignore
+    "D417", # ruff only rulecode
     "PERF2",
     "PERF4",
 ]
@@ -505,6 +513,12 @@ exclude = [
     "node_modules/**",
 ]
 
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D"]
+
 # Ignore directories
 [tool.yapfignore]
 ignore_patterns = [
@@ -512,8 +526,3 @@ ignore_patterns = [
     "wandb/**/*.py",
     "build/**/*.py",
 ]
-
-[tool.pydocstyle]
-convention="google"
-add_ignore="D102,D105,D107,D401"
-add_select="D400,D404"
