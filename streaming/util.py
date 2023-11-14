@@ -5,18 +5,22 @@
 
 import collections.abc
 import functools
+import inspect
 import json
 import logging
 import os
 import random
 import shutil
+import sys
 import tempfile
 import urllib.parse
 from collections import OrderedDict
+from importlib import import_module
 from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
 from pathlib import Path
 from time import sleep, time
 from typing import Any, Callable, List, Sequence, Tuple, Type, TypeVar, Union, cast, overload
+from warnings import warn
 
 import torch.distributed as dist
 
@@ -31,7 +35,8 @@ TCallable = TypeVar('TCallable', bound=Callable)
 
 __all__ = [
     'get_list_arg', 'wait_for_file_to_exist', 'bytes_to_int', 'number_abbrev_to_int',
-    'clean_stale_shared_memory', 'get_import_exception_message', 'merge_index', 'retry'
+    'clean_stale_shared_memory', 'get_import_exception_message', 'merge_index', 'retry',
+    'redirect_imports'
 ]
 
 
@@ -525,13 +530,12 @@ def retry(  # type: ignore
     return wrapped_func
 
 
-import inspect
-import sys
-from importlib import import_module
-from warnings import warn
-
-
 def redirect_imports(new_fqdn: str) -> None:
+    """Overlay the members of the target module onto the module of the caller.
+
+    Args:
+        new_fqdn (str): Fully-qualified dot-separated target module path.
+    """
     frame = inspect.stack()[1]
     module = inspect.getmodule(frame[0])
     if module is None:

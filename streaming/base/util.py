@@ -3,7 +3,7 @@
 
 """This module has moved.
 
-Please update your imports to ```streaming.util```.
+Please update your imports to ``streaming.util``.
 """
 
 from streaming.util import redirect_imports

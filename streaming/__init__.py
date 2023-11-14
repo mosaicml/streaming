@@ -9,8 +9,9 @@ from streaming.dataset import StreamingDataset
 from streaming.format import CSVWriter, JSONWriter, MDSWriter, TSVWriter, XSVWriter
 from streaming.local import LocalDataset
 from streaming.stream import Stream
+from streaming.util import clean_stale_shared_memory
 
 __all__ = [
     'StreamingDataLoader', 'Stream', 'StreamingDataset', 'CSVWriter', 'JSONWriter', 'LocalDataset',
-    'MDSWriter', 'TSVWriter', 'XSVWriter'
+    'MDSWriter', 'TSVWriter', 'XSVWriter', 'clean_stale_shared_memory'
 ]
