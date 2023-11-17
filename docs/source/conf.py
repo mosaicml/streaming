@@ -35,6 +35,9 @@ from pypandoc.pandoc_download import download_pandoc
 from sphinx.ext.autodoc import ClassDocumenter, _
 from sphinx.writers.html5 import HTML5Translator
 
+import benchmarks
+import examples
+import notebooks
 import streaming
 
 if not shutil.which('pandoc'):
@@ -363,6 +366,29 @@ def _auto_rst_for_module(module: types.ModuleType, exclude_members: List[Any]) -
 def _modules_to_rst() -> List[types.ModuleType]:
     """Return the list of modules for which to generate API reference rst files."""
     document_modules: List[types.Module] = [
+        benchmarks,
+        benchmarks.compression,
+        benchmarks.epoch,
+        benchmarks.hashing,
+        benchmarks.partition,
+        benchmarks.samples,
+        benchmarks.serialization,
+        benchmarks.shuffle,
+        examples,
+        examples.multimodal,
+        examples.multimodal.laion400m,
+        examples.multimodal.webvid,
+        examples.text,
+        examples.text.c4,
+        examples.text.enwiki_tok,
+        examples.text.enwiki_txt,
+        examples.text.pile,
+        examples.vision,
+        examples.vision.ade20k,
+        examples.vision.cifar10,
+        examples.vision.coco,
+        examples.vision.imagenet,
+        notebooks,
         streaming,
         streaming.compression,
         streaming.format,
