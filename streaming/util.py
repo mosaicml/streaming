@@ -546,4 +546,6 @@ def redirect_imports(new_fqdn: str) -> None:
     new = import_module(new_fqdn)
     sys.modules[old_fqdn].__dict__.update(new.__dict__)
 
-    warn(f'Please update your imports: {old_fqdn} has moved to {new_fqdn}.')
+    warn(f'Please update your imports: {old_fqdn} has moved to {new_fqdn}.',
+         DeprecationWarning,
+         stacklevel=2)
