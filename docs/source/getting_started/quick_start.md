@@ -65,6 +65,6 @@ Start training your model with the Streaming dataset in a few steps!
     dataloader = DataLoader(dataset)
     ```
 
-That's it! For additional details on using {mod}`streaming`, please check out our [User Guide](user_guide.md) and [Examples](../examples/cifar10.ipynb).
+That's it! For additional details on using {mod}`streaming`, please check out our [User Guide](user_guide.md) and [Examples](../notebooks/cifar10.ipynb).
 
 Happy training!

@@ -10,9 +10,9 @@ import numpy as np
 import pytest
 from PIL import Image
 
-import streaming.base.format.json.encodings as jsonEnc
-import streaming.base.format.mds.encodings as mdsEnc
-import streaming.base.format.xsv.encodings as xsvEnc
+import streaming.format.json.encodings as jsonEnc
+import streaming.format.mds.encodings as mdsEnc
+import streaming.format.xsv.encodings as xsvEnc
 
 
 class TestMDSEncodings:

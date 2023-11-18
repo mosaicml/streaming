@@ -4,7 +4,7 @@
 import numpy as np
 import pytest
 
-from streaming.base.spanner import Spanner
+from streaming.spanner import Spanner
 
 
 def test_spanner_success():

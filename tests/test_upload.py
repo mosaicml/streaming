@@ -11,10 +11,9 @@ from unittest.mock import ANY, MagicMock, Mock, patch
 import boto3
 import pytest
 
-from streaming.base.storage.upload import (AzureDataLakeUploader, AzureUploader, CloudUploader,
-                                           DatabricksUnityCatalogUploader, DBFSUploader,
-                                           GCSAuthentication, GCSUploader, LocalUploader,
-                                           S3Uploader)
+from streaming.storage.upload import (AzureDataLakeUploader, AzureUploader, CloudUploader,
+                                      DatabricksUnityCatalogUploader, DBFSUploader,
+                                      GCSAuthentication, GCSUploader, LocalUploader, S3Uploader)
 from tests.conftest import MY_BUCKET, R2_URL
 
 MY_PREFIX = 'train'
@@ -38,8 +37,8 @@ def remote_local_dir() -> Any:
 
 class TestCloudUploader:
 
-    @patch('streaming.base.storage.upload.S3Uploader.check_bucket_exists')
-    @patch('streaming.base.storage.upload.GCSUploader.check_bucket_exists')
+    @patch('streaming.storage.upload.S3Uploader.check_bucket_exists')
+    @patch('streaming.storage.upload.GCSUploader.check_bucket_exists')
     @pytest.mark.parametrize(
         'mapping',
         [
@@ -112,7 +111,7 @@ class TestCloudUploader:
         with pytest.raises(botocore.exceptions.ClientError):
             _ = CloudUploader.get(out=out)
 
-    @patch('streaming.base.storage.LocalUploader.list_objects')
+    @patch('streaming.storage.LocalUploader.list_objects')
     @pytest.mark.usefixtures('remote_local_dir')
     def test_list_objects_from_local_gets_called(self, mocked_requests: Mock,
                                                  remote_local_dir: Any):
@@ -124,7 +123,7 @@ class TestCloudUploader:
 
 class TestS3Uploader:
 
-    @patch('streaming.base.storage.upload.S3Uploader.check_bucket_exists')
+    @patch('streaming.storage.upload.S3Uploader.check_bucket_exists')
     @pytest.mark.parametrize('out', ['s3://bucket/dir', ('./dir1', 's3://bucket/dir/')])
     def test_instantiation(self, mocked_requests: Mock, out: Any):
         mocked_requests.side_effect = None
@@ -253,7 +252,7 @@ class TestS3Uploader:
 
 class TestGCSUploader:
 
-    @patch('streaming.base.storage.upload.GCSUploader.check_bucket_exists')
+    @patch('streaming.storage.upload.GCSUploader.check_bucket_exists')
     @pytest.mark.parametrize('out', ['gs://bucket/dir', ('./dir1', 'gs://bucket/dir/')])
     @pytest.mark.usefixtures('gcs_hmac_credentials')
     def test_instantiation(self, mocked_requests: Mock, out: Any):
@@ -306,7 +305,7 @@ class TestGCSUploader:
         with pytest.raises(botocore.exceptions.ClientError):
             _ = GCSUploader(out=out)
 
-    @patch('streaming.base.storage.upload.GCSUploader.check_bucket_exists')
+    @patch('streaming.storage.upload.GCSUploader.check_bucket_exists')
     @pytest.mark.usefixtures('gcs_hmac_credentials')
     @pytest.mark.parametrize('out', ['gs://bucket/dir'])
     def test_hmac_authentication(self, mocked_requests: Mock, out: str):
@@ -322,7 +321,7 @@ class TestGCSUploader:
         uploader = GCSUploader(out=out)
         assert uploader.authentication == GCSAuthentication.SERVICE_ACCOUNT
 
-    @patch('streaming.base.storage.upload.GCSUploader.check_bucket_exists')
+    @patch('streaming.storage.upload.GCSUploader.check_bucket_exists')
     @patch('google.auth.default')
     @patch('google.cloud.storage.Client')
     @pytest.mark.usefixtures('gcs_service_account_credentials', 'gcs_hmac_credentials')
@@ -362,7 +361,7 @@ class TestGCSUploader:
 
 class TestAzureUploader:
 
-    @patch('streaming.base.storage.upload.AzureUploader.check_bucket_exists')
+    @patch('streaming.storage.upload.AzureUploader.check_bucket_exists')
     @pytest.mark.usefixtures('azure_credentials')
     @pytest.mark.parametrize('out', ['azure://bucket/dir', ('./dir1', 'azure://bucket/dir/')])
     def test_instantiation(self, mocked_requests: Mock, out: Any):
@@ -394,7 +393,7 @@ class TestAzureUploader:
 
 class TestAzureDataLakeUploader:
 
-    @patch('streaming.base.storage.upload.AzureDataLakeUploader.check_container_exists')
+    @patch('streaming.storage.upload.AzureDataLakeUploader.check_container_exists')
     @pytest.mark.usefixtures('azure_credentials')
     @pytest.mark.parametrize('out',
                              ['azure://container/dir', ('./dir1', 'azure://container/dir/')])
@@ -427,7 +426,7 @@ class TestAzureDataLakeUploader:
 
 class TestDatabricksUnityCatalogUploader:
 
-    @patch('streaming.base.storage.upload.DatabricksUploader._create_workspace_client')
+    @patch('streaming.storage.upload.DatabricksUploader._create_workspace_client')
     @pytest.mark.parametrize(
         'out', ['dbfs:/Volumes/container/dir', ('./dir1', 'dbfs:/Volumes/container/dir/')])
     def test_instantiation(self, mock_create_client: Mock, out: Any):
@@ -436,14 +435,14 @@ class TestDatabricksUnityCatalogUploader:
         if not isinstance(out, str):
             shutil.rmtree(out[0], ignore_errors=True)
 
-    @patch('streaming.base.storage.upload.DatabricksUploader._create_workspace_client')
+    @patch('streaming.storage.upload.DatabricksUploader._create_workspace_client')
     @pytest.mark.parametrize('out', ['ss4://bucket/dir', ('./dir1', 'gcs://bucket/dir/')])
     def test_invalid_remote_list(self, mock_create_client: Mock, out: Any):
         mock_create_client.side_effect = None
         with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
             _ = DatabricksUnityCatalogUploader(out=out)
 
-    @patch('streaming.base.storage.upload.DatabricksUploader._create_workspace_client')
+    @patch('streaming.storage.upload.DatabricksUploader._create_workspace_client')
     def test_local_directory_is_empty(self, mock_create_client: Mock,
                                       local_remote_dir: Tuple[str, str]):
         mock_create_client.side_effect = None
@@ -459,7 +458,7 @@ class TestDatabricksUnityCatalogUploader:
 
 class TestDBFSUploader:
 
-    @patch('streaming.base.storage.upload.DatabricksUploader._create_workspace_client')
+    @patch('streaming.storage.upload.DatabricksUploader._create_workspace_client')
     @pytest.mark.parametrize('out', ['dbfs:/container/dir', ('./dir1', 'dbfs:/container/dir/')])
     def test_instantiation(self, mock_create_client: Mock, out: Any):
         mock_create_client.side_effect = None
@@ -467,14 +466,14 @@ class TestDBFSUploader:
         if not isinstance(out, str):
             shutil.rmtree(out[0], ignore_errors=True)
 
-    @patch('streaming.base.storage.upload.DatabricksUploader._create_workspace_client')
+    @patch('streaming.storage.upload.DatabricksUploader._create_workspace_client')
     @pytest.mark.parametrize('out', ['ss4://bucket/dir', ('./dir1', 'gcs://bucket/dir/')])
     def test_invalid_remote_list(self, mock_create_client: Mock, out: Any):
         mock_create_client.side_effect = None
         with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
             _ = DBFSUploader(out=out)
 
-    @patch('streaming.base.storage.upload.DatabricksUploader._create_workspace_client')
+    @patch('streaming.storage.upload.DatabricksUploader._create_workspace_client')
     def test_local_directory_is_empty(self, mock_create_client: Mock,
                                       local_remote_dir: Tuple[str, str]):
         with pytest.raises(FileExistsError, match=f'Directory is not empty.*'):

@@ -143,44 +143,45 @@ dataloader = DataLoader(dataset)
 
 ### 📚 What next?
 
-Getting started guides, examples, API references, and other useful information can be found in our [docs](https://streaming.docs.mosaicml.com/).
+Getting started guides, example notebooks, API references, and other useful information can be found in our [docs](https://streaming.docs.mosaicml.com/).
 
 We have end-to-end tutorials for training a model on:
 
-- [CIFAR-10](https://streaming.docs.mosaicml.com/en/stable/examples/cifar10.html)
-- [FaceSynthetics](https://streaming.docs.mosaicml.com/en/stable/examples/facesynthetics.html)
-- [SyntheticNLP](https://streaming.docs.mosaicml.com/en/stable/examples/synthetic_nlp.html)
+- [CIFAR-10](https://streaming.docs.mosaicml.com/en/stable/notebooks/cifar10.html)
+- [FaceSynthetics](https://streaming.docs.mosaicml.com/en/stable/notebooks/facesynthetics.html)
+- [SyntheticNLP](https://streaming.docs.mosaicml.com/en/stable/notebooks/synthetic_nlp.html)
 
-We also have starter code for the following popular datasets, which can be found in the `streaming` [directory](https://github.com/mosaicml/streaming/tree/main/streaming):
+We also have starter code for the following popular datasets, which can be found under [`examples/`](https://github.com/mosaicml/streaming/tree/main/examples) organized by modality:
 
 | Dataset | Task | Read | Write |
 | --- | --- | --- | --- |
-| LAION-400M | Text and image | [Read](https://github.com/mosaicml/diffusion-benchmark/blob/main/data.py) | [Write](https://github.com/mosaicml/streaming/tree/main/streaming/multimodal/convert/laion/laion400m) |
-| WebVid | Text and video | [Read](https://github.com/mosaicml/streaming/blob/main/streaming/multimodal/webvid.py) | [Write](https://github.com/mosaicml/streaming/blob/main/streaming/multimodal/convert/webvid.py) |
-| C4 | Text | [Read](https://github.com/mosaicml/streaming/blob/main/streaming/text/c4.py) | [Write](https://github.com/mosaicml/streaming/blob/main/streaming/text/convert/c4.py) |
-| EnWiki | Text | [Read](https://github.com/mosaicml/streaming/blob/main/streaming/text/enwiki.py) | [Write](https://github.com/mosaicml/streaming/tree/main/streaming/text/convert/enwiki) |
-| Pile | Text | [Read](https://github.com/mosaicml/streaming/blob/main/streaming/text/pile.py) | [Write](https://github.com/mosaicml/streaming/blob/main/streaming/text/convert/pile.py)
-| ADE20K | Image segmentation | [Read](https://github.com/mosaicml/streaming/blob/main/streaming/vision/ade20k.py) | [Write](https://github.com/mosaicml/streaming/blob/main/streaming/vision/convert/ade20k.py)
-| CIFAR10 | Image classification | [Read](https://github.com/mosaicml/streaming/blob/main/streaming/vision/cifar10.py) | [Write](https://github.com/mosaicml/streaming/blob/main/streaming/vision/convert/cifar10.py) |
-| COCO | Image classification | [Read](https://github.com/mosaicml/streaming/blob/main/streaming/vision/coco.py) | [Write](https://github.com/mosaicml/streaming/blob/main/streaming/vision/convert/coco.py) |
-| ImageNet | Image classification | [Read](https://github.com/mosaicml/streaming/blob/main/streaming/vision/imagenet.py) | [Write](https://github.com/mosaicml/streaming/blob/main/streaming/vision/convert/imagenet.py) |
+| LAION-400M | Text and image | [Read](https://github.com/mosaicml/diffusion-benchmark/blob/main/data.py) | [Write](https://github.com/mosaicml/streaming/tree/main/examples/multimodal/laion400m) |
+| WebVid | Text and video | [Read](https://github.com/mosaicml/streaming/blob/main/examples/multimodal/webvid/read.py) | [Write](https://github.com/mosaicml/streaming/blob/main/examples/multimodal/webvid/webvid/write/) |
+| C4 | Text | [Read](https://github.com/mosaicml/streaming/blob/main/examples/text/c4/read.py) | [Write](https://github.com/mosaicml/streaming/blob/main/examples/text/c4/write.py) |
+| EnWiki | Text | [Read](https://github.com/mosaicml/streaming/blob/main/examples/text/enwiki_text/read.py) | [Write](https://github.com/mosaicml/streaming/tree/main/examples/text/enwiki/write.py) |
+| Pile | Text | [Read](https://github.com/mosaicml/streaming/blob/main/examples/text/pile/read.py) | [Write](https://github.com/mosaicml/streaming/blob/main/examples/text/pile/write.py)
+| ADE20K | Image segmentation | [Read](https://github.com/mosaicml/streaming/blob/main/examples/vision/ade20k/read.py) | [Write](https://github.com/mosaicml/streaming/blob/main/examples/vision/ade20k/write.py)
+| CIFAR10 | Image classification | [Read](https://github.com/mosaicml/streaming/blob/main/examples/vision/cifar10/read.py) | [Write](https://github.com/mosaicml/streaming/blob/main/examples/vision/cifar10/write.py) |
+| COCO | Image classification | [Read](https://github.com/mosaicml/streaming/blob/main/examples/vision/coco/read.py) | [Write](https://github.com/mosaicml/streaming/blob/main/examples/vision/coco/write.py) |
+| ImageNet | Image classification | [Read](https://github.com/mosaicml/streaming/blob/main/examples/vision/imagenet/read.py) | [Write](https://github.com/mosaicml/streaming/blob/main/examples/vision/imagenet/write.py) |
 
 **To start training on these datasets:**
 
-1. Convert raw data into .mds format using the corresponding script from the `convert` directory.
+1. Convert raw data into .mds format using the corresponding `write.py` script.
 
 For example:
 
 <!--pytest.mark.skip-->
 ```bash
-$ python -m streaming.multimodal.convert.webvid --in <CSV file> --out <MDS output directory>
+$ python -m examples.multimodal.webvid.write.craw_webvid --in <CSV file> --out_root <MDS output directory>
 ```
 
 2. Import dataset class to start training the model.
 
 <!--pytest.mark.skip-->
 ```python
-from streaming.multimodal import StreamingInsideWebVid
+from examples.multimodal.webvid.read import StreamingInsideWebVid
+
 dataset = StreamingInsideWebVid(local=local, remote=remote, shuffle=True)
 ```
 

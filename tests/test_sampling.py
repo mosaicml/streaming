@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from streaming.base.sampling import get_sampling
+from streaming.sampling import get_sampling
 
 
 def test_choose_per_shard_adds_up():

@@ -13,34 +13,30 @@ Let's look at the steps one needs to perform to convert their raw data into an M
 3. Convert the raw sample in the form of `column` field.
 4. Instantiate MDSWriter and call the `write` method to write a raw sample one at a time.
 
-Checkout the [user guide](../getting_started/user_guide.md) section which contains a simplistic example for the data conversion using single process. For multiprocess dataset conversion example, checkout [this](../examples/multiprocess_dataset_conversion.ipynb) tutorial.
+Checkout the [user guide](../getting_started/user_guide.md) section which contains a simplistic example for the data conversion using single process. For multiprocess dataset conversion example, checkout [this](../notebooks/multiprocess_dataset_conversion.ipynb) tutorial.
 
 
 We've already created conversion scripts that can be used to convert popular public datasets to MDS format.  Please see below for usage instructions.
 
 ## Spark Dataframe Conversion Examples
-```{include} ../../../streaming/base/converters/README.md
+```{include} ../../../streaming/converters/README.md
 :start-line: 2
 ```
 
 ## NLP Dataset Conversion Examples
 
-```{include} ../../../streaming/text/convert/README.md
-:start-line: 8
-```
+[examples/text/](../examples/text/)
 
 ## Vision Dataset Conversion Examples
 
-```{include} ../../../streaming/vision/convert/README.md
-:start-line: 8
-```
+[examples/vision/](../examples/vision/)
 
 ## Multimodal Dataset Conversion Examples
 ### [LAION-400M](https://laion.ai/blog/laion-400-open-dataset/)
-```{include} ../../../streaming/multimodal/convert/laion/laion400m/README.md
+```{include} ../../../examples/multimodal/laion400m/README.md
 :start-line: 8
 ```
 ### [WebVid](https://m-bain.github.io/webvid-dataset/)
-```{include} ../../../streaming/multimodal/convert/webvid/README.md
+```{include} ../../../examples/multimodal/webvid/write/README.md
 :start-line: 12
 ```

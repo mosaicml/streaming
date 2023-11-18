@@ -42,7 +42,7 @@ column = {
 import numpy as np
 from typing import Any
 
-from streaming.base.format.mds.encodings import Encoding, _encodings
+from streaming.format.mds.encodings import Encoding, _encodings
 
 class Int32(Encoding):
     def encode(self, obj: Any) -> bytes:

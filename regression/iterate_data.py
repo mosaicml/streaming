@@ -17,8 +17,7 @@ from utils import (compare_sample_order, get_dataloader_params, get_kwargs,
                    get_streaming_dataset_params)
 
 from streaming import StreamingDataset
-from streaming.base.distributed import (all_gather, barrier, get_rank, get_world_size,
-                                        maybe_init_dist)
+from streaming.distributed import all_gather, barrier, get_rank, get_world_size, maybe_init_dist
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)

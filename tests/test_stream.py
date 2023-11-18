@@ -11,7 +11,7 @@ import pytest
 from _pytest.monkeypatch import MonkeyPatch
 
 from streaming import Stream, StreamingDataset
-from streaming.base.distributed import barrier
+from streaming.distributed import barrier
 from tests.common.utils import convert_to_mds
 
 

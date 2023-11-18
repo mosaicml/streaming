@@ -5,7 +5,7 @@
 
 from typing import Tuple
 
-from streaming.base.spanner import Spanner
+from streaming.spanner import Spanner
 
 
 class SimulationSpanner(Spanner):
