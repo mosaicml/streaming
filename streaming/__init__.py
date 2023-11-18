@@ -3,24 +3,15 @@
 
 """MosaicML Streaming Datasets for cloud-native model training."""
 
-import streaming.multimodal as multimodal
-import streaming.text as text
-import streaming.vision as vision
 from streaming._version import __version__
-from streaming.base import (CSVWriter, JSONWriter, LocalDataset, MDSWriter, Stream,
-                            StreamingDataLoader, StreamingDataset, TSVWriter, XSVWriter)
+from streaming.dataloader import StreamingDataLoader
+from streaming.dataset import StreamingDataset
+from streaming.format import CSVWriter, JSONWriter, MDSWriter, TSVWriter, XSVWriter
+from streaming.local import LocalDataset
+from streaming.stream import Stream
+from streaming.util import clean_stale_shared_memory
 
 __all__ = [
-    'StreamingDataLoader',
-    'Stream',
-    'StreamingDataset',
-    'CSVWriter',
-    'JSONWriter',
-    'MDSWriter',
-    'TSVWriter',
-    'XSVWriter',
-    'LocalDataset',
-    'multimodal',
-    'vision',
-    'text',
+    'StreamingDataLoader', 'Stream', 'StreamingDataset', 'CSVWriter', 'JSONWriter', 'LocalDataset',
+    'MDSWriter', 'TSVWriter', 'XSVWriter', 'clean_stale_shared_memory'
 ]

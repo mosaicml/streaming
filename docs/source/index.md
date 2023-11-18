@@ -75,11 +75,11 @@ If you have any questions, please feel free to reach out to us on [Twitter](htt
    :maxdepth: 1
    :caption: Examples
 
-   examples/cifar10.ipynb
-   examples/facesynthetics.ipynb
-   examples/synthetic_nlp.ipynb
-   examples/multiprocess_dataset_conversion.ipynb
-   examples/spark_dataframe_to_MDS.ipynb
+   notebooks/cifar10.ipynb
+   notebooks/facesynthetics.ipynb
+   notebooks/synthetic_nlp.ipynb
+   notebooks/multiprocess_dataset_conversion.ipynb
+   notebooks/spark_dataframe_to_MDS.ipynb
 
 .. toctree::
    :hidden:

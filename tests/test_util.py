@@ -11,12 +11,12 @@ from typing import List, Optional, Tuple, Union
 
 import pytest
 
-from streaming.base.constant import RESUME
-from streaming.base.shared.prefix import _get_path
-from streaming.base.storage.download import download_file
-from streaming.base.storage.upload import CloudUploader
-from streaming.base.util import (bytes_to_int, clean_stale_shared_memory, get_list_arg,
-                                 merge_index, number_abbrev_to_int, retry)
+from streaming.constant import RESUME
+from streaming.shared.prefix import _get_path
+from streaming.storage.download import download_file
+from streaming.storage.upload import CloudUploader
+from streaming.util import (bytes_to_int, clean_stale_shared_memory, get_list_arg, merge_index,
+                            number_abbrev_to_int, retry)
 
 MY_PREFIX = 'train_' + str(time.time())
 MY_BUCKET = {
@@ -187,7 +187,7 @@ def test_merge_index_from_list_local(local_remote_dir: Tuple[str, str], keep_loc
     from pyspark.sql import SparkSession
     from pyspark.sql.types import DecimalType, IntegerType, StringType, StructField, StructType
 
-    from streaming.base.converters import dataframeToMDS
+    from streaming.converters import dataframeToMDS
 
     def not_merged_index(index_file_path: str, out: str):
         """Check if index_file_path is the merged index at folder out."""
@@ -254,7 +254,7 @@ def test_merge_index_from_root_local(local_remote_dir: Tuple[str, str], n_partit
     from pyspark.sql import SparkSession
     from pyspark.sql.types import DecimalType, IntegerType, StringType, StructField, StructType
 
-    from streaming.base.converters import dataframeToMDS
+    from streaming.converters import dataframeToMDS
 
     out, _ = local_remote_dir
 

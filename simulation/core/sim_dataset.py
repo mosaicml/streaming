@@ -16,11 +16,11 @@ from core.sim_spanner import SimulationSpanner
 from core.sim_world import SimulationWorld
 from numpy.typing import NDArray
 
-from streaming.base import Stream, StreamingDataset
-from streaming.base.batching import generate_work
-from streaming.base.format import get_index_basename
-from streaming.base.spanner import Spanner
-from streaming.base.util import bytes_to_int, number_abbrev_to_int
+from streaming import Stream, StreamingDataset
+from streaming.batching import generate_work
+from streaming.format import get_index_basename
+from streaming.spanner import Spanner
+from streaming.util import bytes_to_int, number_abbrev_to_int
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)

@@ -10,7 +10,7 @@ import random
 import string
 from typing import Optional
 
-from streaming.base.format import get_index_basename
+from streaming.format import get_index_basename
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)

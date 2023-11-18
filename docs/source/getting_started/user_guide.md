@@ -106,7 +106,7 @@ def each(samples):
 It's time to call the {class}`streaming.MDSWriter` with the above initialized parameters and write the samples by iterating over a dataset.
 <!--pytest-codeblocks:cont-->
 ```python
-from streaming.base import MDSWriter
+from streaming import MDSWriter
 
 dataset = RandomClassificationDataset()
 with MDSWriter(out=output_dir, columns=columns, compression=compression, hashes=hashes, size_limit=limit) as out:
@@ -169,7 +169,7 @@ from torch.utils.data import DataLoader
 dataloader = DataLoader(dataset=dataset)
 ```
 
-You've now seen an in-depth look at how to prepare and use streaming datasets with PyTorch. To continue learning about Streaming, please continue to explore our [examples](../examples/cifar10.ipynb/)!
+You've now seen an in-depth look at how to prepare and use streaming datasets with PyTorch. To continue learning about Streaming, please continue to explore our [examples](../notebooks/cifar10.ipynb/)!
 
 ## Other options
 

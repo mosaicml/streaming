@@ -21,7 +21,7 @@ from core.sim_dataset import SimulationDataset
 from core.sim_time import TimeUnit, ensure_time
 from numpy.typing import NDArray
 
-from streaming.base import Stream
+from streaming import Stream
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)

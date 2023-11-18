@@ -7,9 +7,7 @@ from typing import Any, Dict, Optional, Tuple
 
 import pytest
 
-from streaming.base import StreamingDataset
-from streaming.text import StreamingC4
-from streaming.vision import StreamingADE20K, StreamingCIFAR10, StreamingCOCO, StreamingImageNet
+from streaming import StreamingDataset
 
 
 def get_dataset(name: str,
@@ -26,7 +24,7 @@ def get_dataset(name: str,
                 'train': 20206,
                 'val': 2000,
             },
-            'class': StreamingADE20K,
+            'class': StreamingDataset,
             'kwargs': {},
         },
         'imagenet1k': {
@@ -35,7 +33,7 @@ def get_dataset(name: str,
                 'train': 1281167,
                 'val': 50000,
             },
-            'class': StreamingImageNet,
+            'class': StreamingDataset,
             'kwargs': {},
         },
         'coco': {
@@ -44,7 +42,7 @@ def get_dataset(name: str,
                 'train': 117266,
                 'val': 4952,
             },
-            'class': StreamingCOCO,
+            'class': StreamingDataset,
             'kwargs': {},
         },
         'c4': {
@@ -53,11 +51,12 @@ def get_dataset(name: str,
                 'train': 364868892,
                 'val': 364608,
             },
-            'class': StreamingC4,
+            'class': StreamingDataset,
             'kwargs': {
-                'tokenizer_name': 'bert-base-uncased',
-                'max_seq_len': 512,
-                'group_method': 'truncate'
+                # Use kwargs if creating a `StreamingC4`, but not needed for `StreamingDataset`.
+                # 'tokenizer_name': 'bert-base-uncased',
+                # 'max_seq_len': 512,
+                # 'group_method': 'truncate'
             },
         },
         'cifar10': {
@@ -66,7 +65,7 @@ def get_dataset(name: str,
                 'train': 50000,
                 'val': 10000,
             },
-            'class': StreamingCIFAR10,
+            'class': StreamingDataset,
             'kwargs': {},
         },
         'test_streaming_upload': {

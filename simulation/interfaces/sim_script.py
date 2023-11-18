@@ -16,7 +16,7 @@ from core.sim_time import TimeUnit, ensure_time
 from core.utils import get_simulation_stats
 from interfaces.interface_utils import plot_simulation
 
-from streaming.base import Stream
+from streaming import Stream
 
 # Input Parameters
 

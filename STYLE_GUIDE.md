@@ -142,10 +142,10 @@ so other contributors will know why this error was silenced.
 A public API, generally speaking, can be invoked by a user without a leading underscore in any portion of the path.
 The following are examples of public APIs:
 
-* Standalone functions in public modules (e.g. `streaming.base.distributed.get_world_size`)
-* Classes in public modules (e.g. `streaming.base.format.MDSWriter`)
-* Public methods in public classes (e.g. `streaming.base.format.MDSWriter.write`)
-* Public modules (e.g. `streaming.base.dataset`)
+* Standalone functions in public modules (e.g. `streaming.distributed.get_world_size`)
+* Classes in public modules (e.g. `streaming.format.MDSWriter`)
+* Public methods in public classes (e.g. `streaming.format.MDSWriter.write`)
+* Public modules (e.g. `streaming.dataset`)
 
 The following rules apply to public APIs:
 1. All public APIs must have a docstring (see the Documentation section below)
@@ -201,14 +201,14 @@ All public modules must define `__all__` to be the list of members that should b
 The variable is necessary to 1) limit what `from XXX import *` imports, and 2) ensure that the documentation only
 includes exported members, not unrelated re-imports.
 
-For example, from [streaming/base/dataset.py](streaming/base/dataset.py)
+For example, from [streaming/dataset.py](streaming/dataset.py)
 
 ```python
 """The :class:`Dataset` class, used for building streaming iterable datasets."""
 from torch.utils.data import IterableDataset
 
-from streaming.base.format import reader_from_json
-from streaming.base.spanner import Spanner
+from streaming.format import reader_from_json
+from streaming.spanner import Spanner
 
 __all__ = ["Dataset"]  # export only the Dataset, not other imports like `Spanner` or `reader_from_json`
 

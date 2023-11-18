@@ -10,8 +10,8 @@ from typing import Any, Tuple
 import pytest
 from torch.utils.data import DataLoader
 
-from streaming.base import Stream, StreamingDataLoader, StreamingDataset
-from streaming.base.util import clean_stale_shared_memory
+from streaming import Stream, StreamingDataLoader, StreamingDataset
+from streaming.util import clean_stale_shared_memory
 from tests.common.utils import convert_to_mds
 
 
