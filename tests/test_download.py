@@ -4,7 +4,8 @@
 import os
 import tempfile
 from typing import Any, Tuple
-from unittest.mock import Mock, patch
+from unittest import mock
+from unittest.mock import ANY, Mock, patch
 
 import boto3
 import pytest
@@ -81,6 +82,56 @@ class TestS3Client:
         with pytest.raises(ValueError):
             mock_remote_filepath, mock_local_filepath = remote_local_file(cloud_prefix='s9://')
             download_from_s3(mock_remote_filepath, mock_local_filepath, 60)
+
+    @mock.patch.object(boto3.session.Session, 'client')
+    def test_extra_args(self, client: Mock):
+        with tempfile.NamedTemporaryFile(delete=True, suffix='.txt') as tmp:
+            with mock.patch.dict('os.environ'):
+                mock_remote_filepath = 's3://bucket/prefix/file.txt'
+                # No extra args
+                os.environ.pop('S3_CANNED_ACL', None)
+                os.environ.pop('RequestPayer', None)
+                download_from_s3(mock_remote_filepath, tmp.name, 60)
+                client('s3').download_file.assert_called_once()
+                client('s3').download_file.assert_called_with(ANY,
+                                                              ANY,
+                                                              ANY,
+                                                              ExtraArgs={},
+                                                              Config=ANY)
+
+                # With `authenticated-read` ACL
+                os.environ['S3_CANNED_ACL'] = 'authenticated-read'
+                download_from_s3(mock_remote_filepath, tmp.name, 60)
+                client('s3').download_file.assert_called_with(
+                    ANY, ANY, ANY, ExtraArgs={'ACL': 'authenticated-read'}, Config=ANY)
+
+                # With `bucket-owner-full-control` ACL
+                os.environ['S3_CANNED_ACL'] = 'bucket-owner-full-control'
+                download_from_s3(mock_remote_filepath, tmp.name, 60)
+                client('s3').download_file.assert_called_with(
+                    ANY, ANY, ANY, ExtraArgs={'ACL': 'bucket-owner-full-control'}, Config=ANY)
+
+                # With `RequestPayer` bucket
+                os.environ.pop('S3_CANNED_ACL', None)
+                os.environ['MOSAICML_STREAMING_AWS_REQUESTER_PAYS'] = 'bucket'
+                download_from_s3(mock_remote_filepath, tmp.name, 60)
+                client('s3').download_file.assert_called_with(
+                    ANY, ANY, ANY, ExtraArgs={'RequestPayer': 'requester'}, Config=ANY)
+
+                # With more than one extra args
+                os.environ.pop('S3_CANNED_ACL', None)
+                os.environ.pop('RequestPayer', None)
+                os.environ['S3_CANNED_ACL'] = 'authenticated-read'
+                os.environ['MOSAICML_STREAMING_AWS_REQUESTER_PAYS'] = 'bucket'
+                download_from_s3(mock_remote_filepath, tmp.name, 60)
+                client('s3').download_file.assert_called_with(ANY,
+                                                              ANY,
+                                                              ANY,
+                                                              ExtraArgs={
+                                                                  'ACL': 'authenticated-read',
+                                                                  'RequestPayer': 'requester'
+                                                              },
+                                                              Config=ANY)
 
 
 class TestGCSClient:

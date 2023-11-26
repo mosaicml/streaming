@@ -96,6 +96,11 @@ def download_from_s3(remote: str, local: str, timeout: float) -> None:
         if obj.netloc in requester_pays_buckets:
             extra_args['RequestPayer'] = 'requester'
 
+    # Check for canned ACL environment variable
+    canned_acl = os.environ.get('S3_CANNED_ACL')
+    if canned_acl is not None:
+        extra_args['ACL'] = canned_acl
+
     try:
         _download_file(extra_args=extra_args)
     except NoCredentialsError:
