@@ -72,7 +72,7 @@ extra_deps['dev'] = [
     'pytest_codeblocks==0.17.0',
     'pytest-cov>=4,<5',
     'toml==0.10.2',
-    'yamllint==1.32.0',
+    'yamllint==1.33.0',
     'moto>=4.0,<5',
     'fastapi==0.104.1',
     'pydantic==2.5.2',
