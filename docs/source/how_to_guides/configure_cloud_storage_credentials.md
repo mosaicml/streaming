@@ -72,6 +72,20 @@ export MOSAICML_STREAMING_AWS_REQUESTER_PAYS='streaming-bucket,another-bucket'
 ```
 ````
 
+### Canned ACL
+Canned ACLs (Access Control Lists) are predefined sets of permissions in AWS S3 that you can apply to your objects. These can simplify the process of managing access to your S3 resources. Examples of canned ACLs include `private`, `public-read`, `public-read-write`, `authenticated-read`, etc. You can set a canned ACL for your S3 objects by using the `S3_CANNED_ACL` environment variable. This allows you to manage access permissions to your S3 resources in a simplified manner.
+
+````{tabs}
+```{code-tab} py
+import os
+os.environ['S3_CANNED_ACL'] = 'authenticated-read'
+```
+
+```{code-tab} sh
+export S3_CANNED_ACL='authenticated-read'
+```
+````
+
 ## Any S3 compatible object store
 For any S3 compatible object store such as [Cloudflare R2](https://www.cloudflare.com/products/r2/), [Coreweave](https://docs.coreweave.com/storage/object-storage), [Backblaze b2](https://www.backblaze.com/b2/cloud-storage.html), etc., setup your credentials as mentioned in the above `Amazon S3` section. The only difference is you must set your object store endpoint url. To do this, you need to set the ``S3_ENDPOINT_URL`` environment variable.
 
