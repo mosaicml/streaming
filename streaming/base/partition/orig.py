@@ -9,6 +9,7 @@ from typing import Optional
 
 import numpy as np
 from numpy.typing import NDArray
+import warnings
 
 logger = logging.getLogger(__name__)
 
@@ -126,10 +127,22 @@ def get_partitions_orig(num_samples: int,
     #
     # ids: (physical nodes, samples per rank, ranks per node).
     overflow = ids.shape[1] % ranks_per_node
+    more_samples_than_ranks = ids.shape[1] > ranks_per_node
     if overflow:
         underflow = ranks_per_node - overflow
-        last = ids[:, -ranks_per_node - underflow + 1:-ranks_per_node + 1]
+        if more_samples_than_ranks:
+            last = ids[:, -ranks_per_node - underflow + 1:-ranks_per_node + 1]
+        else:
+            # There are less samples than ranks. Usually, we pad by trying to ensure that the same
+            # samples don't get repeated over and over, but with in this case, we are forced to.
+            warnings.warn(f'Attempting to partition {ids.shape[1]} samples over {ranks_per_node} \
+                            gpus. This will result in many samples being repeated!')
+            num_samples = ids.shape[1]
+            full_repeats = underflow // num_samples
+            leftover_samples = underflow % num_samples
+            last = np.concatenate([np.tile(ids, full_repeats), ids[:,:leftover_samples]], 1)
         ids = np.concatenate([ids, last], 1)
+
     ids = ids.reshape(num_physical_nodes, -1, ranks_per_node)
 
     # Pad with -1 adequately for reshaping across workers.
