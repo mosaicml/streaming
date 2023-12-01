@@ -64,6 +64,9 @@ class Writer(ABC):
                 file to a remote location. Default to ``min(32, (os.cpu_count() or 1) + 4)``.
             retry (int): Number of times to retry uploading a file to a remote location.
                 Default to ``2``.
+            exist_ok (bool): If the local directory exists and not empty, whether to overwrite
+                the content or raise an error. `False` raises an error. `True` overwrites the
+                content. Defaults to `False`.
     """
 
     format: str = ''  # Name of the format (like "mds", "csv", "json", etc).
@@ -120,6 +123,18 @@ class Writer(ABC):
                                               kwargs.get('retry', 2))
         self.local = self.cloud_writer.local
         self.remote = self.cloud_writer.remote
+
+        if os.path.exists(self.local) and len(os.listdir(self.local)) != 0:
+            if kwargs.get('exist_ok', False):
+                logger.warning(f'Directory {self.local} exists and not empty since you provided ' +
+                               f'`exist_ok=True`.')
+            else:
+                raise FileExistsError(f'Directory is not empty: {self.local}. If you still want ' +
+                                      f'to use this directory without emptying the content, ' +
+                                      f'please provide `exist_ok=True`.')
+        # Create the local directory if it does not exist.
+        os.makedirs(self.local, exist_ok=True)
+
         # `max_workers`: The maximum number of threads that can be executed in parallel.
         # One thread is responsible for uploading one shard file to a remote location.
         self.executor = ThreadPoolExecutor(max_workers=kwargs.get('max_workers', None))
@@ -380,6 +395,9 @@ class JointWriter(Writer):
                 file to a remote location. Default to ``min(32, (os.cpu_count() or 1) + 4)``.
             retry (int): Number of times to retry uploading a file to a remote location.
                 Default to ``2``.
+            exist_ok (bool): If the local directory exists and not empty, whether to overwrite
+                the content or raise an error. `False` raises an error. `True` overwrites the
+                content. Defaults to `False`.
     """
 
     def __init__(self,
@@ -466,6 +484,9 @@ class SplitWriter(Writer):
                 file to a remote location. Default to ``min(32, (os.cpu_count() or 1) + 4)``.
             retry (int): Number of times to retry uploading a file to a remote location.
                 Default to ``2``.
+            exist_ok (bool): If the local directory exists and not empty, whether to overwrite
+                the content or raise an error. `False` raises an error. `True` overwrites the
+                content. Defaults to `False`.
     """
 
     extra_bytes_per_shard = 0

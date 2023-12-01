@@ -284,7 +284,7 @@ def _merge_index_from_list(index_file_urls: List[Union[str, Tuple[str, str]]],
     # This is the index json file name, e.g., it is index.json as of 0.6.0
     index_basename = get_index_basename()
 
-    cu = CloudUploader.get(out, keep_local=True, exist_ok=True)
+    cu = CloudUploader.get(out, keep_local=True)
 
     # Remove duplicates, and strip '/' from right if any
     index_file_urls = list(OrderedDict.fromkeys(index_file_urls))
@@ -394,10 +394,10 @@ def _merge_index_from_root(out: Union[str, Tuple[str, str]],
         logger.warning('No MDS dataset folder specified, no index merged')
         return
 
-    cu = CloudUploader.get(out, exist_ok=True, keep_local=True)
+    cu = CloudUploader.get(out, keep_local=True)
 
     local_index_files = []
-    cl = CloudUploader.get(cu.local, exist_ok=True, keep_local=True)
+    cl = CloudUploader.get(cu.local, keep_local=True)
     for file in cl.list_objects():
         if file.endswith('.json') and not_merged_index(file, cu.local):
             local_index_files.append(file)

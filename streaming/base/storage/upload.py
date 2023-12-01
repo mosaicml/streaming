@@ -57,8 +57,7 @@ class CloudUploader:
             out: Union[str, Tuple[str, str]],
             keep_local: bool = False,
             progress_bar: bool = False,
-            retry: int = 2,
-            exist_ok: bool = False) -> Any:
+            retry: int = 2) -> Any:
         """Instantiate a cloud provider uploader or a local uploader based on remote path.
 
         Args:
@@ -75,8 +74,6 @@ class CloudUploader:
             progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
                 a remote location. Default to ``False``.
             retry (int): Number of times to retry uploading a file. Defaults to ``2``.
-            exist_ok (bool): When exist_ok = False, raise error if the local part of ``out`` already
-                exists and has contents. Defaults to ``False``.
 
         Returns:
             CloudUploader: An instance of sub-class.
@@ -89,8 +86,8 @@ class CloudUploader:
             prefix = os.path.join(path.parts[0], path.parts[1])
             if prefix == 'dbfs:/Volumes':
                 provider_prefix = prefix
-        return getattr(sys.modules[__name__],
-                       UPLOADERS[provider_prefix])(out, keep_local, progress_bar, retry, exist_ok)
+        return getattr(sys.modules[__name__], UPLOADERS[provider_prefix])(out, keep_local,
+                                                                          progress_bar, retry)
 
     def _validate(self, out: Union[str, Tuple[str, str]]) -> None:
         """Validate the `out` argument.
@@ -124,8 +121,7 @@ class CloudUploader:
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False,
-                 retry: int = 2,
-                 exist_ok: bool = False) -> None:
+                 retry: int = 2) -> None:
         """Initialize and validate local and remote path.
 
         Args:
@@ -142,8 +138,6 @@ class CloudUploader:
             progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
                 a remote location. Default to ``False``.
             retry (int): Number of times to retry uploading a file. Defaults to ``2``.
-            exist_ok (bool): When exist_ok = False, raise error if the local part of ``out`` already
-                exists and has contents. Defaults to ``False``.
 
         Raises:
             FileExistsError: Local directory must be empty.
@@ -165,16 +159,6 @@ class CloudUploader:
         else:
             self.local = out[0]
             self.remote = out[1]
-
-        if os.path.exists(self.local) and len(os.listdir(self.local)) != 0:
-            if not exist_ok:
-                raise FileExistsError(f'Directory is not empty: {self.local}')
-            else:
-                logger.warning(
-                    f'Directory {self.local} exists and not empty. But continue to mkdir since exist_ok is set to be True.'
-                )
-
-        os.makedirs(self.local, exist_ok=True)
 
     def upload_file(self, filename: str):
         """Upload file from local instance to remote instance.
@@ -225,17 +209,14 @@ class S3Uploader(CloudUploader):
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
         retry (int): Number of times to retry uploading a file. Defaults to ``2``.
-        exist_ok (bool): When exist_ok = False, raise error if the local part of ``out`` already
-            exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False,
-                 retry: int = 2,
-                 exist_ok: bool = False) -> None:
-        super().__init__(out, keep_local, progress_bar, retry, exist_ok)
+                 retry: int = 2) -> None:
+        super().__init__(out, keep_local, progress_bar, retry)
 
         import boto3
         from botocore.config import Config
@@ -346,17 +327,14 @@ class GCSUploader(CloudUploader):
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
         retry (int): Number of times to retry uploading a file. Defaults to ``2``.
-        exist_ok (bool): When exist_ok = False, raise error if the local part of ``out`` already
-            exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False,
-                 retry: int = 2,
-                 exist_ok: bool = False) -> None:
-        super().__init__(out, keep_local, progress_bar, retry, exist_ok)
+                 retry: int = 2) -> None:
+        super().__init__(out, keep_local, progress_bar, retry)
         if 'GCS_KEY' in os.environ and 'GCS_SECRET' in os.environ:
             import boto3
 
@@ -494,17 +472,14 @@ class OCIUploader(CloudUploader):
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
         retry (int): Number of times to retry uploading a file. Defaults to ``2``.
-        exist_ok (bool): When exist_ok = False, raise error if the local part of ``out`` already
-            exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False,
-                 retry: int = 2,
-                 exist_ok: bool = False) -> None:
-        super().__init__(out, keep_local, progress_bar, retry, exist_ok)
+                 retry: int = 2) -> None:
+        super().__init__(out, keep_local, progress_bar, retry)
 
         import oci
 
@@ -631,17 +606,14 @@ class AzureUploader(CloudUploader):
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
         retry (int): Number of times to retry uploading a file. Defaults to ``2``.
-        exist_ok (bool): When exist_ok = False, raise error if the local part of ``out`` already
-            exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False,
-                 retry: int = 2,
-                 exist_ok: bool = False) -> None:
-        super().__init__(out, keep_local, progress_bar, retry, exist_ok)
+                 retry: int = 2) -> None:
+        super().__init__(out, keep_local, progress_bar, retry)
 
         from azure.storage.blob import BlobServiceClient
 
@@ -719,17 +691,14 @@ class AzureDataLakeUploader(CloudUploader):
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
         retry (int): Number of times to retry uploading a file. Defaults to ``2``.
-        exist_ok (bool): When exist_ok = False, raise error if the local part of ``out`` already
-            exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False,
-                 retry: int = 2,
-                 exist_ok: bool = False) -> None:
-        super().__init__(out, keep_local, progress_bar, retry, exist_ok)
+                 retry: int = 2) -> None:
+        super().__init__(out, keep_local, progress_bar, retry)
 
         from azure.storage.filedatalake import DataLakeServiceClient
 
@@ -804,17 +773,14 @@ class DatabricksUploader(CloudUploader):
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
         retry (int): Number of times to retry uploading a file. Defaults to ``2``.
-        exist_ok (bool): When exist_ok = False, raise error if the local part of ``out`` already
-            exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False,
-                 retry: int = 2,
-                 exist_ok: bool = False) -> None:
-        super().__init__(out, keep_local, progress_bar, retry, exist_ok)
+                 retry: int = 2) -> None:
+        super().__init__(out, keep_local, progress_bar, retry)
         self.client = self._create_workspace_client()
 
     def _create_workspace_client(self):
@@ -843,17 +809,14 @@ class DatabricksUnityCatalogUploader(DatabricksUploader):
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
         retry (int): Number of times to retry uploading a file. Defaults to ``2``.
-        exist_ok (bool): When exist_ok = False, raise error if the local part of ``out`` already
-            exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False,
-                 retry: int = 2,
-                 exist_ok: bool = False) -> None:
-        super().__init__(out, keep_local, progress_bar, retry, exist_ok)
+                 retry: int = 2) -> None:
+        super().__init__(out, keep_local, progress_bar, retry)
 
     def upload_file(self, filename: str):
         """Upload file from local instance to Databricks Unity Catalog.
@@ -892,17 +855,14 @@ class DBFSUploader(DatabricksUploader):
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
         retry (int): Number of times to retry uploading a file. Defaults to ``2``.
-        exist_ok (bool): When exist_ok = False, raise error if the local part of ``out`` already
-            exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False,
-                 retry: int = 2,
-                 exist_ok: bool = False) -> None:
-        super().__init__(out, keep_local, progress_bar, retry, exist_ok)
+                 retry: int = 2) -> None:
+        super().__init__(out, keep_local, progress_bar, retry)
         self.dbfs_path = self.remote.lstrip('dbfs:')  # pyright: ignore
         self.check_folder_exists()
 
@@ -962,17 +922,14 @@ class LocalUploader(CloudUploader):
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
             a remote location. Default to ``False``.
         retry (int): Number of times to retry uploading a file. Defaults to ``2``.
-        exist_ok (bool): When exist_ok = False, raise error if the local part of ``out`` already
-            exists and has contents. Defaults to ``False``.
     """
 
     def __init__(self,
                  out: Union[str, Tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False,
-                 retry: int = 2,
-                 exist_ok: bool = False) -> None:
-        super().__init__(out, keep_local, progress_bar, retry, exist_ok)
+                 retry: int = 2) -> None:
+        super().__init__(out, keep_local, progress_bar, retry)
         # Create remote directory if it doesn't exist
         if self.remote:
             os.makedirs(self.remote, exist_ok=True)
