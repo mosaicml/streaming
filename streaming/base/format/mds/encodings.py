@@ -17,7 +17,8 @@ from PIL.JpegImagePlugin import JpegImageFile
 from typing_extensions import Self
 
 __all__ = [
-    'get_mds_encoded_size', 'get_mds_encodings', 'is_mds_encoding', 'mds_decode', 'mds_encode'
+    'get_mds_encoded_size', 'get_mds_encodings', 'is_mds_encoding', 'mds_decode', 'mds_encode',
+    'unsafe_mds_encodings'
 ]
 
 
@@ -542,6 +543,8 @@ _encodings = {
     'pkl': Pickle,
     'json': JSON,
 }
+
+unsafe_mds_encodings = {'pkl'}
 
 
 def get_mds_encodings() -> Set[str]:
