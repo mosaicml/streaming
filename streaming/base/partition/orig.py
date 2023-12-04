@@ -143,10 +143,10 @@ def get_partitions_orig(num_samples: int,
     #
     # ids: (physical nodes, samples per rank, ranks per node).
     overflow = ids.shape[1] % ranks_per_node
-    more_samples_than_ranks = ids.shape[1] > ranks_per_node
     if overflow:
         underflow = ranks_per_node - overflow
-        if more_samples_than_ranks:
+        enough_padding_samples = -ranks_per_node - underflow + 1 >= 0
+        if enough_padding_samples:
             last = ids[:, -ranks_per_node - underflow + 1:-ranks_per_node + 1]
         else:
             # There are less samples than ranks. Usually, we pad by trying to ensure that the same
