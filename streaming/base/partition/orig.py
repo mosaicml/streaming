@@ -115,11 +115,11 @@ def get_partitions_orig(num_samples: int,
             ids[:, -padding:] = ids[:,
                                     -padding - node_ratio + 1 - padding:-padding - node_ratio + 1]
     else:
-        # Num samples is less than the number of canonical nodes. The dataset is very small, and
-        # samples will be repeated extensively.
-        warnings.warn(f'Attempting to partition {num_samples} samples over {num_canonical_nodes} \
-                        canonical nodes. This will result in many samples being repeated, \
-                        and depending on your batching method, batches being completely dropped!')
+        warnings.warn(f'Trying to partition {num_samples} samples over {num_canonical_nodes}' +
+                      f' canonical nodes. This will result in many samples being repeated, and ' +
+                      f'depending on your batching method, batches being completely dropped. ' +
+                      f'Check if your dataset has the expected number of samples, and consider ' +
+                      f'decreasing the number of canonical nodes.')
         shape_needed = (num_canonical_nodes, padded_samples_per_canonical_node)
         total_samples_needed = num_canonical_nodes * padded_samples_per_canonical_node
         current_samples = np.arange(num_samples, dtype=np.int64)
@@ -151,9 +151,10 @@ def get_partitions_orig(num_samples: int,
         else:
             # There are less samples than ranks. Usually, we pad by trying to ensure that the same
             # samples don't get repeated over and over, but with in this case, we are forced to.
-            warnings.warn(f'Attempting to partition {ids.shape[1]} samples over {ranks_per_node} \
-                            gpus. This will result in many samples being repeated, and depending \
-                            on your batching method, batches being completely dropped!')
+            warnings.warn(f'Attempting to partition {ids.shape[1]} samples over {ranks_per_node}' +
+                          f' gpus. This will result in many samples being repeated, and ' +
+                          f'depending on your batching method, batches being completely dropped.' +
+                          f' Check if your dataset has the expected number of samples.')
             num_samples = ids.shape[1]
             full_repeats = underflow // num_samples
             leftover_samples = underflow % num_samples

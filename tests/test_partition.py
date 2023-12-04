@@ -50,6 +50,40 @@ def test_partition_small_num_samples(num_samples: int, num_canonical_nodes: int,
     assert x.shape == (num_physical_nodes, ranks_per_node, workers_per_rank, 1, batch_size)
 
 
+@pytest.mark.parametrize('num_samples', [1, 2, 3])
+@pytest.mark.parametrize('num_canonical_nodes', [4])
+@pytest.mark.parametrize('num_physical_nodes', [1, 4])
+@pytest.mark.parametrize('ranks_per_node', [8])
+@pytest.mark.parametrize('workers_per_rank', [8])
+@pytest.mark.parametrize('batch_size', [4])
+def test_partition_samples_less_than_ncn(num_samples: int, num_canonical_nodes: int,
+                                         num_physical_nodes: int, ranks_per_node: int,
+                                         workers_per_rank: int, batch_size: int):
+    drop_first = 0
+    partition_algo = 'orig'
+
+    with pytest.warns(UserWarning, match=f'Trying to partition*'):
+        get_partitions(partition_algo, num_samples, num_canonical_nodes, num_physical_nodes,
+                       ranks_per_node, workers_per_rank, batch_size, drop_first)
+
+
+@pytest.mark.parametrize('num_samples', [5, 6, 7])
+@pytest.mark.parametrize('num_canonical_nodes', [4])
+@pytest.mark.parametrize('num_physical_nodes', [4, 8])
+@pytest.mark.parametrize('ranks_per_node', [8])
+@pytest.mark.parametrize('workers_per_rank', [8])
+@pytest.mark.parametrize('batch_size', [4])
+def test_partition_samples_less_than_ranks(num_samples: int, num_canonical_nodes: int,
+                                           num_physical_nodes: int, ranks_per_node: int,
+                                           workers_per_rank: int, batch_size: int):
+    drop_first = 0
+    partition_algo = 'orig'
+
+    with pytest.warns(UserWarning, match=f'Attempting to partition*'):
+        get_partitions(partition_algo, num_samples, num_canonical_nodes, num_physical_nodes,
+                       ranks_per_node, workers_per_rank, batch_size, drop_first)
+
+
 def test_partition_relaxed_resumption():
     # For global batch size 960, which is a highly divisible number, go through all possible
     # values of physical nodes we can train on.
