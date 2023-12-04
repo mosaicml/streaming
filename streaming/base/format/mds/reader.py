@@ -11,7 +11,7 @@ import numpy as np
 from typing_extensions import Self
 
 from streaming.base.format.base.reader import FileInfo, JointReader
-from streaming.base.format.mds.encodings import mds_decode, unsafe_mds_encodings
+from streaming.base.format.mds.encodings import is_mds_encoding_safe, mds_decode
 
 __all__ = ['MDSReader']
 
@@ -94,7 +94,7 @@ class MDSReader(JointReader):
         """
         if not allow_unsafe_types:
             for column_id, encoding in enumerate(self.column_encodings):
-                if encoding in unsafe_mds_encodings:
+                if not is_mds_encoding_safe(encoding):
                     name = self.column_names[column_id]
                     raise ValueError(f'Column {name} contains an unsafe type: {encoding}. To ' +
                                      f'proceed anyway, set ``allow_unsafe_types=True``.')
