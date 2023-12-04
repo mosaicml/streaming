@@ -1,6 +1,8 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+import math
+
 import numpy as np
 import pytest
 
@@ -47,7 +49,8 @@ def test_partition_small_num_samples(num_samples: int, num_canonical_nodes: int,
     partition_algo = 'orig'
     x = get_partitions(partition_algo, num_samples, num_canonical_nodes, num_physical_nodes,
                        ranks_per_node, workers_per_rank, batch_size, drop_first)
-    assert x.shape == (num_physical_nodes, ranks_per_node, workers_per_rank, 1, batch_size)
+    assert x.shape == (num_physical_nodes, ranks_per_node, workers_per_rank,
+                       math.ceil(num_samples / batch_size), batch_size)
 
 
 @pytest.mark.parametrize('num_samples', [1, 2, 3])
