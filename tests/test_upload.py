@@ -80,21 +80,6 @@ class TestCloudUploader:
         with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
             _ = CloudUploader.get(out=out)
 
-    # def test_local_directory_is_empty(self, local_remote_dir: Tuple[str, str]):
-    #     with pytest.raises(FileExistsError, match=f'Directory is not empty.*'):
-    #         local, _ = local_remote_dir
-    #         os.makedirs(local, exist_ok=True)
-    #         local_file_path = os.path.join(local, 'file.txt')
-    #         # Creating an empty file at specified location
-    #         with open(local_file_path, 'w') as _:
-    #             pass
-    #         _ = CloudUploader.get(out=local)
-
-    # def test_local_directory_is_created(self, local_remote_dir: Tuple[str, str]):
-    #     local, _ = local_remote_dir
-    #     _ = CloudUploader(out=local)
-    #     assert os.path.exists(local)
-
     def test_delete_local_file(self, local_remote_dir: Tuple[str, str]):
         local, _ = local_remote_dir
         os.makedirs(local, exist_ok=True)
@@ -142,16 +127,6 @@ class TestS3Uploader:
     def test_invalid_remote_list(self, out: Any):
         with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
             _ = S3Uploader(out=out)
-
-    # def test_local_directory_is_empty(self, local_remote_dir: Tuple[str, str]):
-    #     with pytest.raises(FileExistsError, match=f'Directory is not empty.*'):
-    #         local, _ = local_remote_dir
-    #         os.makedirs(local, exist_ok=True)
-    #         local_file_path = os.path.join(local, 'file.txt')
-    #         # Creating an empty file at specified location
-    #         with open(local_file_path, 'w') as _:
-    #             pass
-    #         _ = S3Uploader(out=local)
 
     @pytest.mark.usefixtures('s3_client', 's3_test')
     def test_upload_file(self, local_remote_dir: Tuple[str, str]):
@@ -278,17 +253,6 @@ class TestGCSUploader:
         with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
             _ = GCSUploader(out=out)
 
-    # @pytest.mark.usefixtures('gcs_hmac_credentials')
-    # def test_local_directory_is_empty(self, local_remote_dir: Tuple[str, str]):
-    #     with pytest.raises(FileExistsError, match=f'Directory is not empty.*'):
-    #         local, _ = local_remote_dir
-    #         os.makedirs(local, exist_ok=True)
-    #         local_file_path = os.path.join(local, 'file.txt')
-    #         # Creating an empty file at specified location
-    #         with open(local_file_path, 'w') as _:
-    #             pass
-    #         _ = GCSUploader(out=local)
-
     @pytest.mark.usefixtures('gcs_hmac_client', 'gcs_test')
     def test_upload_file(self, local_remote_dir: Tuple[str, str]):
         with tempfile.NamedTemporaryFile(delete=True, suffix='.txt') as tmp:
@@ -386,16 +350,6 @@ class TestAzureUploader:
         with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
             _ = AzureUploader(out=out)
 
-    # def test_local_directory_is_empty(self, local_remote_dir: Tuple[str, str]):
-    #     with pytest.raises(FileExistsError, match=f'Directory is not empty.*'):
-    #         local, _ = local_remote_dir
-    #         os.makedirs(local, exist_ok=True)
-    #         local_file_path = os.path.join(local, 'file.txt')
-    #         # Creating an empty file at specified location
-    #         with open(local_file_path, 'w') as _:
-    #             pass
-    #         _ = AzureUploader(out=local)
-
 
 class TestAzureDataLakeUploader:
 
@@ -419,16 +373,6 @@ class TestAzureDataLakeUploader:
         with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
             _ = AzureDataLakeUploader(out=out)
 
-    # def test_local_directory_is_empty(self, local_remote_dir: Tuple[str, str]):
-    #     with pytest.raises(FileExistsError, match=f'Directory is not empty.*'):
-    #         local, _ = local_remote_dir
-    #         os.makedirs(local, exist_ok=True)
-    #         local_file_path = os.path.join(local, 'file.txt')
-    #         # Creating an empty file at specified location
-    #         with open(local_file_path, 'w') as _:
-    #             pass
-    #         _ = AzureDataLakeUploader(out=local)
-
 
 class TestDatabricksUnityCatalogUploader:
 
@@ -448,19 +392,6 @@ class TestDatabricksUnityCatalogUploader:
         with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
             _ = DatabricksUnityCatalogUploader(out=out)
 
-    # @patch('streaming.base.storage.upload.DatabricksUploader._create_workspace_client')
-    # def test_local_directory_is_empty(self, mock_create_client: Mock,
-    #                                   local_remote_dir: Tuple[str, str]):
-    #     mock_create_client.side_effect = None
-    #     with pytest.raises(FileExistsError, match=f'Directory is not empty.*'):
-    #         local, _ = local_remote_dir
-    #         os.makedirs(local, exist_ok=True)
-    #         local_file_path = os.path.join(local, 'file.txt')
-    #         # Creating an empty file at specified location
-    #         with open(local_file_path, 'w') as _:
-    #             pass
-    #         _ = DatabricksUnityCatalogUploader(out=local)
-
 
 class TestDBFSUploader:
 
@@ -478,19 +409,6 @@ class TestDBFSUploader:
         mock_create_client.side_effect = None
         with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
             _ = DBFSUploader(out=out)
-
-    # @patch('streaming.base.storage.upload.DatabricksUploader._create_workspace_client')
-    # def test_local_directory_is_empty(self, mock_create_client: Mock,
-    #                                   local_remote_dir: Tuple[str, str]):
-    #     with pytest.raises(FileExistsError, match=f'Directory is not empty.*'):
-    #         mock_create_client.side_effect = None
-    #         local, _ = local_remote_dir
-    #         os.makedirs(local, exist_ok=True)
-    #         local_file_path = os.path.join(local, 'file.txt')
-    #         # Creating an empty file at specified location
-    #         with open(local_file_path, 'w') as _:
-    #             pass
-    #         _ = DBFSUploader(out=local)
 
 
 class TestLocalUploader:

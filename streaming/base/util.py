@@ -297,7 +297,7 @@ def _merge_index_from_list(index_file_urls: List[Union[str, Tuple[str, str]]],
 
     # Prepare a temp folder to download index.json from remote if necessary. Removed in the end.
     with tempfile.TemporaryDirectory() as temp_root:
-        logging.warning(f'A temporary folder {temp_root} is created to store index files')
+        logging.debug(f'A temporary folder {temp_root} is created to store index files')
 
         # Copy files to a temporary directory. Download if necessary
         partitions = []
