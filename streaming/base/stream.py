@@ -421,11 +421,14 @@ class Stream:
             delta += self._prepare_shard_part(raw_info, zip_info, shard.compression)
         return delta
 
-    def get_shards(self, world: World) -> List[Reader]:
+    def get_shards(self, world: World, allow_unsafe_types: bool) -> List[Reader]:
         """Load this Stream's index, retrieving its shard readers.
 
         Args:
             world (World): Distributed context.
+            allow_unsafe_types (bool): If a shard contains Pickle, which allows arbitrary code
+                execution during deserialization, whether to keep going if ``True`` or raise an
+                error.
 
         Returns:
             `List[Reader]: Shard readers.
@@ -469,6 +472,7 @@ class Stream:
         shards = []
         for info in obj['shards']:
             shard = reader_from_json(self.local, self.split, info)
+            shard.validate(allow_unsafe_types)
             shards.append(shard)
 
         return shards
