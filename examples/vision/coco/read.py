@@ -20,7 +20,7 @@ class StreamingCOCO(StreamingDataset):
     Args:
         transform (callable, optional): A function/transform that takes in an image and returns a
             transformed version. Defaults to ``None``.
-        kwargs (Dict[str, Any]): Keyword arguments.
+        **kwargs (Dict[str, Any]): Keyword arguments.
     """
 
     def __init__(self, *, transform: Optional[Callable] = None, **kwargs: Dict[str, Any]) -> None:

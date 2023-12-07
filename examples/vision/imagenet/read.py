@@ -18,7 +18,7 @@ class StreamingImageNet(StreamingVisionDataset):
     """Implementation of the ImageNet dataset using StreamingDataset.
 
     Args:
-        kwargs (Dict[str, Any]): Keyword arguments.
+        **kwargs (Dict[str, Any]): Keyword arguments.
     """
 
     def __init__(self, **kwargs: Dict[str, Any]) -> None:

@@ -18,7 +18,7 @@ class StreamingCIFAR10(StreamingVisionDataset):
     """Implementation of the CIFAR-10 dataset using StreamingDataset.
 
     Args:
-        kwargs (Dict[str, Any]): Keyword arguments.
+        **kwargs (Dict[str, Any]): Keyword arguments.
     """
 
     def __init__(self, **kwargs: Dict[str, Any]) -> None:

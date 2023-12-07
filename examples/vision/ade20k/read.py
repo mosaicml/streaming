@@ -24,7 +24,7 @@ class StreamingADE20K(StreamingDataset):
             transformed version. Defaults to ``None``.
         target_transform (callable, optional): A function/transform that takes in the target and
             transforms it. Defaults to ``None``.
-        kwargs (Dict[str, Any]): Keyword arguments.
+        **kwargs (Dict[str, Any]): Keyword arguments.
     """
 
     def __init__(self,
