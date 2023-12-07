@@ -18,7 +18,7 @@ class StreamingCOCO(StreamingDataset):
     """Implementation of the COCO dataset using StreamingDataset.
 
     Args:
-        transform (callable, optional): A function/transform that takes in an image and returns a
+        transform (Callable, optional): A function/transform that takes in an image and returns a
             transformed version. Defaults to ``None``.
         **kwargs (Dict[str, Any]): Keyword arguments.
     """

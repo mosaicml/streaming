@@ -18,11 +18,11 @@ class StreamingADE20K(StreamingDataset):
     """Implementation of the ADE20K dataset using StreamingDataset.
 
     Args:
-        joint_transform (callable, optional): A function/transforms that takes in an image and a
+        joint_transform (Callable, optional): A function/transforms that takes in an image and a
             target  and returns the transformed versions of both. Defaults to ``None``.
-        transform (callable, optional): A function/transform that takes in an image and returns a
+        transform (Callable, optional): A function/transform that takes in an image and returns a
             transformed version. Defaults to ``None``.
-        target_transform (callable, optional): A function/transform that takes in the target and
+        target_transform (Callable, optional): A function/transform that takes in the target and
             transforms it. Defaults to ``None``.
         **kwargs (Dict[str, Any]): Keyword arguments.
     """
