@@ -157,8 +157,6 @@ def dataframe_to_mds(dataframe: DataFrame,
 
     Returns:
         mds_path (str or (str,str)): actual local and remote path were used
-        fail_count (int): number of records failed to be converted
-
     Notes:
         - The method creates a SparkSession if not already available.
         - The 'udf_kwargs' dictionaries can be used to pass additional
@@ -192,8 +190,6 @@ def dataframe_to_mds(dataframe: DataFrame,
         if merge_index:
             kwargs['keep_local'] = True  # need to keep workers' locals to do merge
 
-        count = 0
-
         with MDSWriter(**kwargs) as mds_writer:
             for pdf in iterator:
                 if udf_iterable is not None:
@@ -215,8 +211,7 @@ def dataframe_to_mds(dataframe: DataFrame,
                 os.path.join(partition_path[1], get_index_basename())
                 if partition_path[1] != '' else ''
             ],
-                      name='mds_path_remote'),
-            pd.Series([count], name='fail_count')
+                      name='mds_path_remote')
         ],
                         axis=1)
 
@@ -263,7 +258,6 @@ def dataframe_to_mds(dataframe: DataFrame,
     result_schema = StructType([
         StructField('mds_path_local', StringType(), False),
         StructField('mds_path_remote', StringType(), False),
-        StructField('fail_count', IntegerType(), False)
     ])
     partitions = dataframe.mapInPandas(func=write_mds, schema=result_schema).collect()
 
@@ -281,11 +275,4 @@ def dataframe_to_mds(dataframe: DataFrame,
     if not keep_local_files:
         shutil.rmtree(cu.local, ignore_errors=True)
 
-    sum_fail_count = 0
-    for row in partitions:
-        sum_fail_count += row['fail_count']
-
-    if sum_fail_count > 0:
-        logger.warning(
-            f'Total failed records = {sum_fail_count}\nOverall records {dataframe.count()}')
-    return mds_path, sum_fail_count
+    return mds_path, 0
