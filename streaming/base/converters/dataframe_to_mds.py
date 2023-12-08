@@ -206,11 +206,7 @@ def dataframe_to_mds(dataframe: DataFrame,
                                 f'{type(records)}')
 
                 for sample in records:
-                    try:
-                        mds_writer.write(sample)
-                    except Exception as ex:
-                        raise RuntimeError(f'failed to write sample: {sample}') from ex
-                        count += 1
+                    mds_writer.write(sample)
 
         yield pd.concat([
             pd.Series([os.path.join(partition_path[0], get_index_basename())],
