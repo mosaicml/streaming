@@ -123,7 +123,7 @@ def dataframeToMDS(dataframe: DataFrame,
                    merge_index: bool = True,
                    mds_kwargs: Optional[Dict[str, Any]] = None,
                    udf_iterable: Optional[Callable] = None,
-                   udf_kwargs: Optional[Dict[str, Any]] = None) -> Tuple[Any, int]:
+                   udf_kwargs: Optional[Dict[str, Any]] = None) -> Tuple[str, str]:
     """Deprecated API Signature.
 
     To be replaced by dataframe_to_mds
