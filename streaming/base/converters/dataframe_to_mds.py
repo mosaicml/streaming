@@ -138,7 +138,7 @@ def dataframe_to_mds(dataframe: DataFrame,
                      merge_index: bool = True,
                      mds_kwargs: Optional[Dict[str, Any]] = None,
                      udf_iterable: Optional[Callable] = None,
-                     udf_kwargs: Optional[Dict[str, Any]] = None) -> Tuple[Any, int]:
+                     udf_kwargs: Optional[Dict[str, Any]] = None) -> Tuple[str, str]:
     """Execute a spark dataframe to MDS conversion process.
 
     This method orchestrates the conversion of a spark dataframe into MDS format by processing the
