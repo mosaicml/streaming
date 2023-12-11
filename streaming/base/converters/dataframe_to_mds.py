@@ -275,4 +275,4 @@ def dataframe_to_mds(dataframe: DataFrame,
     if not keep_local_files:
         shutil.rmtree(cu.local, ignore_errors=True)
 
-    return mds_path, 0
+    return mds_path
