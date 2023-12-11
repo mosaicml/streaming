@@ -69,12 +69,12 @@ class TestDataFrameToMDS:
 
         with pytest.raises(ValueError, match=f'.*is not supported by MDSWriter.*'):
             _ = dataframe_to_mds(dataframe.select(col('id'), col('dept'), col('properties')),
-                                    merge_index=merge_index,
-                                    mds_kwargs=mds_kwargs)
+                                 merge_index=merge_index,
+                                 mds_kwargs=mds_kwargs)
 
         _ = dataframe_to_mds(dataframe.select(col('id'), col('dept')),
-                                merge_index=merge_index,
-                                mds_kwargs=mds_kwargs)
+                             merge_index=merge_index,
+                             mds_kwargs=mds_kwargs)
 
         if keep_local:
             assert len(os.listdir(out)) > 0, f'{out} is empty'
