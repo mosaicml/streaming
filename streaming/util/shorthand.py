@@ -64,7 +64,7 @@ def _normalize_arg(text: str, units: Dict[str, int], to_type: type) -> Union[int
     """
     # Must be non-empty.
     if not text:
-        raise ValueError(f'Text is empty.')
+        raise ValueError(f'Attempted to normalize an empty string to some value.')
 
     # Drop commas and underscores (useful to demarcate thousands '1,337' or '1_337').
     text = text.replace(',', '')
@@ -107,8 +107,7 @@ def _normalize_arg(text: str, units: Dict[str, int], to_type: type) -> Union[int
         try:
             return to_type(part)
         except:
-            raise ValueError(f'Simple text must be numeric, but got {part} instead (input: ' +
-                             f'{text}).')
+            raise ValueError(f'Input must be numeric, but got {part} instead (input: {text}).')
 
     # Pair up numbers and units.
     if len(parts) % 2:
