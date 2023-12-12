@@ -137,7 +137,7 @@ def _normalize_arg(text: str, units: Dict[str, int], to_type: type) -> Union[int
             raise ValueError(f'Non-final numbers must be integral, but got part {i} as {num} ' +
                              f'instead (input: {text}).')
 
-    # Parsee out the digits of the final number, which may be fractional.
+    # Parse out the digits of the final number, which may be fractional.
     txt = part_nums[-1]
     num_dots = txt.count('.')
     if not num_dots:
