@@ -55,11 +55,11 @@ class StreamingVisionDataset(StreamingDataset, VisionDataset):
     """A streaming, iterable, torchvision VisionDataset.
 
     Args:
-        transforms (callable, optional): A function/transforms that takes in an image and a label
+        transforms (Callable, optional): A function/transforms that takes in an image and a label
             and returns the transformed versions of both. Defaults to ``None``.
-        transform (callable, optional): A function/transform that takes in an image and returns a
+        transform (Callable, optional): A function/transform that takes in an image and returns a
             transformed version. Defaults to ``None``.
-        target_transform (callable, optional): A function/transform that takes in a target and
+        target_transform (Callable, optional): A function/transform that takes in a target and
             returns a transformed version. Defaults to ``None``.
         **kwargs (Dict[str, Any]): Keyword arguments.
     """
