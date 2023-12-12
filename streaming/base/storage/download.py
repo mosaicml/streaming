@@ -295,8 +295,8 @@ def download_from_azure(remote: str, local: str) -> None:
         with open(local, 'wb') as my_blob:
             blob_data = blob_client.download_blob()
             blob_data.readinto(my_blob)
-    except ResourceNotFoundError:
-        raise FileNotFoundError(f'Object {remote} not found.')
+    except ResourceNotFoundError as e:
+        raise FileNotFoundError(f'Object {remote} not found.') from e
     except Exception:
         raise
 
@@ -327,8 +327,8 @@ def download_from_azure_datalake(remote: str, local: str) -> None:
         with open(local, 'wb') as my_file:
             file_data = file_client.download_file()
             file_data.readinto(my_file)
-    except ResourceNotFoundError:
-        raise FileNotFoundError(f'Object {remote} not found.')
+    except ResourceNotFoundError as e:
+        raise FileNotFoundError(f'Object {remote} not found.') from e
     except Exception:
         raise
 
@@ -373,7 +373,7 @@ def download_from_databricks_unity_catalog(remote: str, local: str) -> None:
                       f'operations. Increase the `download_retry` value to retry downloading ' +
                       f'a file.',)
         if e.error_code == 'NOT_FOUND':
-            raise FileNotFoundError(f'Object dbfs:{remote} not found.')
+            raise FileNotFoundError(f'Object dbfs:{remote} not found.') from e
         raise e
     os.rename(local_tmp, local)
 
