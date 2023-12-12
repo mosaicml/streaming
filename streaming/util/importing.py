@@ -37,7 +37,6 @@ def redirect_imports(new_fqdn: str) -> None:
         raise RuntimeError('Module was None.')
     old_fqdn = module.__name__
 
-    # old = sys.modules[old_fqdn]
     new = import_module(new_fqdn)
     sys.modules[old_fqdn].__dict__.update(new.__dict__)
 

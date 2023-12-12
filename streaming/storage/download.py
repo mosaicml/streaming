@@ -496,4 +496,6 @@ def wait_for_file_to_exist(filename: str, poll_interval: float, timeout: float,
             break
         dt = time() - start_time
         if dt > timeout:
-            raise RuntimeError(f'{err_msg}' + f'{timeout:.3f} < {dt:.3f} secs.')
+            raise RuntimeError(
+                f'{err_msg} due to timeout. Waited {dt:.3f} sec, which is longer than the ' +
+                f'timeout limit of {timeout:.3f} sec.')
