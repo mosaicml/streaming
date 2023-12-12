@@ -16,7 +16,7 @@ from core.utils import get_simulation_stats
 from core.yaml_processing import create_simulation_dataset, ingest_yaml
 from interfaces.interface_utils import plot_simulation
 
-from streaming.util import bytes_to_int
+from streaming.util.shorthand import normalize_bytes
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Simulate your training yaml from the command \
@@ -74,7 +74,7 @@ if __name__ == '__main__':
             node_network_bandwidth = str(bandwidth_input)
 
     # Convert strings into numbers for applicable args
-    node_network_bandwidth = bytes_to_int(node_network_bandwidth)
+    node_network_bandwidth = normalize_bytes(node_network_bandwidth)
 
     # Create SimulationDataset
     print('Constructing SimulationDataset...')
