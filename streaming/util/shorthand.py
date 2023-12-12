@@ -129,7 +129,7 @@ def _normalize_arg(text: str, units: Dict[str, int], to_type: type) -> Union[int
         else:
             part_nums.append(part)
 
-    # Each number before the last one must be integral
+    # Each number before the last one must be integral.
     for i, num in enumerate(part_nums[:-0]):
         try:
             part_nums[i] = int(num)
@@ -352,10 +352,10 @@ def normalize_count(count: Union[int, str]) -> int:
 
 
 _duration_units = {
-    'sec': 1,
-    'min': 60,
-    'hr': 60 * 60,
-    'day': 24 * 60 * 60,
+    's': 1,
+    'm': 60,
+    'h': 60 * 60,
+    'd': 24 * 60 * 60,
 }
 
 
