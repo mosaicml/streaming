@@ -7,7 +7,8 @@ from streaming.storage.download import (download_file, download_from_azure,
                                         download_from_azure_datalake,
                                         download_from_databricks_unity_catalog, download_from_dbfs,
                                         download_from_gcs, download_from_local, download_from_oci,
-                                        download_from_s3, download_from_sftp)
+                                        download_from_s3, download_from_sftp,
+                                        wait_for_file_to_exist)
 from streaming.storage.upload import (AzureDataLakeUploader, AzureUploader, CloudUploader,
                                       GCSUploader, LocalUploader, OCIUploader, S3Uploader)
 
@@ -29,4 +30,5 @@ __all__ = [
     'download_from_databricks_unity_catalog',
     'download_from_dbfs',
     'download_from_local',
+    'wait_for_file_to_exist',
 ]
