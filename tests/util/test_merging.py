@@ -6,16 +6,13 @@ import os
 import tempfile
 import time
 import urllib.parse
-from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
 from typing import Tuple, Union
 
 import pytest
 
-from streaming.constant import RESUME
-from streaming.shared.prefix import _get_path
 from streaming.storage.download import download_file
 from streaming.storage.upload import CloudUploader
-from streaming.util import clean_stale_shared_memory, merge_index, retry
+from streaming.util import merge_index
 
 MY_PREFIX = 'train_' + str(time.time())
 MY_BUCKET = {
@@ -25,19 +22,6 @@ MY_BUCKET = {
 }
 os.environ[
     'OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'  # set to yes to all fork process in spark calls
-
-
-def test_clean_stale_shared_memory():
-    # Create a leaked shared memory
-    name = _get_path(0, RESUME)
-    _ = BuiltinSharedMemory(name, True, 64)
-
-    # Clean up the stale shared memory
-    clean_stale_shared_memory()
-
-    # If clean up is successful, it should raise FileNotFoundError Exception
-    with pytest.raises(FileNotFoundError):
-        _ = BuiltinSharedMemory(name, False, 64)
 
 
 def integrity_check(out: Union[str, Tuple[str, str]],
@@ -192,27 +176,3 @@ def test_merge_index_from_root_local(local_remote_dir: Tuple[str, str], n_partit
     mds_path, _ = dataframeToMDS(df, merge_index=False, mds_kwargs=mds_kwargs)
     merge_index(mds_path, keep_local=keep_local)
     integrity_check(mds_path, keep_local=keep_local)
-
-
-@pytest.mark.parametrize('with_args', [True, False])
-def test_retry(with_args: bool):
-    num_tries = 0
-    return_after = 2
-
-    if with_args:
-        decorator = retry(RuntimeError, num_attempts=3, initial_backoff=0.01, max_jitter=0.01)
-        return_after = 2
-    else:
-        decorator = retry
-        # Need to return immediately to avoid timeouts
-        return_after = 0
-
-    @decorator
-    def flaky_function():
-        nonlocal num_tries
-        if num_tries < return_after:
-            num_tries += 1
-            raise RuntimeError('Called too soon!')
-        return "Third time's a charm"
-
-    assert flaky_function() == "Third time's a charm"
