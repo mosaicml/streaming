@@ -22,6 +22,7 @@ __all__ = [
     'download_from_databricks_unity_catalog',
     'download_from_dbfs',
     'download_from_local',
+    'wait_for_file_to_exist',
 ]
 
 BOTOCORE_CLIENT_ERROR_CODES = {'403', '404', 'NoSuchKey'}
@@ -474,18 +475,27 @@ def download_file(remote: Optional[str], local: str, timeout: float):
         download_from_local(remote, local)
 
 
-def wait_for_download(local: str, timeout: float = 60) -> None:
-    """Wait for a download by another thread/process to complete.
+def wait_for_file_to_exist(filename: str, poll_interval: float, timeout: float,
+                           err_msg: str) -> None:
+    """Wait for the file to exist till timeout seconds. Raise an Exception after that.
 
     Args:
-        local (str): Local path (local filesystem).
-        timeout (float): How long to wait for file to download before raising an exception.
-            Defaults to ``60``.
+        filename (str): A file name
+        poll_interval (float): Number of seconds to wait before next polling
+        timeout (float): Number of seconds to wait for a file to exist before raising an exception
+        err_msg (str): Error message description for an exception
+
+    Raises:
+        RuntimeError: Raise an Exception if file does not exist after timeout
     """
-    t0 = time()
-    while not os.path.exists(local):
-        elapsed = time() - t0
-        if timeout < elapsed:
-            raise TimeoutError(
-                f'Waited longer than {timeout}s for other worker to download {local}.')
-        sleep(0.25)
+    start_time = time()
+    while True:
+        sleep(poll_interval)
+        if os.path.exists(filename):
+            sleep(poll_interval)
+            break
+        dt = time() - start_time
+        if dt > timeout:
+            raise RuntimeError(
+                f'{err_msg} due to timeout. Waited {dt:.3f} sec, which is longer than the ' +
+                f'timeout limit of {timeout:.3f} sec.')
