@@ -104,9 +104,3 @@ def test_normalize_count_except():
     for value in input_data:
         with pytest.raises(ValueError):
             _ = normalize_count(value)
-
-
-test_normalize_bytes()
-test_normalize_bytes_except()
-test_normalize_count()
-test_normalize_count_except()
