@@ -100,6 +100,9 @@ def get_streaming_dataset_params(kwargs: dict[str, str]) -> dict[str, Any]:
         dataset_params['shuffle_block_size'] = int(kwargs['shuffle_block_size'])
     if 'sampling_method' in kwargs:
         dataset_params['sampling_method'] = kwargs['sampling_method']
+    if 'allow_unsafe_types' in kwargs:
+        dataset_params['allow_unsafe_types'] = kwargs['allow_unsafe_types'].lower().capitalize(
+        ) == 'True'
     logger.debug(f'dataset_params: {dataset_params}')
     return dataset_params
 
