@@ -20,7 +20,7 @@ from streaming import Stream, StreamingDataset
 from streaming.batching import generate_work
 from streaming.format import get_index_basename
 from streaming.spanner import Spanner
-from streaming.util import bytes_to_int, number_abbrev_to_int
+from streaming.util.shorthand import normalize_bytes, normalize_count
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -134,7 +134,6 @@ class SimulationDataset(StreamingDataset):
         self.nodes = nodes
         self.devices = devices
         self.workers = workers
-        self.cache_limit = cache_limit
         self.partition_algo = partition_algo
         self.predownload = predownload
         self.batch_size = batch_size
@@ -189,11 +188,7 @@ class SimulationDataset(StreamingDataset):
         self.batch_size = batch_size or 1
 
         # Convert epoch size from string to int, if needed. Cannot be negative.
-        epoch_size_value = None
-        if epoch_size:
-            epoch_size_value = number_abbrev_to_int(epoch_size)
-            if epoch_size_value < 0:
-                raise ValueError(f'Epoch size cannot be negative. Received {epoch_size_value}.')
+        epoch_size_value = normalize_count(epoch_size) if epoch_size else None
 
         # Initialize the Stream defaults and normalize to a list of Streams.
         if streams:
@@ -284,14 +279,15 @@ class SimulationDataset(StreamingDataset):
         self.num_shards = len(self.shards)
 
         # Check that cache limit is possible.
-        if self.cache_limit:
-            if isinstance(self.cache_limit, str):
-                self.cache_limit = bytes_to_int(self.cache_limit)
+        if cache_limit:
+            self.cache_limit = normalize_bytes(cache_limit)
             min_cache_usage = sum((stream.get_index_size() for stream in streams))
             if self.cache_limit <= min_cache_usage:
                 raise ValueError(f'Minimum cache usage ({min_cache_usage} bytes) is larger than ' +
                                  f'the cache limit ({self.cache_limit} bytes). Please raise ' +
                                  f'`cache_limit`.')
+        else:
+            self.cache_limit = None
 
         for stream_idx, index_filename in enumerate(index_filenames):
             if indices_created[stream_idx] == 0:
@@ -465,8 +461,6 @@ class SimulationDataset(StreamingDataset):
         Returns:
             Optional[int]: The dataset's cache limit.
         """
-        if isinstance(self.cache_limit, str):
-            self.cache_limit = bytes_to_int(self.cache_limit)
         return self.cache_limit
 
     def get_instantiation_time(self) -> float:

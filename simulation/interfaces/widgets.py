@@ -20,7 +20,7 @@ from core.utils import get_simulation_stats
 from numpy.typing import NDArray
 from streamlit.delta_generator import DeltaGenerator
 
-from streaming.util import bytes_to_int
+from streaming.util.shorthand import normalize_bytes
 
 
 def get_line_chart(data: pd.DataFrame,
@@ -121,18 +121,18 @@ def stream_entry(component: DeltaGenerator,
                                                 in each shard.',
                                                    key=str(key) + 'samples')
         avg_raw_shard_size = component.text_input('avg raw shard size (bytes)',
-                                                  value='60MB',
+                                                  value='60mb',
                                                   help='average raw size, in bytes, \
                                             of a single shard.',
                                                   key=str(key) + 'rawsize')
-        avg_raw_shard_size = bytes_to_int(avg_raw_shard_size)
+        avg_raw_shard_size = normalize_bytes(avg_raw_shard_size)
         avg_zip_shard_size = component.text_input('avg compressed shard size (bytes)',
                                                   value='None',
                                                   help='average compressed size, \
                                                     in bytes, of a single shard.',
                                                   key=str(key) + 'zipsize')
         avg_zip_shard_size = None if avg_zip_shard_size == 'None' \
-            else bytes_to_int(avg_zip_shard_size)
+            else normalize_bytes(avg_zip_shard_size)
         stream_entries['shards'] = shards
         stream_entries['samples_per_shard'] = samples_per_shard
         stream_entries['avg_raw_shard_size'] = avg_raw_shard_size
@@ -256,7 +256,7 @@ def param_inputs(component: DeltaGenerator, input_params: dict, defaults: dict =
                                         sample from your dataset.')
     node_network_bandwidth = col_m.text_input(
         'network bandwidth per node (bytes/s)',
-        value='500MB'
+        value='500mb'
         if 'node_network_bandwidth' not in defaults else defaults['node_network_bandwidth'],
         help='network bandwidth available to \
                                             each node. in practice, network bandwidth is \
@@ -326,7 +326,8 @@ def param_inputs(component: DeltaGenerator, input_params: dict, defaults: dict =
         value='None' if 'cache_limit' not in defaults else defaults['cache_limit'],
         help='cache limit per node for this run. \
                                     setting cache limit too low will impact throughput.')
-    cache_limit = None if cache_limit == '' or cache_limit == 'None' else bytes_to_int(cache_limit)
+    cache_limit = None if cache_limit == '' or cache_limit == 'None' else \
+        normalize_bytes(cache_limit)
     sampling_methods = ['balanced', 'fixed']
     sampling_method = col_r.selectbox('sampling method',
                                       sampling_methods,

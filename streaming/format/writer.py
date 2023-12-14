@@ -22,7 +22,7 @@ from streaming.compression import compress, get_compression_extension, is_compre
 from streaming.format.index import get_index_basename
 from streaming.hashing import get_hash, is_hash
 from streaming.storage.upload import CloudUploader
-from streaming.util import bytes_to_int
+from streaming.util.shorthand import normalize_bytes
 
 __all__ = ['JointWriter', 'SplitWriter']
 
@@ -91,13 +91,6 @@ class Writer(ABC):
             if not is_hash(algo):
                 raise ValueError(f'Invalid hash: {algo}.')
 
-        size_limit_value = None
-        if size_limit:
-            size_limit_value = bytes_to_int(size_limit)
-            if size_limit_value < 0:
-                raise ValueError(f'`size_limit` must be greater than zero, instead, ' +
-                                 f'found as {size_limit_value}.')
-
         # Validate keyword arguments
         invalid_kwargs = [
             arg for arg in kwargs.keys() if arg not in ('progress_bar', 'max_workers', 'retry')
@@ -108,7 +101,7 @@ class Writer(ABC):
         self.keep_local = keep_local
         self.compression = compression
         self.hashes = hashes
-        self.size_limit = size_limit_value
+        self.size_limit = normalize_bytes(size_limit) if size_limit else None
         self.extra_bytes_per_shard = extra_bytes_per_shard
         self.extra_bytes_per_sample = extra_bytes_per_sample
         self.new_samples: List[bytes]
