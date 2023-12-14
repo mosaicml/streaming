@@ -121,7 +121,7 @@ def stream_entry(component: DeltaGenerator,
                                                 in each shard.',
                                                    key=str(key) + 'samples')
         avg_raw_shard_size = component.text_input('avg raw shard size (bytes)',
-                                                  value='60MB',
+                                                  value='60mb',
                                                   help='average raw size, in bytes, \
                                             of a single shard.',
                                                   key=str(key) + 'rawsize')
@@ -256,7 +256,7 @@ def param_inputs(component: DeltaGenerator, input_params: dict, defaults: dict =
                                         sample from your dataset.')
     node_network_bandwidth = col_m.text_input(
         'network bandwidth per node (bytes/s)',
-        value='500MB'
+        value='500mb'
         if 'node_network_bandwidth' not in defaults else defaults['node_network_bandwidth'],
         help='network bandwidth available to \
                                             each node. in practice, network bandwidth is \

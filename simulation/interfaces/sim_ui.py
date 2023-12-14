@@ -279,7 +279,7 @@ if use_yaml:
             help='time for one device to process one sample from your dataset.')
         time_per_sample = float(time_per_sample)
         node_internet_bandwidth = col1.text_input('network bandwidth per node (bytes/s)',
-                                                  value='500MB',
+                                                  value='500mb',
                                                   help='network bandwidth available to each \
                                                 node. in practice, network bandwidth is \
                                                 variable and is affected by many factors, \
