@@ -14,7 +14,7 @@ import numpy as np
 from core.utils import get_rolling_avg_throughput
 from numpy.typing import NDArray
 
-from streaming.util import number_abbrev_to_int
+from streaming.util.shorthand import normalize_count
 
 
 def plot_simulation(step_times: NDArray, step_downloads: NDArray, window: int = 10):
@@ -88,7 +88,7 @@ def get_train_dataset_params(input_params: dict, old_params: Optional[dict] = No
     train_dataset_params['cache_limit'] = input_params['cache_limit']
     train_dataset_params['shuffle'] = input_params['shuffle']
     train_dataset_params['shuffle_algo'] = input_params['shuffle_algo']
-    train_dataset_params['shuffle_block_size'] = number_abbrev_to_int(
+    train_dataset_params['shuffle_block_size'] = normalize_count(
         input_params['shuffle_block_size']) if input_params['shuffle_block_size'] is not None \
         else None
     train_dataset_params['shuffle_seed'] = input_params['seed']

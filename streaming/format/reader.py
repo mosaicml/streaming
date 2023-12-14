@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Iterator, List, Optional, Set, Union
 
 from streaming.array import Array
-from streaming.util import bytes_to_int
+from streaming.util.shorthand import normalize_bytes
 
 __all__ = ['FileInfo', 'Reader', 'JointReader', 'SplitReader']
 
@@ -52,20 +52,12 @@ class Reader(Array, ABC):
         samples: int,
         size_limit: Optional[Union[int, str]],
     ) -> None:
-
-        if size_limit:
-            if (isinstance(size_limit, str)):
-                size_limit = bytes_to_int(size_limit)
-            if size_limit < 0:
-                raise ValueError(f'`size_limit` must be greater than zero, instead, ' +
-                                 f'found as {size_limit}.')
-
         self.dirname = dirname
         self.split = split or ''
         self.compression = compression
         self.hashes = hashes
         self.samples = samples
-        self.size_limit = size_limit
+        self.size_limit = normalize_bytes(size_limit) if size_limit else None
 
         self.file_pairs = []
 

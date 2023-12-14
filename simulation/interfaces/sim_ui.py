@@ -28,7 +28,7 @@ from interfaces.interface_utils import get_train_dataset_params
 from interfaces.widgets import (display_shuffle_quality_graph, display_simulation_stats,
                                 get_line_chart, param_inputs)
 
-from streaming.util import bytes_to_int, number_abbrev_to_int
+from streaming.util.shorthand import normalize_bytes, normalize_count
 
 # set up page
 st.set_page_config(layout='wide')
@@ -60,7 +60,7 @@ def submit_jobs(shuffle_quality: bool, dataset: SimulationDataset, time_per_samp
         max_duration (Time): Maximum duration of simulation.
     """
     total_batches = get_total_batches(dataset=dataset, max_duration=max_duration)
-    node_internet_bandwidth = bytes_to_int(node_internet_bandwidth)
+    node_internet_bandwidth = normalize_bytes(node_internet_bandwidth)
     cache_limit = dataset.get_cache_limit()
     gen_sim = simulate(dataset,
                        time_per_sample,
@@ -92,7 +92,7 @@ def submit_jobs(shuffle_quality: bool, dataset: SimulationDataset, time_per_samp
             devices = input_params['devices']
             workers = input_params['workers']
             device_batch_size = input_params['device_batch_size']
-            shuffle_block_size = number_abbrev_to_int(input_params['shuffle_block_size']) \
+            shuffle_block_size = normalize_count(input_params['shuffle_block_size']) \
                 if input_params['shuffle_block_size'] is not None \
                     else dataset.get_shuffle_block_size()
             samples_per_shard = dataset.get_avg_samples_per_shard()
@@ -279,7 +279,7 @@ if use_yaml:
             help='time for one device to process one sample from your dataset.')
         time_per_sample = float(time_per_sample)
         node_internet_bandwidth = col1.text_input('network bandwidth per node (bytes/s)',
-                                                  value='500MB',
+                                                  value='500mb',
                                                   help='network bandwidth available to each \
                                                 node. in practice, network bandwidth is \
                                                 variable and is affected by many factors, \
