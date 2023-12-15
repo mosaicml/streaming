@@ -10,16 +10,16 @@ import numpy as np
 import pytest
 from PIL import Image
 
-import streaming.format.json.encodings as jsonEnc
-import streaming.format.mds.encodings as mdsEnc
-import streaming.format.xsv.encodings as xsvEnc
+import streaming.format.jsonl.encodings as jsonl_enc
+import streaming.format.mds.encodings as mds_enc
+import streaming.format.xsv.encodings as xsv_enc
 
 
 class TestMDSEncodings:
 
     @pytest.mark.parametrize('data', [b'5', b'\x00\x00'])
     def test_byte_encode_decode(self, data: bytes):
-        byte_enc = mdsEnc.Bytes()
+        byte_enc = mds_enc.Bytes()
         assert byte_enc.size is None
         output = byte_enc.encode(data)
         assert output == data
@@ -29,13 +29,13 @@ class TestMDSEncodings:
     @pytest.mark.parametrize('data', ['9', 25])
     def test_byte_encode_invalid_data(self, data: Any):
         with pytest.raises(AttributeError):
-            byte_enc = mdsEnc.Bytes()
+            byte_enc = mds_enc.Bytes()
             _ = byte_enc.encode(data)
 
     @pytest.mark.parametrize(('data', 'encode_data'),
                              [('99', b'99'), ('streaming dataset', b'streaming dataset')])
     def test_str_encode_decode(self, data: str, encode_data: bytes):
-        str_enc = mdsEnc.Str()
+        str_enc = mds_enc.Str()
         assert str_enc.size is None
 
         # Test encode
@@ -51,13 +51,13 @@ class TestMDSEncodings:
     @pytest.mark.parametrize('data', [b'9', 25])
     def test_str_encode_invalid_data(self, data: Any):
         with pytest.raises(AttributeError):
-            str_enc = mdsEnc.Str()
+            str_enc = mds_enc.Str()
             _ = str_enc.encode(data)
 
     @pytest.mark.parametrize(('data', 'encode_data'), [(99, b'c\x00\x00\x00\x00\x00\x00\x00'),
                                                        (987654321, b'\xb1h\xde:\x00\x00\x00\x00')])
     def test_int_encode_decode(self, data: int, encode_data: bytes):
-        int_enc = mdsEnc.Int()
+        int_enc = mds_enc.Int()
         assert int_enc.size == 8
 
         # Test encode
@@ -73,7 +73,7 @@ class TestMDSEncodings:
     @pytest.mark.parametrize('data', [b'9', 25.9])
     def test_int_encode_invalid_data(self, data: Any):
         with pytest.raises(AttributeError):
-            int_enc = mdsEnc.Int()
+            int_enc = mds_enc.Int()
             _ = int_enc.encode(data)
 
     @pytest.mark.parametrize('dtype_str', [
@@ -103,28 +103,28 @@ class TestMDSEncodings:
         a = np.random.randint(0, 1000, shape).astype(dtype)
 
         encoding = 'ndarray'
-        assert mdsEnc.is_mds_encoding(encoding)
-        assert mdsEnc.get_mds_encoded_size(encoding) is None
-        b = mdsEnc.mds_encode(encoding, a)
-        c = mdsEnc.mds_decode(encoding, b)
+        assert mds_enc.is_mds_encoding(encoding)
+        assert mds_enc.get_mds_encoded_size(encoding) is None
+        b = mds_enc.mds_encode(encoding, a)
+        c = mds_enc.mds_decode(encoding, b)
         assert (a == c).all()
         b1_len = len(b)
 
         encoding = f'ndarray:{dtype.__name__}'
-        assert mdsEnc.is_mds_encoding(encoding)
-        assert mdsEnc.get_mds_encoded_size(encoding) is None
-        b = mdsEnc.mds_encode(encoding, a)
-        c = mdsEnc.mds_decode(encoding, b)
+        assert mds_enc.is_mds_encoding(encoding)
+        assert mds_enc.get_mds_encoded_size(encoding) is None
+        b = mds_enc.mds_encode(encoding, a)
+        c = mds_enc.mds_decode(encoding, b)
         assert (a == c).all()
         b2_len = len(b)
 
         shape_str = ','.join(map(str, shape))
         encoding = f'ndarray:{dtype.__name__}:{shape_str}'
-        assert mdsEnc.is_mds_encoding(encoding)
-        b_size = mdsEnc.get_mds_encoded_size(encoding)
+        assert mds_enc.is_mds_encoding(encoding)
+        b_size = mds_enc.get_mds_encoded_size(encoding)
         assert b_size is not None
-        b = mdsEnc.mds_encode(encoding, a)
-        c = mdsEnc.mds_decode(encoding, b)
+        b = mds_enc.mds_encode(encoding, a)
+        c = mds_enc.mds_decode(encoding, b)
         assert (a == c).all()
         assert len(b) == b_size
         b3_len = len(b)
@@ -134,7 +134,7 @@ class TestMDSEncodings:
 
     @pytest.mark.parametrize('mode', ['I', 'L', 'RGB'])
     def test_pil_encode_decode(self, mode: str):
-        pil_enc = mdsEnc.PIL()
+        pil_enc = mds_enc.PIL()
         assert pil_enc.size is None
 
         # Creating the (32 x 32) NumPy Array with random values
@@ -158,12 +158,12 @@ class TestMDSEncodings:
     @pytest.mark.parametrize('data', [b'9', 25.9])
     def test_pil_encode_invalid_data(self, data: Any):
         with pytest.raises(AttributeError):
-            pil_enc = mdsEnc.PIL()
+            pil_enc = mds_enc.PIL()
             _ = pil_enc.encode(data)
 
     @pytest.mark.parametrize('mode', ['L', 'RGB'])
     def test_jpeg_encode_decode(self, mode: str):
-        jpeg_enc = mdsEnc.JPEG()
+        jpeg_enc = mds_enc.JPEG()
         assert jpeg_enc.size is None
 
         # Creating the (32 x 32) NumPy Array with random values
@@ -182,7 +182,7 @@ class TestMDSEncodings:
 
     @pytest.mark.parametrize('mode', ['L', 'RGB'])
     def test_jpegfile_encode_decode(self, mode: str):
-        jpeg_enc = mdsEnc.JPEG()
+        jpeg_enc = mds_enc.JPEG()
         assert jpeg_enc.size is None
 
         # Creating the (32 x 32) NumPy Array with random values
@@ -208,12 +208,12 @@ class TestMDSEncodings:
     @pytest.mark.parametrize('data', [b'99', 12.5])
     def test_jpeg_encode_invalid_data(self, data: Any):
         with pytest.raises(AttributeError):
-            jpeg_enc = mdsEnc.JPEG()
+            jpeg_enc = mds_enc.JPEG()
             _ = jpeg_enc.encode(data)
 
     @pytest.mark.parametrize('mode', ['I', 'L', 'RGB'])
     def test_png_encode_decode(self, mode: str):
-        png_enc = mdsEnc.PNG()
+        png_enc = mds_enc.PNG()
         assert png_enc.size is None
 
         # Creating the (32 x 32) NumPy Array with random values
@@ -237,12 +237,12 @@ class TestMDSEncodings:
     @pytest.mark.parametrize('data', [b'123', 77.7])
     def test_png_encode_invalid_data(self, data: Any):
         with pytest.raises(AttributeError):
-            png_enc = mdsEnc.PNG()
+            png_enc = mds_enc.PNG()
             _ = png_enc.encode(data)
 
     @pytest.mark.parametrize('data', [25, 'streaming', np.array(7)])
     def test_pickle_encode_decode(self, data: Any):
-        pkl_enc = mdsEnc.Pickle()
+        pkl_enc = mds_enc.Pickle()
         assert pkl_enc.size is None
 
         # Test encode
@@ -258,7 +258,7 @@ class TestMDSEncodings:
 
     @pytest.mark.parametrize('data', [25, 'streaming', {'alpha': 1, 'beta': 2}])
     def test_json_encode_decode(self, data: Any):
-        json_enc = mdsEnc.JSON()
+        json_enc = mds_enc.JSON()
         assert json_enc.size is None
 
         # Test encode
@@ -275,12 +275,12 @@ class TestMDSEncodings:
     def test_json_invalid_data(self):
         wrong_json_with_single_quotes = "{'name': 'streaming'}"
         with pytest.raises(json.JSONDecodeError):
-            json_enc = mdsEnc.JSON()
+            json_enc = mds_enc.JSON()
             json_enc._is_valid(wrong_json_with_single_quotes, wrong_json_with_single_quotes)
 
     @pytest.mark.parametrize(('decoded', 'encoded'), [(42, b'*')])
     def test_mds_uint8(self, decoded: int, encoded: bytes):
-        coder = mdsEnc.UInt8()
+        coder = mds_enc.UInt8()
         assert coder.size == 1
 
         enc = coder.encode(decoded)
@@ -293,7 +293,7 @@ class TestMDSEncodings:
 
     @pytest.mark.parametrize(('decoded', 'encoded'), [(42, b'*\0')])
     def test_mds_uint16(self, decoded: int, encoded: bytes):
-        coder = mdsEnc.UInt16()
+        coder = mds_enc.UInt16()
         assert coder.size == 2
 
         enc = coder.encode(decoded)
@@ -306,7 +306,7 @@ class TestMDSEncodings:
 
     @pytest.mark.parametrize(('decoded', 'encoded'), [(42, b'*\0\0\0')])
     def test_mds_uint32(self, decoded: int, encoded: bytes):
-        coder = mdsEnc.UInt32()
+        coder = mds_enc.UInt32()
         assert coder.size == 4
 
         enc = coder.encode(decoded)
@@ -319,7 +319,7 @@ class TestMDSEncodings:
 
     @pytest.mark.parametrize(('decoded', 'encoded'), [(42, b'*\0\0\0\0\0\0\0')])
     def test_mds_uint64(self, decoded: int, encoded: bytes):
-        coder = mdsEnc.UInt64()
+        coder = mds_enc.UInt64()
         assert coder.size == 8
 
         enc = coder.encode(decoded)
@@ -332,7 +332,7 @@ class TestMDSEncodings:
 
     @pytest.mark.parametrize(('decoded', 'encoded'), [(42, b'*')])
     def test_mds_int8(self, decoded: int, encoded: bytes):
-        coder = mdsEnc.Int8()
+        coder = mds_enc.Int8()
         assert coder.size == 1
 
         enc = coder.encode(decoded)
@@ -345,7 +345,7 @@ class TestMDSEncodings:
 
     @pytest.mark.parametrize(('decoded', 'encoded'), [(42, b'*\0')])
     def test_mds_int16(self, decoded: int, encoded: bytes):
-        coder = mdsEnc.Int16()
+        coder = mds_enc.Int16()
         assert coder.size == 2
 
         enc = coder.encode(decoded)
@@ -358,7 +358,7 @@ class TestMDSEncodings:
 
     @pytest.mark.parametrize(('decoded', 'encoded'), [(42, b'*\0\0\0')])
     def test_mds_int32(self, decoded: int, encoded: bytes):
-        coder = mdsEnc.Int32()
+        coder = mds_enc.Int32()
         assert coder.size == 4
 
         enc = coder.encode(decoded)
@@ -371,7 +371,7 @@ class TestMDSEncodings:
 
     @pytest.mark.parametrize(('decoded', 'encoded'), [(42, b'*\0\0\0\0\0\0\0')])
     def test_mds_int64(self, decoded: int, encoded: bytes):
-        coder = mdsEnc.Int64()
+        coder = mds_enc.Int64()
         assert coder.size == 8
 
         enc = coder.encode(decoded)
@@ -384,7 +384,7 @@ class TestMDSEncodings:
 
     @pytest.mark.parametrize(('decoded', 'encoded'), [(42.0, b'@Q')])
     def test_mds_float16(self, decoded: float, encoded: bytes):
-        coder = mdsEnc.Float16()
+        coder = mds_enc.Float16()
         assert coder.size == 2
 
         enc = coder.encode(decoded)
@@ -397,7 +397,7 @@ class TestMDSEncodings:
 
     @pytest.mark.parametrize(('decoded', 'encoded'), [(42.0, b'\0\0(B')])
     def test_mds_float32(self, decoded: float, encoded: bytes):
-        coder = mdsEnc.Float32()
+        coder = mds_enc.Float32()
         assert coder.size == 4
 
         enc = coder.encode(decoded)
@@ -410,7 +410,7 @@ class TestMDSEncodings:
 
     @pytest.mark.parametrize(('decoded', 'encoded'), [(42.0, b'\0\0\0\0\0\0E@')])
     def test_mds_float64(self, decoded: float, encoded: bytes):
-        coder = mdsEnc.Float64()
+        coder = mds_enc.Float64()
         assert coder.size == 8
 
         enc = coder.encode(decoded)
@@ -423,7 +423,7 @@ class TestMDSEncodings:
 
     @pytest.mark.parametrize(('decoded', 'encoded'), [(42, b'42'), (-42, b'-42')])
     def test_mds_StrInt(self, decoded: int, encoded: bytes):
-        coder = mdsEnc.StrInt()
+        coder = mds_enc.StrInt()
         enc = coder.encode(decoded)
         assert isinstance(enc, bytes)
         assert enc == encoded
@@ -434,7 +434,7 @@ class TestMDSEncodings:
 
     @pytest.mark.parametrize(('decoded', 'encoded'), [(42.0, b'42.0'), (-42.0, b'-42.0')])
     def test_mds_StrFloat(self, decoded: float, encoded: bytes):
-        coder = mdsEnc.StrFloat()
+        coder = mds_enc.StrFloat()
         enc = coder.encode(decoded)
         assert isinstance(enc, bytes)
         assert enc == encoded
@@ -446,7 +446,7 @@ class TestMDSEncodings:
     @pytest.mark.parametrize(('decoded', 'encoded'), [(Decimal('4E15'), b'4E+15'),
                                                       (Decimal('-4E15'), b'-4E+15')])
     def test_mds_StrDecimal(self, decoded: Decimal, encoded: bytes):
-        coder = mdsEnc.StrDecimal()
+        coder = mds_enc.StrDecimal()
         enc = coder.encode(decoded)
         assert isinstance(enc, bytes)
         assert enc == encoded
@@ -463,14 +463,14 @@ class TestMDSEncodings:
         expected_encodings = {
             'int', 'bytes', 'json', 'ndarray', 'png', 'jpeg', 'str', 'pil', 'pkl'
         } | scalars
-        enc = mdsEnc.get_mds_encodings()
+        enc = mds_enc.get_mds_encodings()
         assert len(enc) == len(expected_encodings)
         assert enc == expected_encodings
 
     @pytest.mark.parametrize(('enc_name', 'expected_output'), [('jpeg', True), ('', False),
                                                                ('pngg', False)])
     def test_is_mds_encoding(self, enc_name: str, expected_output: bool):
-        is_supported = mdsEnc.is_mds_encoding(enc_name)
+        is_supported = mds_enc.is_mds_encoding(enc_name)
         assert is_supported is expected_output
 
     @pytest.mark.parametrize(('encoding', 'decoded', 'encoded'),
@@ -480,35 +480,35 @@ class TestMDSEncodings:
                               ('int64', 42, b'*\0\0\0\0\0\0\0'), ('float16', 42.0, b'@Q'),
                               ('float32', 42.0, b'\0\0(B'), ('float64', 42.0, b'\0\0\0\0\0\0E@')])
     def test_mds_scalar(self, encoding: str, decoded: Union[int, float], encoded: bytes):
-        enc = mdsEnc.mds_encode(encoding, decoded)
+        enc = mds_enc.mds_encode(encoding, decoded)
         assert isinstance(enc, bytes)
         assert enc == encoded
-        dec = mdsEnc.mds_decode(encoding, enc)
+        dec = mds_enc.mds_decode(encoding, enc)
         assert dec == decoded
-        dec = mdsEnc.mds_decode(encoding, encoded)
+        dec = mds_enc.mds_decode(encoding, encoded)
         assert dec == decoded
 
     @pytest.mark.parametrize(('enc_name', 'data'), [('bytes', b'9'), ('int', 27),
                                                     ('str', 'mosaicml')])
     def test_mds_encode(self, enc_name: str, data: Any):
-        output = mdsEnc.mds_encode(enc_name, data)
+        output = mds_enc.mds_encode(enc_name, data)
         assert isinstance(output, bytes)
 
     @pytest.mark.parametrize(('enc_name', 'data'), [('bytes', 9), ('int', '27'), ('str', 12.5)])
     def test_mds_encode_invalid_data(self, enc_name: str, data: Any):
         with pytest.raises(AttributeError):
-            _ = mdsEnc.mds_encode(enc_name, data)
+            _ = mds_enc.mds_encode(enc_name, data)
 
     @pytest.mark.parametrize(('enc_name', 'data', 'expected_data_type'),
                              [('bytes', b'c\x00\x00\x00\x00\x00\x00\x00', bytes),
                               ('str', b'mosaicml', str)])
     def test_mds_decode(self, enc_name: str, data: Any, expected_data_type: Any):
-        output = mdsEnc.mds_decode(enc_name, data)
+        output = mds_enc.mds_decode(enc_name, data)
         assert isinstance(output, expected_data_type)
 
     @pytest.mark.parametrize(('enc_name', 'expected_size'), [('bytes', None), ('int', 8)])
     def test_get_mds_encoded_size(self, enc_name: str, expected_size: Any):
-        output = mdsEnc.get_mds_encoded_size(enc_name)
+        output = mds_enc.get_mds_encoded_size(enc_name)
         assert output is expected_size
 
 
@@ -517,7 +517,7 @@ class TestXSVEncodings:
     @pytest.mark.parametrize(('data', 'encode_data'), [('99', '99'),
                                                        ('streaming dataset', 'streaming dataset')])
     def test_str_encode_decode(self, data: str, encode_data: str):
-        str_enc = xsvEnc.Str()
+        str_enc = xsv_enc.Str()
 
         # Test encode
         enc_data = str_enc.encode(data)
@@ -532,12 +532,12 @@ class TestXSVEncodings:
     @pytest.mark.parametrize('data', [99, b'streaming dataset', 123.45])
     def test_str_encode_invalid_data(self, data: Any):
         with pytest.raises(Exception):
-            str_enc = xsvEnc.Str()
+            str_enc = xsv_enc.Str()
             _ = str_enc.encode(data)
 
     @pytest.mark.parametrize(('data', 'encode_data'), [(99, '99'), (987675432, '987675432')])
     def test_int_encode_decode(self, data: int, encode_data: str):
-        int_enc = xsvEnc.Int()
+        int_enc = xsv_enc.Int()
 
         # Test encode
         enc_data = int_enc.encode(data)
@@ -552,12 +552,12 @@ class TestXSVEncodings:
     @pytest.mark.parametrize('data', ['99', b'streaming dataset', 123.45])
     def test_int_encode_invalid_data(self, data: Any):
         with pytest.raises(Exception):
-            int_enc = xsvEnc.Int()
+            int_enc = xsv_enc.Int()
             _ = int_enc.encode(data)
 
     @pytest.mark.parametrize(('data', 'encode_data'), [(1.24, '1.24'), (9.0, '9.0')])
     def test_float_encode_decode(self, data: int, encode_data: str):
-        float_enc = xsvEnc.Float()
+        float_enc = xsv_enc.Float()
 
         # Test encode
         enc_data = float_enc.encode(data)
@@ -572,7 +572,7 @@ class TestXSVEncodings:
     @pytest.mark.parametrize('data', ['99', b'streaming dataset', 12])
     def test_float_encode_invalid_data(self, data: Any):
         with pytest.raises(Exception):
-            float_enc = xsvEnc.Float()
+            float_enc = xsv_enc.Float()
             _ = float_enc.encode(data)
 
     @pytest.mark.parametrize(('enc_name', 'expected_output'), [
@@ -582,14 +582,14 @@ class TestXSVEncodings:
         ('', False),
     ])
     def test_is_xsv_encoding(self, enc_name: str, expected_output: bool):
-        is_supported = xsvEnc.is_xsv_encoding(enc_name)
+        is_supported = xsv_enc.is_xsv_encoding(enc_name)
         assert is_supported is expected_output
 
     @pytest.mark.parametrize(('enc_name', 'data', 'expected_data'),
                              [('str', 'mosaicml', 'mosaicml'), ('int', 27, '27'),
                               ('float', 1.25, '1.25')])
     def test_xsv_encode(self, enc_name: str, data: Any, expected_data: str):
-        output = xsvEnc.xsv_encode(enc_name, data)
+        output = xsv_enc.xsv_encode(enc_name, data)
         assert isinstance(output, str)
         assert output == expected_data
 
@@ -597,7 +597,7 @@ class TestXSVEncodings:
                              [('str', 'mosaicml', 'mosaicml'), ('int', '27', 27),
                               ('float', '1.25', 1.25)])
     def test_xsv_decode(self, enc_name: str, data: str, expected_data: Any):
-        output = xsvEnc.xsv_decode(enc_name, data)
+        output = xsv_enc.xsv_decode(enc_name, data)
         assert isinstance(output, type(expected_data))
         assert output == expected_data
 
@@ -606,7 +606,7 @@ class TestJSONEncodings:
 
     @pytest.mark.parametrize('data', ['99', 'mosaicml'])
     def test_str_is_encoded(self, data: str):
-        json_enc = jsonEnc.Str()
+        json_enc = jsonl_enc.Str()
 
         # Test encode
         enc_data = json_enc.is_encoded(data)
@@ -615,12 +615,12 @@ class TestJSONEncodings:
     @pytest.mark.parametrize('data', [99, b'mosaicml'])
     def test_str_is_encoded_invalid_data(self, data: Any):
         with pytest.raises(AttributeError):
-            json_enc = jsonEnc.Str()
+            json_enc = jsonl_enc.Str()
             _ = json_enc.is_encoded(data)
 
     @pytest.mark.parametrize('data', [99, 987675432])
     def test_int_is_encoded(self, data: int):
-        int_enc = jsonEnc.Int()
+        int_enc = jsonl_enc.Int()
 
         # Test encode
         enc_data = int_enc.is_encoded(data)
@@ -629,12 +629,12 @@ class TestJSONEncodings:
     @pytest.mark.parametrize('data', ['99', b'mosaicml', 1.25])
     def test_int_is_encoded_invalid_data(self, data: Any):
         with pytest.raises(AttributeError):
-            int_enc = jsonEnc.Int()
+            int_enc = jsonl_enc.Int()
             _ = int_enc.is_encoded(data)
 
     @pytest.mark.parametrize('data', [1.25])
     def test_float_is_encoded(self, data: int):
-        float_enc = jsonEnc.Float()
+        float_enc = jsonl_enc.Float()
 
         # Test encode
         enc_data = float_enc.is_encoded(data)
@@ -643,7 +643,7 @@ class TestJSONEncodings:
     @pytest.mark.parametrize('data', ['99', b'mosaicml', 25])
     def test_float_is_encoded_invalid_data(self, data: Any):
         with pytest.raises(AttributeError):
-            float_enc = jsonEnc.Float()
+            float_enc = jsonl_enc.Float()
             _ = float_enc.is_encoded(data)
 
     @pytest.mark.parametrize(('enc_name', 'expected_output'), [
@@ -652,13 +652,13 @@ class TestJSONEncodings:
         ('float', True),
         ('', False),
     ])
-    def test_is_json_encoding(self, enc_name: str, expected_output: bool):
-        is_supported = jsonEnc.is_json_encoding(enc_name)
+    def test_is_jsonl_encoding(self, enc_name: str, expected_output: bool):
+        is_supported = jsonl_enc.is_jsonl_encoding(enc_name)
         assert is_supported is expected_output
 
     @pytest.mark.parametrize(('enc_name', 'data', 'expected_output'), [('str', 'hello', True),
                                                                        ('int', 10, True),
                                                                        ('float', 9.9, True)])
-    def test_is_json_encoded(self, enc_name: str, data: Any, expected_output: bool):
-        is_supported = jsonEnc.is_json_encoded(enc_name, data)
+    def test_is_jsonl_encoded(self, enc_name: str, data: Any, expected_output: bool):
+        is_supported = jsonl_enc.is_jsonl_encoded(enc_name, data)
         assert is_supported is expected_output

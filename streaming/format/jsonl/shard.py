@@ -1,7 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Streaming JSON shard reading."""
+"""Streaming JSONL shard reading."""
 
 import json
 import os
@@ -13,11 +13,11 @@ from typing_extensions import Self
 
 from streaming.format.shard import DualShard, FileInfo
 
-__all__ = ['JSONShard']
+__all__ = ['JSONLShard']
 
 
-class JSONShard(DualShard):
-    """Provides random access to the samples of a JSON shard.
+class JSONLShard(DualShard):
+    """Provides random access to the samples of a JSONL shard.
 
     Args:
         dirname (str): Local dataset directory.
@@ -68,7 +68,7 @@ class JSONShard(DualShard):
             obj (Dict[str, Any]): JSON object to load.
 
         Returns:
-            Self: Loaded JSONShard.
+            Self: Loaded JSONLShard.
         """
         args = deepcopy(obj)
         # Version check.
@@ -77,9 +77,9 @@ class JSONShard(DualShard):
                              f'Expected version 2.')
         del args['version']
         # Check format.
-        if args['format'] != 'json':
-            raise ValueError(f'Unsupported data format: {args["format"]}. ' +
-                             f'Expected to be `json`.')
+        if args['format'] not in {'json', 'jsonl'}:
+            raise ValueError(f'Unsupported data format: got {args["format"]}, but expected ' +
+                             f'"jsonl" (or "json").')
         del args['format']
         args['dirname'] = dirname
         args['split'] = split

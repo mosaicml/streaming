@@ -8,6 +8,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Dict, Iterator, List, Optional, Set, Union
 
+from typing_extensions import Self
+
 from streaming.array import Array
 from streaming.util.shorthand import normalize_bytes
 
@@ -60,6 +62,21 @@ class Shard(Array, ABC):
         self.size_limit = normalize_bytes(size_limit) if size_limit else None
 
         self.file_pairs = []
+
+    @abstractmethod
+    @classmethod
+    def from_json(cls, dirname: str, split: Optional[str], obj: Dict[str, Any]) -> Self:
+        """Initialize from JSON object.
+
+        Args:
+            dirname (str): Local directory containing shards.
+            split (str, optional): Which dataset split to use, if any.
+            obj (Dict[str, Any]): JSON object to load.
+
+        Returns:
+            Self: Loaded Shard.
+        """
+        raise NotImplementedError
 
     def validate(self, allow_unsafe_types: bool) -> None:
         """Check whether this shard is acceptable to be part of some Stream.

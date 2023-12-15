@@ -9,7 +9,7 @@ from typing import Any, Tuple
 import numpy as np
 import pytest
 
-from streaming import CSVWriter, JSONWriter, MDSWriter, StreamingDataset, TSVWriter, XSVWriter
+from streaming import CSVWriter, JSONLWriter, MDSWriter, StreamingDataset, TSVWriter, XSVWriter
 from tests.common.datasets import NumberAndSayDataset, SequenceDataset
 from tests.common.utils import get_config_in_bytes
 
@@ -122,7 +122,7 @@ class TestMDSWriter:
             assert before == after
 
 
-class TestJSONWriter:
+class TestJSONLWriter:
 
     @pytest.mark.parametrize('num_samples', [100])
     @pytest.mark.parametrize('size_limit', [32])
@@ -133,18 +133,18 @@ class TestJSONWriter:
         columns = dict(zip(dataset.column_names, dataset.column_encodings))
         expected_config = {
             'version': 2,
-            'format': 'json',
+            'format': 'jsonl',
             'compression': None,
             'hashes': [],
             'size_limit': size_limit,
             'columns': columns,
             'newline': '\n'
         }
-        writer = JSONWriter(out=local,
-                            columns=columns,
-                            compression=None,
-                            hashes=None,
-                            size_limit=size_limit)
+        writer = JSONLWriter(out=local,
+                             columns=columns,
+                             compression=None,
+                             hashes=None,
+                             size_limit=size_limit)
         assert writer.get_config() == expected_config
 
     @pytest.mark.parametrize('num_samples', [50000])
@@ -158,11 +158,11 @@ class TestJSONWriter:
         local, _ = local_remote_dir
         dataset = NumberAndSayDataset(num_samples, seed=seed)
         columns = dict(zip(dataset.column_names, dataset.column_encodings))
-        with JSONWriter(out=local,
-                        columns=columns,
-                        compression=compression,
-                        hashes=hashes,
-                        size_limit=size_limit) as out:
+        with JSONLWriter(out=local,
+                         columns=columns,
+                         compression=compression,
+                         hashes=hashes,
+                         size_limit=size_limit) as out:
             for sample in dataset:
                 out.write(sample)
 
