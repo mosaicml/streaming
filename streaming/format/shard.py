@@ -63,8 +63,8 @@ class Shard(Array, ABC):
 
         self.file_pairs = []
 
-    @abstractmethod
     @classmethod
+    @abstractmethod
     def from_json(cls, dirname: str, split: Optional[str], obj: Dict[str, Any]) -> Self:
         """Initialize from JSON object.
 
