@@ -10,9 +10,10 @@ from streaming.util.shared import clean_stale_shared_memory
 from streaming.util.shorthand import (get_list_arg, get_str2str_arg, normalize_bin_bytes,
                                       normalize_bytes, normalize_count, normalize_dec_bytes,
                                       normalize_duration)
+from streaming.util.tabulation import Tabulator
 
 __all__ = [
     'get_import_exception_message', 'redirect_imports', 'merge_index', 'retry',
     'clean_stale_shared_memory', 'get_list_arg', 'get_str2str_arg', 'normalize_dec_bytes',
-    'normalize_bin_bytes', 'normalize_bytes', 'normalize_count', 'normalize_duration'
+    'normalize_bin_bytes', 'normalize_bytes', 'normalize_count', 'normalize_duration', 'Tabulator'
 ]
