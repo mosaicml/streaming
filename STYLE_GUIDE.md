@@ -207,10 +207,10 @@ For example, from [streaming/dataset.py](streaming/dataset.py)
 """The :class:`Dataset` class, used for building streaming iterable datasets."""
 from torch.utils.data import IterableDataset
 
-from streaming.format import reader_from_json
+from streaming.format import shard_from_json
 from streaming.spanner import Spanner
 
-__all__ = ["Dataset"]  # export only the Dataset, not other imports like `Spanner` or `reader_from_json`
+__all__ = ["Dataset"]  # Export `Dataset` only, not the others e.g. `Spanner` or `shard_from_json`.
 
 
 class Dataset(IterableDataset):
