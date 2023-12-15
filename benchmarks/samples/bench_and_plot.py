@@ -17,7 +17,7 @@ from matplotlib.ticker import ScalarFormatter
 from numpy.typing import DTypeLike, NDArray
 from tqdm import trange
 
-from streaming import CSVWriter, JSONWriter, MDSWriter, StreamingDataset
+from streaming import CSVWriter, JSONLWriter, MDSWriter, StreamingDataset
 
 
 def parse_args() -> Namespace:
@@ -244,7 +244,7 @@ def bench(args: Namespace, bench_name: str, desc: str, generate: Callable,
 
     format_infos = [
         ('mds', MDSWriter, args.mds_color),
-        ('jsonl', JSONWriter, args.jsonl_color),
+        ('jsonl', JSONLWriter, args.jsonl_color),
         ('csv', CSVWriter, args.csv_color),
     ]
     format_infos = list(filter(lambda info: info[0] in formats, format_infos))

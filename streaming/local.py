@@ -11,7 +11,7 @@ import numpy as np
 from torch.utils.data import Dataset
 
 from streaming.array import Array
-from streaming.format import get_index_basename, reader_from_json
+from streaming.format import get_index_basename, shard_from_json
 from streaming.spanner import Spanner
 
 __all__ = ['LocalDataset']
@@ -39,7 +39,7 @@ class LocalDataset(Array, Dataset):
 
         self.shards = []
         for info in obj['shards']:
-            shard = reader_from_json(local, split, info)
+            shard = shard_from_json(local, split, info)
             self.shards.append(shard)
         self.num_samples = sum([shard.samples for shard in self.shards])
 

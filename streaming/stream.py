@@ -16,7 +16,7 @@ from typing_extensions import Self
 from streaming.compression import decompress
 from streaming.constant import TICK
 from streaming.distributed import barrier, get_local_rank
-from streaming.format import FileInfo, Reader, get_index_basename, reader_from_json
+from streaming.format import FileInfo, Shard, get_index_basename, shard_from_json
 from streaming.hashing import get_hash
 from streaming.storage import download_file, wait_for_file_to_exist
 from streaming.util import retry
@@ -352,9 +352,8 @@ class Stream:
                             compression: Optional[str] = None) -> int:
         """Get shard data given metadata for the raw and compressed versions of it.
 
-        MDS format uses joint shards (ie, one file per shard). Other formats supported by streaming
-        use split shards (ie, shard data lives in two files per shard: the raw data itself and
-        metadata in a separate file).
+        Shards are either mono shards (one file per shard, like MDS) or dual shards (a pair of data
+        and meta files per shard, like the Streaming JSONL and XSV shard formats).
 
         Args:
             raw_info (FileInfo): Raw file info.
@@ -407,11 +406,11 @@ class Stream:
                         raise ValueError(f'Checksum failure: {raw_filename}')
         return delta
 
-    def prepare_shard(self, shard: Reader) -> int:
+    def prepare_shard(self, shard: Shard) -> int:
         """Ensure (download, validate, extract, etc.) that we have the given shard.
 
         Args:
-            shard (Reader): Which shard.
+            shard (Shard): Which shard.
 
         Returns:
             int: Change in cache usage.
@@ -421,7 +420,7 @@ class Stream:
             delta += self._prepare_shard_part(raw_info, zip_info, shard.compression)
         return delta
 
-    def get_shards(self, world: World, allow_unsafe_types: bool) -> List[Reader]:
+    def get_shards(self, world: World, allow_unsafe_types: bool) -> List[Shard]:
         """Load this Stream's index, retrieving its shard readers.
 
         Args:
@@ -431,7 +430,7 @@ class Stream:
                 error.
 
         Returns:
-            `List[Reader]: Shard readers.
+            `List[Shard]: Shard readers.
         """
         # Download the index file if it does not exist locally.
         basename = get_index_basename()
@@ -471,17 +470,17 @@ class Stream:
         # Initialize shard readers according to the loaded info.
         shards = []
         for info in obj['shards']:
-            shard = reader_from_json(self.local, self.split, info)
+            shard = shard_from_json(self.local, self.split, info)
             shard.validate(allow_unsafe_types)
             shards.append(shard)
 
         return shards
 
-    def set_up_local(self, shards: List[Reader], cache_usage_per_shard: NDArray[np.int64]) -> None:
+    def set_up_local(self, shards: List[Shard], cache_usage_per_shard: NDArray[np.int64]) -> None:
         """Bring a local directory into a consistent state, getting which shards are present.
 
         Args:
-            shards (List[Reader]): List of this stream's shards.
+            shards (List[Shard]): List of this stream's shards.
             cache_usage_per_shard (NDArray[np.int64]): Cache usage per shard of this stream.
         """
         # List the cache directory (so that we hit the filesystem once).

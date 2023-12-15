@@ -1,20 +1,20 @@
 # Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-""":class:`XSVWriter` writes samples to `.xsv` files that can be read by :class:`XSVReader`."""
+"""Streaming XSV shard writing, with specializations for CSV and TSV."""
 
 import json
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
-from streaming.format.writer import SplitWriter
+from streaming.format.writer import DualWriter
 from streaming.format.xsv.encodings import is_xsv_encoding, xsv_encode
 
 __all__ = ['XSVWriter', 'CSVWriter', 'TSVWriter']
 
 
-class XSVWriter(SplitWriter):
+class XSVWriter(DualWriter):
     r"""Writes a streaming XSV dataset.
 
     Args:
@@ -114,8 +114,8 @@ class XSVWriter(SplitWriter):
         })
         return obj
 
-    def encode_split_shard(self) -> Tuple[bytes, bytes]:
-        """Encode a split shard out of the cached samples (data, meta files).
+    def encode_dual_shard(self) -> Tuple[bytes, bytes]:
+        """Encode a dual shard out of the cached samples (data, meta files).
 
         Returns:
             Tuple[bytes, bytes]: Data file, meta file.

@@ -1,16 +1,16 @@
 # Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Check whether sample encoding is of supported JSON types."""
+"""Check whether sample encoding is of supported JSONL types."""
 
 from abc import ABC, abstractmethod
 from typing import Any
 
-__all__ = ['is_json_encoded', 'is_json_encoding']
+__all__ = ['is_jsonl_encoded', 'is_jsonl_encoding']
 
 
 class Encoding(ABC):
-    """Encoding of an object of JSON type."""
+    """Encoding of an object of JSONL type."""
 
     @classmethod
     @abstractmethod
@@ -60,7 +60,7 @@ class Float(Encoding):
 _encodings = {'str': Str, 'int': Int, 'float': Float}
 
 
-def is_json_encoded(encoding: str, value: Any) -> bool:
+def is_jsonl_encoded(encoding: str, value: Any) -> bool:
     """Get whether the given object is of this encoding type.
 
     Args:
@@ -74,7 +74,7 @@ def is_json_encoded(encoding: str, value: Any) -> bool:
     return cls.is_encoded(value)
 
 
-def is_json_encoding(encoding: str) -> bool:
+def is_jsonl_encoding(encoding: str) -> bool:
     """Get whether the given encoding is supported.
 
     Args:
