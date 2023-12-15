@@ -11,7 +11,7 @@ from typing import Any, Dict, Iterator, List, Optional, Set, Union
 from streaming.array import Array
 from streaming.util.shorthand import normalize_bytes
 
-__all__ = ['FileInfo', 'Reader', 'MonoReader', 'DualReader']
+__all__ = ['FileInfo', 'Shard', 'MonoShard', 'DualShard']
 
 
 @dataclass
@@ -28,7 +28,7 @@ class FileInfo(object):
     hashes: Dict[str, str]
 
 
-class Reader(Array, ABC):
+class Shard(Array, ABC):
     """Provides random access to the samples of a shard.
 
     Args:
@@ -321,7 +321,7 @@ class Reader(Array, ABC):
             yield self[i]
 
 
-class MonoReader(Reader):
+class MonoShard(Shard):
     """Provides random access to the samples of a mono shard.
 
     Args:
@@ -353,7 +353,7 @@ class MonoReader(Reader):
         self.file_pairs.append((raw_data, zip_data))
 
 
-class DualReader(Reader):
+class DualShard(Shard):
     """Provides random access to the samples of a dual shard.
 
     Args:

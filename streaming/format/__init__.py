@@ -6,27 +6,27 @@
 from typing import Any, Dict, Optional
 
 from streaming.format.index import get_index_basename
-from streaming.format.json import JSONReader, JSONWriter
-from streaming.format.mds import MDSReader, MDSWriter
-from streaming.format.reader import FileInfo, Reader
-from streaming.format.xsv import CSVReader, CSVWriter, TSVReader, TSVWriter, XSVReader, XSVWriter
+from streaming.format.json import JSONShard, JSONWriter
+from streaming.format.mds import MDSShard, MDSWriter
+from streaming.format.reader import FileInfo, Shard
+from streaming.format.xsv import CSVShard, CSVWriter, TSVShard, TSVWriter, XSVShard, XSVWriter
 
 __all__ = [
-    'CSVWriter', 'FileInfo', 'get_index_basename', 'JSONWriter', 'MDSWriter', 'Reader',
-    'reader_from_json', 'TSVWriter', 'XSVWriter'
+    'CSVWriter', 'FileInfo', 'get_index_basename', 'JSONWriter', 'MDSWriter', 'Shard',
+    'shard_from_json', 'TSVWriter', 'XSVWriter'
 ]
 
-_readers = {
-    'csv': CSVReader,
-    'json': JSONReader,
-    'mds': MDSReader,
-    'tsv': TSVReader,
-    'xsv': XSVReader
+_shards = {
+    'csv': CSVShard,
+    'json': JSONShard,
+    'mds': MDSShard,
+    'tsv': TSVShard,
+    'xsv': XSVShard,
 }
 
 
-def reader_from_json(dirname: str, split: Optional[str], obj: Dict[str, Any]) -> Reader:
-    """Initialize the reader from JSON object.
+def shard_from_json(dirname: str, split: Optional[str], obj: Dict[str, Any]) -> Shard:
+    """Create a shard from a JSON config.
 
     Args:
         dirname (str): Local directory containing shards.
@@ -34,8 +34,8 @@ def reader_from_json(dirname: str, split: Optional[str], obj: Dict[str, Any]) ->
         obj (Dict[str, Any]): JSON object to load.
 
     Returns:
-        Reader: Loaded Reader of `format` type
+        Shard: The loaded Shard.
     """
     assert obj['version'] == 2
-    cls = _readers[obj['format']]
+    cls = _shards[obj['format']]
     return cls.from_json(dirname, split, obj)

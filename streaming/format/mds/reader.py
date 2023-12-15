@@ -11,12 +11,12 @@ import numpy as np
 from typing_extensions import Self
 
 from streaming.format.mds.encodings import is_mds_encoding_safe, mds_decode
-from streaming.format.reader import FileInfo, MonoReader
+from streaming.format.reader import FileInfo, MonoShard
 
-__all__ = ['MDSReader']
+__all__ = ['MDSShard']
 
 
-class MDSReader(MonoReader):
+class MDSShard(MonoShard):
     """Provides random access to the samples of an MDS shard.
 
     Args:
@@ -66,7 +66,7 @@ class MDSReader(MonoReader):
             obj (Dict[str, Any]): JSON object to load.
 
         Returns:
-            Self: Loaded MDSReader.
+            Self: Loaded MDSShard.
         """
         args = deepcopy(obj)
         if args['version'] != 2:

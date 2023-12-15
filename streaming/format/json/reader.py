@@ -11,12 +11,12 @@ from typing import Any, Dict, List, Optional, Union
 import numpy as np
 from typing_extensions import Self
 
-from streaming.format.reader import FileInfo, DualReader
+from streaming.format.reader import DualShard, FileInfo
 
-__all__ = ['JSONReader']
+__all__ = ['JSONShard']
 
 
-class JSONReader(DualReader):
+class JSONShard(DualShard):
     """Provides random access to the samples of a JSON shard.
 
     Args:
@@ -68,7 +68,7 @@ class JSONReader(DualReader):
             obj (Dict[str, Any]): JSON object to load.
 
         Returns:
-            Self: Loaded JSONReader.
+            Self: Loaded JSONShard.
         """
         args = deepcopy(obj)
         # Version check.

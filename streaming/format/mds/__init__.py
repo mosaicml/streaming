@@ -3,7 +3,7 @@
 
 """MDS shards."""
 
-from streaming.format.mds.reader import MDSReader
+from streaming.format.mds.reader import MDSShard
 from streaming.format.mds.writer import MDSWriter
 
-__all__ = ['MDSReader', 'MDSWriter']
+__all__ = ['MDSShard', 'MDSWriter']

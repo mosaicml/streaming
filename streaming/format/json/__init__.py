@@ -3,7 +3,7 @@
 
 """Streaming JSON shards."""
 
-from streaming.format.json.reader import JSONReader
+from streaming.format.json.reader import JSONShard
 from streaming.format.json.writer import JSONWriter
 
-__all__ = ['JSONReader', 'JSONWriter']
+__all__ = ['JSONShard', 'JSONWriter']
