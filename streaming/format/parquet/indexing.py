@@ -184,8 +184,8 @@ def index_parquet(*,
             large Parquet files. ``0`` means single-process; ``None`` means <number of CPUs>
             processes; positive int means that number of processes. Defaults to ``None``.
         show_progress (bool): Show progress bar for download/processing. Defaults to ``True``.
-        columns (Dict[str, str], optional): For field names and types specified here, override the
-            inferred columns to configure it manually. Defaults to ``None``.
+        columns (Dict[str, Dict[str, str]], optional): For field names and types specified here,
+            override the inferred columns to configure it manually. Defaults to ``None``.
         match_columns (bool): Whether to require that all the dataset Parquets have exactly the same
             Parquet columns. This is a correctness guard rail, preventing non-dataset Parquet shards
             from sneaking into our dataset. Streaming for its part is fine with shards being
