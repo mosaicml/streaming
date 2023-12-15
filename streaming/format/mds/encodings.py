@@ -17,8 +17,12 @@ from PIL.JpegImagePlugin import JpegImageFile
 from typing_extensions import Self
 
 __all__ = [
-    'get_mds_encoded_size', 'get_mds_encodings', 'is_mds_encoding', 'mds_decode', 'mds_encode',
-    'is_mds_encoding_safe'
+    'get_mds_encoded_size',
+    'get_mds_encodings',
+    'is_mds_encoding',
+    'mds_decode',
+    'mds_encode',
+    'is_mds_encoding_safe',
 ]
 
 
