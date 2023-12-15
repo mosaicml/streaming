@@ -11,7 +11,8 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Un
 from urllib.parse import urlparse
 
 from streaming.hashing import get_hash
-from streaming.storage import CloudUploader, download_file
+from stremaing.storage.downloading import download_file
+from streaming.storage.uploading import CloudUploader
 from streaming.util.pretty import normalize_bytes, normalize_duration
 
 __all__ = [
