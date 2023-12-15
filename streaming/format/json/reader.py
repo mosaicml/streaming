@@ -11,12 +11,12 @@ from typing import Any, Dict, List, Optional, Union
 import numpy as np
 from typing_extensions import Self
 
-from streaming.format.reader import FileInfo, SplitReader
+from streaming.format.reader import FileInfo, DualReader
 
 __all__ = ['JSONReader']
 
 
-class JSONReader(SplitReader):
+class JSONReader(DualReader):
     """Provides random access to the samples of a JSON shard.
 
     Args:

@@ -11,7 +11,7 @@ from typing import Any, Dict, Iterator, List, Optional, Set, Union
 from streaming.array import Array
 from streaming.util.shorthand import normalize_bytes
 
-__all__ = ['FileInfo', 'Reader', 'MonoReader', 'SplitReader']
+__all__ = ['FileInfo', 'Reader', 'MonoReader', 'DualReader']
 
 
 @dataclass
@@ -353,8 +353,8 @@ class MonoReader(Reader):
         self.file_pairs.append((raw_data, zip_data))
 
 
-class SplitReader(Reader):
-    """Provides random access to the samples of a split shard.
+class DualReader(Reader):
+    """Provides random access to the samples of a dual shard.
 
     Args:
         dirname (str): Local dataset directory.

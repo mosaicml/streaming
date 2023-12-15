@@ -10,13 +10,13 @@ from typing import Any, Dict, List, Optional, Union
 import numpy as np
 from typing_extensions import Self
 
-from streaming.format.reader import FileInfo, SplitReader
+from streaming.format.reader import FileInfo, DualReader
 from streaming.format.xsv.encodings import xsv_decode
 
 __all__ = ['XSVReader', 'CSVReader', 'TSVReader']
 
 
-class XSVReader(SplitReader):
+class XSVReader(DualReader):
     """Provides random access to the samples of an XSV shard.
 
     Args:

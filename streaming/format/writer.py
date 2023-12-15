@@ -24,7 +24,7 @@ from streaming.hashing import get_hash, is_hash
 from streaming.storage.upload import CloudUploader
 from streaming.util.shorthand import normalize_bytes
 
-__all__ = ['MonoWriter', 'SplitWriter']
+__all__ = ['MonoWriter', 'DualWriter']
 
 logger = logging.getLogger(__name__)
 
@@ -428,10 +428,10 @@ class MonoWriter(Writer):
         future.add_done_callback(self.exception_callback)
 
 
-class SplitWriter(Writer):
-    """Writes a streaming dataset with split shards.
+class DualWriter(Writer):
+    """Writes a streaming dataset with dual shards.
 
-    Split shards refer to raw data (csv, json, etc.) paired with an index into it.
+    Dual shards refer to raw data (csv, json, etc.) paired with an index into it.
 
     Args:
         out (str | Tuple[str, str]): Output dataset directory to save shard files.
@@ -482,8 +482,8 @@ class SplitWriter(Writer):
                          **kwargs)
 
     @abstractmethod
-    def encode_split_shard(self) -> Tuple[bytes, bytes]:
-        """Encode a split shard out of the cached samples (data, meta files).
+    def encode_dual_shard(self) -> Tuple[bytes, bytes]:
+        """Encode a dual shard out of the cached samples (data, meta files).
 
         Returns:
             Tuple[bytes, bytes]: Data file, meta file.
@@ -499,7 +499,7 @@ class SplitWriter(Writer):
 
         raw_data_basename, zip_data_basename = self._name_next_shard()
         raw_meta_basename, zip_meta_basename = self._name_next_shard('meta')
-        raw_data, raw_meta = self.encode_split_shard()
+        raw_data, raw_meta = self.encode_dual_shard()
         raw_data_info, zip_data_info = self._process_file(raw_data, raw_data_basename,
                                                           zip_data_basename)
         raw_meta_info, zip_meta_info = self._process_file(raw_meta, raw_meta_basename,

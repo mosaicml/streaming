@@ -9,12 +9,12 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import numpy as np
 
 from streaming.format.json.encodings import is_json_encoded, is_json_encoding
-from streaming.format.writer import SplitWriter
+from streaming.format.writer import DualWriter
 
 __all__ = ['JSONWriter']
 
 
-class JSONWriter(SplitWriter):
+class JSONWriter(DualWriter):
     r"""Writes a streaming JSON dataset.
 
     Args:
@@ -98,8 +98,8 @@ class JSONWriter(SplitWriter):
         obj.update({'columns': self.columns, 'newline': self.newline})
         return obj
 
-    def encode_split_shard(self) -> Tuple[bytes, bytes]:
-        """Encode a split shard out of the cached samples (data, meta files).
+    def encode_dual_shard(self) -> Tuple[bytes, bytes]:
+        """Encode a dual shard out of the cached samples (data, meta files).
 
         Returns:
             Tuple[bytes, bytes]: Data file, meta file.
