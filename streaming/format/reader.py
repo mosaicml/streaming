@@ -61,6 +61,16 @@ class Reader(Array, ABC):
 
         self.file_pairs = []
 
+    def validate(self, allow_unsafe_types: bool) -> None:
+        """Check whether this shard is acceptable to be part of some Stream.
+
+        Args:
+            allow_unsafe_types (bool): If a shard contains Pickle, which allows arbitrary code
+                execution during deserialization, whether to keep going if ``True`` or raise an
+                error if ``False``.
+        """
+        pass
+
     @property
     def size(self):
         """Get the number of samples in this shard.

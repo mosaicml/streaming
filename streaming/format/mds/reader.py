@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Union
 import numpy as np
 from typing_extensions import Self
 
-from streaming.format.mds.encodings import mds_decode
+from streaming.format.mds.encodings import is_mds_encoding_safe, mds_decode
 from streaming.format.reader import FileInfo, JointReader
 
 __all__ = ['MDSReader']
@@ -83,6 +83,21 @@ class MDSReader(JointReader):
             arg = args[key]
             args[key] = FileInfo(**arg) if arg else None
         return cls(**args)
+
+    def validate(self, allow_unsafe_types: bool) -> None:
+        """Check whether this shard is acceptable to be part of some Stream.
+
+        Args:
+            allow_unsafe_types (bool): If a shard contains Pickle, which allows arbitrary code
+                execution during deserialization, whether to keep going if ``True`` or raise an
+                error if ``False``.
+        """
+        if not allow_unsafe_types:
+            for column_id, encoding in enumerate(self.column_encodings):
+                if not is_mds_encoding_safe(encoding):
+                    name = self.column_names[column_id]
+                    raise ValueError(f'Column {name} contains an unsafe type: {encoding}. To ' +
+                                     f'proceed anyway, set ``allow_unsafe_types=True``.')
 
     def decode_sample(self, data: bytes) -> Dict[str, Any]:
         """Decode a sample dict from bytes.
