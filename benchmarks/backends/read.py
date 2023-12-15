@@ -274,6 +274,15 @@ def _bench_streaming_rand(dataset: StreamingDataset, show_progress: bool,
 
 
 def _to_dict(label: str, times: NDArray[np.float64]) -> Dict[str, Any]:
+    """Convert a label and sample latencies ndarray into an interpretable JSON dict.
+
+    Args:
+        label (str): Name of this run.
+        times (NDArray[np.float64]): Sample access times ndarray.
+
+    Returns:
+        Dict[str, Any]: JSON dict of interpretable metadata.
+    """
     rate = int(len(times) / times[-1])
     label = f'{label}: {rate:,}/s'
     print(label)
@@ -285,8 +294,19 @@ def _to_dict(label: str, times: NDArray[np.float64]) -> Dict[str, Any]:
 
 
 def _bench_streaming_format(data_root: str, shard_format: str, split: str, show_progress: bool,
-                            time_limit: float) -> \
-        Dict[str, Any]:
+                            time_limit: float) -> Dict[str, Any]:
+    """Benchmark the performance of a native Stremaing format (e.g., MDS, JSONL, CSV).
+
+    Args:
+        data_root (str): Data root directory.
+        shard_format (str): Streaming format name.
+        split (str): Split name.
+        show_progress (bool): Whether to show a progress bar.
+        time_limit (float): Benchmarking cutoff time.
+
+    Returns:
+        Dict[str, Any]: Mapping of ordering name to benchmark metadata JSON dict.
+    """
     dataset_dir = os.path.join(data_root, shard_format, split)
     dataset = StreamingDataset(local=dataset_dir)
 
@@ -301,6 +321,17 @@ def _bench_streaming_format(data_root: str, shard_format: str, split: str, show_
 
 def _bench_streaming(data_root: str, split: str, show_progress: bool,
                      time_limit: float) -> Dict[str, Any]:
+    """Benchmark the performance of all native Streaming formats.
+
+    Args:
+        data_root (str): Data root directory.
+        split (str): Split name.
+        show_progress (bool): Whether to show a progress bar.
+        time_limit (float): Benchmarking cutoff time.
+
+    Returns:
+        Dict[str, Any]: Mapping of format to ordering to benchmark metadata JSON dict.
+    """
     mds = _bench_streaming_format(data_root, 'mds', split, show_progress, time_limit)
     csv = _bench_streaming_format(data_root, 'csv', split, show_progress, time_limit)
     jsonl = _bench_streaming_format(data_root, 'jsonl', split, show_progress, time_limit)
@@ -309,6 +340,18 @@ def _bench_streaming(data_root: str, split: str, show_progress: bool,
 
 def _bench_parquet(data_root: str, split: str, parquet_suffix: str, show_progress: bool,
                    time_limit: float) -> Dict[str, Any]:
+    """Benchmark the performance of Parquet and Streaming Parquet.
+
+    Args:
+        data_root (str): Data root directory.
+        split (str): Split name.
+        parquet_suffix (str): Parquet filename suffix.
+        show_progress (bool): Whether to show a progress bar.
+        time_limit (float): Benchmarking cutoff time.
+
+    Returns:
+        Dict[str, Any]: Mapping of benchmark name to ordering to benchmark metadata JSON dict.
+    """
     dataset_dir = os.path.join(data_root, 'parquet', split)
 
     times = _bench_parquet_seq(dataset_dir, parquet_suffix, show_progress, time_limit)
@@ -338,6 +381,18 @@ def _bench_parquet(data_root: str, split: str, parquet_suffix: str, show_progres
 
 def _bench_lance(data_root: str, split: str, show_progress: bool, time_limit: float,
                  pow_interval: int) -> Dict[str, Any]:
+    """Benchmark the performance of Lance and, someday, Streaming Lance.
+
+    Args:
+        data_root (str): Data root directory.
+        split (str): Split name.
+        show_progress (bool): Whether to show a progress bar.
+        time_limit (float): Benchmarking cutoff time.
+        pow_interval (int): Take count exponent interval. Must be either ``2`` or ``4``.
+
+    Returns:
+        Dict[str, Any]: Mapping of take count to ordering to benchmark metadata JSON dict.
+    """
     if pow_interval == 4:
         take_counts = 1, 4, 16, 64, 256, 1024
     elif pow_interval == 2:
