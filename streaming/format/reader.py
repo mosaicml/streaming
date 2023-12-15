@@ -11,7 +11,7 @@ from typing import Any, Dict, Iterator, List, Optional, Set, Union
 from streaming.array import Array
 from streaming.util.shorthand import normalize_bytes
 
-__all__ = ['FileInfo', 'Reader', 'JointReader', 'SplitReader']
+__all__ = ['FileInfo', 'Reader', 'MonoReader', 'SplitReader']
 
 
 @dataclass
@@ -321,8 +321,8 @@ class Reader(Array, ABC):
             yield self[i]
 
 
-class JointReader(Reader):
-    """Provides random access to the samples of a joint shard.
+class MonoReader(Reader):
+    """Provides random access to the samples of a mono shard.
 
     Args:
         dirname (str): Local dataset directory.

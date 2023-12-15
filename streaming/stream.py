@@ -352,7 +352,7 @@ class Stream:
                             compression: Optional[str] = None) -> int:
         """Get shard data given metadata for the raw and compressed versions of it.
 
-        MDS format uses joint shards (ie, one file per shard). Other formats supported by streaming
+        MDS format uses mono shards (ie, one file per shard). Other formats supported by streaming
         use split shards (ie, shard data lives in two files per shard: the raw data itself and
         metadata in a separate file).
 

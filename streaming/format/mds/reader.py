@@ -11,12 +11,12 @@ import numpy as np
 from typing_extensions import Self
 
 from streaming.format.mds.encodings import is_mds_encoding_safe, mds_decode
-from streaming.format.reader import FileInfo, JointReader
+from streaming.format.reader import FileInfo, MonoReader
 
 __all__ = ['MDSReader']
 
 
-class MDSReader(JointReader):
+class MDSReader(MonoReader):
     """Provides random access to the samples of an MDS shard.
 
     Args:

@@ -10,12 +10,12 @@ import numpy as np
 
 from streaming.format.mds.encodings import (get_mds_encoded_size, get_mds_encodings,
                                             is_mds_encoding, mds_encode)
-from streaming.format.writer import JointWriter
+from streaming.format.writer import MonoWriter
 
 __all__ = ['MDSWriter']
 
 
-class MDSWriter(JointWriter):
+class MDSWriter(MonoWriter):
     """Writes a streaming MDS dataset.
 
     Args:
@@ -127,8 +127,8 @@ class MDSWriter(JointWriter):
         })
         return obj
 
-    def encode_joint_shard(self) -> bytes:
-        """Encode a joint shard out of the cached samples (single file).
+    def encode_mono_shard(self) -> bytes:
+        """Encode a mono shard out of the cached samples (single file).
 
         Returns:
             bytes: File data.

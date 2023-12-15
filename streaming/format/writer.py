@@ -24,7 +24,7 @@ from streaming.hashing import get_hash, is_hash
 from streaming.storage.upload import CloudUploader
 from streaming.util.shorthand import normalize_bytes
 
-__all__ = ['JointWriter', 'SplitWriter']
+__all__ = ['MonoWriter', 'SplitWriter']
 
 logger = logging.getLogger(__name__)
 
@@ -340,8 +340,8 @@ class Writer(ABC):
         self.finish()
 
 
-class JointWriter(Writer):
-    """Writes a streaming dataset with joint shards.
+class MonoWriter(Writer):
+    """Writes a streaming dataset with mono shards.
 
     Args:
         out (str | Tuple[str, str]): Output dataset directory to save shard files.
@@ -395,8 +395,8 @@ class JointWriter(Writer):
                          **kwargs)
 
     @abstractmethod
-    def encode_joint_shard(self) -> bytes:
-        """Encode a joint shard out of the cached samples (single file).
+    def encode_mono_shard(self) -> bytes:
+        """Encode a mono shard out of the cached samples (single file).
 
         Returns:
             bytes: File data.
@@ -411,7 +411,7 @@ class JointWriter(Writer):
             return
 
         raw_data_basename, zip_data_basename = self._name_next_shard()
-        raw_data = self.encode_joint_shard()
+        raw_data = self.encode_mono_shard()
         raw_data_info, zip_data_info = self._process_file(raw_data, raw_data_basename,
                                                           zip_data_basename)
         obj = {
