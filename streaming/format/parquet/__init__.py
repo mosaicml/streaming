@@ -4,6 +4,6 @@
 """Streaming Parquet shards."""
 
 from streaming.format.parquet.indexing import index_parquet
-from streaming.format.parquet.reader import ParquetShard
+from streaming.format.parquet.shard import ParquetShard
 
 __all__ = ['index_parquet', 'ParquetShard']
