@@ -11,7 +11,7 @@ import numpy as np
 from typing_extensions import Self
 
 from streaming.format.mds.encodings import is_mds_encoding_safe, mds_decode
-from streaming.format.reader import FileInfo, MonoShard
+from streaming.format.shard import FileInfo, MonoShard
 
 __all__ = ['MDSShard']
 

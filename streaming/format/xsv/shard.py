@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Union
 import numpy as np
 from typing_extensions import Self
 
-from streaming.format.reader import DualShard, FileInfo
+from streaming.format.shard import DualShard, FileInfo
 from streaming.format.xsv.encodings import xsv_decode
 
 __all__ = ['XSVShard', 'CSVShard', 'TSVShard']

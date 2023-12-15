@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional
 from streaming.format.index import get_index_basename
 from streaming.format.json import JSONShard, JSONWriter
 from streaming.format.mds import MDSShard, MDSWriter
-from streaming.format.reader import FileInfo, Shard
+from streaming.format.shard import FileInfo, Shard
 from streaming.format.xsv import CSVShard, CSVWriter, TSVShard, TSVWriter, XSVShard, XSVWriter
 
 __all__ = [
