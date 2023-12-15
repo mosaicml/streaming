@@ -17,7 +17,12 @@ from PIL.JpegImagePlugin import JpegImageFile
 from typing_extensions import Self
 
 __all__ = [
-    'get_mds_encoded_size', 'get_mds_encodings', 'is_mds_encoding', 'mds_decode', 'mds_encode'
+    'get_mds_encoded_size',
+    'get_mds_encodings',
+    'is_mds_encoding',
+    'mds_decode',
+    'mds_encode',
+    'is_mds_encoding_safe',
 ]
 
 
@@ -543,6 +548,8 @@ _encodings = {
     'json': JSON,
 }
 
+_unsafe_encodings = {'pkl'}
+
 
 def get_mds_encodings() -> Set[str]:
     """List supported encodings.
@@ -584,6 +591,18 @@ def is_mds_encoding(encoding: str) -> bool:
     """
     coder = _get_coder(encoding)
     return coder is not None
+
+
+def is_mds_encoding_safe(encoding: str) -> bool:
+    """Get whether the given encoding is safe (does not allow arbitrary code execution).
+
+    Args:
+        encoding (str): Encoding.
+
+    Returns:
+        bool: Whether the encoding is safe.
+    """
+    return encoding not in _unsafe_encodings
 
 
 def mds_encode(encoding: str, obj: Any) -> bytes:

@@ -99,6 +99,9 @@ class SimulationDataset(StreamingDataset):
             Defaults to ``1``.
         batching_method (str): Which batching method to use, either ``random``, ``stratified``, or
             ``per_stream``. Defaults to ``random``.
+        allow_unsafe_types (bool): If a shard contains Pickle, which allows arbitrary code
+            execution during deserialization, whether to keep going if ``True`` or raise an error
+            if ``False``. Defaults to ``False``.
     """
 
     def __init__(self,
@@ -125,7 +128,8 @@ class SimulationDataset(StreamingDataset):
                  shuffle_block_size: Optional[int] = None,
                  sampling_method: str = 'balanced',
                  sampling_granularity: int = 1,
-                 batching_method: str = 'random') -> None:
+                 batching_method: str = 'random',
+                 allow_unsafe_types: bool = False) -> None:
 
         # Time how long it takes for StreamingDataset instantiation
         t0 = time.time()
@@ -145,6 +149,7 @@ class SimulationDataset(StreamingDataset):
         self.sampling_granularity = sampling_granularity
         self.batching_method = batching_method
         self.num_canonical_nodes = num_canonical_nodes
+        self.allow_unsafe_types = allow_unsafe_types
 
         self.initial_physical_nodes = nodes
 
@@ -260,7 +265,7 @@ class SimulationDataset(StreamingDataset):
         local_foldernames = []
         for stream_id, stream in enumerate(self.streams):
             logger.info(f' Processing index file for stream {stream_id + 1}')
-            stream_shards = stream.get_shards(self.world)
+            stream_shards = stream.get_shards(self.world, self.allow_unsafe_types)
             num_stream_samples = sum(map(len, stream_shards))
             index_filename = os.path.join(stream.local, stream.split, get_index_basename())
             index_filenames.append(index_filename)
