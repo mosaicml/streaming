@@ -1,21 +1,21 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-""":class:`JSONWriter` writes samples to `.json` files that can be read by :class:`JSONReader`."""
+"""Streaming JSONL shard writing."""
 
 import json
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
-from streaming.format.json.encodings import is_json_encoded, is_json_encoding
-from streaming.format.writer import SplitWriter
+from streaming.format.jsonl.encodings import is_jsonl_encoded, is_jsonl_encoding
+from streaming.format.writer import DualWriter
 
-__all__ = ['JSONWriter']
+__all__ = ['JSONLWriter']
 
 
-class JSONWriter(SplitWriter):
-    r"""Writes a streaming JSON dataset.
+class JSONLWriter(DualWriter):
+    r"""Writes a streaming JSONL dataset.
 
     Args:
         columns (Dict[str, str]): Sample columns.
@@ -47,7 +47,7 @@ class JSONWriter(SplitWriter):
                 file to a remote location. Default to ``min(32, (os.cpu_count() or 1) + 4)``.
     """
 
-    format = 'json'
+    format = 'jsonl'
 
     def __init__(self,
                  *,
@@ -66,7 +66,7 @@ class JSONWriter(SplitWriter):
                          size_limit=size_limit,
                          **kwargs)
         for encoding in columns.values():
-            assert is_json_encoding(encoding)
+            assert is_jsonl_encoding(encoding)
 
         self.columns = columns
         self.newline = newline
@@ -83,7 +83,7 @@ class JSONWriter(SplitWriter):
         obj = {}
         for key, encoding in self.columns.items():
             value = sample[key]
-            assert is_json_encoded(encoding, value)
+            assert is_jsonl_encoded(encoding, value)
             obj[key] = value
         text = json.dumps(obj, sort_keys=True) + self.newline
         return text.encode('utf-8')
@@ -98,8 +98,8 @@ class JSONWriter(SplitWriter):
         obj.update({'columns': self.columns, 'newline': self.newline})
         return obj
 
-    def encode_split_shard(self) -> Tuple[bytes, bytes]:
-        """Encode a split shard out of the cached samples (data, meta files).
+    def encode_dual_shard(self) -> Tuple[bytes, bytes]:
+        """Encode a dual shard out of the cached samples (data, meta files).
 
         Returns:
             Tuple[bytes, bytes]: Data file, meta file.

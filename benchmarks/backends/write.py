@@ -22,7 +22,7 @@ from tqdm import tqdm
 from wurlitzer import pipes
 
 from benchmarks.backends.datagen import generate
-from streaming import CSVWriter, JSONWriter, MDSWriter
+from streaming import CSVWriter, JSONLWriter, MDSWriter
 from streaming.util.tabulation import Tabulator
 
 
@@ -108,7 +108,7 @@ def _write_jsonl(nums: List[int],
         'num': 'int',
         'txt': 'str',
     }
-    with JSONWriter(out=root, columns=columns, size_limit=size_limit) as out:
+    with JSONLWriter(out=root, columns=columns, size_limit=size_limit) as out:
         each_sample = zip(nums, txts)
         if show_progress:
             each_sample = tqdm(each_sample, total=len(nums), leave=False)

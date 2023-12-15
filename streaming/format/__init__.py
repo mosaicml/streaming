@@ -1,32 +1,45 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Individual dataset writer for every format."""
+"""Streaming serialization format, consisting of an index and multiple types of shards."""
 
 from typing import Any, Dict, Optional
 
 from streaming.format.index import get_index_basename
-from streaming.format.json import JSONReader, JSONWriter
-from streaming.format.mds import MDSReader, MDSWriter
-from streaming.format.reader import FileInfo, Reader
-from streaming.format.xsv import CSVReader, CSVWriter, TSVReader, TSVWriter, XSVReader, XSVWriter
+from streaming.format.jsonl import JSONLShard, JSONLWriter
+from streaming.format.mds import MDSShard, MDSWriter
+from streaming.format.shard import FileInfo, Shard
+from streaming.format.xsv import CSVShard, CSVWriter, TSVShard, TSVWriter, XSVShard, XSVWriter
 
 __all__ = [
-    'CSVWriter', 'FileInfo', 'get_index_basename', 'JSONWriter', 'MDSWriter', 'Reader',
-    'reader_from_json', 'TSVWriter', 'XSVWriter'
+    'CSVWriter', 'FileInfo', 'get_index_basename', 'JSONLWriter', 'MDSWriter', 'Shard',
+    'shard_from_json', 'TSVWriter', 'XSVWriter'
 ]
 
-_readers = {
-    'csv': CSVReader,
-    'json': JSONReader,
-    'mds': MDSReader,
-    'tsv': TSVReader,
-    'xsv': XSVReader
+# Mapping of shard metadata dict "format" field to what type of Shard it is.
+_shards = {
+    'csv': CSVShard,
+    'jsonl': JSONLShard,
+    'mds': MDSShard,
+    'tsv': TSVShard,
+    'xsv': XSVShard,
 }
 
 
-def reader_from_json(dirname: str, split: Optional[str], obj: Dict[str, Any]) -> Reader:
-    """Initialize the reader from JSON object.
+def _get_shard_class(format_name: str) -> Shard:
+    """Get the associated Shard class given a Shard format name.
+
+    Args:
+        format_name (str): Shard format name.
+    """
+    # JSONL shards were originally called JSON shards (while containing JSONL).
+    if format_name == 'json':
+        format_name = 'jsonl'
+    return _shards[format_name]
+
+
+def shard_from_json(dirname: str, split: Optional[str], obj: Dict[str, Any]) -> Shard:
+    """Create a shard from a JSON config.
 
     Args:
         dirname (str): Local directory containing shards.
@@ -34,8 +47,8 @@ def reader_from_json(dirname: str, split: Optional[str], obj: Dict[str, Any]) ->
         obj (Dict[str, Any]): JSON object to load.
 
     Returns:
-        Reader: Loaded Reader of `format` type
+        Shard: The loaded Shard.
     """
     assert obj['version'] == 2
-    cls = _readers[obj['format']]
+    cls = _get_shard_class(obj['format'])
     return cls.from_json(dirname, split, obj)

@@ -1,7 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Reads and decode samples from tabular formatted files such as XSV, CSV, and TSV."""
+"""Streaming XSV shard reading, with specializations for CSV and TSV."""
 
 import os
 from copy import deepcopy
@@ -10,13 +10,13 @@ from typing import Any, Dict, List, Optional, Union
 import numpy as np
 from typing_extensions import Self
 
-from streaming.format.reader import FileInfo, SplitReader
+from streaming.format.shard import DualShard, FileInfo
 from streaming.format.xsv.encodings import xsv_decode
 
-__all__ = ['XSVReader', 'CSVReader', 'TSVReader']
+__all__ = ['XSVShard', 'CSVShard', 'TSVShard']
 
 
-class XSVReader(SplitReader):
+class XSVShard(DualShard):
     """Provides random access to the samples of an XSV shard.
 
     Args:
@@ -73,7 +73,7 @@ class XSVReader(SplitReader):
             obj (Dict[str, Any]): JSON object to load.
 
         Returns:
-            Self: Loaded XSVReader.
+            Self: Loaded XSVShard.
         """
         args = deepcopy(obj)
         if args['version'] != 2:
@@ -90,23 +90,6 @@ class XSVReader(SplitReader):
             arg = args[key]
             args[key] = FileInfo(**arg) if arg else None
         return cls(**args)
-
-    def decode_sample(self, data: bytes) -> Dict[str, Any]:
-        """Decode a sample dict from bytes.
-
-        Args:
-            data (bytes): The sample encoded as bytes.
-
-        Returns:
-            Dict[str, Any]: Sample dict.
-        """
-        text = data.decode('utf-8')
-        text = text[:-len(self.newline)]
-        parts = text.split(self.separator)
-        sample = {}
-        for name, encoding, part in zip(self.column_names, self.column_encodings, parts):
-            sample[name] = xsv_decode(encoding, part)
-        return sample
 
     def get_sample_data(self, idx: int) -> bytes:
         """Get the raw sample data at the index.
@@ -129,8 +112,25 @@ class XSVReader(SplitReader):
             data = fp.read(end - begin)
         return data
 
+    def decode_sample(self, data: bytes) -> Dict[str, Any]:
+        """Decode a sample dict from bytes.
 
-class CSVReader(XSVReader):
+        Args:
+            data (bytes): The sample encoded as bytes.
+
+        Returns:
+            Dict[str, Any]: Sample dict.
+        """
+        text = data.decode('utf-8')
+        text = text[:-len(self.newline)]
+        parts = text.split(self.separator)
+        sample = {}
+        for name, encoding, part in zip(self.column_names, self.column_encodings, parts):
+            sample[name] = xsv_decode(encoding, part)
+        return sample
+
+
+class CSVShard(XSVShard):
     """Provides random access to the samples of a CSV shard.
 
     Args:
@@ -182,7 +182,7 @@ class CSVReader(XSVReader):
             obj (Dict[str, Any]): JSON object to load.
 
         Returns:
-            Self: Loaded CSVReader.
+            Self: Loaded CSVShard.
         """
         args = deepcopy(obj)
         if args['version'] != 2:
@@ -201,7 +201,7 @@ class CSVReader(XSVReader):
         return cls(**args)
 
 
-class TSVReader(XSVReader):
+class TSVShard(XSVShard):
     """Provides random access to the samples of an XSV shard.
 
     Args:
@@ -253,7 +253,7 @@ class TSVReader(XSVReader):
             obj (Dict[str, Any]): JSON object to load.
 
         Returns:
-            Self: Loaded TSVReader.
+            Self: Loaded TSVShard.
         """
         args = deepcopy(obj)
         if args['version'] != 2:

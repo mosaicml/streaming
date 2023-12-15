@@ -8,10 +8,12 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Dict, Iterator, List, Optional, Set, Union
 
+from typing_extensions import Self
+
 from streaming.array import Array
 from streaming.util.shorthand import normalize_bytes
 
-__all__ = ['FileInfo', 'Reader', 'JointReader', 'SplitReader']
+__all__ = ['FileInfo', 'Shard', 'MonoShard', 'DualShard']
 
 
 @dataclass
@@ -28,7 +30,7 @@ class FileInfo(object):
     hashes: Dict[str, str]
 
 
-class Reader(Array, ABC):
+class Shard(Array, ABC):
     """Provides random access to the samples of a shard.
 
     Args:
@@ -60,6 +62,21 @@ class Reader(Array, ABC):
         self.size_limit = normalize_bytes(size_limit) if size_limit else None
 
         self.file_pairs = []
+
+    @classmethod
+    @abstractmethod
+    def from_json(cls, dirname: str, split: Optional[str], obj: Dict[str, Any]) -> Self:
+        """Initialize from JSON object.
+
+        Args:
+            dirname (str): Local directory containing shards.
+            split (str, optional): Which dataset split to use, if any.
+            obj (Dict[str, Any]): JSON object to load.
+
+        Returns:
+            Self: Loaded Shard.
+        """
+        raise NotImplementedError
 
     def validate(self, allow_unsafe_types: bool) -> None:
         """Check whether this shard is acceptable to be part of some Stream.
@@ -276,18 +293,6 @@ class Reader(Array, ABC):
         return size
 
     @abstractmethod
-    def decode_sample(self, data: bytes) -> Dict[str, Any]:
-        """Decode a sample dict from bytes.
-
-        Args:
-            data (bytes): The sample encoded as bytes.
-
-        Returns:
-            Dict[str, Any]: Sample dict.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
     def get_sample_data(self, idx: int) -> bytes:
         """Get the raw sample data at the index.
 
@@ -296,6 +301,18 @@ class Reader(Array, ABC):
 
         Returns:
             bytes: Sample data.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def decode_sample(self, data: bytes) -> Dict[str, Any]:
+        """Decode a sample dict from bytes.
+
+        Args:
+            data (bytes): The sample encoded as bytes.
+
+        Returns:
+            Dict[str, Any]: Sample dict.
         """
         raise NotImplementedError
 
@@ -321,8 +338,8 @@ class Reader(Array, ABC):
             yield self[i]
 
 
-class JointReader(Reader):
-    """Provides random access to the samples of a joint shard.
+class MonoShard(Shard):
+    """Provides random access to the samples of a mono shard.
 
     Args:
         dirname (str): Local dataset directory.
@@ -353,8 +370,8 @@ class JointReader(Reader):
         self.file_pairs.append((raw_data, zip_data))
 
 
-class SplitReader(Reader):
-    """Provides random access to the samples of a split shard.
+class DualShard(Shard):
+    """Provides random access to the samples of a dual shard.
 
     Args:
         dirname (str): Local dataset directory.

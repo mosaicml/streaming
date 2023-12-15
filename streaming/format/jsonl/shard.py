@@ -1,7 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-""":class:`JSONReader` reads samples from `.json` files that were written by :class:`MDSWriter`."""
+"""Streaming JSONL shard reading."""
 
 import json
 import os
@@ -11,13 +11,13 @@ from typing import Any, Dict, List, Optional, Union
 import numpy as np
 from typing_extensions import Self
 
-from streaming.format.reader import FileInfo, SplitReader
+from streaming.format.shard import DualShard, FileInfo
 
-__all__ = ['JSONReader']
+__all__ = ['JSONLShard']
 
 
-class JSONReader(SplitReader):
-    """Provides random access to the samples of a JSON shard.
+class JSONLShard(DualShard):
+    """Provides random access to the samples of a JSONL shard.
 
     Args:
         dirname (str): Local dataset directory.
@@ -68,7 +68,7 @@ class JSONReader(SplitReader):
             obj (Dict[str, Any]): JSON object to load.
 
         Returns:
-            Self: Loaded JSONReader.
+            Self: Loaded JSONLShard.
         """
         args = deepcopy(obj)
         # Version check.
@@ -77,9 +77,9 @@ class JSONReader(SplitReader):
                              f'Expected version 2.')
         del args['version']
         # Check format.
-        if args['format'] != 'json':
-            raise ValueError(f'Unsupported data format: {args["format"]}. ' +
-                             f'Expected to be `json`.')
+        if args['format'] not in {'json', 'jsonl'}:
+            raise ValueError(f'Unsupported data format: got {args["format"]}, but expected ' +
+                             f'"jsonl" (or "json").')
         del args['format']
         args['dirname'] = dirname
         args['split'] = split
@@ -87,18 +87,6 @@ class JSONReader(SplitReader):
             arg = args[key]
             args[key] = FileInfo(**arg) if arg else None
         return cls(**args)
-
-    def decode_sample(self, data: bytes) -> Dict[str, Any]:
-        """Decode a sample dict from bytes.
-
-        Args:
-            data (bytes): The sample encoded as bytes.
-
-        Returns:
-            Dict[str, Any]: Sample dict.
-        """
-        text = data.decode('utf-8')
-        return json.loads(text)
 
     def get_sample_data(self, idx: int) -> bytes:
         """Get the raw sample data at the index.
@@ -120,3 +108,15 @@ class JSONReader(SplitReader):
             fp.seek(begin)
             data = fp.read(end - begin)
         return data
+
+    def decode_sample(self, data: bytes) -> Dict[str, Any]:
+        """Decode a sample dict from bytes.
+
+        Args:
+            data (bytes): The sample encoded as bytes.
+
+        Returns:
+            Dict[str, Any]: Sample dict.
+        """
+        text = data.decode('utf-8')
+        return json.loads(text)
