@@ -13,7 +13,7 @@ from urllib.parse import urlparse
 from streaming.hashing import get_hash
 from streaming.storage.download import download_file
 from streaming.storage.upload import CloudUploader
-from streaming.util.pretty import normalize_bytes, normalize_duration
+from streaming.util.shorthand import normalize_bytes, normalize_duration
 
 __all__ = [
     'wait_for_file_to_exist', 'walk_prefix', 'walk_dir', 'list_dataset_files',
