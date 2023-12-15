@@ -276,18 +276,6 @@ class Reader(Array, ABC):
         return size
 
     @abstractmethod
-    def decode_sample(self, data: bytes) -> Dict[str, Any]:
-        """Decode a sample dict from bytes.
-
-        Args:
-            data (bytes): The sample encoded as bytes.
-
-        Returns:
-            Dict[str, Any]: Sample dict.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
     def get_sample_data(self, idx: int) -> bytes:
         """Get the raw sample data at the index.
 
@@ -296,6 +284,18 @@ class Reader(Array, ABC):
 
         Returns:
             bytes: Sample data.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def decode_sample(self, data: bytes) -> Dict[str, Any]:
+        """Decode a sample dict from bytes.
+
+        Args:
+            data (bytes): The sample encoded as bytes.
+
+        Returns:
+            Dict[str, Any]: Sample dict.
         """
         raise NotImplementedError
 

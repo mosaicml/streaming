@@ -1,7 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-""":class:`JSONReader` reads samples from `.json` files that were written by :class:`MDSWriter`."""
+"""Streaming JSON shard reading."""
 
 import json
 import os
@@ -88,18 +88,6 @@ class JSONReader(SplitReader):
             args[key] = FileInfo(**arg) if arg else None
         return cls(**args)
 
-    def decode_sample(self, data: bytes) -> Dict[str, Any]:
-        """Decode a sample dict from bytes.
-
-        Args:
-            data (bytes): The sample encoded as bytes.
-
-        Returns:
-            Dict[str, Any]: Sample dict.
-        """
-        text = data.decode('utf-8')
-        return json.loads(text)
-
     def get_sample_data(self, idx: int) -> bytes:
         """Get the raw sample data at the index.
 
@@ -120,3 +108,15 @@ class JSONReader(SplitReader):
             fp.seek(begin)
             data = fp.read(end - begin)
         return data
+
+    def decode_sample(self, data: bytes) -> Dict[str, Any]:
+        """Decode a sample dict from bytes.
+
+        Args:
+            data (bytes): The sample encoded as bytes.
+
+        Returns:
+            Dict[str, Any]: Sample dict.
+        """
+        text = data.decode('utf-8')
+        return json.loads(text)

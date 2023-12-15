@@ -1,7 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Reads and decode samples from tabular formatted files such as XSV, CSV, and TSV."""
+"""Streaming XSV shard reading, with specializations for CSV and TSV."""
 
 import os
 from copy import deepcopy
@@ -91,23 +91,6 @@ class XSVReader(SplitReader):
             args[key] = FileInfo(**arg) if arg else None
         return cls(**args)
 
-    def decode_sample(self, data: bytes) -> Dict[str, Any]:
-        """Decode a sample dict from bytes.
-
-        Args:
-            data (bytes): The sample encoded as bytes.
-
-        Returns:
-            Dict[str, Any]: Sample dict.
-        """
-        text = data.decode('utf-8')
-        text = text[:-len(self.newline)]
-        parts = text.split(self.separator)
-        sample = {}
-        for name, encoding, part in zip(self.column_names, self.column_encodings, parts):
-            sample[name] = xsv_decode(encoding, part)
-        return sample
-
     def get_sample_data(self, idx: int) -> bytes:
         """Get the raw sample data at the index.
 
@@ -128,6 +111,23 @@ class XSVReader(SplitReader):
             fp.seek(begin)
             data = fp.read(end - begin)
         return data
+
+    def decode_sample(self, data: bytes) -> Dict[str, Any]:
+        """Decode a sample dict from bytes.
+
+        Args:
+            data (bytes): The sample encoded as bytes.
+
+        Returns:
+            Dict[str, Any]: Sample dict.
+        """
+        text = data.decode('utf-8')
+        text = text[:-len(self.newline)]
+        parts = text.split(self.separator)
+        sample = {}
+        for name, encoding, part in zip(self.column_names, self.column_encodings, parts):
+            sample[name] = xsv_decode(encoding, part)
+        return sample
 
 
 class CSVReader(XSVReader):

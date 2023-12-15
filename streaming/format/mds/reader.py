@@ -1,7 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-""":class:`MDSReader` reads samples in `.mds` files written by :class:`StreamingDatasetWriter`."""
+"""MDS shard reading."""
 
 import os
 from copy import deepcopy
@@ -99,6 +99,29 @@ class MDSReader(JointReader):
                     raise ValueError(f'Column {name} contains an unsafe type: {encoding}. To ' +
                                      f'proceed anyway, set ``allow_unsafe_types=True``.')
 
+    def get_sample_data(self, idx: int) -> bytes:
+        """Get the raw sample data at the index.
+
+        Args:
+            idx (int): Sample index.
+
+        Returns:
+            bytes: Sample data.
+        """
+        filename = os.path.join(self.dirname, self.split, self.raw_data.basename)
+        offset = (1 + idx) * 4
+        with open(filename, 'rb', 0) as fp:
+            fp.seek(offset)
+            pair = fp.read(8)
+            begin, end = np.frombuffer(pair, np.uint32)
+            fp.seek(begin)
+            data = fp.read(end - begin)
+        if not data:
+            raise IndexError(
+                f'Relative sample index {idx} is not present in the {self.raw_data.basename} file.'
+            )
+        return data
+
     def decode_sample(self, data: bytes) -> Dict[str, Any]:
         """Decode a sample dict from bytes.
 
@@ -123,26 +146,3 @@ class MDSReader(JointReader):
             sample[key] = mds_decode(encoding, value)
             idx += size
         return sample
-
-    def get_sample_data(self, idx: int) -> bytes:
-        """Get the raw sample data at the index.
-
-        Args:
-            idx (int): Sample index.
-
-        Returns:
-            bytes: Sample data.
-        """
-        filename = os.path.join(self.dirname, self.split, self.raw_data.basename)
-        offset = (1 + idx) * 4
-        with open(filename, 'rb', 0) as fp:
-            fp.seek(offset)
-            pair = fp.read(8)
-            begin, end = np.frombuffer(pair, np.uint32)
-            fp.seek(begin)
-            data = fp.read(end - begin)
-        if not data:
-            raise IndexError(
-                f'Relative sample index {idx} is not present in the {self.raw_data.basename} file.'
-            )
-        return data

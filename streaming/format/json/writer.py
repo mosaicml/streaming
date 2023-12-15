@@ -1,7 +1,7 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-""":class:`JSONWriter` writes samples to `.json` files that can be read by :class:`JSONReader`."""
+"""Streaming JSON shard writing."""
 
 import json
 from typing import Any, Dict, List, Optional, Tuple, Union
