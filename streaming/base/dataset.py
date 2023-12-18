@@ -351,13 +351,6 @@ class StreamingDataset(Array, IterableDataset):
         # number of physical nodes of the initial run in the _resume function.
         self.initial_physical_nodes = None
 
-        # Initialize the World context.
-        #
-        # Beware: This information is for the per-rank process. DataLoader worker processes may see
-        # different values for these fields. We are saving the rank World here because we cannot
-        # instantiate a World inside the StreamingDataset destructor.
-        self._rank_world = world = World()
-
         # Check streams vs remote/local.
         if bool(streams) == (bool(remote) or bool(local)):
             raise ValueError(
@@ -447,6 +440,13 @@ class StreamingDataset(Array, IterableDataset):
         # Set streams.
         self.streams = streams
         self.num_streams = len(streams)
+
+        # Initialize the World context.
+        #
+        # Beware: This information is for the per-rank process. DataLoader worker processes may see
+        # different values for these fields. We are saving the rank World here because we cannot
+        # instantiate a World inside the StreamingDataset destructor.
+        self._rank_world = world = World()
 
         # Download each stream's index, load their shards, and map streams <-> shards.
         self.num_samples = 0
