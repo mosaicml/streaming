@@ -681,6 +681,7 @@ class StreamingDataset(Array, IterableDataset):
                     self.num_canonical_nodes = 64 * world.num_nodes
                 else:
                     if not self._rank_world.worker_of_rank:
+                        print("\nWORKER OF RANK:", self._rank_world.worker_of_rank)
                         logger.warning(
                             f'Because `num_canonical_nodes` was not specified, and ' +
                             f'`shuffle_algo` is {self.shuffle_algo}, it will default to ' +
