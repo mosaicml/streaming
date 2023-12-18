@@ -351,6 +351,13 @@ class StreamingDataset(Array, IterableDataset):
         # number of physical nodes of the initial run in the _resume function.
         self.initial_physical_nodes = None
 
+        # Initialize the World context.
+        #
+        # Beware: This information is for the per-rank process. DataLoader worker processes may see
+        # different values for these fields. We are saving the rank World here because we cannot
+        # instantiate a World inside the StreamingDataset destructor.
+        self._rank_world = world = World()
+
         # Check streams vs remote/local.
         if bool(streams) == (bool(remote) or bool(local)):
             raise ValueError(
@@ -394,10 +401,10 @@ class StreamingDataset(Array, IterableDataset):
                           f'This may result in slower batch time. Recommendation is to set ' +
                           f'predownload to at-least batch_size.')
         elif self.predownload is None:
-            warnings.warn(f'Because `predownload` was not specified, it will default to ' +
-                          f'8*batch_size if batch_size is not None, otherwise 64. Prior to ' +
-                          f'Streaming v0.7.0, `predownload` defaulted to ' +
-                          f'max(batch_size, 256 * batch_size // num_canonical_nodes).')
+            logger.warning(f'Because `predownload` was not specified, it will default to ' +
+                           f'8*batch_size if batch_size is not None, otherwise 64. Prior to ' +
+                           f'Streaming v0.7.0, `predownload` defaulted to ' +
+                           f'max(batch_size, 256 * batch_size // num_canonical_nodes).')
             self.predownload = 8 * self.batch_size if self.batch_size is not None else 64
 
         # Convert epoch size from string to int, if needed. Cannot be negative.
@@ -440,13 +447,6 @@ class StreamingDataset(Array, IterableDataset):
         # Set streams.
         self.streams = streams
         self.num_streams = len(streams)
-
-        # Initialize the World context.
-        #
-        # Beware: This information is for the per-rank process. DataLoader worker processes may see
-        # different values for these fields. We are saving the rank World here because we cannot
-        # instantiate a World inside the StreamingDataset destructor.
-        self._rank_world = world = World()
 
         # Download each stream's index, load their shards, and map streams <-> shards.
         self.num_samples = 0
@@ -652,10 +652,11 @@ class StreamingDataset(Array, IterableDataset):
     def _set_shuffle_block_size(self):
         """Set the shuffle block size value."""
         if self.shuffle_block_size is None:
-            warnings.warn(f'Because `shuffle_block_size` was not specified, it will default to ' +
-                          f'max(4_000_000 // num_canonical_nodes, 1 << 18) if ' +
-                          f'num_canonical_nodes is not None, otherwise 262144. Prior to ' +
-                          f'Streaming v0.7.0, `shuffle_block_size` defaulted to 262144.')
+            if not self._rank_world.worker_of_rank:
+                logger.warning(f'Because `shuffle_block_size` was not specified, it will ' +
+                               f'default to max(4_000_000 // num_canonical_nodes, 1 << 18) if ' +
+                               f'num_canonical_nodes is not None, otherwise 262144. Prior to ' +
+                               f'Streaming v0.7.0, `shuffle_block_size` defaulted to 262144.')
             self.shuffle_block_size = max(4_000_000 // self.num_canonical_nodes, 1 << 18) \
                 if self.num_canonical_nodes is not None else 1 << 18
 
@@ -679,11 +680,13 @@ class StreamingDataset(Array, IterableDataset):
                 if self.shuffle_algo in ['py1s', 'py2s']:
                     self.num_canonical_nodes = 64 * world.num_nodes
                 else:
-                    warnings.warn(f'Because `num_canonical_nodes` was not specified, and ' +
-                                  f'`shuffle_algo` is {self.shuffle_algo}, it will default to ' +
-                                  f'be equal to physical nodes. Prior to Streaming ' +
-                                  f'v0.7.0, `num_canonical_nodes` defaulted to 64 * physical ' +
-                                  f'nodes.')
+                    if not self._rank_world.worker_of_rank:
+                        logger.warning(
+                            f'Because `num_canonical_nodes` was not specified, and ' +
+                            f'`shuffle_algo` is {self.shuffle_algo}, it will default to ' +
+                            f'be equal to physical nodes. Prior to Streaming ' +
+                            f'v0.7.0, `num_canonical_nodes` defaulted to 64 * physical ' +
+                            f'nodes.')
                     self.num_canonical_nodes = world.num_nodes
             self._set_shuffle_block_size()
             return epoch, 0
@@ -700,11 +703,13 @@ class StreamingDataset(Array, IterableDataset):
                 if self.shuffle_algo in ['py1s', 'py2s']:
                     self.num_canonical_nodes = 64 * world.num_nodes
                 else:
-                    warnings.warn(f'Because `num_canonical_nodes` was not specified, and ' +
-                                  f'`shuffle_algo` is {self.shuffle_algo}, it will default to ' +
-                                  f'be equal to physical nodes. Prior to Streaming ' +
-                                  f'v0.7.0, `num_canonical_nodes` defaulted to 64 * physical ' +
-                                  f'nodes.')
+                    if not self._rank_world.worker_of_rank:
+                        logger.warning(
+                            f'Because `num_canonical_nodes` was not specified, and ' +
+                            f'`shuffle_algo` is {self.shuffle_algo}, it will default to ' +
+                            f'be equal to physical nodes. Prior to Streaming ' +
+                            f'v0.7.0, `num_canonical_nodes` defaulted to 64 * physical ' +
+                            f'nodes.')
                     self.num_canonical_nodes = world.num_nodes
             self._set_shuffle_block_size()
             return epoch, 0
