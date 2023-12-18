@@ -649,10 +649,10 @@ class StreamingDataset(Array, IterableDataset):
         """
         return self.length
 
-    def _set_shuffle_block_size(self):
+    def _set_shuffle_block_size(self, world: World):
         """Set the shuffle block size value."""
         if self.shuffle_block_size is None:
-            if not self._rank_world.worker_of_rank:
+            if not world.worker_of_rank:
                 logger.warning(f'Because `shuffle_block_size` was not specified, it will ' +
                                f'default to max(4_000_000 // num_canonical_nodes, 1 << 18) if ' +
                                f'num_canonical_nodes is not None, otherwise 262144. Prior to ' +
@@ -681,17 +681,14 @@ class StreamingDataset(Array, IterableDataset):
                     self.num_canonical_nodes = 64 * world.num_nodes
                 else:
                     if not world.worker_of_rank:
-                        print("\nWORKER OF RANK:", world.worker_of_rank, "WORKER:", world.worker, "WORKER OF NODE:", world.worker_of_node)
                         logger.warning(
                             f'Because `num_canonical_nodes` was not specified, and ' +
                             f'`shuffle_algo` is {self.shuffle_algo}, it will default to ' +
                             f'be equal to physical nodes. Prior to Streaming ' +
                             f'v0.7.0, `num_canonical_nodes` defaulted to 64 * physical ' +
                             f'nodes.')
-                    else:
-                        print("\nnot logging. WORKER OF RANK:", world.worker_of_rank, "WORKER:", world.worker, "WORKER OF NODE:", world.worker_of_node)
                     self.num_canonical_nodes = world.num_nodes
-            self._set_shuffle_block_size()
+            self._set_shuffle_block_size(world)
             return epoch, 0
 
         # SharedMemory buffers may contain additional null bytes at the end.
@@ -714,7 +711,7 @@ class StreamingDataset(Array, IterableDataset):
                             f'v0.7.0, `num_canonical_nodes` defaulted to 64 * physical ' +
                             f'nodes.')
                     self.num_canonical_nodes = world.num_nodes
-            self._set_shuffle_block_size()
+            self._set_shuffle_block_size(world)
             return epoch, 0
 
         # Load the correct resumption meta data.
@@ -725,7 +722,7 @@ class StreamingDataset(Array, IterableDataset):
         # Ensure that we are backwards compatible with old checkpoint dataset state, since the
         # 'initial_physical_nodes' key may not be present.
         self.initial_physical_nodes = obj.get('initial_physical_nodes', None)
-        self._set_shuffle_block_size()
+        self._set_shuffle_block_size(world)
 
         return epoch, sample_in_epoch
 
