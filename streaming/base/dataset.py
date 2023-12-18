@@ -680,8 +680,8 @@ class StreamingDataset(Array, IterableDataset):
                 if self.shuffle_algo in ['py1s', 'py2s']:
                     self.num_canonical_nodes = 64 * world.num_nodes
                 else:
-                    if not self._rank_world.worker_of_rank:
-                        print("\nWORKER OF RANK:", self._rank_world.worker_of_rank, "WORKER:", self._rank_world.worker, "WORKER OF NODE:", self._rank_world.worker_of_node)
+                    if not world.worker_of_rank:
+                        print("\nWORKER OF RANK:", world.worker_of_rank, "WORKER:", world.worker, "WORKER OF NODE:", world.worker_of_node)
                         logger.warning(
                             f'Because `num_canonical_nodes` was not specified, and ' +
                             f'`shuffle_algo` is {self.shuffle_algo}, it will default to ' +
@@ -689,7 +689,7 @@ class StreamingDataset(Array, IterableDataset):
                             f'v0.7.0, `num_canonical_nodes` defaulted to 64 * physical ' +
                             f'nodes.')
                     else:
-                        print("\nnot logging. WORKER OF RANK:", self._rank_world.worker_of_rank, "WORKER:", self._rank_world.worker, "WORKER OF NODE:", self._rank_world.worker_of_node)
+                        print("\nnot logging. WORKER OF RANK:", world.worker_of_rank, "WORKER:", world.worker, "WORKER OF NODE:", world.worker_of_node)
                     self.num_canonical_nodes = world.num_nodes
             self._set_shuffle_block_size()
             return epoch, 0
