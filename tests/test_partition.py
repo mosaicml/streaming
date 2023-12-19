@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import math
+import warnings
 
 import numpy as np
 import pytest
@@ -70,21 +71,30 @@ def test_partition_samples_less_than_ncn(num_samples: int, num_canonical_nodes: 
                        ranks_per_node, workers_per_rank, batch_size, drop_first)
 
 
-@pytest.mark.parametrize('num_samples', [5, 6, 7])
+@pytest.mark.parametrize('num_samples', [5, 15, 25, 55, 95, 135])
 @pytest.mark.parametrize('num_canonical_nodes', [4])
 @pytest.mark.parametrize('num_physical_nodes', [4, 8])
 @pytest.mark.parametrize('ranks_per_node', [8])
 @pytest.mark.parametrize('workers_per_rank', [8])
 @pytest.mark.parametrize('batch_size', [4])
-def test_partition_samples_less_than_ranks(num_samples: int, num_canonical_nodes: int,
-                                           num_physical_nodes: int, ranks_per_node: int,
-                                           workers_per_rank: int, batch_size: int):
+def test_partition_samples_per_node_less_than_ranks_warning(num_samples: int,
+                                                            num_canonical_nodes: int,
+                                                            num_physical_nodes: int,
+                                                            ranks_per_node: int,
+                                                            workers_per_rank: int,
+                                                            batch_size: int):
     drop_first = 0
     partition_algo = 'orig'
 
-    with pytest.warns(UserWarning, match=f'Attempting to partition*'):
-        get_partitions(partition_algo, num_samples, num_canonical_nodes, num_physical_nodes,
-                       ranks_per_node, workers_per_rank, batch_size, drop_first)
+    if num_samples < ranks_per_node * num_physical_nodes:
+        with pytest.warns(UserWarning, match=f'Attempting to partition*'):
+            get_partitions(partition_algo, num_samples, num_canonical_nodes, num_physical_nodes,
+                           ranks_per_node, workers_per_rank, batch_size, drop_first)
+    else:
+        with warnings.catch_warnings():
+            warnings.simplefilter('error')
+            get_partitions(partition_algo, num_samples, num_canonical_nodes, num_physical_nodes,
+                           ranks_per_node, workers_per_rank, batch_size, drop_first)
 
 
 def test_partition_relaxed_resumption():

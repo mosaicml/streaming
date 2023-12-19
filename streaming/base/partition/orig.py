@@ -145,16 +145,17 @@ def get_partitions_orig(num_samples: int,
     overflow = ids.shape[1] % ranks_per_node
     if overflow:
         underflow = ranks_per_node - overflow
-        enough_padding_samples = -ranks_per_node - underflow + 1 >= 0
+        enough_padding_samples = ranks_per_node + underflow - 1 <= ids.shape[1]
         if enough_padding_samples:
             last = ids[:, -ranks_per_node - underflow + 1:-ranks_per_node + 1]
         else:
             # There are less samples than ranks. Usually, we pad by trying to ensure that the same
             # samples don't get repeated over and over, but with in this case, we are forced to.
-            warnings.warn(f'Attempting to partition {ids.shape[1]} samples over {ranks_per_node}' +
-                          f' gpus. This will result in many samples being repeated, and ' +
-                          f'depending on your batching method, batches being completely dropped.' +
-                          f' Check if your dataset has the expected number of samples.')
+            warnings.warn(f'Attempting to partition {ids.shape[1]} samples per physical node ' +
+                          f'over {ranks_per_node} gpus. This will result in many samples being ' +
+                          f'repeated, and depending on your batching method, batches being ' +
+                          f'completely dropped. Check if your dataset has the expected number ' +
+                          f'of samples.')
             num_samples = ids.shape[1]
             full_repeats = underflow // num_samples
             leftover_samples = underflow % num_samples
