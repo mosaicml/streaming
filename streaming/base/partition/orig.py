@@ -145,7 +145,7 @@ def get_partitions_orig(num_samples: int,
     overflow = ids.shape[1] % ranks_per_node
     if overflow:
         underflow = ranks_per_node - overflow
-        enough_padding_samples = -ranks_per_node - underflow + 1 >= 0
+        enough_padding_samples = ranks_per_node + underflow - 1 <= ids.shape[1]
         if enough_padding_samples:
             last = ids[:, -ranks_per_node - underflow + 1:-ranks_per_node + 1]
         else:
