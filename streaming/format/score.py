@@ -64,7 +64,8 @@ class StreamCore:
                  validate_hash: Optional[str] = None,
                  keep_zip: Optional[bool] = None) -> None:
         self.remote = remote
-        self._local = local
+        if local is not None:
+            self.local = local
         self.split = split or ''
 
         self._download_retry = download_retry
@@ -80,19 +81,6 @@ class StreamCore:
             self.download_timeout = download_timeout
 
         self.validate_hash = validate_hash
-
-        if local is None:
-            self.local = self._get_temporary_directory()
-            if get_local_rank() == 0:
-                if os.path.exists(self.local):
-                    raise ValueError(
-                        f'Could not create a temporary local directory {self.local} . Either ' +
-                        f'delete the directory or specify a unique local directory with the ' +
-                        f'`local` value.')
-                os.makedirs(self.local)
-            barrier()
-        else:
-            self.local = local
 
         self._keep_zip = keep_zip
         if keep_zip is not None:
@@ -115,11 +103,22 @@ class StreamCore:
         Args:
             default (Self): Stream containing default values for all optional fields.
         """
-        if not (self.remote or self._local):
-            raise ValueError('`remote` and/or `local` path must be provided')
-
         if not self.split:
             self.split = default['split'] or ''
+
+        if not hasattr(self, 'local'):
+            if self.remote is None:
+                raise ValueError('`remote` and/or `local` path must be provided')
+            self.local = self._get_temporary_directory()
+            if get_local_rank() == 0:
+                if os.path.exists(self.local):
+                    raise ValueError(
+                        f'Could not create a temporary local directory {self.local} . Either ' +
+                        f'delete the directory or specify a unique local directory with the ' +
+                        f'`local` value.')
+                os.makedirs(self.local)
+            barrier()
+
         if self._download_retry is None:
             self.download_retry = default['download_retry']
         if self._download_timeout is None:
