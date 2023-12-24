@@ -98,20 +98,30 @@ class StreamCore:
         hex_digest = blake2s(data, digest_size=16).hexdigest()
         return os.path.join(gettempdir(), hex_digest, self.split)
 
-    def apply_default(self, default: dict) -> None:
+    def apply_defaults(self, *, split: Optional[str], download_retry: int, download_timeout: float,
+                       validate_hash: Optional[str], keep_zip: bool) -> None:
         """Apply defaults, setting any unset fields.
 
         We use pairs of (name, _name) in order to make type checking happy.
 
         Args:
-            default (Self): Stream containing default values for all optional fields.
+            split (str, optional): Which dataset split to use, if any. If provided, we stream
+                from/to the ``split`` subdirs of  ``remote`` and ``local``.
+            download_retry (int, optional): Number of download re-attempts before giving up.
+            download_timeout (float, optional): Number of seconds to wait for a shard to download
+                before raising an exception.
+            validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
+                shards.
+            keep_zip (bool, optional): Whether to keep or delete the compressed form when
+                decompressing downloaded shards. If ``False``, keep if and only if remote is local
+                or no remote.
         """
         if not self.split:
-            self.split = default['split'] or ''
+            self.split = split or ''
 
         if not hasattr(self, 'local'):
             if self.remote is None:
-                raise ValueError('`remote` and/or `local` path must be provided')
+                raise ValueError('`remote` and/or `local` path must be provided.')
             self.local = self._generate_local(self.remote, self.split)
 
             if not get_local_rank():
@@ -124,14 +134,14 @@ class StreamCore:
             barrier()
 
         if not hasattr(self, 'download_retry'):
-            self.download_retry = default['download_retry']
+            self.download_retry = download_retry
 
         if not hasattr(self, 'download_timeout'):
-            self.download_timeout = default['download_timeout']
+            self.download_timeout = download_timeout
 
         if self.validate_hash is None:
-            self.validate_hash = default['validate_hash'] or None
+            self.validate_hash = validate_hash or None
 
         if not hasattr(self, 'keep_zip'):
-            self.keep_zip = default['keep_zip']
-            self.safe_keep_zip = default['keep_zip'] or self.remote in {None, self.local}
+            self.keep_zip = keep_zip
+            self.safe_keep_zip = keep_zip or self.remote in {None, self.local}

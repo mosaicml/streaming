@@ -197,17 +197,12 @@ class SimulationDataset(StreamingDataset):
 
         # Initialize the Stream defaults and normalize to a list of Streams.
         if streams:
-            default = {
-                'remote': remote,
-                'local': local,
-                'split': split,
-                'download_retry': download_retry,
-                'download_timeout': download_timeout,
-                'validate_hash': validate_hash,
-                'keep_zip': keep_zip,
-            }
             for stream in streams:
-                stream.apply_default(default)
+                stream.apply_defaults(split=split,
+                                      download_retry=download_retry,
+                                      download_timeout=download_timeout,
+                                      validate_hash=validate_hash,
+                                      keep_zip=keep_zip)
         else:
             default = Stream(remote=remote,
                              local=local,
