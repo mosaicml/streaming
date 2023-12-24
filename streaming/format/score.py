@@ -58,7 +58,7 @@ def _normalize_hash_algos(hash_algos: Optional[Union[str, Sequence[str], Auto]],
     """
     # Normalize `hash_algos`.
     if not hash_algos:
-        norm_hash_algos = []
+        norm_hash_algos = None
     elif isinstance(hash_algos, str):
         norm_hash_algos = [hash_algos]
     elif isinstance(hash_algos, Sequence):
@@ -75,13 +75,13 @@ def _normalize_hash_algos(hash_algos: Optional[Union[str, Sequence[str], Auto]],
         norm_validate_hash = None
 
     # Compare and combine normalized `hash_algos` and normalized `validate_hash`.
-    if norm_hash_algos is None:
-        if norm_validate_hash is None:
+    if not norm_hash_algos:
+        if not norm_validate_hash:
             algos = []
         else:
             algos = norm_validate_hash
     else:
-        if norm_validate_hash is None:
+        if not norm_validate_hash:
             algos = norm_hash_algos
         else:
             if norm_hash_algos != norm_validate_hash:
