@@ -245,9 +245,9 @@ class SimulationDataset(StreamingDataset):
                 'path': filepath,
                 'local': stream.local,
                 'remote': stream.remote,
-                'proportion': stream._proportion,
-                'repeat': stream._repeat,
-                'choose': stream._choose
+                'proportion': getattr(stream, 'proportion', None),
+                'repeat': getattr(stream, 'repeat', None),
+                'choose': getattr(stream, 'choose', None),
             }
 
         # Initialize the SimulationWorld, which tells us about nodes/devices/workers

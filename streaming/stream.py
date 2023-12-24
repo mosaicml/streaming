@@ -112,19 +112,16 @@ class Stream(StreamCore):
             raise ValueError('At most one of `proportion`, `repeat`, and `choose` may be ' +
                              'specified; the others are derived')
 
-        self._proportion = proportion
         if proportion is not None:
             if proportion < 0:
                 raise ValueError('`proportion` must be non-negative')
             self.proportion = proportion
 
-        self._repeat = repeat
         if repeat is not None:
             if repeat < 0:
                 raise ValueError('`repeat` must be non-negative')
             self.repeat = repeat
 
-        self._choose = choose
         if choose is not None:
             if choose < 0:
                 raise ValueError('`choose` must be non-negative')
