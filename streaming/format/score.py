@@ -115,25 +115,31 @@ def _normalize_keep_zip(keep_zip: bool) -> str:
     return 'src' if keep_zip else 'nil'
 
 
-def _normalize_keep_old_phases(keep_old_phases: str, keep_zip: Optional[bool]) -> str:
+def _normalize_keep_old_phases(keep_old_phases: Optional[str], keep_zip: Optional[bool]) -> str:
     """Normalize ``keep_old_phases`` and ``keep_zip`` (deprecated argument).
 
     Args:
-        keep_old_phases (str): Input keep old phases.
+        keep_old_phases (str, optional): Input keep old phases.
         keep_zip (bool, optional): Input keep zip.
 
     Returns:
         Normalized phasing.
     """
-    if keep_zip is None:
-        phasing = keep_old_phases
+    if keep_old_phases is None:
+        if keep_zip is None:
+            phasing = 'nil'
+        else:
+            phasing = _normalize_keep_zip(keep_zip)
     else:
-        norm_keep_zip = _normalize_keep_zip(keep_zip)
-        if keep_old_phases != norm_keep_zip:
-            raise ValueError(f'You have specified old phases to keep in both the old way ' +
-                             f'and the new way, and also differently: `keep_old_phases` = ' +
-                             f'{keep_old_phases}, `keep_zip` = {keep_zip}.')
-        phasing = keep_old_phases
+        if keep_zip is None:
+            phasing = keep_old_phases
+        else:
+            norm_keep_zip = _normalize_keep_zip(keep_zip)
+            if keep_old_phases != norm_keep_zip:
+                raise ValueError(f'You have specified old phases to keep in both the old way ' +
+                                 f'and the new way, and also differently: `keep_old_phases` = ' +
+                                 f'{keep_old_phases}, `keep_zip` = {keep_zip}.')
+            phasing = keep_old_phases
 
     if not is_phasing(phasing):
         raise ValueError('Unknown phasing (i.e., `keep_old_phases` or `keep_zip`): {phasing}.')
@@ -199,7 +205,8 @@ class StreamCore:
         validate_hash (str, optional): Deprecated. See ``hash_algos``. Defaults to ``None``.
         keep_old_phases (str | Auto): Which old phases of shard files to cache (until shard
             eviction). Must be one of ``nil``, ``src``, or ``all``. Set to ``auto`` to inherit from
-            StreamingDataset. Defaults to ``None``.
+            StreamingDataset. If ``None``, uses ``keep_zip``, falling back to ``nil``. Defaults to
+            ``None``.
         keep_zip (bool, optional): Deprecated. See ``keep_old_phases``. Defaults to ``None``.
     """
 
@@ -213,7 +220,7 @@ class StreamCore:
         download_timeout: Union[str, float, Auto] = auto,
         hash_algos: Optional[Union[str, Sequence[str], Auto]] = auto,
         validate_hash: Optional[str] = None,
-        keep_old_phases: Union[str, Auto] = auto,
+        keep_old_phases: Optional[Union[str, Auto]] = auto,
         keep_zip: Optional[bool] = None,
     ) -> None:
         self.remote = remote
@@ -253,7 +260,7 @@ class StreamCore:
         download_timeout: Union[str, float],
         hash_algos: Optional[Union[str, Sequence[str]]],
         validate_hash: Optional[str],
-        keep_old_phases: str,
+        keep_old_phases: Optional[str],
         keep_zip: Optional[bool],
     ) -> None:
         """Apply defaults, setting any unknown fields.
@@ -266,8 +273,9 @@ class StreamCore:
                 is also accepted.
             hash_algos (str | Sequence[str], optional): Ranked list of hashing algorithms to try.
             validate_hash (str, optional): Deprecated. See ``hash_algos``.
-            keep_old_phases (str): Which old phases of shard files to cache (until shard eviction).
-                Must be one of ``nil``, ``src``, or ``all``.
+            keep_old_phases (str, optional): Which old phases of shard files to cache (until shard
+                eviction). If set, must be one of ``nil``, ``src``, or ``all``. If ``None``, uses
+                ``keep_zip``, falling back to ``nil``.
             keep_zip (bool, optional): Deprecated. See ``keep_old_phases``.
         """
         if not hasattr(self, 'split'):

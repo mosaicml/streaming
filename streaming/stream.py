@@ -74,9 +74,10 @@ class Stream(StreamCore):
         hash_algos (str | Sequence[str] | Auto, optional): Ranked list of hashing algorithms to
             try. Set to ``auto`` to inherit from StreamingDataset. Defaults to ``auto``.
         validate_hash (str, optional): Deprecated. See ``hash_algos``. Defaults to ``None``.
-        keep_old_phases (str | Auto): Which old phases of shard files to cache (until shard
-            eviction). Must be one of ``nil``, ``src``, or ``all``. Set to ``auto`` to inherit from
-            StreamingDataset. Defaults to ``None``.
+        keep_old_phases (str | Auto, optional): Which old phases of shard files to cache (until
+            shard eviction). Must be one of ``nil``, ``src``, or ``all``. Set to ``auto`` to
+            inherit from StreamingDataset. If ``None``, uses ``keep_zip``, falling back to ``nil``.
+            Defaults to ``None``.
         keep_zip (bool, optional): Deprecated. See ``keep_old_phases``. Defaults to ``None``.
     """
 
@@ -93,7 +94,7 @@ class Stream(StreamCore):
         download_timeout: Union[str, float, Auto] = auto,
         hash_algos: Optional[Union[str, Sequence[str], Auto]] = auto,
         validate_hash: Optional[str] = None,
-        keep_old_phases: Union[str, Auto] = auto,
+        keep_old_phases: Optional[Union[str, Auto]] = auto,
         keep_zip: Optional[bool] = None,
     ) -> None:
         super().__init__(remote=remote,

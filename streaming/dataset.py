@@ -256,8 +256,9 @@ class StreamingDataset(Array, IterableDataset):
         hash_algos (str | Sequence[str], optional): Ranked list of hashing algorithms to try.
             Defaults to ``None``.
         validate_hash (str, optional): Deprecated. See ``hash_algos``. Defaults to ``None``.
-        keep_old_phases (str): Which old phases of shard files to cache (until shard eviction).
-            Must be one of ``nil``, ``src``, or ``all``. Defaults to ``nil``.
+        keep_old_phases (str, optional): Which old phases of shard files to cache (until shard
+            eviction). If set, must be one of ``nil``, ``src``, or ``all``. Defaults to ``None``,
+            which uses ``keep_zip``, falling back to ``nil``.
         keep_zip (bool, optional): Deprecated. See ``keep_old_phases``. Defaults to ``None``.
         epoch_size (Union[str, int], optional): Number of samples to draw per epoch balanced
             across all streams. If ``None``, takes its value from the total number of underlying
@@ -321,7 +322,7 @@ class StreamingDataset(Array, IterableDataset):
                  download_timeout: Union[str, float] = '1m',
                  hash_algos: Optional[Union[str, Sequence[str]]] = None,
                  validate_hash: Optional[str] = None,
-                 keep_old_phases: str = 'nil',
+                 keep_old_phases: Optional[str] = None,
                  keep_zip: Optional[bool] = None,
                  epoch_size: Optional[Union[str, int]] = None,
                  predownload: Optional[int] = None,
