@@ -255,58 +255,79 @@ class StreamCore:
     def apply_defaults(
         self,
         *,
-        split: Optional[str],
-        download_retry: int,
-        download_timeout: Union[str, float],
-        hash_algos: Optional[Union[str, Sequence[str]]],
-        validate_hash: Optional[str],
-        keep_old_phases: Optional[str],
-        keep_zip: Optional[bool],
+        split: Optional[Union[str, Auto]] = auto,
+        download_retry: Union[int, Auto] = auto,
+        download_timeout: Union[str, float, Auto] = auto,
+        hash_algos: Optional[Union[str, Sequence[str], Auto]] = auto,
+        validate_hash: Optional[str] = None,
+        keep_old_phases: Optional[Union[str, Auto]] = auto,
+        keep_zip: Optional[bool] = None,
     ) -> None:
         """Apply defaults, setting any unknown fields.
 
         Args:
-            split (str, optional): Which dataset split to use, if any.
-            download_retry (int): Number of download re-attempts before raising an error.
-            download_timeout (str | float, optional): Time in seconds to wait for a file download
-                to complete before raising an error. Streaming duration shorthand (e.g., ``1m23s``)
-                is also accepted.
-            hash_algos (str | Sequence[str], optional): Ranked list of hashing algorithms to try.
-            validate_hash (str, optional): Deprecated. See ``hash_algos``.
-            keep_old_phases (str, optional): Which old phases of shard files to cache (until shard
-                eviction). If set, must be one of ``nil``, ``src``, or ``all``. If ``None``, uses
-                ``keep_zip``, falling back to ``nil``.
-            keep_zip (bool, optional): Deprecated. See ``keep_old_phases``.
+            split (str | Auto, optional): Which dataset split to use, if any. If ``auto``, this
+                field is skipped and must already have a valid value. Defaults to ``auto``.
+            download_retry (int | Auto): Number of download re-attempts before raising an error.
+                If ``auto``, this field is skipped and must already have a valid value. Defaults to
+                ``auto``.
+            download_timeout (str | float | Auto, optional): Time in seconds to wait for a file
+                download to complete before raising an error. Streaming duration shorthand (e.g.,
+                ``1m23s``) is also accepted. If ``auto``, this field is skipped and must already
+                have a valid value. Defaults to ``auto``.
+            hash_algos (str | Sequence[str] | Auto, optional): Ranked list of hashing algorithms to
+                try. If ``auto``, this field is skipped and must already have a valid value.
+                Defaults to ``auto``.
+            validate_hash (str, optional): Deprecated. See ``hash_algos``. Defaults to ``None``.
+            keep_old_phases (str | Auto, optional): Which old phases of shard files to cache (until
+                shard eviction). If set, must be one of ``nil``, ``src``, or ``all``. If ``None``,
+                uses ``keep_zip``, falling back to ``nil``. If ``auto``, this field is skipped and
+                must already have a valid value. Defaults to ``auto``.
+            keep_zip (bool, optional): Deprecated. See ``keep_old_phases``. Defaults to ``None``.
         """
         if not hasattr(self, 'split'):
-            self.split = split
+            if isinstance(split, Auto):
+                raise RuntimeError('Split was not set.')
+            else:
+                self.split = split
 
         if not hasattr(self, 'local'):
             if self.remote is None:
                 raise ValueError('`remote` and/or `local` path must be provided.')
             self.local = _generate_local(self.remote, self.split)
 
-            # TODO: why does this code exist?
             if not get_local_rank():
                 if os.path.exists(self.local):
                     raise ValueError(
-                        f'Could not create a temporary local directory {self.local} . Either ' +
+                        f'Could not create a temporary local directory {self.local}. Either ' +
                         f'delete the directory or specify a unique local directory with the ' +
                         f'`local` value.')
                 os.makedirs(self.local)
             barrier()
 
         if not hasattr(self, 'download_retry'):
-            self.download_retry = _normalize_download_retry(download_retry)
+            if isinstance(download_retry, Auto):
+                raise RuntimeError('Download retry was not set.')
+            else:
+                self.download_retry = _normalize_download_retry(download_retry)
 
         if not hasattr(self, 'download_timeout'):
-            self.download_timeout = _normalize_download_timeout(download_timeout)
+            if isinstance(download_timeout, Auto):
+                raise RuntimeError('Download timeout was not set.')
+            else:
+                self.download_timeout = _normalize_download_timeout(download_timeout)
 
         if not hasattr(self, 'hash_algos'):
-            self.hash_algos = _normalize_hash_algos(hash_algos, validate_hash)
+            if isinstance(hash_algos, Auto):
+                raise RuntimeError('Hash algos was not set.')
+            else:
+                self.hash_algos = _normalize_hash_algos(hash_algos, validate_hash)
 
         if not hasattr(self, 'keep_old_phases'):
-            self.keep_old_phases = _normalize_keep_old_phases(keep_old_phases, keep_zip)
+            if isinstance(keep_old_phases, Auto):
+                raise RuntimeError('Keep old phases was not set.')
+            else:
+                self.keep_old_phases = _normalize_keep_old_phases(keep_old_phases, keep_zip)
 
         if not hasattr(self, 'safe_keep_old_phases'):
             self.safe_keep_old_phases = get_safe_phasing(self.keep_old_phases, self.remote,
