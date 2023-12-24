@@ -3,10 +3,8 @@
 
 """A dataset, or sub-dataset if mixing, from which we stream/cache samples."""
 
-import hashlib
 import json
 import os
-import tempfile
 from typing import List, Optional, Sequence, Tuple
 
 import numpy as np
@@ -15,15 +13,15 @@ from typing_extensions import Self
 
 from streaming.compression import decompress
 from streaming.constant import TICK
-from streaming.distributed import barrier, get_local_rank
 from streaming.format import FileInfo, Shard, get_index_basename, shard_from_json
+from streaming.format.score import StreamCore
 from streaming.hashing import get_hash
 from streaming.storage import download_file, wait_for_file_to_exist
 from streaming.util import retry
 from streaming.world import World
 
 
-class Stream:
+class Stream(StreamCore):
     """A dataset, or sub-dataset if mixing, from which we stream/cache samples.
 
     We initialize a StreamingDataset with one or more Streams. Streams may be resampled to achieve
@@ -100,10 +98,13 @@ class Stream:
                  download_timeout: Optional[float] = None,
                  validate_hash: Optional[str] = None,
                  keep_zip: Optional[bool] = None) -> None:
-        self.remote = remote
-        self._local = local
-        self.split = split or ''
-
+        super().__init__(remote=remote,
+                         local=local,
+                         split=split,
+                         download_retry=download_retry,
+                         download_timeout=download_timeout,
+                         validate_hash=validate_hash,
+                         keep_zip=keep_zip)
         has_proportion = proportion is not None
         has_repeat = repeat is not None
         has_choose = choose is not None
@@ -128,69 +129,6 @@ class Stream:
             if choose < 0:
                 raise ValueError('`choose` must be non-negative')
             self.choose = choose
-
-        self._download_retry = download_retry
-        if download_retry is not None:
-            if download_retry < 0:
-                raise ValueError('`download_retry` must be non-negative')
-            self.download_retry = download_retry
-
-        self._download_timeout = download_timeout
-        if download_timeout is not None:
-            if download_timeout <= 0:
-                raise ValueError('`download_timeout` must be positive')
-            self.download_timeout = download_timeout
-
-        self.validate_hash = validate_hash
-
-        if local is None:
-            self.local = self._get_temporary_directory()
-            if get_local_rank() == 0:
-                if os.path.exists(self.local):
-                    raise ValueError(
-                        f'Could not create a temporary local directory {self.local} . Either ' +
-                        f'delete the directory or specify a unique local directory with the ' +
-                        f'`local` value.')
-                os.makedirs(self.local)
-            barrier()
-        else:
-            self.local = local
-
-        self._keep_zip = keep_zip
-        if keep_zip is not None:
-            self.keep_zip = keep_zip
-            self.safe_keep_zip = self.keep_zip or self.remote in {None, self.local}
-
-    def _get_temporary_directory(self) -> str:
-        """Construct a path to a temporary directory based on remote and split."""
-        root = tempfile.gettempdir()
-        hash = ''
-        if self.remote is not None:
-            hash = hashlib.blake2s(self.remote.encode('utf-8'), digest_size=16).hexdigest()
-        return os.path.join(root, hash, self.split)
-
-    def apply_default(self, default: dict) -> None:
-        """Apply defaults, setting any unset fields.
-
-        We use pairs of (name, _name) in order to make type checking happy.
-
-        Args:
-            default (Self): Stream containing default values for all optional fields.
-        """
-        if not (self.remote or self._local):
-            raise ValueError('`remote` and/or `local` path must be provided')
-
-        if not self.split:
-            self.split = default['split'] or ''
-        if self._download_retry is None:
-            self.download_retry = default['download_retry']
-        if self._download_timeout is None:
-            self.download_timeout = default['download_timeout']
-        if self.validate_hash is None:
-            self.validate_hash = default['validate_hash'] or None
-        if self._keep_zip is None:
-            self.keep_zip = default['keep_zip']
-            self.safe_keep_zip = default['keep_zip'] or self.remote in {None, self.local}
 
     @classmethod
     def validate_weights(cls, streams: Sequence[Self]) -> Tuple[bool, bool]:
