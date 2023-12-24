@@ -3,9 +3,9 @@
 
 """A dataset, or sub-dataset if mixing, from which we stream/cache samples."""
 
-import hashlib
 import os
-import tempfile
+from hashlib import blake2s
+from tempfile import gettempdir
 from typing import Optional
 
 from streaming.distributed import barrier, get_local_rank
@@ -68,13 +68,11 @@ class StreamCore:
             self.local = local
         self.split = split or ''
 
-        self._download_retry = download_retry
         if download_retry is not None:
             if download_retry < 0:
                 raise ValueError('`download_retry` must be non-negative')
             self.download_retry = download_retry
 
-        self._download_timeout = download_timeout
         if download_timeout is not None:
             if download_timeout <= 0:
                 raise ValueError('`download_timeout` must be positive')
@@ -82,18 +80,23 @@ class StreamCore:
 
         self.validate_hash = validate_hash
 
-        self._keep_zip = keep_zip
         if keep_zip is not None:
             self.keep_zip = keep_zip
             self.safe_keep_zip = self.keep_zip or self.remote in {None, self.local}
 
-    def _get_temporary_directory(self) -> str:
-        """Construct a path to a temporary directory based on remote and split."""
-        root = tempfile.gettempdir()
-        hash = ''
-        if self.remote is not None:
-            hash = hashlib.blake2s(self.remote.encode('utf-8'), digest_size=16).hexdigest()
-        return os.path.join(root, hash, self.split)
+    def _generate_local(self, remote: str, split: Optional[str]) -> str:
+        """Derive a local dirname deterministically from remote and optional split.
+
+        Args:
+            remote (str): Remote path. Must exist.
+            split (str, optional): Optional split.
+
+        Returns:
+            str: Local path.
+        """
+        data = remote.encode('utf-8')
+        hex_digest = blake2s(data, digest_size=16).hexdigest()
+        return os.path.join(gettempdir(), hex_digest, self.split)
 
     def apply_default(self, default: dict) -> None:
         """Apply defaults, setting any unset fields.
@@ -109,8 +112,9 @@ class StreamCore:
         if not hasattr(self, 'local'):
             if self.remote is None:
                 raise ValueError('`remote` and/or `local` path must be provided')
-            self.local = self._get_temporary_directory()
-            if get_local_rank() == 0:
+            self.local = self._generate_local(self.remote, self.split)
+
+            if not get_local_rank():
                 if os.path.exists(self.local):
                     raise ValueError(
                         f'Could not create a temporary local directory {self.local} . Either ' +
@@ -119,12 +123,15 @@ class StreamCore:
                 os.makedirs(self.local)
             barrier()
 
-        if self._download_retry is None:
+        if not hasattr(self, 'download_retry'):
             self.download_retry = default['download_retry']
-        if self._download_timeout is None:
+
+        if not hasattr(self, 'download_timeout'):
             self.download_timeout = default['download_timeout']
+
         if self.validate_hash is None:
             self.validate_hash = default['validate_hash'] or None
-        if self._keep_zip is None:
+
+        if not hasattr(self, 'keep_zip'):
             self.keep_zip = default['keep_zip']
             self.safe_keep_zip = default['keep_zip'] or self.remote in {None, self.local}
