@@ -303,6 +303,9 @@ class StreamingDataset(Array, IterableDataset):
             ``None``.
         batching_method (str): Which batching method to use, either ``random``, ``stratified``, or
             ``per_stream``. Defaults to ``random``.
+        allow_unsafe_types (bool): If a shard contains Pickle, which allows arbitrary code
+            execution during deserialization, whether to keep going if ``True`` or raise an error
+            if ``False``. Defaults to ``False``.
     """
 
     def __init__(self,
@@ -327,7 +330,8 @@ class StreamingDataset(Array, IterableDataset):
                  shuffle_algo: str = 'py1e',
                  shuffle_seed: int = 9176,
                  shuffle_block_size: Optional[int] = None,
-                 batching_method: str = 'random') -> None:
+                 batching_method: str = 'random',
+                 allow_unsafe_types: bool = False) -> None:
         # Global arguments (which do not live in Streams).
         self.predownload = predownload
         self.cache_limit = cache_limit
@@ -341,6 +345,7 @@ class StreamingDataset(Array, IterableDataset):
         self.shuffle_seed = shuffle_seed
         self.shuffle_block_size = shuffle_block_size
         self.batching_method = batching_method
+        self.allow_unsafe_types = allow_unsafe_types
 
         # Initialize initial_physical_nodes to None. If we are resuming, then we will set it to the
         # number of physical nodes of the initial run in the _resume function.
@@ -389,6 +394,10 @@ class StreamingDataset(Array, IterableDataset):
                           f'This may result in slower batch time. Recommendation is to set ' +
                           f'predownload to at-least batch_size.')
         elif self.predownload is None:
+            logger.warning(f'Because `predownload` was not specified, it will default to ' +
+                           f'8*batch_size if batch_size is not None, otherwise 64. Prior to ' +
+                           f'Streaming v0.7.0, `predownload` defaulted to ' +
+                           f'max(batch_size, 256 * batch_size // num_canonical_nodes).')
             self.predownload = 8 * self.batch_size if self.batch_size is not None else 64
 
         # Convert epoch size from string to int, if needed. Cannot be negative.
@@ -448,7 +457,7 @@ class StreamingDataset(Array, IterableDataset):
         self.sample_offset_per_stream = np.zeros(self.num_streams, np.int64)
         self.samples_per_stream = np.zeros(self.num_streams, np.int64)
         for stream_id, stream in enumerate(self.streams):
-            stream_shards = stream.get_shards(world)
+            stream_shards = stream.get_shards(world, self.allow_unsafe_types)
             num_stream_samples = sum(map(len, stream_shards))
             if not num_stream_samples:
                 index_filename = os.path.join(stream.local, stream.split, get_index_basename())
@@ -640,9 +649,14 @@ class StreamingDataset(Array, IterableDataset):
         """
         return self.length
 
-    def _set_shuffle_block_size(self):
+    def _set_shuffle_block_size(self, world: World):
         """Set the shuffle block size value."""
         if self.shuffle_block_size is None:
+            if not world.worker_of_rank:
+                logger.warning(f'Because `shuffle_block_size` was not specified, it will ' +
+                               f'default to max(4_000_000 // num_canonical_nodes, 1 << 18) if ' +
+                               f'num_canonical_nodes is not None, otherwise 262144. Prior to ' +
+                               f'Streaming v0.7.0, `shuffle_block_size` defaulted to 262144.')
             self.shuffle_block_size = max(4_000_000 // self.num_canonical_nodes, 1 << 18) \
                 if self.num_canonical_nodes is not None else 1 << 18
 
@@ -666,8 +680,16 @@ class StreamingDataset(Array, IterableDataset):
                 if self.shuffle_algo in ['py1s', 'py2s']:
                     self.num_canonical_nodes = 64 * world.num_nodes
                 else:
+                    if not world.worker_of_rank:
+                        print('yo we are here!!!!!')
+                        logger.warning(
+                            f'Because `num_canonical_nodes` was not specified, and ' +
+                            f'`shuffle_algo` is {self.shuffle_algo}, it will default to ' +
+                            f'be equal to physical nodes. Prior to Streaming ' +
+                            f'v0.7.0, `num_canonical_nodes` defaulted to 64 * physical ' +
+                            f'nodes.')
                     self.num_canonical_nodes = world.num_nodes
-            self._set_shuffle_block_size()
+            self._set_shuffle_block_size(world)
             return epoch, 0
 
         # SharedMemory buffers may contain additional null bytes at the end.
@@ -682,8 +704,15 @@ class StreamingDataset(Array, IterableDataset):
                 if self.shuffle_algo in ['py1s', 'py2s']:
                     self.num_canonical_nodes = 64 * world.num_nodes
                 else:
+                    if not world.worker_of_rank:
+                        logger.warning(
+                            f'Because `num_canonical_nodes` was not specified, and ' +
+                            f'`shuffle_algo` is {self.shuffle_algo}, it will default to ' +
+                            f'be equal to physical nodes. Prior to Streaming ' +
+                            f'v0.7.0, `num_canonical_nodes` defaulted to 64 * physical ' +
+                            f'nodes.')
                     self.num_canonical_nodes = world.num_nodes
-            self._set_shuffle_block_size()
+            self._set_shuffle_block_size(world)
             return epoch, 0
 
         # Load the correct resumption meta data.
@@ -694,7 +723,7 @@ class StreamingDataset(Array, IterableDataset):
         # Ensure that we are backwards compatible with old checkpoint dataset state, since the
         # 'initial_physical_nodes' key may not be present.
         self.initial_physical_nodes = obj.get('initial_physical_nodes', None)
-        self._set_shuffle_block_size()
+        self._set_shuffle_block_size(world)
 
         return epoch, sample_in_epoch
 

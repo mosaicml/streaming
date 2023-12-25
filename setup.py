@@ -64,6 +64,7 @@ extra_deps = {}
 
 extra_deps['dev'] = [
     'datasets>=2.4.0,<3',
+    'pyarrow>14.0.0',
     'docformatter>=1.4',
     'jupyter==1.0.0',
     'pre-commit>=2.18.1,<4',
@@ -71,11 +72,11 @@ extra_deps['dev'] = [
     'pytest_codeblocks==0.17.0',
     'pytest-cov>=4,<5',
     'toml==0.10.2',
-    'yamllint==1.32.0',
+    'yamllint==1.33.0',
     'moto>=4.0,<5',
-    'fastapi==0.104.0',
-    'pydantic==2.4.2',
-    'uvicorn==0.23.2',
+    'fastapi==0.104.1',
+    'pydantic==2.5.2',
+    'uvicorn==0.24.0.post1',
     'pytest-split==0.8.1',
 ]
 
@@ -109,7 +110,7 @@ extra_deps['spark'] = [
 ]
 
 extra_deps['databricks'] = [
-    'databricks-sdk==0.8.0',
+    'databricks-sdk==0.14.0',
 ]
 
 extra_deps['all'] = sorted({dep for deps in extra_deps.values() for dep in deps})

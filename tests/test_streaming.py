@@ -1,11 +1,12 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+import logging
 import math
 import os
 import shutil
 from multiprocessing import Process
-from typing import Any, Tuple
+from typing import Any, Callable, Tuple
 
 import pytest
 from torch.utils.data import DataLoader
@@ -13,6 +14,26 @@ from torch.utils.data import DataLoader
 from streaming.base import Stream, StreamingDataLoader, StreamingDataset
 from streaming.base.util import clean_stale_shared_memory
 from tests.common.utils import convert_to_mds
+
+
+@pytest.mark.usefixtures('local_remote_dir')
+def test_new_defaults_warning(local_remote_dir: Tuple[str, str], caplog: Callable):
+    caplog.set_level(logging.WARNING)
+    local, remote = local_remote_dir
+    convert_to_mds(out_root=remote,
+                   dataset_name='sequencedataset',
+                   num_samples=100,
+                   size_limit=1 << 8)
+
+    # Build a StreamingDataset with new defaults. Should warn about the new defaults changes.
+    dataset = StreamingDataset(local=local, remote=remote, shuffle=True)
+    dataloader = StreamingDataLoader(dataset=dataset, batch_size=4)
+    for _ in dataloader:
+        pass
+
+    assert 'Because `predownload` was not specified,' in caplog.text
+    assert 'Because `shuffle_block_size` was not specified,' in caplog.text
+    assert 'Because `num_canonical_nodes` was not specified,' in caplog.text
 
 
 @pytest.mark.parametrize('batch_size', [4])

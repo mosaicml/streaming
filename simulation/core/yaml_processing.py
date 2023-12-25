@@ -61,6 +61,8 @@ def ingest_yaml(yaml_dict: Optional[dict] = None,
         global_batch_size = config['global_train_batch_size']
     elif 'batch_size' in config:
         global_batch_size = config['batch_size']
+    elif 'dataset' in config and 'train_batch_size' in config['dataset']:
+        global_batch_size = config['dataset']['train_batch_size']
 
     # get number of workers and training dataset params
     if 'train_loader' in config:
@@ -87,6 +89,16 @@ def ingest_yaml(yaml_dict: Optional[dict] = None,
                 workers = 1
         else:
             raise ValueError('train_dataset must be specified in the yaml file.')
+    elif 'train_dataset' in config:
+        train_dataset = config['train_dataset']
+        if 'streaming_kwargs' in train_dataset:
+            # Merge streaming kwargs, if present, into train_dataset
+            train_dataset.update(train_dataset['streaming_kwargs'])
+        if 'dataloader_kwargs' in train_dataset and 'num_workers' in train_dataset[
+                'dataloader_kwargs']:
+            workers = train_dataset['dataloader_kwargs']['num_workers']
+        else:
+            workers = 1
     else:
         raise ValueError('train_loader or dataset must be specified in the yaml file.')
 
