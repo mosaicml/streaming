@@ -248,15 +248,19 @@ class StreamingDataset(Array, IterableDataset):
             StreamingDataset uses either ``streams`` or ``remote``/``local``. Defaults to ``None``.
         split (str, optional): Which dataset split to use, if any. If provided, we stream from/to
             the ``split`` subdirs of  ``remote`` and ``local``. Defaults to ``None``.
-        download_retry (int): Number of download re-attempts before giving up. Defaults to ``2``.
-        download_timeout (float): Number of seconds to wait for a shard to download before raising
-            an exception. Defaults to ``60``.
-        validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
-            shards. Defaults to ``None``.
-        keep_zip (bool): Whether to keep or delete the compressed form when decompressing
-            downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
-            ``False``.
-        epoch_size (Union[int, str], optional): Number of samples to draw per epoch balanced
+        download_retry (int): Number of download re-attempts before raising an error. Defaults to
+            ``2``.
+        download_timeout (str | float): Time in seconds to wait for a file download to complete
+            before raising an error. Streaming duration shorthand (e.g., ``1m23s``) is also
+            accepted. Defaults to ``1m``.
+        hash_algos (str | Sequence[str], optional): Ranked list of hashing algorithms to try.
+            Defaults to ``None``.
+        validate_hash (str, optional): Deprecated. See ``hash_algos``. Defaults to ``None``.
+        keep_old_phases (str, optional): Which old phases of shard files to cache (until shard
+            eviction). If set, must be one of ``nil``, ``src``, or ``all``. Defaults to ``None``,
+            which uses ``keep_zip``, falling back to ``nil``.
+        keep_zip (bool, optional): Deprecated. See ``keep_old_phases``. Defaults to ``None``.
+        epoch_size (Union[str, int], optional): Number of samples to draw per epoch balanced
             across all streams. If ``None``, takes its value from the total number of underlying
             samples. Provide this field if you are weighting streams relatively to target a larger
             or smaller epoch size. Defaults to ``None``. Can also take in human-readable number
@@ -266,7 +270,7 @@ class StreamingDataset(Array, IterableDataset):
             but not before, training. Recommendation is to provide a value greater than per device
             batch size to ensure at-least per device batch size number of samples cached locally.
             If ``None``, its value is set to ``8 * batch_size``. Defaults to ``None``.
-        cache_limit (Union[int, str], optional): Maximum size in bytes of this StreamingDataset's
+        cache_limit (Union[str, int], optional): Maximum size in bytes of this StreamingDataset's
             shard cache. Before downloading a shard, the least recently used resident shard(s)
             may be evicted (deleted from the local cache) in order to stay under the limit.
             Set to ``None`` to disable shard eviction. Supports integer bytes as well as string
@@ -315,12 +319,14 @@ class StreamingDataset(Array, IterableDataset):
                  local: Optional[str] = None,
                  split: Optional[str] = None,
                  download_retry: int = 2,
-                 download_timeout: float = 60,
+                 download_timeout: Union[str, float] = '1m',
+                 hash_algos: Optional[Union[str, Sequence[str]]] = None,
                  validate_hash: Optional[str] = None,
-                 keep_zip: bool = False,
-                 epoch_size: Optional[Union[int, str]] = None,
+                 keep_old_phases: Optional[str] = None,
+                 keep_zip: Optional[bool] = None,
+                 epoch_size: Optional[Union[str, int]] = None,
                  predownload: Optional[int] = None,
-                 cache_limit: Optional[Union[int, str]] = None,
+                 cache_limit: Optional[Union[str, int]] = None,
                  sampling_method: str = 'balanced',
                  sampling_granularity: int = 1,
                  partition_algo: str = 'relaxed',
@@ -407,26 +413,26 @@ class StreamingDataset(Array, IterableDataset):
 
         # Initialize the Stream defaults and normalize to a list of Streams.
         if streams:
-            default = {
-                'remote': remote,
-                'local': local,
-                'split': split,
-                'download_retry': download_retry,
-                'download_timeout': download_timeout,
-                'validate_hash': validate_hash,
-                'keep_zip': keep_zip,
-            }
             for stream in streams:
-                stream.apply_default(default)
+                stream.apply_defaults(split=split,
+                                      download_retry=download_retry,
+                                      download_timeout=download_timeout,
+                                      hash_algos=hash_algos,
+                                      validate_hash=validate_hash,
+                                      keep_old_phases=keep_old_phases,
+                                      keep_zip=keep_zip)
         else:
-            default = Stream(remote=remote,
-                             local=local,
-                             split=split,
-                             download_retry=download_retry,
-                             download_timeout=download_timeout,
-                             validate_hash=validate_hash,
-                             keep_zip=keep_zip)
-            streams = [default]
+            stream = Stream(remote=remote,
+                            local=local,
+                            split=split,
+                            download_retry=download_retry,
+                            download_timeout=download_timeout,
+                            hash_algos=hash_algos,
+                            validate_hash=validate_hash,
+                            keep_old_phases=keep_old_phases,
+                            keep_zip=keep_zip)
+            stream.apply_defaults()
+            streams = stream,
 
         # Validate the stream weighting scheme (relative or absolute) to catch errors before we go
         # to the trouble of loading them.
@@ -455,7 +461,8 @@ class StreamingDataset(Array, IterableDataset):
             stream_shards = stream.get_shards(world, self.allow_unsafe_types)
             num_stream_samples = sum(map(len, stream_shards))
             if not num_stream_samples:
-                index_filename = os.path.join(stream.local, stream.split, get_index_basename())
+                index_filename = os.path.join(stream.local, stream.split or '',
+                                              get_index_basename())
                 raise RuntimeError(f'Stream contains no samples: {index_filename}.')
             stream_per_shard += [stream_id] * len(stream_shards)
             self.shard_offset_per_stream[stream_id] = len(self.shards)
@@ -502,11 +509,21 @@ class StreamingDataset(Array, IterableDataset):
         self.length = ceil(self.epoch_size / world.num_ranks)
 
         # Register/lookup our shared memory prefix and filelock root directory.
-        streams_local = [os.path.abspath(os.path.join(x.local, x.split)) for x in streams]
-        streams_remote = [
-            os.path.join(x.remote, x.split) if x.remote is not None else None for x in streams
-        ]
-        self._shm_prefix_int, self._locals_shm = get_shm_prefix(streams_local, streams_remote,
+        stream_locals = []
+        for stream in streams:
+            local = os.path.join(stream.local, stream.split or '')
+            local = os.path.abspath(local)
+            stream_locals.append(local)
+
+        stream_remotes = []
+        for stream in streams:
+            if stream.remote is not None:
+                remote = os.path.join(stream.remote, stream.split or '')
+            else:
+                remote = None
+            stream_remotes.append(remote)
+
+        self._shm_prefix_int, self._locals_shm = get_shm_prefix(stream_locals, stream_remotes,
                                                                 world)
         self._filelock_root = os.path.join(os.path.sep, 'tmp', 'streaming')
         os.makedirs(self._filelock_root, exist_ok=True)
@@ -1134,7 +1151,8 @@ class StreamingDataset(Array, IterableDataset):
 
             # We may need to decompress the shard (if local dir just contains zips).
             raw_info, _ = shard.file_pairs[0]  # Each file pair is present in the same way.
-            raw_filename = os.path.join(stream.local, stream.split, raw_info.basename)  # Find raw.
+            raw_filename = os.path.join(stream.local, stream.split or '',
+                                        raw_info.basename)  # Find raw.
             if not os.path.isfile(raw_filename):  # Is raw missing?
                 self._shard_states[shard_id] = _ShardState.PREPARING  # Lock the shard.
                 lock.release()  # Unblock other workers.

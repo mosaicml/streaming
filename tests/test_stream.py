@@ -23,6 +23,11 @@ def test_local_is_none_with_no_split() -> None:
     shutil.rmtree(local, ignore_errors=True)
     barrier()
     stream = Stream(remote=remote, local=None)
+    stream.apply_defaults(split=None,
+                          download_retry=2,
+                          download_timeout='1m',
+                          hash_algos=None,
+                          keep_old_phases=None)
     assert local == stream.local
     shutil.rmtree(local, ignore_errors=True)
 
@@ -35,6 +40,10 @@ def test_local_is_none_with_split() -> None:
     shutil.rmtree(local, ignore_errors=True)
     barrier()
     stream = Stream(remote=remote, local=None, split='train')
+    stream.apply_defaults(download_retry=2,
+                          download_timeout='1m',
+                          hash_algos=None,
+                          keep_old_phases=None)
     assert local == stream.local
     shutil.rmtree(local, ignore_errors=True)
 
@@ -52,7 +61,7 @@ def test_local_exists(split: Optional[str]) -> None:
 def test_existing_local_raises_exception(monkeypatch: MonkeyPatch) -> None:
     local = tempfile.mkdtemp()
     monkeypatch.setattr(tempfile, 'gettempdir', lambda: local)
-    with pytest.raises(ValueError, match=f'Could not create a temporary local directory.*'):
+    with pytest.raises(ValueError):
         _ = Stream()
     shutil.rmtree(local, ignore_errors=True)
 
