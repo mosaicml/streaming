@@ -235,7 +235,7 @@ class StreamCore:
             self.split = split
 
         if local is None and remote is not None and split and isinstance(split, str):
-            self.local = _generate_local(self.remote, self.split)
+            self.local = _generate_local(remote, split)
 
         if not isinstance(download_retry, Auto):
             self.download_retry = _normalize_download_retry(download_retry)

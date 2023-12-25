@@ -422,15 +422,17 @@ class StreamingDataset(Array, IterableDataset):
                                       keep_old_phases=keep_old_phases,
                                       keep_zip=keep_zip)
         else:
-            streams = Stream(remote=remote,
-                             local=local,
-                             split=split,
-                             download_retry=download_retry,
-                             download_timeout=download_timeout,
-                             hash_algos=hash_algos,
-                             validate_hash=validate_hash,
-                             keep_old_phases=keep_old_phases,
-                             keep_zip=keep_zip),
+            stream = Stream(remote=remote,
+                            local=local,
+                            split=split,
+                            download_retry=download_retry,
+                            download_timeout=download_timeout,
+                            hash_algos=hash_algos,
+                            validate_hash=validate_hash,
+                            keep_old_phases=keep_old_phases,
+                            keep_zip=keep_zip)
+            stream.apply_defaults()
+            streams = stream,
 
         # Validate the stream weighting scheme (relative or absolute) to catch errors before we go
         # to the trouble of loading them.
