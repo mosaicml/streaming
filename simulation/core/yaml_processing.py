@@ -197,11 +197,29 @@ def create_simulation_dataset(nodes: int, devices: int, workers: int, global_bat
     sampling_granularity = train_dataset.get('sampling_granularity', 1)
     batching_method = train_dataset.get('batching_method', 'random')
 
-    dataset = SimulationDataset(nodes, devices, workers, streams, remote, local, split,
-                                download_retry, download_timeout, validate_hash, keep_zip,
-                                epoch_size, predownload, cache_limit, partition_algo,
-                                num_canonical_nodes, batch_size, shuffle, shuffle_algo,
-                                shuffle_seed, shuffle_block_size, sampling_method,
-                                sampling_granularity, batching_method)
+    dataset = SimulationDataset(nodes=nodes,
+                                devices=devices,
+                                workers=workers,
+                                streams=streams,
+                                remote=remote,
+                                local=local,
+                                split=split,
+                                download_retry=download_retry,
+                                download_timeout=download_timeout,
+                                validate_hash=validate_hash,
+                                keep_zip=keep_zip,
+                                epoch_size=epoch_size,
+                                predownload=predownload,
+                                cache_limit=cache_limit,
+                                partition_algo=partition_algo,
+                                num_canonical_nodes=num_canonical_nodes,
+                                batch_size=batch_size,
+                                shuffle=shuffle,
+                                shuffle_algo=shuffle_algo,
+                                shuffle_seed=shuffle_seed,
+                                shuffle_block_size=shuffle_block_size,
+                                sampling_method=sampling_method,
+                                sampling_granularity=sampling_granularity,
+                                batching_method=batching_method)
 
     return dataset

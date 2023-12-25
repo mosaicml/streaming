@@ -3,11 +3,9 @@
 
 """A dataset, or sub-dataset if mixing, from which we stream/cache samples."""
 
-import hashlib
 import json
 import os
-import tempfile
-from typing import List, Optional, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -15,95 +13,99 @@ from typing_extensions import Self
 
 from streaming.compression import decompress
 from streaming.constant import TICK
-from streaming.distributed import barrier, get_local_rank
 from streaming.format import FileInfo, Shard, get_index_basename, shard_from_json
+from streaming.format.score import StreamCore
 from streaming.hashing import get_hash
 from streaming.storage import download_file, wait_for_file_to_exist
-from streaming.util import retry
+from streaming.util.auto import Auto, auto
+from streaming.util.retrying import retry
+from streaming.util.shorthand import normalize_count
 from streaming.world import World
 
 
-class Stream:
-    """A dataset, or sub-dataset if mixing, from which we stream/cache samples.
+class Stream(StreamCore):
+    """A Streaming dataset directory.
 
-    We initialize a StreamingDataset with one or more Streams. Streams may be resampled to achieve
-    different mixtures of samples.
+    A StreamingDataset is composed of one/multiple/many Streams.
 
-    Stream init takes three kinds of arguments:
-
-    * At least one of ``remote`` and ``local`` must exist. If no ``remote``, the data must be
-      local. If no ``local``, we cache to a temp directory.
-
-      * ``remote``
-      * ``local``
-
-    * At most one of ``proportion``, ``repeat``, or ``choose`` may exist. If provided one of these,
-      we derive the rest. Note that ``proportion`` (relative) and ``repeat``/``choose`` (absolute)
-      are mutually incompatible -- you must entirely use one or the other (or neither) for all
-      sub-datasets. If none are provided for all streams and ``epoch_size`` is unspecified, then
-      each sample from each stream is seen once per epoch. If none are provided for all streams
-      and ``epoch_size`` is specified, then streams are sampled in proportion to their size.
-
-      * ``proportion``
-      * ``repeat``
-      * ``choose``
-
-    * The remaining arguments are optional knobs for controlling downloading behavior and default
-      to ``None``. If ``None``, they take a default value provided to or by the StreamingDataset
-      init.
-
-      * ``split``
-      * ``download_retry``
-      * ``download_timeout``
-      * ``validate_hash``
-      * ``keep_zip``
+    Notes:
+      * Weights: ``proportion`` is relative, and ``repeat``, ``choose``, and nothing are absolute.
+        Relative and absolute weighting cannot be mixed. If weighting relatively and ``epoch_size``
+        is not provided, takes the total number of underlying samples as the epoch size.
+      * Paths: You must provide ``remote`` and/or ``local``. If no ``remote``, the dataset must be
+        cached. If no ``local``, it deterministically picks ``local`` based on the other paths.
+      * Splits: This is implemented as sub-path which is appended to ``remote`` and/or ``local`` in
+        order to derive the root of this Streaming dataset directory (Stream), which all other
+        dataset paths descend from. E.g., ``/path/to/dataset/index.json`` if ``split=None``, vs
+        ``/path/to/dataset/train/index.json`` if ``split='train'``.
+      * Hashing: Trying a hash algorithm means if the Streaming index records the expected hex
+        digest for this hash of this file, we apply the hash, compare the result to the expected,
+        and then we are done: either exit success on match, or raise an error on mismatch. If we
+        are given hash algorithms to apply but the index notes none of them for a file, we raise an
+        error. Typically, because of the somewhat severe performance impact, hashes are not used
+        in training.
+      * Phasing: Streaming downloads shards as their first phase and accesses samples from their
+        last phase, to which they are converted on the fly. Do we keep the old phases (until the
+        shard is evicted)? Options are ``nil``, ``src``, and ``all``. ``safe_keep_old_phases`` is
+        derived from ``keep_old_phases`` -- it is the same, unless there is no separate remote, in
+        which case ``nil`` is converted to ``src`` (i.e., keep first phase) in order to prevent
+        making the streaming dataset directory un-streamable by using it.
 
     Args:
-        remote (str, optional): Remote path or directory to download the dataset from. If ``None``,
-            its data must exist locally. Defaults to ``None``.
-        local (str, optional): Local working directory to download shards to. This is where shards
-            are cached while they are being used. Uses a temp directory if not set. Defaults to
-            ``None``.
-        split (str, optional): Which dataset split to use, if any. If provided, we stream from/to
-            the ``split`` subdirs of  ``remote`` and ``local``. Defaults to ``None``.
-        proportion (float, optional): How much to upsample or downsample this sub-dataset, as the
-            proportion of the total combined dataset that consists of this sub-dataset. If
-            using proportions, all sub-datasets provided together to the StreamingDataset init must
-            define their proportions. The total combined number of samples is either the
-            StreamingDataset argument "epoch_size" if provided, or kept the same total size as the
-            underlying data if not. If provided, must be non-negative. Defaults to ``None``.
-        repeat (float, optional): How much to upsample or downsample this sub-dataset, as a
-            multipler on the number of samples. If provided, must be non-negative. Defaults to
-            ``None``.
-        choose (int, optional): How much to upsample or downsample this sub-dataset, as the exact
-            number of resulting samples. If provided, must be non-negative. Defaults to ``None``.
-        download_retry (int, optional): Number of download re-attempts before giving up. Defaults
-            to ``None``.
-        download_timeout (float, optional): Number of seconds to wait for a shard to download
-            before raising an exception. Defaults to ``None``.
-        validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
-            shards. Defaults to ``None``.
-        keep_zip (bool, optional): Whether to keep or delete the compressed form when decompressing
-            downloaded shards. If ``False``, keep if and only if remote is local or no remote.
+        proportion (float, optional): The proportion of this StreamingDataset's samples that are
+            sampled from this Stream. As this is a relative measure, use ``epoch_size`` to
+            determine the absolute resulting size in samples. Defaults to ``None``.
+        repeat (float, optional): Stream size multiplier, aka number of times to see each of this
+            Stream's samples per epoch. Defaults to ``None``.
+        choose (str | int, optional): Stream size, aka number of samples to draw from this Stream
+            per epoch. Defaults to ``None``.
+        remote (str, optional): Remote path to stream the dataset from. If ``None``, dataset must
+            be complete locally. Defaults to ``None``.
+        local (str, optional): Local working directory to stream the dataset to. Uses a temp
+            directory if not set. Defaults to ``None``.
+        split (str | Auto, optional): Which dataset split to use, if any. Set to ``auto`` to
+            inherit from StreamingDataset. Defaults to ``auto``.
+        download_retry (int | Auto): Number of download re-attempts before raising an error. Set to
+            ``auto`` to inherit from StreamingDataset. Defaults to ``auto``.
+        download_timeout (str | float | Auto, optional): Time in seconds to wait for a file
+            download to complete before raising an error. Streaming duration shorthand (e.g.,
+            ``1m23s``) is also accepted. Set to ``auto`` to inherit from StreamingDataset. Defaults
+            to ``auto``.
+        hash_algos (str | Sequence[str] | Auto, optional): Ranked list of hashing algorithms to
+            try. Set to ``auto`` to inherit from StreamingDataset. Defaults to ``auto``.
+        validate_hash (str, optional): Deprecated. See ``hash_algos``. Defaults to ``None``.
+        keep_old_phases (str | Auto, optional): Which old phases of shard files to cache (until
+            shard eviction). Must be one of ``nil``, ``src``, or ``all``. Set to ``auto`` to
+            inherit from StreamingDataset. If ``None``, uses ``keep_zip``, falling back to ``nil``.
             Defaults to ``None``.
+        keep_zip (bool, optional): Deprecated. See ``keep_old_phases``. Defaults to ``None``.
     """
 
-    def __init__(self,
-                 *,
-                 remote: Optional[str] = None,
-                 local: Optional[str] = None,
-                 split: Optional[str] = None,
-                 proportion: Optional[float] = None,
-                 repeat: Optional[float] = None,
-                 choose: Optional[int] = None,
-                 download_retry: Optional[int] = None,
-                 download_timeout: Optional[float] = None,
-                 validate_hash: Optional[str] = None,
-                 keep_zip: Optional[bool] = None) -> None:
-        self.remote = remote
-        self._local = local
-        self.split = split or ''
-
+    def __init__(
+        self,
+        *,
+        proportion: Optional[float] = None,
+        repeat: Optional[float] = None,
+        choose: Optional[Union[str, int]] = None,
+        remote: Optional[str] = None,
+        local: Optional[str] = None,
+        split: Optional[Union[str, Auto]] = auto,
+        download_retry: Union[int, Auto] = auto,
+        download_timeout: Union[str, float, Auto] = auto,
+        hash_algos: Optional[Union[str, Sequence[str], Auto]] = auto,
+        validate_hash: Optional[str] = None,
+        keep_old_phases: Optional[Union[str, Auto]] = auto,
+        keep_zip: Optional[bool] = None,
+    ) -> None:
+        super().__init__(remote=remote,
+                         local=local,
+                         split=split,
+                         download_retry=download_retry,
+                         download_timeout=download_timeout,
+                         hash_algos=hash_algos,
+                         validate_hash=validate_hash,
+                         keep_old_phases=keep_old_phases,
+                         keep_zip=keep_zip)
         has_proportion = proportion is not None
         has_repeat = repeat is not None
         has_choose = choose is not None
@@ -111,89 +113,26 @@ class Stream:
             raise ValueError('At most one of `proportion`, `repeat`, and `choose` may be ' +
                              'specified; the others are derived')
 
-        self._proportion = proportion
         if proportion is not None:
             if proportion < 0:
                 raise ValueError('`proportion` must be non-negative')
             self.proportion = proportion
 
-        self._repeat = repeat
         if repeat is not None:
             if repeat < 0:
                 raise ValueError('`repeat` must be non-negative')
             self.repeat = repeat
 
-        self._choose = choose
         if choose is not None:
-            if choose < 0:
+            self.choose = normalize_count(choose)
+            if self.choose < 0:
                 raise ValueError('`choose` must be non-negative')
-            self.choose = choose
-
-        self._download_retry = download_retry
-        if download_retry is not None:
-            if download_retry < 0:
-                raise ValueError('`download_retry` must be non-negative')
-            self.download_retry = download_retry
-
-        self._download_timeout = download_timeout
-        if download_timeout is not None:
-            if download_timeout <= 0:
-                raise ValueError('`download_timeout` must be positive')
-            self.download_timeout = download_timeout
-
-        self.validate_hash = validate_hash
-
-        if local is None:
-            self.local = self._get_temporary_directory()
-            if get_local_rank() == 0:
-                if os.path.exists(self.local):
-                    raise ValueError(
-                        f'Could not create a temporary local directory {self.local} . Either ' +
-                        f'delete the directory or specify a unique local directory with the ' +
-                        f'`local` value.')
-                os.makedirs(self.local)
-            barrier()
-        else:
-            self.local = local
-
-        self._keep_zip = keep_zip
-        if keep_zip is not None:
-            self.keep_zip = keep_zip
-            self.safe_keep_zip = self.keep_zip or self.remote in {None, self.local}
-
-    def _get_temporary_directory(self) -> str:
-        """Construct a path to a temporary directory based on remote and split."""
-        root = tempfile.gettempdir()
-        hash = ''
-        if self.remote is not None:
-            hash = hashlib.blake2s(self.remote.encode('utf-8'), digest_size=16).hexdigest()
-        return os.path.join(root, hash, self.split)
-
-    def apply_default(self, default: dict) -> None:
-        """Apply defaults, setting any unset fields.
-
-        We use pairs of (name, _name) in order to make type checking happy.
-
-        Args:
-            default (Self): Stream containing default values for all optional fields.
-        """
-        if not (self.remote or self._local):
-            raise ValueError('`remote` and/or `local` path must be provided')
-
-        if not self.split:
-            self.split = default['split'] or ''
-        if self._download_retry is None:
-            self.download_retry = default['download_retry']
-        if self._download_timeout is None:
-            self.download_timeout = default['download_timeout']
-        if self.validate_hash is None:
-            self.validate_hash = default['validate_hash'] or None
-        if self._keep_zip is None:
-            self.keep_zip = default['keep_zip']
-            self.safe_keep_zip = default['keep_zip'] or self.remote in {None, self.local}
 
     @classmethod
-    def validate_weights(cls, streams: Sequence[Self]) -> Tuple[bool, bool]:
+    def validate_weights(
+        cls,
+        streams: Sequence[Self],
+    ) -> Tuple[bool, bool]:
         """Validate stream weights, returning whether relative or absolute weighting was used.
 
         Args:
@@ -221,8 +160,13 @@ class Stream:
         return is_proportional, is_unspecified
 
     @classmethod
-    def apply_weights(cls, streams: Sequence[Self], samples_per_stream: NDArray[np.int64],
-                      choose_per_epoch: Optional[int], seed: int) -> int:
+    def apply_weights(
+        cls,
+        streams: Sequence[Self],
+        samples_per_stream: NDArray[np.int64],
+        choose_per_epoch: Optional[int],
+        seed: int,
+    ) -> int:
         """Given samples per stream, derive each stream's proportion/repeat/samples.
 
         Modifies streams to save the derived weights.
@@ -289,7 +233,11 @@ class Stream:
 
         return choose_per_epoch
 
-    def _download_file(self, from_basename: str, to_basename: Optional[str] = None) -> str:
+    def _download_file(
+        self,
+        from_basename: str,
+        to_basename: Optional[str] = None,
+    ) -> str:
         """Safely download a file from remote to local cache.
 
         Args:
@@ -303,8 +251,8 @@ class Stream:
         if self.remote is None:
             remote = None
         else:
-            remote = os.path.join(self.remote, self.split, from_basename)
-        local = os.path.join(self.local, self.split, to_basename or from_basename)
+            remote = os.path.join(self.remote, self.split or '', from_basename)
+        local = os.path.join(self.local, self.split or '', to_basename or from_basename)
 
         # Attempt to download, possibly repeating on failure.
         retry(num_attempts=self.download_retry)(
@@ -312,8 +260,13 @@ class Stream:
 
         return local
 
-    def _decompress_shard_part(self, zip_info: FileInfo, zip_filename: str, raw_filename: str,
-                               compression: Optional[str]) -> None:
+    def _decompress_shard_part(
+        self,
+        zip_info: FileInfo,
+        zip_filename: str,
+        raw_filename: str,
+        compression: Optional[str],
+    ) -> None:
         """Validate and decompress shard data.
 
         Args:
@@ -326,14 +279,18 @@ class Stream:
         data = open(zip_filename, 'rb').read()
 
         # Validate what was downloaded.
-        if self.validate_hash:
-            if self.validate_hash not in zip_info.hashes:
-                raise ValueError(
-                    f'Hash algorithm `{self.validate_hash}` chosen for data ' +
+        if self.hash_algos:
+            for algo in self.hash_algos:
+                if algo in zip_info.hashes:
+                    if get_hash(algo, data) == zip_info.hashes[algo]:
+                        break
+                    else:
+                        raise RuntimeError(f'Hash check failure: {zip_filename}.')
+            else:
+                raise RuntimeError(
+                    f'Hash algorithms `{self.hash_algos}` chosen for data ' +
                     f'validation does not match with those provided during dataset ' +
-                    f'creation `{sorted(zip_info.hashes.keys())}`. Provide one of those.')
-            if get_hash(self.validate_hash, data) != zip_info.hashes[self.validate_hash]:
-                raise ValueError(f'Checksum failure: {zip_filename}')
+                    f'creation: `{sorted(zip_info.hashes)}`. Provide one of those.')
 
         # Decompress and save that.
         data = decompress(compression, data)  # pyright: ignore
@@ -346,10 +303,12 @@ class Stream:
         if not self.safe_keep_zip:
             os.remove(zip_filename)
 
-    def _prepare_shard_part(self,
-                            raw_info: FileInfo,
-                            zip_info: Optional[FileInfo] = None,
-                            compression: Optional[str] = None) -> int:
+    def _prepare_shard_part(
+        self,
+        raw_info: FileInfo,
+        zip_info: Optional[FileInfo] = None,
+        compression: Optional[str] = None,
+    ) -> int:
         """Get shard data given metadata for the raw and compressed versions of it.
 
         Shards are either mono shards (one file per shard, like MDS) or dual shards (a pair of data
@@ -366,11 +325,11 @@ class Stream:
         """
         # Has raw?
         delta = 0
-        raw_filename = os.path.join(self.local, self.split, raw_info.basename)
+        raw_filename = os.path.join(self.local, self.split or '', raw_info.basename)
         if os.path.isfile(raw_filename):
             # Has raw.
             if zip_info and not self.safe_keep_zip:
-                zip_filename = os.path.join(self.local, self.split, zip_info.basename)
+                zip_filename = os.path.join(self.local, self.split or '', zip_info.basename)
                 if os.path.isfile(zip_filename):
                     # If don't keep zip and it has a zip, drop the zip.
                     os.remove(zip_filename)
@@ -379,7 +338,7 @@ class Stream:
             # Missing raw. Uses zip?
             if zip_info:
                 # Ensure has zip.
-                zip_filename = os.path.join(self.local, self.split, zip_info.basename)
+                zip_filename = os.path.join(self.local, self.split or '', zip_info.basename)
                 if not os.path.isfile(zip_filename):
                     self._download_file(zip_info.basename)
                     delta += zip_info.bytes
@@ -395,18 +354,26 @@ class Stream:
                 delta += raw_info.bytes
 
                 # Validate.
-                if self.validate_hash:
-                    if self.validate_hash not in raw_info.hashes:
-                        raise ValueError(
-                            f'Hash algorithm `{self.validate_hash}` chosen for data ' +
-                            f'validation does not match with those provided during dataset ' +
-                            f'creation `{sorted(raw_info.hashes.keys())}`. Provide one of those.')
+                if self.hash_algos:
                     data = open(raw_filename, 'rb').read()
-                    if get_hash(self.validate_hash, data) != raw_info.hashes[self.validate_hash]:
-                        raise ValueError(f'Checksum failure: {raw_filename}')
+                    for algo in self.hash_algos:
+                        if algo in raw_info.hashes:
+                            if get_hash(algo, data) == raw_info.hashes[algo]:
+                                break
+                            else:
+                                raise RuntimeError(f'Hash check failure: {raw_filename}.')
+                    else:
+                        raise ValueError(
+                            f'Hash algorithms `{self.hash_algos}` chosen for data ' +
+                            f'validation does not match with those provided during dataset ' +
+                            f'creation: `{sorted(raw_info.hashes.keys())}`. Provide one of those.')
+
         return delta
 
-    def prepare_shard(self, shard: Shard) -> int:
+    def prepare_shard(
+        self,
+        shard: Shard,
+    ) -> int:
         """Ensure (download, validate, extract, etc.) that we have the given shard.
 
         Args:
@@ -420,7 +387,11 @@ class Stream:
             delta += self._prepare_shard_part(raw_info, zip_info, shard.compression)
         return delta
 
-    def get_shards(self, world: World, allow_unsafe_types: bool) -> List[Shard]:
+    def get_shards(
+        self,
+        world: World,
+        allow_unsafe_types: bool,
+    ) -> List[Shard]:
         """Load this Stream's index, retrieving its shard readers.
 
         Args:
@@ -434,7 +405,7 @@ class Stream:
         """
         # Download the index file if it does not exist locally.
         basename = get_index_basename()
-        filename = os.path.join(self.local, self.split, basename)  # pyright: ignore
+        filename = os.path.join(self.local, self.split or '', basename)  # pyright: ignore
         if not os.path.exists(filename):
             if world.is_local_leader:
                 if self.remote:
@@ -476,7 +447,11 @@ class Stream:
 
         return shards
 
-    def set_up_local(self, shards: List[Shard], cache_usage_per_shard: NDArray[np.int64]) -> None:
+    def set_up_local(
+        self,
+        shards: List[Shard],
+        cache_usage_per_shard: NDArray[np.int64],
+    ) -> None:
         """Bring a local directory into a consistent state, getting which shards are present.
 
         Args:
@@ -484,7 +459,7 @@ class Stream:
             cache_usage_per_shard (NDArray[np.int64]): Cache usage per shard of this stream.
         """
         # List the cache directory (so that we hit the filesystem once).
-        local_dirname = os.path.join(self.local, self.split)
+        local_dirname = os.path.join(self.local, self.split or '')
         listing = set()
         for dirname, _, subfiles in os.walk(local_dirname):
             for subfile in subfiles:
@@ -495,11 +470,11 @@ class Stream:
         for i, shard in enumerate(shards):
             cache_usage_per_shard[i] = shard.set_up_local(listing, self.safe_keep_zip)
 
-    def get_index_size(self) -> int:
+    def get_index_size(self,) -> int:
         """Get the size of the index file in bytes.
 
         Returns:
             int: Size in bytes.
         """
-        filename = os.path.join(self.local, self.split, get_index_basename())
+        filename = os.path.join(self.local, self.split or '', get_index_basename())
         return os.stat(filename).st_size
