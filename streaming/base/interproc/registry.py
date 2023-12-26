@@ -7,6 +7,7 @@ import json
 import os
 from hashlib import sha3_224
 from shutil import rmtree
+from time import sleep
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from filelock import FileLock
@@ -182,7 +183,7 @@ class JobRegistryFile:
             List[str]: List of hashes of removed datasets.
         """
         job_hashes = []
-        for job in self.jobs:
+        for job in filter(bool, self.jobs):
             if job.create_time != pid2create_time.get(job.process_id):
                 self.remove(job.job_hash)
                 job_hashes.append(job.job_hash)
@@ -200,8 +201,9 @@ class JobRegistry:
             your system.
     """
 
-    def __init__(self, config_root: str) -> None:
+    def __init__(self, config_root: str, tick: float = 0.007) -> None:
         self.config_root = config_root
+        self._tick = tick
         self._filelock_filename = os.path.join(config_root, 'filelock.bin')
         self._registry_filename = os.path.join(config_root, 'registry.json')
 
@@ -336,6 +338,32 @@ class JobRegistry:
 
         return job_hash
 
+    def _wait_for_existence(self, job_hash: str) -> None:
+        """Wait for a directory to be created.
+
+        Args:
+            job_hash (str): Job hash of directory.
+        """
+        dirname = os.path.join(self.config_root, job_hash)
+        while True:
+            with FileLock(self._filelock_filename):
+                if os.path.exists(dirname):
+                    break
+            sleep(self._tick)
+
+    def _wait_for_removal(self, job_hash: str) -> None:
+        """Wait for a directory to be removed.
+
+        Args:
+            job_hash (str): Job hash of directory.
+        """
+        dirname = os.path.join(self.config_root, job_hash)
+        while True:
+            with FileLock(self._filelock_filename):
+                if not os.path.exists(dirname):
+                    break
+            sleep(self._tick)
+
     def _lookup(self, streams: Sequence[Stream]) -> str:
         """Look up this collection of StreamingDataset replicas.
 
@@ -350,6 +378,7 @@ class JobRegistry:
             str: Streaming config subdir for this job.
         """
         _, _, job_hash = self._hash_streams(streams)
+        self._wait_for_existence(job_hash)
         return job_hash
 
     def register(self, streams: Sequence[Stream], world: World) -> str:
@@ -386,7 +415,8 @@ class JobRegistry:
             reg.remove(job_hash)
             del_job_hashes = reg.filter(pid2create_time)
             reg.write(self._registry_filename)
-            map(self._remove_dir, [job_hash] + del_job_hashes)
+            map(self._remove_dir, del_job_hashes)
+            self._remove_dir(job_hash)
 
     def unregister(self, job_hash: str, world: World) -> None:
         """Unregister this collection of StreamingDataset replicas.
@@ -400,7 +430,7 @@ class JobRegistry:
         if world.is_local_leader:
             self._unregister(job_hash)
         else:
-            pass
+            self._wait_for_removal(job_hash)
 
 
 class JobDir:
