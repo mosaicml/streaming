@@ -7,7 +7,7 @@ import json
 import os
 from hashlib import sha3_224
 from shutil import rmtree
-from time import sleep
+from time import sleep, time_ns
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from filelock import FileLock
@@ -29,7 +29,7 @@ class JobEntry:
         stream_hashes (List[str]): Stream hashes.
         stream_locals (List[str], optional): Stream locals, if available.
         process_id (int): PID of local rank zero of the Streaming job.
-        create_time (int): Process creation time.
+        register_time (int): Process registration time.
     """
 
     def __init__(
@@ -40,14 +40,14 @@ class JobEntry:
         stream_hashes: List[str],
         stream_locals: Optional[List[str]] = None,
         process_id: int,
-        create_time: int,
+        register_time: int,
     ) -> None:
         self.index = index
         self.job_hash = job_hash
         self.stream_hashes = stream_hashes
         self.stream_locals = stream_locals
         self.process_id = process_id
-        self.create_time = create_time
+        self.register_time = register_time
 
     @classmethod
     def from_json(cls, obj: Dict[str, Any]) -> Self:
@@ -63,7 +63,7 @@ class JobEntry:
                    stream_hashes=obj['stream_hashes'],
                    stream_locals=obj.get('stream_locals'),
                    process_id=obj['process_id'],
-                   create_time=obj['create_time'])
+                   register_time=obj['register_time'])
 
     def to_json(self) -> Dict[str, Any]:
         return {
@@ -71,7 +71,7 @@ class JobEntry:
             'stream_hashes': self.stream_hashes,
             # stream_locals is not saved, only their hashes.
             'process_id': self.process_id,
-            'create_time': self.create_time,
+            'register_time': self.register_time,
         }
 
 
@@ -182,12 +182,13 @@ class JobRegistryFile:
         Returns:
             List[str]: List of hashes of removed datasets.
         """
-        job_hashes = []
+        del_job_hashes = []
         for job in filter(bool, self.jobs):
-            if job.create_time != pid2create_time.get(job.process_id):
+            create_time = pid2create_time.get(job.process_id)
+            if not create_time or job.register_time < create_time:
                 self.remove(job.job_hash)
-                job_hashes.append(job.job_hash)
-        return job_hashes
+                del_job_hashes.append(job.job_hash)
+        return del_job_hashes
 
 
 class JobRegistry:
@@ -340,6 +341,7 @@ class JobRegistry:
         Returns:
             str: Streaming config subdir for this job.
         """
+        register_time = time_ns()
         pid2create_time = self._get_live_procs()
         pid = os.getpid()
         create_time = pid2create_time.get(pid)
@@ -352,7 +354,7 @@ class JobRegistry:
                          stream_hashes=stream_hashes,
                          stream_locals=stream_locals,
                          process_id=pid,
-                         create_time=create_time)
+                         register_time=register_time)
 
         with FileLock(self._filelock_filename):
             reg = JobRegistryFile.read(self._registry_filename)
