@@ -301,6 +301,32 @@ class JobRegistry:
         dirname = os.path.join(self.config_root, job_hash)
         rmtree(dirname)
 
+    def _wait_for_existence(self, job_hash: str) -> None:
+        """Wait for a directory to be created.
+
+        Args:
+            job_hash (str): Job hash of directory.
+        """
+        dirname = os.path.join(self.config_root, job_hash)
+        while True:
+            with FileLock(self._filelock_filename):
+                if os.path.exists(dirname):
+                    break
+            sleep(self._tick)
+
+    def _wait_for_removal(self, job_hash: str) -> None:
+        """Wait for a directory to be removed.
+
+        Args:
+            job_hash (str): Job hash of directory.
+        """
+        dirname = os.path.join(self.config_root, job_hash)
+        while True:
+            with FileLock(self._filelock_filename):
+                if not os.path.exists(dirname):
+                    break
+            sleep(self._tick)
+
     def _register(self, streams: Sequence[Stream]) -> str:
         """Register this collection of StreamingDataset replicas.
 
@@ -338,32 +364,6 @@ class JobRegistry:
 
         return job_hash
 
-    def _wait_for_existence(self, job_hash: str) -> None:
-        """Wait for a directory to be created.
-
-        Args:
-            job_hash (str): Job hash of directory.
-        """
-        dirname = os.path.join(self.config_root, job_hash)
-        while True:
-            with FileLock(self._filelock_filename):
-                if os.path.exists(dirname):
-                    break
-            sleep(self._tick)
-
-    def _wait_for_removal(self, job_hash: str) -> None:
-        """Wait for a directory to be removed.
-
-        Args:
-            job_hash (str): Job hash of directory.
-        """
-        dirname = os.path.join(self.config_root, job_hash)
-        while True:
-            with FileLock(self._filelock_filename):
-                if not os.path.exists(dirname):
-                    break
-            sleep(self._tick)
-
     def _lookup(self, streams: Sequence[Stream]) -> str:
         """Look up this collection of StreamingDataset replicas.
 
@@ -378,7 +378,6 @@ class JobRegistry:
             str: Streaming config subdir for this job.
         """
         _, _, job_hash = self._hash_streams(streams)
-        self._wait_for_existence(job_hash)
         return job_hash
 
     def register(self, streams: Sequence[Stream], world: World) -> str:
@@ -396,9 +395,11 @@ class JobRegistry:
             str: Subdir for this collection of StreamingDataset replicas.
         """
         if world.is_local_leader:
-            return self._register(streams)
+            job_hash = self._register(streams)
         else:
-            return self._lookup(streams)
+            job_hash = self._lookup(streams)
+        self._wait_for_existence(job_hash)
+        return job_hash
 
     def _unregister(self, job_hash: str) -> None:
         """Unregister this collection of StreamingDataset replicas.
@@ -430,7 +431,8 @@ class JobRegistry:
         if world.is_local_leader:
             self._unregister(job_hash)
         else:
-            self._wait_for_removal(job_hash)
+            pass
+        self._wait_for_removal(job_hash)
 
 
 class JobDir:
