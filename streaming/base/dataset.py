@@ -179,6 +179,7 @@ def _test_config_root(config_root: str) -> None:
     Args:
         config_root (str): Streaming configuration root directory.
     """
+    os.makedirs(config_root, exist_ok=True)
     filename = os.path.join(config_root, 'test.txt')
     try:
         with open(filename, 'wb') as out:
