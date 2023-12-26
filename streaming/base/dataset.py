@@ -20,7 +20,6 @@ from typing import Any, Dict, Iterator, Optional, Sequence, Tuple, Union
 import numpy as np
 from filelock import FileLock
 from numpy.typing import NDArray
-from torch import distributed as dist
 from torch.utils.data import IterableDataset
 
 from streaming.base.array import Array
@@ -28,7 +27,6 @@ from streaming.base.batching import generate_work
 from streaming.base.constant import (BARRIER, BARRIER_FILELOCK, CACHE_FILELOCK, CACHE_USAGE,
                                      EPOCH_DATA, EPOCH_SHAPE, NEXT_EPOCH, RESUME,
                                      SHARD_ACCESS_TIMES, SHARD_STATES, TICK)
-from streaming.base.distributed import maybe_init_dist
 from streaming.base.format import get_index_basename
 from streaming.base.interproc.registry import JobDir, JobRegistry
 from streaming.base.sampling import get_sampling
@@ -448,9 +446,6 @@ class StreamingDataset(Array, IterableDataset):
             if epoch_size_value < 0:
                 raise ValueError(f'Epoch size cannot be negative. Received {epoch_size_value}.')
 
-        # Initialize torch dist ourselves, if necessary.
-        destroy_dist = maybe_init_dist()
-
         # Initialize the Stream defaults and normalize to a list of Streams.
         if streams:
             for stream in streams:
@@ -548,13 +543,17 @@ class StreamingDataset(Array, IterableDataset):
         self.job_dir = JobDir(self.registry, streams, world)
         self._shm_prefix_int = int(self.job_dir.job_hash, 16)
 
+        init_done_filename = self.job_dir.get_filename('init_done.txt')
+        if world.is_local_leader:
+            if os.path.exists(init_done_filename):
+                os.remove(init_done_filename)
+
         self._filelock_root = os.path.join(self.registry.config_root, self.job_dir.job_hash)
         os.makedirs(self._filelock_root, exist_ok=True)
 
         # Create the shared memory-backed barrier, without its lock, which is unpickleable.
-        self._shared_barrier = SharedBarrier(
-            os.path.join(self._filelock_root, _get_path(self._shm_prefix_int, BARRIER_FILELOCK)),
-            _get_path(self._shm_prefix_int, BARRIER))
+        self._shared_barrier = SharedBarrier(self.job_dir.get_filename('barrier_filelock.bin'),
+                                             _get_path(self._shm_prefix_int, BARRIER))
 
         # Epoch counter.
         #
@@ -564,8 +563,7 @@ class StreamingDataset(Array, IterableDataset):
         self._next_epoch = SharedScalar(np.int64, _get_path(self._shm_prefix_int, NEXT_EPOCH))
 
         # Cache filelock. Protects downloading and evicting shards.
-        self._cache_filelock_path = os.path.join(self._filelock_root,
-                                                 _get_path(self._shm_prefix_int, CACHE_FILELOCK))
+        self._cache_filelock_path = self.job_dir.get_filename('cache_filelock.bin')
         self._cache_filelock: FileLock
 
         # Cache usage in bytes.
@@ -605,11 +603,13 @@ class StreamingDataset(Array, IterableDataset):
                 self._shard_states[shard_id] = _ShardState.LOCAL if size else _ShardState.REMOTE
                 self._shard_access_times[shard_id] = time_ns()
 
-        if dist.is_available() and dist.is_initialized():
-            dist.barrier()
-
-        if destroy_dist:
-            dist.destroy_process_group()
+            dirname = os.path.dirname(init_done_filename)
+            os.makedirs(dirname, exist_ok=True)
+            with open(init_done_filename, 'wb') as out:
+                out.write(b'')
+        else:
+            wait_for_file_to_exist(init_done_filename, TICK, 300,
+                                   'Waited too long for initialization')
 
         # Placeholder for a shared memory object where load_state_dict() saves its data to be
         # picked up by __iter__().
