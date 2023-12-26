@@ -418,18 +418,20 @@ class StreamingDataset(Array, IterableDataset):
                 'download_timeout': download_timeout,
                 'validate_hash': validate_hash,
                 'keep_zip': keep_zip,
+                'allow_unsafe_types': allow_unsafe_types,
             }
             for stream in streams:
                 stream.apply_default(default)
         else:
-            default = Stream(remote=remote,
-                             local=local,
-                             split=split,
-                             download_retry=download_retry,
-                             download_timeout=download_timeout,
-                             validate_hash=validate_hash,
-                             keep_zip=keep_zip)
-            streams = [default]
+            stream = Stream(remote=remote,
+                            local=local,
+                            split=split,
+                            download_retry=download_retry,
+                            download_timeout=download_timeout,
+                            validate_hash=validate_hash,
+                            keep_zip=keep_zip,
+                            allow_unsafe_types=allow_unsafe_types)
+            streams = [stream]
 
         # Validate the stream weighting scheme (relative or absolute) to catch errors before we go
         # to the trouble of loading them.
@@ -455,7 +457,7 @@ class StreamingDataset(Array, IterableDataset):
         self.sample_offset_per_stream = np.zeros(self.num_streams, np.int64)
         self.samples_per_stream = np.zeros(self.num_streams, np.int64)
         for stream_id, stream in enumerate(self.streams):
-            stream_shards = stream.get_shards(world, allow_unsafe_types)
+            stream_shards = stream.get_shards(world)
             num_stream_samples = sum(map(len, stream_shards))
             if not num_stream_samples:
                 index_filename = os.path.join(stream.local, stream.split, get_index_basename())

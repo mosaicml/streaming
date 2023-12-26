@@ -203,25 +203,25 @@ class SimulationDataset(StreamingDataset):
         # Initialize the Stream defaults and normalize to a list of Streams.
         if streams:
             default = {
-                'remote': remote,
-                'local': local,
                 'split': split,
                 'download_retry': download_retry,
                 'download_timeout': download_timeout,
                 'validate_hash': validate_hash,
                 'keep_zip': keep_zip,
+                'allow_unsafe_types': allow_unsafe_types,
             }
             for stream in streams:
                 stream.apply_default(default)
         else:
-            default = Stream(remote=remote,
-                             local=local,
-                             split=split,
-                             download_retry=download_retry,
-                             download_timeout=download_timeout,
-                             validate_hash=validate_hash,
-                             keep_zip=keep_zip)
-            streams = [default]
+            stream = Stream(remote=remote,
+                            local=local,
+                            split=split,
+                            download_retry=download_retry,
+                            download_timeout=download_timeout,
+                            validate_hash=validate_hash,
+                            keep_zip=keep_zip,
+                            allow_unsafe_types=allow_unsafe_types)
+            streams = [stream]
 
         # Validate the stream weighting scheme (relative or absolute) to catch errors before we go
         # to the trouble of loading them.
@@ -270,7 +270,7 @@ class SimulationDataset(StreamingDataset):
         local_foldernames = []
         for stream_id, stream in enumerate(self.streams):
             logger.info(f' Processing index file for stream {stream_id + 1}')
-            stream_shards = stream.get_shards(self.world, self.allow_unsafe_types)
+            stream_shards = stream.get_shards(self.world)
             num_stream_samples = sum(map(len, stream_shards))
             index_filename = os.path.join(stream.local, stream.split, get_index_basename())
             index_filenames.append(index_filename)
