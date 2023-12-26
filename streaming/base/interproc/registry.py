@@ -310,10 +310,10 @@ class JobRegistry:
         """
         dirname = os.path.join(self.config_root, job_hash)
         while True:
+            sleep(self._tick)
             with FileLock(self._filelock_filename):
                 if os.path.exists(dirname):
                     break
-            sleep(self._tick)
 
     def _wait_for_removal(self, job_hash: str) -> None:
         """Wait for a directory to be removed.
@@ -323,10 +323,10 @@ class JobRegistry:
         """
         dirname = os.path.join(self.config_root, job_hash)
         while True:
+            sleep(self._tick)
             with FileLock(self._filelock_filename):
                 if not os.path.exists(dirname):
                     break
-            sleep(self._tick)
 
     def _register(self, streams: Sequence[Stream]) -> str:
         """Register this collection of StreamingDataset replicas.
