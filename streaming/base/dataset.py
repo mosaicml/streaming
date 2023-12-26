@@ -237,6 +237,11 @@ class StreamingDataset(Array, IterableDataset):
 
 
     Args:
+        epoch_size (Union[int, str], optional): Number of samples to draw per epoch balanced
+            across all streams. If ``None``, takes its value from the total number of underlying
+            samples. Provide this field if you are weighting streams relatively to target a larger
+            or smaller epoch size. Defaults to ``None``. Can also take in human-readable number
+            abbreviations (e.g., ``"100k"``, ``"64M"``, ``"77b"``, etc). Defaults to ``None``.
         streams (Sequence[Stream], optional): One or more streams to stream/cache samples from,
             which may be upsampled or downsampled. StreamingDataset uses either ``streams`` or
             ``remote``/``local``. Defaults to ``None``.
@@ -256,11 +261,6 @@ class StreamingDataset(Array, IterableDataset):
         keep_zip (bool): Whether to keep or delete the compressed form when decompressing
             downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
             ``False``.
-        epoch_size (Union[int, str], optional): Number of samples to draw per epoch balanced
-            across all streams. If ``None``, takes its value from the total number of underlying
-            samples. Provide this field if you are weighting streams relatively to target a larger
-            or smaller epoch size. Defaults to ``None``. Can also take in human-readable number
-            abbreviations (e.g., ``"100k"``, ``"64M"``, ``"77b"``, etc). Defaults to ``None``.
         predownload (int, optional): Target number of samples to download per worker in advance
             of current sample. Workers will attempt to download ahead by this many samples during,
             but not before, training. Recommendation is to provide a value greater than per device
@@ -310,6 +310,7 @@ class StreamingDataset(Array, IterableDataset):
 
     def __init__(self,
                  *,
+                 epoch_size: Optional[Union[int, str]] = None,
                  streams: Optional[Sequence[Stream]] = None,
                  remote: Optional[str] = None,
                  local: Optional[str] = None,
@@ -318,7 +319,6 @@ class StreamingDataset(Array, IterableDataset):
                  download_timeout: float = 60,
                  validate_hash: Optional[str] = None,
                  keep_zip: bool = False,
-                 epoch_size: Optional[Union[int, str]] = None,
                  predownload: Optional[int] = None,
                  cache_limit: Optional[Union[int, str]] = None,
                  sampling_method: str = 'balanced',
