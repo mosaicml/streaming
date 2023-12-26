@@ -183,18 +183,21 @@ class StreamingDataset(Array, IterableDataset):
             "num_canonical_nodes": "int"
         }
 
-    StreamingDataset init takes two kinds of arguments:
+    StreamingDataset init takes two categories of arguments:
 
-    * What to iterate:
+    * What to iterate (the Stream arguments):
 
-      * One or more streams (you must provide either ``streams`` or ``remote``/``local``):
+      * Stream paths. To provide your own Streams, set ``streams`` and optionally ``epoch_size``.
+        To have StreamingDataset implicitly create one for you instead, set ``remote`` and/or
+        ``local``.
 
+        * ``epoch_size``
         * ``streams``
         * ``remote``
         * ``local``
 
-      * Knobs to control streaming behavior, which, if multiple streams are provided,
-        become defaults applied to each of them:
+      * Stream settings. These fields are all either set in Stream init, or else set by default
+        here in StreamingDataset init.
 
         * ``split``
         * ``download_retry``
@@ -203,11 +206,7 @@ class StreamingDataset(Array, IterableDataset):
         * ``keep_zip``
         * ``allow_unsafe_types``
 
-      * Absolute dataset size, if streams were weighted relatively:
-
-        * ``epoch_size``
-
-    * How to iterate:
+    * How to iterate (the StreamingDataset arguments):
 
       * Shard lifecycle:
 
@@ -235,7 +234,6 @@ class StreamingDataset(Array, IterableDataset):
       * Batching:
 
         * ``batching_method``
-
 
     Args:
         epoch_size (Union[int, str], optional): Number of samples to draw per epoch balanced
