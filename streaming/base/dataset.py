@@ -201,6 +201,7 @@ class StreamingDataset(Array, IterableDataset):
         * ``download_timeout``
         * ``validate_hash``
         * ``keep_zip``
+        * ``allow_unsafe_types``
 
       * Absolute dataset size, if streams were weighted relatively:
 
@@ -261,6 +262,9 @@ class StreamingDataset(Array, IterableDataset):
         keep_zip (bool): Whether to keep or delete the compressed form when decompressing
             downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
             ``False``.
+        allow_unsafe_types (bool): If a shard contains Pickle, which allows arbitrary code
+            execution during deserialization, whether to keep going if ``True`` or raise an error
+            if ``False``. Defaults to ``False``.
         predownload (int, optional): Target number of samples to download per worker in advance
             of current sample. Workers will attempt to download ahead by this many samples during,
             but not before, training. Recommendation is to provide a value greater than per device
@@ -303,9 +307,6 @@ class StreamingDataset(Array, IterableDataset):
             ``None``.
         batching_method (str): Which batching method to use, either ``random``, ``stratified``, or
             ``per_stream``. Defaults to ``random``.
-        allow_unsafe_types (bool): If a shard contains Pickle, which allows arbitrary code
-            execution during deserialization, whether to keep going if ``True`` or raise an error
-            if ``False``. Defaults to ``False``.
     """
 
     def __init__(self,
@@ -319,6 +320,7 @@ class StreamingDataset(Array, IterableDataset):
                  download_timeout: float = 60,
                  validate_hash: Optional[str] = None,
                  keep_zip: bool = False,
+                 allow_unsafe_types: bool = False,
                  predownload: Optional[int] = None,
                  cache_limit: Optional[Union[int, str]] = None,
                  sampling_method: str = 'balanced',
@@ -330,8 +332,7 @@ class StreamingDataset(Array, IterableDataset):
                  shuffle_algo: str = 'py1e',
                  shuffle_seed: int = 9176,
                  shuffle_block_size: Optional[int] = None,
-                 batching_method: str = 'random',
-                 allow_unsafe_types: bool = False) -> None:
+                 batching_method: str = 'random') -> None:
         # Global arguments (which do not live in Streams).
         self.predownload = predownload
         self.cache_limit = cache_limit
@@ -345,7 +346,6 @@ class StreamingDataset(Array, IterableDataset):
         self.shuffle_seed = shuffle_seed
         self.shuffle_block_size = shuffle_block_size
         self.batching_method = batching_method
-        self.allow_unsafe_types = allow_unsafe_types
 
         # Initialize initial_physical_nodes to None. If we are resuming, then we will set it to the
         # number of physical nodes of the initial run in the _resume function.
@@ -457,7 +457,7 @@ class StreamingDataset(Array, IterableDataset):
         self.sample_offset_per_stream = np.zeros(self.num_streams, np.int64)
         self.samples_per_stream = np.zeros(self.num_streams, np.int64)
         for stream_id, stream in enumerate(self.streams):
-            stream_shards = stream.get_shards(world, self.allow_unsafe_types)
+            stream_shards = stream.get_shards(world, allow_unsafe_types)
             num_stream_samples = sum(map(len, stream_shards))
             if not num_stream_samples:
                 index_filename = os.path.join(stream.local, stream.split, get_index_basename())
