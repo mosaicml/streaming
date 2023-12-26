@@ -7,7 +7,7 @@ import hashlib
 import json
 import os
 import tempfile
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 import numpy as np
 from numpy.typing import NDArray
@@ -178,30 +178,43 @@ class Stream:
             hash = hashlib.blake2s(self.remote.encode('utf-8'), digest_size=16).hexdigest()
         return os.path.join(root, hash, self.split)
 
-    def apply_default(self, default: Dict[str, Any]) -> None:
+    def apply_defaults(self, *, split: Optional[str], download_retry: int, download_timeout: float,
+                       validate_hash: Optional[str], keep_zip: bool,
+                       allow_unsafe_types: bool) -> None:
         """Apply defaults, setting any unset fields.
 
         We use pairs of (name, _name) in order to make type checking happy.
 
         Args:
-            default (Self): Stream containing default values for all optional fields.
+            split (str, optional): Which dataset split to use, if any. If provided, we stream
+                from/to the ``split`` subdirs of  ``remote`` and ``local``.
+            download_retry (int): Number of download re-attempts before giving up.
+            download_timeout (float): Number of seconds to wait for a shard to download before
+                raising an exception.
+            validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
+                shards.
+            keep_zip (bool): Whether to keep or delete the compressed form when decompressing
+                downloaded shards. If ``False``, keep iff remote is local or no remote.
+            allow_unsafe_types (bool): If a shard contains Pickle, which allows arbitrary code
+                execution during deserialization, whether to keep going if ``True`` or raise an
+                error if ``False``.
         """
         if not (self.remote or self._local):
             raise ValueError('`remote` and/or `local` path must be provided')
 
         if not self.split:
-            self.split = default['split'] or ''
+            self.split = split or ''
         if self._download_retry is None:
-            self.download_retry = default['download_retry']
+            self.download_retry = download_retry
         if self._download_timeout is None:
-            self.download_timeout = default['download_timeout']
+            self.download_timeout = download_timeout
         if self.validate_hash is None:
-            self.validate_hash = default['validate_hash'] or None
+            self.validate_hash = validate_hash
         if self._keep_zip is None:
-            self.keep_zip = default['keep_zip']
-            self.safe_keep_zip = default['keep_zip'] or self.remote in {None, self.local}
+            self.keep_zip = keep_zip
+            self.safe_keep_zip = keep_zip or self.remote in {None, self.local}
         if self._allow_unsafe_types is None:
-            self.allow_unsafe_types = default['allow_unsafe_types']
+            self.allow_unsafe_types = allow_unsafe_types
 
     @classmethod
     def validate_weights(cls, streams: Sequence[Self]) -> Tuple[bool, bool]:

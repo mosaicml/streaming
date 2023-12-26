@@ -412,16 +412,13 @@ class StreamingDataset(Array, IterableDataset):
 
         # Initialize the Stream defaults and normalize to a list of Streams.
         if streams:
-            default = {
-                'split': split,
-                'download_retry': download_retry,
-                'download_timeout': download_timeout,
-                'validate_hash': validate_hash,
-                'keep_zip': keep_zip,
-                'allow_unsafe_types': allow_unsafe_types,
-            }
             for stream in streams:
-                stream.apply_default(default)
+                stream.apply_defaults(split=split,
+                                      download_retry=download_retry,
+                                      download_timeout=download_timeout,
+                                      validate_hash=validate_hash,
+                                      keep_zip=keep_zip,
+                                      allow_unsafe_types=allow_unsafe_types)
         else:
             stream = Stream(remote=remote,
                             local=local,
