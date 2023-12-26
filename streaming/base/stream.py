@@ -7,7 +7,7 @@ import hashlib
 import json
 import os
 import tempfile
-from typing import List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 from numpy.typing import NDArray
@@ -169,7 +169,7 @@ class Stream:
             hash = hashlib.blake2s(self.remote.encode('utf-8'), digest_size=16).hexdigest()
         return os.path.join(root, hash, self.split)
 
-    def apply_default(self, default: dict) -> None:
+    def apply_default(self, default: Dict[str, Any]) -> None:
         """Apply defaults, setting any unset fields.
 
         We use pairs of (name, _name) in order to make type checking happy.

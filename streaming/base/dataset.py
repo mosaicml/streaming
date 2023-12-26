@@ -413,8 +413,6 @@ class StreamingDataset(Array, IterableDataset):
         # Initialize the Stream defaults and normalize to a list of Streams.
         if streams:
             default = {
-                'remote': remote,
-                'local': local,
                 'split': split,
                 'download_retry': download_retry,
                 'download_timeout': download_timeout,
