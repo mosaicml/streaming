@@ -215,7 +215,7 @@ class JobRegistry:
         """
         ret = {}
         for obj in process_iter(['pid', 'create_time']):
-            ret[obj.pid] = int(obj.create_time())
+            ret[obj.pid] = int(obj.create_time() * 1e9)
         return ret
 
     def _hash(self, data: bytes) -> str:
