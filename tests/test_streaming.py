@@ -782,6 +782,7 @@ def test_streamingdataloader_mid_epoch_resumption(local_remote_dir: Any, batch_s
         sample_order.extend(batch['id'][:])
 
     del dataloader
+    del dataset.job_dir
     del dataset
 
     clean_stale_shared_memory()
