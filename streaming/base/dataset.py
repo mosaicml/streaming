@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor, wait
 from concurrent.futures._base import Future
 from enum import IntEnum
 from math import ceil
+from tempfile import gettempdir
 from threading import Event, Lock
 from time import sleep, time_ns
 from typing import Any, Dict, Iterator, Optional, Sequence, Tuple, Union
@@ -29,9 +30,9 @@ from streaming.base.constant import (BARRIER, BARRIER_FILELOCK, CACHE_FILELOCK, 
                                      SHARD_ACCESS_TIMES, SHARD_STATES, TICK)
 from streaming.base.distributed import maybe_init_dist
 from streaming.base.format import get_index_basename
+from streaming.base.interproc.registry import JobDir, JobRegistry
 from streaming.base.sampling import get_sampling
-from streaming.base.shared import (SharedArray, SharedBarrier, SharedMemory, SharedScalar,
-                                   _get_path, get_shm_prefix)
+from streaming.base.shared import SharedArray, SharedBarrier, SharedMemory, SharedScalar, _get_path
 from streaming.base.spanner import Spanner
 from streaming.base.stream import Stream
 from streaming.base.util import bytes_to_int, number_abbrev_to_int
@@ -167,6 +168,34 @@ class _Iterator:
             self._num_exited += 1
 
 
+def _test_config_root(config_root: str) -> None:
+    """Validate that the provided config root is usable.
+
+    If you are unable to get root or 777 perms, you may encounter problems in registering your
+    Streaming jobs for collision detection, getting unique interprocess filelock paths, etc. You
+    can sort of get around this by changing config root to a directory you control, but this may
+    negatively impact collision detection.
+
+    Args:
+        config_root (str): Streaming configuration root directory.
+    """
+    filename = os.path.join(config_root, 'test.txt')
+    try:
+        with open(filename, 'wb') as out:
+            out.write(b'')
+    except:
+        raise ValueError('Please provide a `config_root` dir that is writeable and readable.')
+
+
+def _get_default_config_root() -> str:
+    """Get the default Streaming configuration root directory.
+
+    Returns:
+        str: Default Streaming configuration root directory.
+    """
+    return os.path.join(gettempdir(), 'streaming')
+
+
 class StreamingDataset(Array, IterableDataset):
     """A mid-epoch-resumable streaming/caching pytorch IterableDataset.
 
@@ -234,6 +263,10 @@ class StreamingDataset(Array, IterableDataset):
       * Batching:
 
         * ``batching_method``
+
+      * Configuration:
+
+        * ``config_root``
 
     Args:
         epoch_size (Union[int, str], optional): Number of samples to draw per epoch balanced
@@ -305,32 +338,38 @@ class StreamingDataset(Array, IterableDataset):
             ``None``.
         batching_method (str): Which batching method to use, either ``random``, ``stratified``, or
             ``per_stream``. Defaults to ``random``.
+        config_root (str): Streaming configuration root directory, used for collision detection,
+              filelock paths, etc. Defaults to ``/tmp/streaming``, using the equivalent temp root
+              on your system.
     """
 
-    def __init__(self,
-                 *,
-                 epoch_size: Optional[Union[int, str]] = None,
-                 streams: Optional[Sequence[Stream]] = None,
-                 remote: Optional[str] = None,
-                 local: Optional[str] = None,
-                 split: Optional[str] = None,
-                 download_retry: int = 2,
-                 download_timeout: float = 60,
-                 validate_hash: Optional[str] = None,
-                 keep_zip: bool = False,
-                 allow_unsafe_types: bool = False,
-                 predownload: Optional[int] = None,
-                 cache_limit: Optional[Union[int, str]] = None,
-                 sampling_method: str = 'balanced',
-                 sampling_granularity: int = 1,
-                 partition_algo: str = 'relaxed',
-                 num_canonical_nodes: Optional[int] = None,
-                 batch_size: Optional[int] = None,
-                 shuffle: bool = False,
-                 shuffle_algo: str = 'py1e',
-                 shuffle_seed: int = 9176,
-                 shuffle_block_size: Optional[int] = None,
-                 batching_method: str = 'random') -> None:
+    def __init__(
+            self,
+            *,
+            epoch_size: Optional[Union[int, str]] = None,
+            streams: Optional[Sequence[Stream]] = None,
+            remote: Optional[str] = None,
+            local: Optional[str] = None,
+            split: Optional[str] = None,
+            download_retry: int = 2,
+            download_timeout: float = 60,
+            validate_hash: Optional[str] = None,
+            keep_zip: bool = False,
+            allow_unsafe_types: bool = False,
+            predownload: Optional[int] = None,
+            cache_limit: Optional[Union[int, str]] = None,
+            sampling_method: str = 'balanced',
+            sampling_granularity: int = 1,
+            partition_algo: str = 'relaxed',
+            num_canonical_nodes: Optional[int] = None,
+            batch_size: Optional[int] = None,
+            shuffle: bool = False,
+            shuffle_algo: str = 'py1e',
+            shuffle_seed: int = 9176,
+            shuffle_block_size: Optional[int] = None,
+            batching_method: str = 'random',
+            config_root: str = _get_default_config_root(),
+    ) -> None:
         # Global arguments (which do not live in Streams).
         self.predownload = predownload
         self.cache_limit = cache_limit
@@ -344,6 +383,9 @@ class StreamingDataset(Array, IterableDataset):
         self.shuffle_seed = shuffle_seed
         self.shuffle_block_size = shuffle_block_size
         self.batching_method = batching_method
+
+        _test_config_root(config_root)
+        self.config_root = config_root
 
         # Initialize initial_physical_nodes to None. If we are resuming, then we will set it to the
         # number of physical nodes of the initial run in the _resume function.
@@ -501,13 +543,11 @@ class StreamingDataset(Array, IterableDataset):
         self.length = ceil(self.epoch_size / world.num_ranks)
 
         # Register/lookup our shared memory prefix and filelock root directory.
-        streams_local = [os.path.abspath(os.path.join(x.local, x.split)) for x in streams]
-        streams_remote = [
-            os.path.join(x.remote, x.split) if x.remote is not None else None for x in streams
-        ]
-        self._shm_prefix_int, self._locals_shm = get_shm_prefix(streams_local, streams_remote,
-                                                                world)
-        self._filelock_root = os.path.join(os.path.sep, 'tmp', 'streaming')
+        self.registry = JobRegistry(config_root)
+        self.job_dir = JobDir(self.registry, streams, world)
+        self._shm_prefix_int = int(self.job_dir.job_hash, 16)
+
+        self._filelock_root = os.path.join(self.registry.config_root, self.job_dir.job_hash)
         os.makedirs(self._filelock_root, exist_ok=True)
 
         # Create the shared memory-backed barrier, without its lock, which is unpickleable.
@@ -582,14 +622,6 @@ class StreamingDataset(Array, IterableDataset):
         self._event: Event
 
         del self._shared_barrier.lock  # Remote the lock that makes it unpickleable.
-
-    def __del__(self) -> None:
-        """Destructor, which releases its local working directories."""
-        if hasattr(self, '_locals_shm'):
-            try:
-                self._locals_shm.buf[:4] = np.int32(0).tobytes()
-            except:
-                pass
 
     @property
     def size(self) -> int:
