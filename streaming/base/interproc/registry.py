@@ -100,7 +100,7 @@ class JobRegistryFile:
         return cls(jobs)
 
     def write(self, filename: str) -> None:
-        jobs = [job.to_json() for job in self.jobs]
+        jobs = [job.to_json() for job in filter(bool, self.jobs)]
         obj = {'jobs': jobs}
         with open(filename, 'w') as out:
             json.dump(obj, out)
