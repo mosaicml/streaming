@@ -17,8 +17,8 @@ from psutil import process_iter
 
 from streaming.base.coord.job.entry import JobEntry
 from streaming.base.coord.job.file import JobFile
-from streaming.base.stream import Stream
 from streaming.base.coord.world import World
+from streaming.base.stream import Stream
 
 __all__ = ['JobRegistry']
 

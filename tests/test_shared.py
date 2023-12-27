@@ -5,8 +5,8 @@ from typing import Tuple
 
 import pytest
 
-from streaming.base.shared import get_shm_prefix
 from streaming.base.coord.world import World
+from streaming.base.shared import get_shm_prefix
 
 
 @pytest.mark.usefixtures('local_remote_dir')

@@ -7,8 +7,8 @@ import os
 from typing import Sequence
 
 from streaming.base.coord.job.registry import JobRegistry
-from streaming.base.stream import Stream
 from streaming.base.coord.world import World
+from streaming.base.stream import Stream
 
 __all__ = ['JobDirectory']
 
