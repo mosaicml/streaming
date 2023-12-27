@@ -9,7 +9,7 @@ from typing import Dict, List
 
 from typing_extensions import Self
 
-from streaming.base.coord.entry import JobEntry
+from streaming.base.coord.job.entry import JobEntry
 
 __all__ = ['JobFile']
 

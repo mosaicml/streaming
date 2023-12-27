@@ -15,10 +15,10 @@ from typing import Dict, List, Sequence, Tuple
 from filelock import FileLock
 from psutil import process_iter
 
-from streaming.base.coord.entry import JobEntry
-from streaming.base.coord.file import JobFile
+from streaming.base.coord.job.entry import JobEntry
+from streaming.base.coord.job.file import JobFile
 from streaming.base.stream import Stream
-from streaming.base.world import World
+from streaming.base.coord.world import World
 
 __all__ = ['JobRegistry']
 

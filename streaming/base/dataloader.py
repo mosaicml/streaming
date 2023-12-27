@@ -9,8 +9,8 @@ from torch import Tensor
 from torch.utils.data import DataLoader
 from transformers import BatchEncoding, BatchFeature
 
+from streaming.base.coord.world import World
 from streaming.base.dataset import StreamingDataset
-from streaming.base.world import World
 
 
 class StreamingDataLoader(DataLoader):

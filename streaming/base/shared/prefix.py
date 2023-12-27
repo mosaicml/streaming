@@ -15,8 +15,8 @@ import numpy as np
 from torch import distributed as dist
 
 from streaming.base.constant import LOCALS, TICK
+from streaming.base.coord.world import World
 from streaming.base.shared import SharedMemory
-from streaming.base.world import World
 
 
 def _each_prefix_int() -> Iterator[int]:
