@@ -29,7 +29,6 @@ class MMapBarrier:
         self._lock_filename = lock_filename
         self._tick = tick
 
-        self._lock = FileLock(lock_filename)
         self._arr = MMapArray(arr_filename, np.int32(), 3)
 
         self._num_enter = 0
@@ -106,18 +105,20 @@ class MMapBarrier:
         return cls(arr_filename, lock_filename, tick)
 
     def __call__(self, total: int) -> None:
+        lock = FileLock(self._lock_filename)
+
         # Initialize num_exit to the number of processes.
-        with self._lock:
+        with lock:
             if self._num_exit == -1:
                 self._num_exit = total
 
         # If we are the first to arrive, wait for everyone to exit, then set flag to "don't go".
-        self._lock.acquire()
+        lock.acquire()
         if not self._num_enter:
-            self._lock.release()
+            lock.release()
             while self._num_exit != total:
                 sleep(self._tick)
-            self._lock.acquire()
+            lock.acquire()
             self._flag = False
 
         # Note that we entered.
@@ -128,14 +129,14 @@ class MMapBarrier:
             self._num_enter = 0
             self._num_exit = 0
             self._flag = True
-        self._lock.release()
+        lock.release()
 
         # Everybody waits until the flag is set to "go".
         while not self._flag:
             sleep(self._tick)
 
         # Note that we exited.
-        with self._lock:
+        with lock:
             self._num_exit += 1
             if self._num_exit == total:
                 self._num_exit = -1
