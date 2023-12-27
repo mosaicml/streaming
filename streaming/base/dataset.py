@@ -7,7 +7,6 @@ import json
 import logging
 import os
 import sys
-import warnings
 from concurrent.futures import ThreadPoolExecutor, wait
 from concurrent.futures._base import Future
 from enum import IntEnum
@@ -369,18 +368,18 @@ class StreamingDataset(Array, IterableDataset):
         config_root: Optional[str] = None,
     ) -> None:
         # Global arguments (which do not live in Streams).
-        self.predownload = predownload
-        self.cache_limit = cache_limit
-        self.sampling_method = sampling_method
-        self.sampling_granularity = sampling_granularity
-        self.partition_algo = partition_algo
+        self.predownload = self._get_predownload(predownload, batch_size)
+        self.cache_limit = self._get_cache_limit(cache_limit)
+        self.sampling_method = self._get_sampling_method(sampling_method)
+        self.sampling_granularity = self._get_sampling_granularity(sampling_granularity)
+        self.partition_algo = self._get_partition_algo(partition_algo)
         self.num_canonical_nodes = num_canonical_nodes
         self.batch_size = batch_size
         self.shuffle = shuffle
-        self.shuffle_algo = shuffle_algo
-        self.shuffle_seed = shuffle_seed
+        self.shuffle_algo = self._get_shuffle_algo(shuffle_algo)
+        self.shuffle_seed = self._get_shuffle_seed(shuffle_seed)
         self.shuffle_block_size = shuffle_block_size
-        self.batching_method = batching_method
+        self.batching_method = self._get_batching_method(batching_method)
 
         self.config_root = config_root or _get_default_config_root()
         _test_config_root(self.config_root)
@@ -393,50 +392,6 @@ class StreamingDataset(Array, IterableDataset):
         if bool(streams) == (bool(remote) or bool(local)):
             raise ValueError(
                 'You must provide either `streams` or `remote`/`local`, but not both.')
-
-        # Check sampling method is one of "balanced" or "fixed".
-        if self.sampling_method not in ['balanced', 'fixed']:
-            raise ValueError(
-                f'Invalid sampling method: {sampling_method}. ' + \
-                f'Must be one of `balanced` or `fixed`.'
-            )
-
-        # Check sampling granularity.
-        if self.sampling_granularity <= 0:
-            raise ValueError(f'`sampling_granularity` must be a positive integer, but got: ' +
-                             f'{self.sampling_granularity}.')
-
-        # Check batching method is one of "random", "stratified", or "per_stream".
-        if self.batching_method not in ['random', 'stratified', 'per_stream']:
-            raise ValueError(
-                f'Invalid batching method: {batching_method}. ' + \
-                f'Must be one of `random`, `stratified`, or `per_stream.'
-            )
-
-        # issue deprecation warning for py1b shuffle algorithm.
-        if self.shuffle_algo == 'py1b':
-            warnings.warn('The \'py1b\' shuffle algorithm will soon be deprecated. \
-                Please use the more performant \'py1br\' algorithm instead.',
-                          DeprecationWarning,
-                          stacklevel=2)
-
-        # Check shuffle seed.
-        if self.shuffle_seed < 0:
-            raise ValueError(f'`shuffle_seed` must be a non-negative integer, but got: ' +
-                             f'{self.shuffle_seed}.')
-
-        # Check that predownload is at least per device batch size, and set it if currently `None`.
-        if self.predownload is not None and self.batch_size is not None and \
-            self.predownload < self.batch_size:
-            warnings.warn(f'predownload < batch_size ({self.predownload} < {self.batch_size}).' +
-                          f'This may result in slower batch time. Recommendation is to set ' +
-                          f'predownload to at-least batch_size.')
-        elif self.predownload is None:
-            logger.warning(f'Because `predownload` was not specified, it will default to ' +
-                           f'8*batch_size if batch_size is not None, otherwise 64. Prior to ' +
-                           f'Streaming v0.7.0, `predownload` defaulted to ' +
-                           f'max(batch_size, 256 * batch_size // num_canonical_nodes).')
-            self.predownload = 8 * self.batch_size if self.batch_size is not None else 64
 
         # Convert epoch size from string to int, if needed. Cannot be negative.
         epoch_size_value = None
@@ -506,8 +461,6 @@ class StreamingDataset(Array, IterableDataset):
 
         # Check that cache limit is possible.
         if self.cache_limit:
-            if isinstance(self.cache_limit, str):
-                self.cache_limit = bytes_to_int(self.cache_limit)
             min_cache_usage = sum((stream.get_index_size() for stream in streams))
             if self.cache_limit <= min_cache_usage:
                 raise ValueError(f'Minimum cache usage ({min_cache_usage} bytes) is larger than ' +
@@ -622,6 +575,158 @@ class StreamingDataset(Array, IterableDataset):
         self._event: Event
 
         del self._shared_barrier.lock  # Remote the lock that makes it unpickleable.
+
+    @classmethod
+    def _get_predownload(cls, predownload: Optional[int], batch_size: Optional[int]) -> int:
+        if predownload is not None:
+            if batch_size is not None and predownload < batch_size:
+                logger.warning(f'`predownload` < `batch_size` ({predownload} < {batch_size}). ' +
+                               f'This may result in slower batch time. The recommendation is to ' +
+                               f'set `predownload` to at least `batch_size`.')
+            norm_predownload = predownload
+        else:
+            logger.warning(f'Because `predownload` was not specified, it will default to ' +
+                           f'`8 * batch_size` if batch_size is not None, otherwise 64. Prior to ' +
+                           f'Streaming v0.7.0, `predownload` defaulted to ' +
+                           f'`max(batch_size, 256 * batch_size // num_canonical_nodes)`.')
+            if batch_size is None:
+                norm_predownload = 64
+            else:
+                norm_predownload = 8 * batch_size
+        return norm_predownload
+
+    @classmethod
+    def _get_cache_limit(cls, cache_limit: Optional[Union[int, str]]) -> Optional[int]:
+        """Get cache limit.
+
+        Args:
+            cache_limit (int | str, optional): Input cache limit.
+
+        Returns:
+            int, optional: Normalized cache limit.
+        """
+        if cache_limit is None:
+            norm_cache_limit = cache_limit
+        else:
+            if isinstance(cache_limit, str):
+                norm_cache_limit = bytes_to_int(cache_limit)
+            else:
+                norm_cache_limit = cache_limit
+            if norm_cache_limit <= 0:
+                raise ValueError(f'Cache limit, if set, must be positive, but got: ' +
+                                 f'{cache_limit} -> {norm_cache_limit}.')
+        return norm_cache_limit
+
+    @classmethod
+    def _get_sampling_method(cls, sampling_method: str) -> str:
+        """Get sampling method.
+
+        Args:
+            sampling_method (str): Input sampling method.
+
+        Returns:
+            str: Normalized sampling method,
+        """
+        methods = 'balanced', 'fixed'
+
+        if sampling_method not in methods:
+            raise ValueError(f'`sampling_method` must be one of {sorted(methods)}, but got: ' +
+                             f'{sampling_method}.')
+
+        return sampling_method
+
+    @classmethod
+    def _get_sampling_granularity(cls, sampling_granularity: int) -> int:
+        """Get sampling granularity.
+
+        Args:
+            samping_granularity (int): Input sampling granularity.
+
+        Returns:
+            int: Normalized sampling granularity.
+        """
+        # Check sampling granularity.
+        if sampling_granularity < 1:
+            raise ValueError(f'`sampling_granularity` must be a positive integer, but got: ' +
+                             f'{sampling_granularity}.')
+
+        return sampling_granularity
+
+    @classmethod
+    def _get_partition_algo(cls, partition_algo: str) -> str:
+        """Get partition algo.
+
+        Args:
+            partition_algo (str): Input parittion algo.
+
+        Returns:
+            str: Normalized partition algo.
+        """
+        from streaming.base.partition import algos
+
+        if partition_algo not in algos:
+            raise ValueError(f'`partition_algo` must be one of {sorted(algos)}, but got: ' +
+                             f'{partition_algo}.')
+
+        return partition_algo
+
+    @classmethod
+    def _get_shuffle_algo(cls, shuffle_algo: str) -> str:
+        """Get shuffle algo.
+
+        Args:
+            shuffle_algo (str): Input shuffle algo.
+
+        Returns:
+            str: Normalized shuffle algo.
+        """
+        from streaming.base.shuffle import algos
+
+        if shuffle_algo not in algos:
+            raise ValueError(f'`shuffle_algo` must be one of {sorted(algos)}, but got: ' +
+                             f'{shuffle_algo}.')
+        elif shuffle_algo == 'py1b':
+            logger.warning('The `py1b` shuffle algorithm will soon be deprecated. Please use ' +
+                           'the more performant `py1br` algorithm instead.',
+                           DeprecationWarning,
+                           stacklevel=2)
+
+        return shuffle_algo
+
+    @classmethod
+    def _get_shuffle_seed(cls, shuffle_seed: int) -> int:
+        """Get shuffle seed.
+
+        Args:
+            shuffle_seed (int): Input shuffle seed.
+
+        Returns:
+            int: Normalized shuffle seed.
+        """
+        # Check shuffle seed.
+        if not (0 <= shuffle_seed < 2**32):
+            raise ValueError(f'`shuffle_seed` must be in `0 <= x < 2**32`, but got: ' +
+                             f'{shuffle_seed}.')
+
+        return shuffle_seed
+
+    @classmethod
+    def _get_batching_method(cls, batching_method: str) -> str:
+        """Get batching method.
+
+        Args:
+            batching_method (str): Input batching method.
+
+        Returns:
+            str: Normalized batching method.
+        """
+        from streaming.base.batching import batching_methods
+
+        if batching_method not in batching_methods:
+            raise ValueError(f'`batching_method` must be one of {sorted(batching_methods)}, but ' +
+                             f'got: {batching_method}.')
+
+        return batching_method
 
     @property
     def size(self) -> int:
