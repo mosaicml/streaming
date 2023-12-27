@@ -26,8 +26,8 @@ from streaming.base.array import Array
 from streaming.base.batching import generate_work
 from streaming.base.constant import (BARRIER, CACHE_FILELOCK, CACHE_USAGE, EPOCH_DATA, EPOCH_SHAPE,
                                      NEXT_EPOCH, RESUME, SHARD_ACCESS_TIMES, SHARD_STATES, TICK)
+from streaming.base.coord.job import JobDirectory, JobRegistry
 from streaming.base.format import get_index_basename
-from streaming.base.interproc.registry import JobDir, JobRegistry
 from streaming.base.sampling import get_sampling
 from streaming.base.shared import SharedArray, SharedBarrier, SharedMemory, SharedScalar, _get_path
 from streaming.base.spanner import Spanner
@@ -336,37 +336,37 @@ class StreamingDataset(Array, IterableDataset):
             ``None``.
         batching_method (str): Which batching method to use, either ``random``, ``stratified``, or
             ``per_stream``. Defaults to ``random``.
-        config_root (str): Streaming configuration root directory, used for collision detection,
-              filelock paths, etc. Defaults to ``/tmp/streaming``, using the equivalent temp root
-              on your system.
+        config_root (str, optional): Streaming configuration root directory, used for collision
+            detection, filelock paths, etc. If ``None``, uses a ``/streaming/`` subdir under your
+            system's temp root. Defaults to ``None``.
     """
 
     def __init__(
-            self,
-            *,
-            epoch_size: Optional[Union[int, str]] = None,
-            streams: Optional[Sequence[Stream]] = None,
-            remote: Optional[str] = None,
-            local: Optional[str] = None,
-            split: Optional[str] = None,
-            download_retry: int = 2,
-            download_timeout: float = 60,
-            validate_hash: Optional[str] = None,
-            keep_zip: bool = False,
-            allow_unsafe_types: bool = False,
-            predownload: Optional[int] = None,
-            cache_limit: Optional[Union[int, str]] = None,
-            sampling_method: str = 'balanced',
-            sampling_granularity: int = 1,
-            partition_algo: str = 'relaxed',
-            num_canonical_nodes: Optional[int] = None,
-            batch_size: Optional[int] = None,
-            shuffle: bool = False,
-            shuffle_algo: str = 'py1e',
-            shuffle_seed: int = 9176,
-            shuffle_block_size: Optional[int] = None,
-            batching_method: str = 'random',
-            config_root: str = _get_default_config_root(),
+        self,
+        *,
+        epoch_size: Optional[Union[int, str]] = None,
+        streams: Optional[Sequence[Stream]] = None,
+        remote: Optional[str] = None,
+        local: Optional[str] = None,
+        split: Optional[str] = None,
+        download_retry: int = 2,
+        download_timeout: float = 60,
+        validate_hash: Optional[str] = None,
+        keep_zip: bool = False,
+        allow_unsafe_types: bool = False,
+        predownload: Optional[int] = None,
+        cache_limit: Optional[Union[int, str]] = None,
+        sampling_method: str = 'balanced',
+        sampling_granularity: int = 1,
+        partition_algo: str = 'relaxed',
+        num_canonical_nodes: Optional[int] = None,
+        batch_size: Optional[int] = None,
+        shuffle: bool = False,
+        shuffle_algo: str = 'py1e',
+        shuffle_seed: int = 9176,
+        shuffle_block_size: Optional[int] = None,
+        batching_method: str = 'random',
+        config_root: Optional[str] = None,
     ) -> None:
         # Global arguments (which do not live in Streams).
         self.predownload = predownload
@@ -382,8 +382,8 @@ class StreamingDataset(Array, IterableDataset):
         self.shuffle_block_size = shuffle_block_size
         self.batching_method = batching_method
 
-        _test_config_root(config_root)
-        self.config_root = config_root
+        self.config_root = config_root or _get_default_config_root()
+        _test_config_root(self.config_root)
 
         # Initialize initial_physical_nodes to None. If we are resuming, then we will set it to the
         # number of physical nodes of the initial run in the _resume function.
@@ -538,8 +538,8 @@ class StreamingDataset(Array, IterableDataset):
         self.length = ceil(self.epoch_size / world.num_ranks)
 
         # Register/lookup our shared memory prefix and filelock root directory.
-        self.registry = JobRegistry(config_root)
-        self.job_dir = JobDir(self.registry, streams, world)
+        self.job_registry = JobRegistry(self.config_root)
+        self.job_dir = JobDirectory(self.job_registry, streams, world)
         self._shm_prefix_int = int(self.job_dir.job_hash, 16)
 
         init_done_filename = self.job_dir.get_filename('init_done.txt')
@@ -547,7 +547,7 @@ class StreamingDataset(Array, IterableDataset):
             if os.path.exists(init_done_filename):
                 os.remove(init_done_filename)
 
-        self._filelock_root = os.path.join(self.registry.config_root, self.job_dir.job_hash)
+        self._filelock_root = os.path.join(self.job_registry.config_root, self.job_dir.job_hash)
         os.makedirs(self._filelock_root, exist_ok=True)
 
         # Create the shared memory-backed barrier, without its lock, which is unpickleable.
