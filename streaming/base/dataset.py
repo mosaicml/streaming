@@ -26,10 +26,10 @@ from streaming.base.batching import generate_work
 from streaming.base.constant import (BARRIER, CACHE_FILELOCK, CACHE_USAGE, EPOCH_DATA, EPOCH_SHAPE,
                                      NEXT_EPOCH, RESUME, SHARD_ACCESS_TIMES, SHARD_STATES, TICK)
 from streaming.base.coord.job import JobDirectory, JobRegistry
+from streaming.base.coord.shmem import SharedArray, SharedBarrier, SharedMemory, SharedScalar, _get_path
 from streaming.base.coord.world import World
 from streaming.base.format import get_index_basename
 from streaming.base.sampling import get_sampling
-from streaming.base.shared import SharedArray, SharedBarrier, SharedMemory, SharedScalar, _get_path
 from streaming.base.spanner import Spanner
 from streaming.base.stream import Stream
 from streaming.base.util import bytes_to_int, number_abbrev_to_int, wait_for_file_to_exist
