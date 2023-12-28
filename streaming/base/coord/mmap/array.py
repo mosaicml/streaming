@@ -24,30 +24,26 @@ class MMapArray(Generic[DType]):
 
     Args:
         filename (str): File backing the internal MMapBuffer.
-        dtype (DType): Data type of the number.
         shape (int | Tuple[int], optional): Exact required shape, if known in advance.
+        dtype (DType): Data type of the number.
     """
 
-    def __init__(self,
-                 filename: str,
-                 dtype: DType,
-                 shape: Optional[Union[int, Tuple[int]]] = None) -> None:
+    def __init__(self, filename: str, shape: Optional[Union[int, Tuple[int]]],
+                 dtype: DType) -> None:
         self.filename = filename
+        self.shape, self.num_bytes = self._ensure(filename, shape, dtype)
         self.dtype = dtype
-        self.shape, self.num_bytes = self._ensure(filename, dtype, shape)
         self.buf = MMapBuffer(filename, self.num_bytes)
 
     @classmethod
-    def _ensure(cls,
-                filename: str,
-                dtype: DType,
-                shape: Optional[Union[int, Tuple[int]]] = None) -> Tuple[Tuple[int], int]:
+    def _ensure(cls, filename: str, shape: Optional[Union[int, Tuple[int]]],
+                dtype: DType) -> Tuple[Tuple[int], int]:
         """Ensure the file exists, get its actual size, and compare to expected shape and dtype.
 
         Args:
             filename (str): File backing the internal MMapBuffer.
-            dtype (DType): Data type of this array.
             shape (int | Tuple[int], optional): Exact required shape, if known in advance.
+            dtype (DType): Data type of this array.
 
         Returns:
             Tuple[Tuple[int], int]: Pair of (array shape, file size).
@@ -88,13 +84,13 @@ class MMapArray(Generic[DType]):
         return shape, file_size
 
     @classmethod
-    def _write(cls, filename: str, dtype: DType, shape: Union[int, Tuple[int]]) -> None:
+    def _write(cls, filename: str, shape: Union[int, Tuple[int]], dtype: DType) -> None:
         """Initialize the array to all zeros of the specified shape and dtype.
 
         Args:
             filename (str): File backing the internal MMapBuffer.
-            dtype (DType): Data type of this array.
             shape (int | Tupel[int]): Shape of this array.
+            dtype (DType): Data type of this array.
         """
         if isinstance(shape, int):
             shape = shape,
@@ -102,13 +98,13 @@ class MMapArray(Generic[DType]):
         MMapBuffer._write(filename, size)
 
     @classmethod
-    def create(cls, filename: str, dtype: DType, shape: Union[int, Tuple[int]]) -> Self:
+    def create(cls, filename: str, shape: Union[int, Tuple[int]], dtype: DType) -> Self:
         """Create and load a MMapArray from scratch.
 
         Args:
             filename (str): File backing the internal MMapBuffer.
-            dtype (DType): Data type of this array.
             shape (int | Tupel[int]): Shape of this array.
+            dtype (DType): Data type of this array.
 
         Returns:
             Self: Loaded MMapArray.
@@ -116,8 +112,8 @@ class MMapArray(Generic[DType]):
         if os.path.exists(filename):
             raise ValueError('File already exists: {filename}.')
 
-        cls._write(filename, dtype, shape)
-        return cls(filename, dtype)
+        cls._write(filename, shape, dtype)
+        return cls(filename, None, dtype)
 
     def __len__(self) -> int:
         """Get the number of elements in the first axis of the array.
