@@ -418,9 +418,6 @@ class SimulationDataset(StreamingDataset):
         Returns:
             int: The dataset's number of canonical nodes.
         """
-        if not isinstance(self.num_canonical_nodes, int):
-            raise TypeError(f'`self.num_canonical_nodes` must be an int. ' +
-                            f'Got {type(self.num_canonical_nodes)} instead.')
         return self.num_canonical_nodes
 
     def get_batch_size(self) -> int:
@@ -528,9 +525,6 @@ class SimulationDataset(StreamingDataset):
         Returns:
             int: The dataset's shuffle block size.
         """
-        if not isinstance(self.shuffle_block_size, int):
-            raise TypeError(f'`self.shuffle_block_size` must be an int. ' +
-                            f'Got {type(self.shuffle_block_size)} instead.')
         return self.shuffle_block_size
 
     def get_epoch_size(self) -> int:
