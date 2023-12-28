@@ -349,7 +349,7 @@ class StreamingDataset(Array, IterableDataset):
 
         # Purely StreamingDataset arguments (which do not live in Streams).
         self.config_root = self._get_config_root(config_root)
-        self._test_config_root()
+        self._test_config_root(self.config_root)
         self.predownload = self._get_predownload(predownload, batch_size)
         self.cache_limit = self._get_cache_limit(cache_limit)
         self.sampling_method = self._get_sampling_method(sampling_method)
