@@ -35,6 +35,7 @@ class JobRegistry:
     """
 
     def __init__(self, config_root: str, tick: float = 0.007) -> None:
+        os.makedirs(config_root, exist_ok=True)
         self.config_root = config_root
         self._tick = tick
         self._filelock_filename = os.path.join(config_root, 'filelock.bin')
