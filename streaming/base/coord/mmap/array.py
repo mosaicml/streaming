@@ -3,117 +3,47 @@
 
 """Share an array across processes using mmap()."""
 
-import os
+from mmap import mmap
 from typing import Generic, Optional, Tuple, TypeVar, Union
 
 import numpy as np
 from numpy.typing import NDArray
-from typing_extensions import Self
 
-from streaming.base.coord.mmap.buffer import MMapBuffer
+from streaming.base.coord.mmap.base import ensure_file
 
 __all__ = ['MMapArray']
 
 DType = TypeVar('DType', bound=np.number)
 
-IndexType = Union[int, NDArray[np.integer]]
+IndexType = Union[int, slice, NDArray[np.integer]]
+DataType = Union[DType, NDArray[DType]]
 
 
 class MMapArray(Generic[DType]):
     """Share an array across processes using mmap().
 
     Args:
-        filename (str): File backing the internal MMapBuffer.
-        shape (int | Tuple[int], optional): Exact required shape, if known in advance.
+        mode (str): Whether to ``create``, ``replace``, or ``attach``. Defaults to ``attach``.
+        filename (str): Path to memory-mapped file.
+        shape (int | Tuple[int], optional): Exact required shape, if known in advance. At most one
+            wildcard ``-1`` is acceptable.
         dtype (DType): Data type of the number.
     """
 
-    def __init__(self, filename: str, shape: Optional[Union[int, Tuple[int]]],
-                 dtype: DType) -> None:
+    def __init__(
+        self,
+        *,
+        mode: str = 'attach',
+        filename: str,
+        shape: Optional[Union[int, Tuple[int]]] = None,
+        dtype: DType,
+    ) -> None:
+        self.mode = mode
         self.filename = filename
-        self.shape, self.num_bytes = self._ensure(filename, shape, dtype)
+        self.shape = ensure_file(mode, filename, shape, 1)
         self.dtype = dtype
-        self.buf = MMapBuffer(filename, self.num_bytes)
-
-    @classmethod
-    def _ensure(cls, filename: str, shape: Optional[Union[int, Tuple[int]]],
-                dtype: DType) -> Tuple[Tuple[int], int]:
-        """Ensure the file exists, get its actual size, and compare to expected shape and dtype.
-
-        Args:
-            filename (str): File backing the internal MMapBuffer.
-            shape (int | Tuple[int], optional): Exact required shape, if known in advance.
-            dtype (DType): Data type of this array.
-
-        Returns:
-            Tuple[Tuple[int], int]: Pair of (array shape, file size).
-        """
-        if shape is None:
-            if os.path.exists(filename):
-                file_size = os.stat(filename).st_size
-                dtype_size = dtype.nbytes
-                if file_size % dtype_size:
-                    raise ValueError(f'Data type size does not evenly divide file size: file ' +
-                                     f'{filename}, file size {file_size}, dtype {dtype}, dtype ' +
-                                     f'size {dtype_size}.')
-                numel = file_size // dtype_size
-                shape = numel,
-                return shape, file_size
-            else:
-                raise ValueError(f'File does not exist: {filename}.')
-
-        if not os.path.exists(filename):
-            raise ValueError(f'File does not exist: {filename}.')
-
-        if isinstance(shape, int):
-            shape = shape,
-
-        for dim in shape:
-            if dim < 1:
-                raise ValueError('Invalid shape: {shape}.')
-
-        numel = int(np.prod(shape))
-        dtype_size = dtype.nbytes
-        file_size = numel * dtype_size
-        stat = os.stat(filename)
-        if stat.st_size != file_size:
-            raise ValueError(f'File size mismatch: file {filename}, shape {shape}, dtype ' +
-                             f'{dtype}, dtype size {dtype_size}, expected file size ' +
-                             f'{file_size}, got file size {stat.st_size}.')
-
-        return shape, file_size
-
-    @classmethod
-    def _write(cls, filename: str, shape: Union[int, Tuple[int]], dtype: DType) -> None:
-        """Initialize the array to all zeros of the specified shape and dtype.
-
-        Args:
-            filename (str): File backing the internal MMapBuffer.
-            shape (int | Tupel[int]): Shape of this array.
-            dtype (DType): Data type of this array.
-        """
-        if isinstance(shape, int):
-            shape = shape,
-        size = int(np.prod(shape)) * dtype.nbytes
-        MMapBuffer._write(filename, size)
-
-    @classmethod
-    def create(cls, filename: str, shape: Union[int, Tuple[int]], dtype: DType) -> Self:
-        """Create and load a MMapArray from scratch.
-
-        Args:
-            filename (str): File backing the internal MMapBuffer.
-            shape (int | Tupel[int]): Shape of this array.
-            dtype (DType): Data type of this array.
-
-        Returns:
-            Self: Loaded MMapArray.
-        """
-        if os.path.exists(filename):
-            raise ValueError('File already exists: {filename}.')
-
-        cls._write(filename, shape, dtype)
-        return cls(filename, None, dtype)
+        self.file = open(filename, 'r+b', 0)
+        self.data = mmap(self.file.fileno(), 0)
 
     def __len__(self) -> int:
         """Get the number of elements in the first axis of the array.
@@ -131,24 +61,24 @@ class MMapArray(Generic[DType]):
         Returns:
             NDArray[DType]: Our internal buffer as an ndarray.
         """
-        return np.ndarray(self.shape, buffer=self.buf.data, dtype=self.dtype)
+        return np.ndarray(self.shape, buffer=self.data, dtype=self.dtype)
 
-    def __getitem__(self, index: IndexType) -> DType:
+    def __getitem__(self, index: IndexType) -> DataType:
         """Get the item at the index.
 
         Args:
-            index (IndexType): The index.
+            index (IndexType): The index(es).
 
         Returns:
-            DType; The item.
+            DataType; The item(s).
         """
         return self.as_array()[index]
 
-    def __setitem__(self, index: IndexType, item: DType) -> None:
+    def __setitem__(self, index: IndexType, item: DataType) -> None:
         """Set the item at the index.
 
         Args:
-            index (IndexType): The index.
-            item (DType): The item.
+            index (IndexType): The index(es).
+            item (DataType): The item(s).
         """
         self.as_array()[index] = item

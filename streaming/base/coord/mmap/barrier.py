@@ -3,12 +3,10 @@
 
 """Share a barrier across processes using mmap()."""
 
-import os
 from time import sleep
 
 import numpy as np
 from filelock import FileLock
-from typing_extensions import Self
 
 from streaming.base.coord.mmap.array import MMapArray
 
@@ -19,17 +17,24 @@ class MMapBarrier:
     """Share a barrier across processes using mmap().
 
     Args:
-        arr_filename (str): File backing the internal MMapArray.
-        lock_filename (str): File backing the internal FileLock.
+        mode (str): Whether to ``create``, ``replace``, or ``attach``. Defaults to ``attach``.
+        mmap_filename (str): Path to memory-mapped file.
+        lock_filename (str): Path to FileLock file.
         tick (float): Polling interval in seconds. Defaults to ``0.007``.
     """
 
-    def __init__(self, arr_filename: str, lock_filename: str, tick: float = 0.007) -> None:
-        self._arr_filename = arr_filename
+    def __init__(
+        self,
+        *,
+        mode: str = 'attach',
+        mmap_filename: str,
+        lock_filename: str,
+        tick: float = 0.007,
+    ) -> None:
         self._lock_filename = lock_filename
         self._tick = tick
 
-        self._arr = MMapArray(arr_filename, np.int32(), 3)
+        self._arr = MMapArray(mode=mode, filename=mmap_filename, shape=3, dtype=np.int32())
 
         self._num_enter = 0
         self._num_exit = -1
@@ -88,21 +93,6 @@ class MMapBarrier:
             flag (bool): Flag value.
         """
         self._arr[2] = np.int32(flag)
-
-    @classmethod
-    def create(cls, arr_filename: str, lock_filename: str, tick: float = 0.007) -> Self:
-        """Create and load an MMapBarrier from scratch.
-
-        Args:
-            arr_filename (str): File backing the MMapArray.
-            lock_filename (str): File bcking the FileLock.
-            tick (float): Polling interval in seconds. Defaults to ``0.007``.
-        """
-        if os.path.exists(arr_filename):
-            raise ValueError('File already exists: {arr_filename}.')
-
-        MMapArray._write(arr_filename, np.int32(), 3)
-        return cls(arr_filename, lock_filename, tick)
 
     def __call__(self, total: int) -> None:
         lock = FileLock(self._lock_filename)
