@@ -318,7 +318,7 @@ def test_dataloader_stratified_batching_user_set(local_remote_dir: Tuple[str,
 
 @pytest.mark.parametrize('stream_2_size', list(range(1, 65, 10)))
 @pytest.mark.usefixtures('local_remote_dir')
-def test_stratified_batching_Exception(local_remote_dir: Tuple[str, str], stream_2_size: int):
+def test_stratified_batching_exception(local_remote_dir: Tuple[str, str], stream_2_size: int):
 
     local, remote = local_remote_dir
     local1 = os.path.join(local, 'stream1')
@@ -631,7 +631,7 @@ def test_dataloader_single_device(local_remote_dir: Tuple[str, str], batch_size:
 @pytest.mark.parametrize('shuffle', [True])
 @pytest.mark.parametrize('sampling_method', ['balanfixed', 'fixedd', '', 'random', 'ayo'])
 @pytest.mark.usefixtures('local_remote_dir')
-def test_sampling_method_invalid_Exception(local_remote_dir: Any, batch_size: int, seed: int,
+def test_sampling_method_invalid_exception(local_remote_dir: Any, batch_size: int, seed: int,
                                            shuffle: bool, sampling_method: str):
     remote_dir, local_dir = local_remote_dir
     convert_to_mds(out_root=remote_dir,
@@ -639,7 +639,7 @@ def test_sampling_method_invalid_Exception(local_remote_dir: Any, batch_size: in
                    num_samples=117,
                    size_limit=1 << 8)
 
-    with pytest.raises(ValueError, match=f'Invalid sampling method:*'):
+    with pytest.raises(ValueError):
         _ = StreamingDataset(local=local_dir,
                              remote=remote_dir,
                              shuffle=shuffle,

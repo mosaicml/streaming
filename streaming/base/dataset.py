@@ -15,6 +15,7 @@ from tempfile import gettempdir
 from threading import Event, Lock
 from time import sleep, time_ns
 from typing import Any, Dict, Iterator, Optional, Sequence, Tuple, Union
+from warnings import warn
 
 import numpy as np
 from filelock import FileLock
@@ -586,9 +587,9 @@ class StreamingDataset(Array, IterableDataset):
     def _get_predownload(cls, predownload: Optional[int], batch_size: Optional[int]) -> int:
         if predownload is not None:
             if batch_size is not None and predownload < batch_size:
-                logger.warning(f'`predownload` < `batch_size` ({predownload} < {batch_size}). ' +
-                               f'This may result in slower batch time. The recommendation is to ' +
-                               f'set `predownload` to at least `batch_size`.')
+                warn(f'`predownload` < `batch_size` ({predownload} < {batch_size}). This may ' +
+                     f'result in slower batch time. The recommendation is to set `predownload` ' +
+                     f'to at least `batch_size`.')
             norm_predownload = predownload
         else:
             logger.warning(f'Because `predownload` was not specified, it will default to ' +
