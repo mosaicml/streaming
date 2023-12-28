@@ -354,20 +354,15 @@ class StreamingDataset(Array, IterableDataset):
         self.sampling_method = self._get_sampling_method(sampling_method)
         self.sampling_granularity = self._get_sampling_granularity(sampling_granularity)
         self.partition_algo = self._get_partition_algo(partition_algo)
+        self.input_num_canonical_nodes = num_canonical_nodes
         self.num_canonical_nodes: int
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.shuffle_algo = self._get_shuffle_algo(shuffle_algo)
         self.shuffle_seed = self._get_shuffle_seed(shuffle_seed)
         self.input_shuffle_block_size = shuffle_block_size
-        self.shuffle_block_size: int  # Set below.
+        self.shuffle_block_size: int
         self.batching_method = self._get_batching_method(batching_method)
-
-        # StreamingDataset arguments which depend on other such arguments.
-        self.num_canonical_nodes = self._get_num_canonical_nodes(num_canonical_nodes,
-                                                                 self.shuffle_algo, world)
-        self.shuffle_block_size = self._get_shuffle_block_size(shuffle_block_size,
-                                                               self.num_canonical_nodes, world)
 
         # Initialize initial_physical_nodes to None. If we are resuming, then we will set it to the
         # number of physical nodes of the initial run in the _resume function.
@@ -864,6 +859,10 @@ class StreamingDataset(Array, IterableDataset):
             shm = SharedMemory(name=name, create=False)
         except FileNotFoundError:
             # There is nothing to resume.
+            self.num_canonical_nodes = self._get_num_canonical_nodes(
+                self.input_num_canonical_nodes, self.shuffle_algo, world)
+            self.shuffle_block_size = self._get_shuffle_block_size(self.input_shuffle_block_size,
+                                                                   self.num_canonical_nodes, world)
             return epoch, 0
 
         # SharedMemory buffers may contain additional null bytes at the end.
@@ -874,6 +873,10 @@ class StreamingDataset(Array, IterableDataset):
 
         # Check if the resume state is stale.
         if obj['epoch'] < epoch:
+            self.num_canonical_nodes = self._get_num_canonical_nodes(
+                self.input_num_canonical_nodes, self.shuffle_algo, world)
+            self.shuffle_block_size = self._get_shuffle_block_size(self.input_shuffle_block_size,
+                                                                   self.num_canonical_nodes, world)
             return epoch, 0
 
         # Load the correct resumption meta data.
