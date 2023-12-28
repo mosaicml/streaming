@@ -32,7 +32,7 @@ class MMapNumber(Generic[DType]):
     ) -> None:
         self.mode = mode
         self.filename = filename
-        ensure_file(mode, filename, 1, 1)
+        ensure_file(mode, filename, 1, dtype.nbytes)
         self.dtype = dtype
         self.file = open(filename, 'r+b', 0)
         self.data = mmap(self.file.fileno(), 0)
