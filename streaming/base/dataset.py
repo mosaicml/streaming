@@ -206,6 +206,10 @@ class StreamingDataset(Array, IterableDataset):
 
     * How to iterate (the StreamingDataset arguments):
 
+      * Configuration:
+
+        * ``config_root``
+
       * Shard lifecycle:
 
         * ``predownload``
@@ -232,10 +236,6 @@ class StreamingDataset(Array, IterableDataset):
       * Batching:
 
         * ``batching_method``
-
-      * Configuration:
-
-        * ``config_root``
 
     Args:
         epoch_size (Union[int, str], optional): Number of samples to draw per epoch balanced
@@ -339,22 +339,34 @@ class StreamingDataset(Array, IterableDataset):
         shuffle_block_size: Optional[int] = None,
         batching_method: str = 'random',
     ) -> None:
-        # Global arguments (which do not live in Streams).
+        # Initialize the World context.
+        #
+        # Beware: This information is for the per-rank process. DataLoader worker processes may see
+        # different values for these fields. We are saving the rank World here because we cannot
+        # instantiate a World inside the StreamingDataset destructor.
+        self._rank_world = world = World()
+
+        # Purely StreamingDataset arguments (which do not live in Streams).
         self.config_root = self._get_config_root(config_root)
         self.predownload = self._get_predownload(predownload, batch_size)
         self.cache_limit = self._get_cache_limit(cache_limit)
         self.sampling_method = self._get_sampling_method(sampling_method)
         self.sampling_granularity = self._get_sampling_granularity(sampling_granularity)
         self.partition_algo = self._get_partition_algo(partition_algo)
-        self.input_num_canonical_nodes = num_canonical_nodes
         self.num_canonical_nodes: int
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.shuffle_algo = self._get_shuffle_algo(shuffle_algo)
         self.shuffle_seed = self._get_shuffle_seed(shuffle_seed)
         self.input_shuffle_block_size = shuffle_block_size
-        self.shuffle_block_size: int
+        self.shuffle_block_size: int  # Set below.
         self.batching_method = self._get_batching_method(batching_method)
+
+        # StreamingDataset arguments which depend on other such arguments.
+        self.num_canonical_nodes = self._get_num_canonical_nodes(num_canonical_nodes,
+                                                                 self.shuffle_algo, world)
+        self.shuffle_block_size = self._get_shuffle_block_size(shuffle_block_size,
+                                                               self.num_canonical_nodes, world)
 
         # Initialize initial_physical_nodes to None. If we are resuming, then we will set it to the
         # number of physical nodes of the initial run in the _resume function.
@@ -382,32 +394,22 @@ class StreamingDataset(Array, IterableDataset):
                                       keep_zip=keep_zip,
                                       allow_unsafe_types=allow_unsafe_types)
         else:
-            stream = Stream(remote=remote,
-                            local=local,
-                            split=split,
-                            download_retry=download_retry,
-                            download_timeout=download_timeout,
-                            validate_hash=validate_hash,
-                            keep_zip=keep_zip,
-                            allow_unsafe_types=allow_unsafe_types)
-            streams = [stream]
+            streams = Stream(remote=remote,
+                             local=local,
+                             split=split,
+                             download_retry=download_retry,
+                             download_timeout=download_timeout,
+                             validate_hash=validate_hash,
+                             keep_zip=keep_zip,
+                             allow_unsafe_types=allow_unsafe_types),
 
         # Validate the stream weighting scheme (relative or absolute) to catch errors before we go
         # to the trouble of loading them.
         Stream.validate_weights(streams)
 
-        # Set streams.
+        # Download each stream's index, init their shards, and map streams <-> shards <-> samples.
         self.streams = streams
         self.num_streams = len(streams)
-
-        # Initialize the World context.
-        #
-        # Beware: This information is for the per-rank process. DataLoader worker processes may see
-        # different values for these fields. We are saving the rank World here because we cannot
-        # instantiate a World inside the StreamingDataset destructor.
-        self._rank_world = world = World()
-
-        # Download each stream's index, load their shards, and map streams <-> shards.
         self.num_samples = 0
         self.shards = []
         stream_per_shard = []
@@ -861,10 +863,6 @@ class StreamingDataset(Array, IterableDataset):
             shm = SharedMemory(name=name, create=False)
         except FileNotFoundError:
             # There is nothing to resume.
-            self.num_canonical_nodes = self._get_num_canonical_nodes(
-                self.input_num_canonical_nodes, self.shuffle_algo, world)
-            self.shuffle_block_size = self._get_shuffle_block_size(self.input_shuffle_block_size,
-                                                                   self.num_canonical_nodes, world)
             return epoch, 0
 
         # SharedMemory buffers may contain additional null bytes at the end.
@@ -875,10 +873,6 @@ class StreamingDataset(Array, IterableDataset):
 
         # Check if the resume state is stale.
         if obj['epoch'] < epoch:
-            self.num_canonical_nodes = self._get_num_canonical_nodes(
-                self.input_num_canonical_nodes, self.shuffle_algo, world)
-            self.shuffle_block_size = self._get_shuffle_block_size(self.input_shuffle_block_size,
-                                                                   self.num_canonical_nodes, world)
             return epoch, 0
 
         # Load the correct resumption meta data.
