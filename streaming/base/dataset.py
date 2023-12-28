@@ -26,7 +26,8 @@ from streaming.base.batching import generate_work
 from streaming.base.constant import (BARRIER, CACHE_FILELOCK, CACHE_USAGE, EPOCH_DATA, EPOCH_SHAPE,
                                      NEXT_EPOCH, RESUME, SHARD_ACCESS_TIMES, SHARD_STATES, TICK)
 from streaming.base.coord.job import JobDirectory, JobRegistry
-from streaming.base.coord.shmem import SharedArray, SharedBarrier, SharedMemory, SharedScalar, _get_path
+from streaming.base.coord.shmem import (SharedArray, SharedBarrier, SharedMemory, SharedScalar,
+                                        _get_path)
 from streaming.base.coord.world import World
 from streaming.base.format import get_index_basename
 from streaming.base.sampling import get_sampling
@@ -164,35 +165,6 @@ class _Iterator:
             self._num_exited += 1
 
 
-def _test_config_root(config_root: str) -> None:
-    """Validate that the provided config root is usable.
-
-    If you are unable to get root or 777 perms, you may encounter problems in registering your
-    Streaming jobs for collision detection, getting unique interprocess filelock paths, etc. You
-    can sort of get around this by changing config root to a directory you control, but this may
-    negatively impact collision detection.
-
-    Args:
-        config_root (str): Streaming configuration root directory.
-    """
-    os.makedirs(config_root, exist_ok=True)
-    filename = os.path.join(config_root, 'test.txt')
-    try:
-        with open(filename, 'wb') as out:
-            out.write(b'')
-    except:
-        raise ValueError('Please provide a `config_root` dir that is writeable and readable.')
-
-
-def _get_default_config_root() -> str:
-    """Get the default Streaming configuration root directory.
-
-    Returns:
-        str: Default Streaming configuration root directory.
-    """
-    return os.path.join(gettempdir(), 'streaming')
-
-
 class StreamingDataset(Array, IterableDataset):
     """A mid-epoch-resumable streaming/caching pytorch IterableDataset.
 
@@ -293,6 +265,9 @@ class StreamingDataset(Array, IterableDataset):
         allow_unsafe_types (bool): If a shard contains Pickle, which allows arbitrary code
             execution during deserialization, whether to keep going if ``True`` or raise an error
             if ``False``. Defaults to ``False``.
+        config_root (str, optional): Streaming configuration root directory, used for collision
+            detection, filelock paths, etc. If ``None``, uses a ``/streaming/`` subdir under your
+            system's temp root. Defaults to ``None``.
         predownload (int, optional): Target number of samples to download per worker in advance
             of current sample. Workers will attempt to download ahead by this many samples during,
             but not before, training. Recommendation is to provide a value greater than per device
@@ -335,9 +310,6 @@ class StreamingDataset(Array, IterableDataset):
             ``None``.
         batching_method (str): Which batching method to use, either ``random``, ``stratified``, or
             ``per_stream``. Defaults to ``random``.
-        config_root (str, optional): Streaming configuration root directory, used for collision
-            detection, filelock paths, etc. If ``None``, uses a ``/streaming/`` subdir under your
-            system's temp root. Defaults to ``None``.
     """
 
     def __init__(
@@ -353,6 +325,7 @@ class StreamingDataset(Array, IterableDataset):
         validate_hash: Optional[str] = None,
         keep_zip: bool = False,
         allow_unsafe_types: bool = False,
+        config_root: Optional[str] = None,
         predownload: Optional[int] = None,
         cache_limit: Optional[Union[int, str]] = None,
         sampling_method: str = 'balanced',
@@ -365,24 +338,23 @@ class StreamingDataset(Array, IterableDataset):
         shuffle_seed: int = 9176,
         shuffle_block_size: Optional[int] = None,
         batching_method: str = 'random',
-        config_root: Optional[str] = None,
     ) -> None:
         # Global arguments (which do not live in Streams).
+        self.config_root = self._get_config_root(config_root)
         self.predownload = self._get_predownload(predownload, batch_size)
         self.cache_limit = self._get_cache_limit(cache_limit)
         self.sampling_method = self._get_sampling_method(sampling_method)
         self.sampling_granularity = self._get_sampling_granularity(sampling_granularity)
         self.partition_algo = self._get_partition_algo(partition_algo)
-        self.num_canonical_nodes = num_canonical_nodes
+        self.input_num_canonical_nodes = num_canonical_nodes
+        self.num_canonical_nodes: int
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.shuffle_algo = self._get_shuffle_algo(shuffle_algo)
         self.shuffle_seed = self._get_shuffle_seed(shuffle_seed)
-        self.shuffle_block_size = shuffle_block_size
+        self.input_shuffle_block_size = shuffle_block_size
+        self.shuffle_block_size: int
         self.batching_method = self._get_batching_method(batching_method)
-
-        self.config_root = config_root or _get_default_config_root()
-        _test_config_root(self.config_root)
 
         # Initialize initial_physical_nodes to None. If we are resuming, then we will set it to the
         # number of physical nodes of the initial run in the _resume function.
@@ -577,6 +549,38 @@ class StreamingDataset(Array, IterableDataset):
         del self._shared_barrier.lock  # Remote the lock that makes it unpickleable.
 
     @classmethod
+    def _test_config_root(cls, config_root: str) -> None:
+        """Validate that the provided config root is usable.
+
+        If you are unable to get root or 777 perms, you may encounter problems in registering your
+        Streaming jobs for collision detection, getting unique interprocess filelock paths, etc.
+        You can sort of get around this by changing config root to a directory you control, but
+        this may negatively impact collision detection.
+
+        Args:
+            config_root (str): Streaming configuration root directory.
+        """
+        os.makedirs(config_root, exist_ok=True)
+        filename = os.path.join(config_root, 'test.txt')
+        try:
+            with open(filename, 'wb') as out:
+                out.write(b'')
+        except:
+            raise ValueError('Please provide a `config_root` dir that is writeable and readable.')
+
+    @classmethod
+    def _get_config_root(cls, config_root: Optional[str]) -> str:
+        """Get the default Streaming configuration root directory.
+
+        Args:
+            config_root (str, optional): Config root, if explicitly provided.
+
+        Returns:
+            str: Streaming configuration root directory.
+        """
+        return os.path.join(gettempdir(), 'streaming')
+
+    @classmethod
     def _get_predownload(cls, predownload: Optional[int], batch_size: Optional[int]) -> int:
         if predownload is not None:
             if batch_size is not None and predownload < batch_size:
@@ -605,9 +609,7 @@ class StreamingDataset(Array, IterableDataset):
         Returns:
             int, optional: Normalized cache limit.
         """
-        if cache_limit is None:
-            norm_cache_limit = cache_limit
-        else:
+        if cache_limit is not None:
             if isinstance(cache_limit, str):
                 norm_cache_limit = bytes_to_int(cache_limit)
             else:
@@ -615,6 +617,8 @@ class StreamingDataset(Array, IterableDataset):
             if norm_cache_limit <= 0:
                 raise ValueError(f'Cache limit, if set, must be positive, but got: ' +
                                  f'{cache_limit} -> {norm_cache_limit}.')
+        else:
+            norm_cache_limit = cache_limit
         return norm_cache_limit
 
     @classmethod
@@ -671,6 +675,39 @@ class StreamingDataset(Array, IterableDataset):
         return partition_algo
 
     @classmethod
+    def _get_num_canonical_nodes(cls, num_canonical_nodes: Optional[int], shuffle_algo: str,
+                                 world: World) -> int:
+        """Get num canonical nodes.
+
+        This method is called upon resume() (from iter) -- not init -- by some 2 of 3 code paths,
+        while the last one sets num canonical nodes directly from checkpoint state.
+
+        Args:
+            num_canonical_nodes (int, optional): Input num canonical nodes.
+            shuffle_algo (str): Shuffle algo.
+            world (World): Our place in the world.
+
+        Returns:
+            int: Normalized num canonical nodes.
+        """
+        if num_canonical_nodes is not None:
+            if num_canonical_nodes < 1:
+                raise ValueError('`num_canonical_nodes`, if provided, must be a positive integer.')
+            norm_num_canonical_nodes = num_canonical_nodes
+        else:
+            if shuffle_algo in {'py1s', 'py2s'}:
+                norm_num_canonical_nodes = 64 * world.num_nodes
+            else:
+                if world.is_local_leader:
+                    logger.warning(
+                        f'Because `num_canonical_nodes` was not specified, and `shuffle_algo` ' +
+                        f'is {shuffle_algo}, it will default to be equal to the number of ' +
+                        f'physical nodes. Prior to Streaming v0.7.0, `num_canonical_nodes` ' +
+                        f'defaulted to `64 * physical nodes`.')
+                norm_num_canonical_nodes = world.num_nodes
+        return norm_num_canonical_nodes
+
+    @classmethod
     def _get_shuffle_algo(cls, shuffle_algo: str) -> str:
         """Get shuffle algo.
 
@@ -709,6 +746,33 @@ class StreamingDataset(Array, IterableDataset):
                              f'{shuffle_seed}.')
 
         return shuffle_seed
+
+    @classmethod
+    def _get_shuffle_block_size(cls, shuffle_block_size: Optional[int], num_canonical_nodes: int,
+                                world: World) -> int:
+        """Get shuffle block size.
+
+        This method is called upon resume() (from iter) -- not init -- because resuming sets the
+        official number of canonical nodes, which we depend on.
+
+        Args:
+            shuffle_block_size (int, optional): Input shuffle block size.
+            num_canonical_nodes (int): Number of canonical nodes.
+            world (World): Our place in the world.
+
+        Returns:
+            int: Normalized shuffle block size.
+        """
+        if shuffle_block_size is not None:
+            norm_shuffle_block_size = shuffle_block_size
+        else:
+            if world.is_local_leader:
+                logger.warning(f'Because `shuffle_block_size` was not specified, it will ' +
+                               f'default to `max(4_000_000 // num_canonical_nodes, 1 << 18)` if ' +
+                               f'`num_canonical_nodes` is not None, otherwise 262144. Prior to ' +
+                               f'Streaming v0.7.0, `shuffle_block_size` defaulted to 262144.')
+            norm_shuffle_block_size = max(4_000_000 // num_canonical_nodes, 1 << 18)
+        return norm_shuffle_block_size
 
     @classmethod
     def _get_batching_method(cls, batching_method: str) -> str:
@@ -781,17 +845,6 @@ class StreamingDataset(Array, IterableDataset):
         """
         return self.length
 
-    def _set_shuffle_block_size(self, world: World):
-        """Set the shuffle block size value."""
-        if self.shuffle_block_size is None:
-            if not world.worker_of_rank:
-                logger.warning(f'Because `shuffle_block_size` was not specified, it will ' +
-                               f'default to max(4_000_000 // num_canonical_nodes, 1 << 18) if ' +
-                               f'num_canonical_nodes is not None, otherwise 262144. Prior to ' +
-                               f'Streaming v0.7.0, `shuffle_block_size` defaulted to 262144.')
-            self.shuffle_block_size = max(4_000_000 // self.num_canonical_nodes, 1 << 18) \
-                if self.num_canonical_nodes is not None else 1 << 18
-
     def _resume(self, world: World, epoch: int) -> Tuple[int, int]:
         """Either resume from checkpoint or start at the beginning.
 
@@ -808,20 +861,10 @@ class StreamingDataset(Array, IterableDataset):
             shm = SharedMemory(name=name, create=False)
         except FileNotFoundError:
             # There is nothing to resume.
-            if not self.num_canonical_nodes:
-                if self.shuffle_algo in ['py1s', 'py2s']:
-                    self.num_canonical_nodes = 64 * world.num_nodes
-                else:
-                    if not world.worker_of_rank:
-                        print('yo we are here!!!!!')
-                        logger.warning(
-                            f'Because `num_canonical_nodes` was not specified, and ' +
-                            f'`shuffle_algo` is {self.shuffle_algo}, it will default to ' +
-                            f'be equal to physical nodes. Prior to Streaming ' +
-                            f'v0.7.0, `num_canonical_nodes` defaulted to 64 * physical ' +
-                            f'nodes.')
-                    self.num_canonical_nodes = world.num_nodes
-            self._set_shuffle_block_size(world)
+            self.num_canonical_nodes = self._get_num_canonical_nodes(
+                self.input_num_canonical_nodes, self.shuffle_algo, world)
+            self.shuffle_block_size = self._get_shuffle_block_size(self.input_shuffle_block_size,
+                                                                   self.num_canonical_nodes, world)
             return epoch, 0
 
         # SharedMemory buffers may contain additional null bytes at the end.
@@ -832,30 +875,22 @@ class StreamingDataset(Array, IterableDataset):
 
         # Check if the resume state is stale.
         if obj['epoch'] < epoch:
-            if not self.num_canonical_nodes:
-                if self.shuffle_algo in ['py1s', 'py2s']:
-                    self.num_canonical_nodes = 64 * world.num_nodes
-                else:
-                    if not world.worker_of_rank:
-                        logger.warning(
-                            f'Because `num_canonical_nodes` was not specified, and ' +
-                            f'`shuffle_algo` is {self.shuffle_algo}, it will default to ' +
-                            f'be equal to physical nodes. Prior to Streaming ' +
-                            f'v0.7.0, `num_canonical_nodes` defaulted to 64 * physical ' +
-                            f'nodes.')
-                    self.num_canonical_nodes = world.num_nodes
-            self._set_shuffle_block_size(world)
+            self.num_canonical_nodes = self._get_num_canonical_nodes(
+                self.input_num_canonical_nodes, self.shuffle_algo, world)
+            self.shuffle_block_size = self._get_shuffle_block_size(self.input_shuffle_block_size,
+                                                                   self.num_canonical_nodes, world)
             return epoch, 0
 
         # Load the correct resumption meta data.
         epoch = obj['epoch']
         sample_in_epoch = obj['sample_in_epoch']
-        self.num_canonical_nodes = obj['num_canonical_nodes']
         self.shuffle_seed = obj['shuffle_seed']
         # Ensure that we are backwards compatible with old checkpoint dataset state, since the
         # 'initial_physical_nodes' key may not be present.
-        self.initial_physical_nodes = obj.get('initial_physical_nodes', None)
-        self._set_shuffle_block_size(world)
+        self.initial_physical_nodes = obj.get('initial_physical_nodes')
+        self.num_canonical_nodes = obj['num_canonical_nodes']
+        self.shuffle_block_size = self._get_shuffle_block_size(self.input_shuffle_block_size,
+                                                               self.num_canonical_nodes, world)
 
         return epoch, sample_in_epoch
 
