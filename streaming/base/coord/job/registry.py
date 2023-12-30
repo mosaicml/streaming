@@ -12,9 +12,9 @@ from shutil import rmtree
 from time import sleep, time_ns
 from typing import Dict, List, Sequence, Tuple
 
-from filelock import FileLock
 from psutil import process_iter
 
+from streaming.base.coord.file import file_lock
 from streaming.base.coord.job.entry import JobEntry
 from streaming.base.coord.job.file import JobFile
 from streaming.base.coord.world import World
@@ -37,7 +37,7 @@ class JobRegistry:
     def __init__(self, config_root: str, tick: float = 0.007) -> None:
         self.config_root = config_root
         self._tick = tick
-        self._filelock_filename = os.path.join(config_root, 'filelock.bin')
+        self._lock_filename = os.path.join(config_root, 'registry.lock')
         self._registry_filename = os.path.join(config_root, 'registry.json')
 
     def _get_live_procs(self) -> Dict[int, int]:
@@ -143,7 +143,7 @@ class JobRegistry:
         dirname = os.path.join(self.config_root, job_hash)
         while True:
             sleep(self._tick)
-            with FileLock(self._filelock_filename):
+            with file_lock(self._lock_filename):
                 if os.path.exists(dirname):
                     break
 
@@ -156,7 +156,7 @@ class JobRegistry:
         dirname = os.path.join(self.config_root, job_hash)
         while True:
             sleep(self._tick)
-            with FileLock(self._filelock_filename):
+            with file_lock(self._lock_filename):
                 if not os.path.exists(dirname):
                     break
 
@@ -188,7 +188,7 @@ class JobRegistry:
                          process_id=pid,
                          register_time=register_time)
 
-        with FileLock(self._filelock_filename):
+        with file_lock(self._lock_filename):
             reg = JobFile.read(self._registry_filename)
             reg.add(entry)
             del_job_hashes = reg.filter(pid2create_time)
@@ -245,7 +245,7 @@ class JobRegistry:
         """
         pid2create_time = self._get_live_procs()
 
-        with FileLock(self._filelock_filename):
+        with file_lock(self._lock_filename):
             reg = JobFile.read(self._registry_filename)
             reg.remove(job_hash)
             del_job_hashes = reg.filter(pid2create_time)
