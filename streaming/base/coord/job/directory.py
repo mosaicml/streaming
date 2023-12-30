@@ -4,7 +4,6 @@
 """A directory containing all dataset-wide filesystem state for a Streaming job."""
 
 import os
-from pathlib import Path
 from typing import Sequence
 
 from streaming.base.coord.job.registry import JobRegistry
@@ -33,7 +32,6 @@ class JobDirectory:
         self.streams = streams
         self.world = world
         self.job_hash = registry.register(streams, world)
-        self.dirname = Path(os.path.join(registry.config_root, self.job_hash))
 
     def get_filename(self, path: str) -> str:
         """Get a filename by relative path under its job dir.
