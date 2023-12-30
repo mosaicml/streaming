@@ -428,10 +428,10 @@ class StreamingDataset(Array, IterableDataset):
 
         # Check that predownload is at least per device batch size, and set it if currently `None`.
         if self.predownload is not None and self.batch_size is not None and \
-            self.predownload < self.batch_size:
+                self.predownload < self.batch_size:
             warnings.warn(f'predownload < batch_size ({self.predownload} < {self.batch_size}).' +
-                          f'This may result in slower batch time. Recommendation is to set ' +
-                          f'predownload to at-least batch_size.')
+                          f'This may result in slower batch time. The recommendation is to set ' +
+                          f'predownload to at least batch_size.')
         elif self.predownload is None:
             logger.warning(f'Because `predownload` was not specified, it will default to ' +
                            f'8*batch_size if batch_size is not None, otherwise 64. Prior to ' +
