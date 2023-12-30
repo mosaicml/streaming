@@ -24,9 +24,21 @@ def acquire_file_lock(filename: str, timeout: Optional[float] = 60, tick: float 
 
     while True:
         try:
-            file = open(filename, 'xb', 0)
-            file.close()
+            text = str(os.getpid())
+            with open(filename, 'x') as file:
+                file.write(text)
             break
+        except:
+            pass
+
+        try:
+            with open(filename, 'r') as file:
+                text = file.read()
+            pid = int(text)
+
+            if pid != os.getpid():
+                os.remove(filename)
+                continue
         except:
             pass
 

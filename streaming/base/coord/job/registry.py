@@ -232,7 +232,7 @@ class JobRegistry:
             job_hash = self._register(streams)
         else:
             job_hash = self._lookup(streams)
-        self._wait_for_existence(job_hash)
+            self._wait_for_existence(job_hash)
         return job_hash
 
     def _unregister(self, job_hash: str) -> None:
@@ -265,5 +265,4 @@ class JobRegistry:
         if world.is_local_leader:
             self._unregister(job_hash)
         else:
-            pass
-        self._wait_for_removal(job_hash)
+            self._wait_for_removal(job_hash)
