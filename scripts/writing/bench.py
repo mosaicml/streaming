@@ -10,7 +10,7 @@ from collections import defaultdict
 from functools import partial
 from shutil import rmtree
 from time import time
-from typing import Dict, Iterable, List, Optional, Tuple, TypeVar
+from typing import Any, Dict, Iterable, List, Optional, Tuple, TypeVar
 
 import lance
 import numpy as np
@@ -259,7 +259,7 @@ def _write_csv(nums: List[int],
                txts: List[str],
                root: str,
                size_limit: Optional[int],
-               show_progress: bool = True) -> None:
+               show_progress: bool = True) -> Dict[str, Any]:
     """Save the dataset in Streaming CSV form.
 
     Args:
@@ -291,7 +291,7 @@ def _write_jsonl(nums: List[int],
                  txts: List[str],
                  root: str,
                  size_limit: Optional[int],
-                 show_progress: bool = True) -> None:
+                 show_progress: bool = True) -> Dict[str, Any]:
     """Save the dataset Streaming JSON form.
 
     Args:
@@ -323,7 +323,7 @@ def _write_mds(nums: List[int],
                txts: List[str],
                root: str,
                size_limit: Optional[int],
-               show_progress: bool = True) -> None:
+               show_progress: bool = True) -> Dict[str, Any]:
     """Save the dataset in Streaming MDS form.
 
     Args:

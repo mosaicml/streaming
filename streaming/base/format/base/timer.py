@@ -206,7 +206,7 @@ class Timer:
                 part = timer['stats']['total']
                 timer['stats']['frac_of_parts'] = part / sum_of_parts
 
-            obj['named_timers'] = named_timers
+            obj['named_timers'] = named_timers  # pyright: ignore
 
         return obj
 
