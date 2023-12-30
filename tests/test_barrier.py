@@ -22,21 +22,21 @@ class TestSharedBarrier:
         barrier = SharedBarrier(filelock_path, shm_name)
         assert isinstance(barrier._arr, SharedArray)
         assert barrier._arr.shape == (3,)
-        assert barrier.num_enter == 0
-        assert barrier.num_exit == -1
-        assert barrier.flag is True
+        assert barrier._num_enter == 0
+        assert barrier._num_exit == -1
+        assert barrier._flag is True
 
     @pytest.mark.parametrize('num_enter', [3, 10])
     @pytest.mark.parametrize('num_exit', [4, 9])
     @pytest.mark.parametrize('flag', [True, False])
     def test_setter_getter(self, num_enter: int, num_exit: int, flag: bool):
         barrier = SharedBarrier('/tmp/dir/filelock_path', 'barrier_shm_name')
-        barrier.num_enter = num_enter
-        assert barrier.num_enter == num_enter
-        barrier.num_exit = num_exit
-        assert barrier.num_exit == num_exit
-        barrier.flag = flag
-        assert barrier.flag == flag
+        barrier._num_enter = num_enter
+        assert barrier._num_enter == num_enter
+        barrier._num_exit = num_exit
+        assert barrier._num_exit == num_exit
+        barrier._flag = flag
+        assert barrier._flag == flag
 
     def run(self, num_process: int, barrier: Any, shared_list: ListProxy):
         sleep(random())
