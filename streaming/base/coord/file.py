@@ -72,7 +72,8 @@ class SoftFileLock:
         """
         # Ensure the file's parent directory exists so we can write it in one shot.
         dirname = os.path.dirname(filename)
-        os.makedirs(dirname, exist_ok=True)
+        if dirname:
+            os.makedirs(dirname, exist_ok=True)
 
         # If no file, we don't need to do anything.
         if not os.path.exists(filename):
