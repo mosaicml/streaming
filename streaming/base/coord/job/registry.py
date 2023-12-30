@@ -14,7 +14,7 @@ from typing import Dict, List, Sequence, Tuple
 
 from psutil import process_iter
 
-from streaming.base.coord.file import file_lock
+from streaming.base.coord.file import SoftFileLock
 from streaming.base.coord.job.entry import JobEntry
 from streaming.base.coord.job.file import JobFile
 from streaming.base.coord.world import World
@@ -38,6 +38,7 @@ class JobRegistry:
         self.config_root = config_root
         self._tick = tick
         self._lock_filename = os.path.join(config_root, 'registry.lock')
+        self._lock = SoftFileLock(self._lock_filename)
         self._registry_filename = os.path.join(config_root, 'registry.json')
 
     def _get_live_procs(self) -> Dict[int, int]:
@@ -143,7 +144,7 @@ class JobRegistry:
         dirname = os.path.join(self.config_root, job_hash)
         while True:
             sleep(self._tick)
-            with file_lock(self._lock_filename):
+            with self._lock:
                 if os.path.exists(dirname):
                     break
 
@@ -156,7 +157,7 @@ class JobRegistry:
         dirname = os.path.join(self.config_root, job_hash)
         while True:
             sleep(self._tick)
-            with file_lock(self._lock_filename):
+            with self._lock:
                 if not os.path.exists(dirname):
                     break
 
@@ -188,7 +189,7 @@ class JobRegistry:
                          process_id=pid,
                          register_time=register_time)
 
-        with file_lock(self._lock_filename):
+        with self._lock:
             reg = JobFile.read(self._registry_filename)
             reg.add(entry)
             del_job_hashes = reg.filter(pid2create_time)
@@ -245,7 +246,7 @@ class JobRegistry:
         """
         pid2create_time = self._get_live_procs()
 
-        with file_lock(self._lock_filename):
+        with self._lock:
             reg = JobFile.read(self._registry_filename)
             reg.remove(job_hash)
             del_job_hashes = reg.filter(pid2create_time)
