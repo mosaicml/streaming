@@ -23,13 +23,10 @@ from torch.utils.data import IterableDataset
 
 from streaming.base.array import Array
 from streaming.base.batching import generate_work
-from streaming.base.constant import (BARRIER, BARRIER_FILELOCK, CACHE_FILELOCK, CACHE_USAGE,
-                                     EPOCH_DATA, EPOCH_SHAPE, NEXT_EPOCH, RESUME,
-                                     SHARD_ACCESS_TIMES, SHARD_STATES, TICK)
+from streaming.base.constant import TICK
 from streaming.base.coord.file import SoftFileLock
 from streaming.base.coord.job import JobDirectory, JobRegistry
-from streaming.base.coord.shmem import (SharedArray, SharedBarrier, SharedMemory, SharedScalar,
-                                        _get_path)
+from streaming.base.coord.mmap import MMapArray, MMapBarrier, MMapNumber
 from streaming.base.coord.world import World
 from streaming.base.format import get_index_basename
 from streaming.base.sampling import get_sampling
@@ -469,44 +466,52 @@ class StreamingDataset(Array, IterableDataset):
 
         # Register/lookup our shared memory prefix and filelock root directory.
         self.registry = JobRegistry(self.config_root)
-        self.job = JobDirectory(self.registry, streams, world)
-        self._shm_prefix_int = int(self.job.job_hash, 16)
+        self.job = job = JobDirectory(self.registry, streams, world)
 
         init_done_filename = self.job.get_filename('init_done.txt')
         if world.is_local_leader:
             if os.path.exists(init_done_filename):
                 os.remove(init_done_filename)
 
-        self._filelock_root = os.path.join(self.config_root, self.job.job_hash)
-        os.makedirs(self._filelock_root, exist_ok=True)
+        mode = 'create' if world.is_local_leader else 'attach'
 
-        # Create the shared memory-backed barrier, without its lock, which is unpickleable.
-        self._shared_barrier = SharedBarrier(self.job.get_filename(BARRIER_FILELOCK),
-                                             _get_path(self._shm_prefix_int, BARRIER))
+        # Worker barrier.
+        self._worker_barrier = MMapBarrier(mode=mode,
+                                           mmap_filename=job.get_filename('worker_barrier.npy'),
+                                           lock_filename=job.get_filename('worker_barrier.lock'))
 
         # Epoch counter.
         #
         # Note: we do not assume that the end of __iter__() will ever be reached, so we need to
         # increment the epoch counter at the start of __iter__() instead of at the end, so we need
         # to track what the next epoch is, not the current epoch.
-        self._next_epoch = SharedScalar(np.int64, _get_path(self._shm_prefix_int, NEXT_EPOCH))
+        self._next_epoch = MMapNumber(mode=mode,
+                                      filename=job.get_filename('epoch.npy'),
+                                      dtype=np.int64())
 
-        # Cache filelock. Protects downloading and evicting shards.
-        filename = self.job.get_filename(CACHE_FILELOCK)
-        self._cache_lock = SoftFileLock(filename)
+        # Cache filelock.
+        #
+        # Protects downloading and evicting shards.
+        self._cache_lock = SoftFileLock(job.get_filename('cache.lock'))
 
         # Cache usage in bytes.
-        self._cache_usage = SharedScalar(np.int64, _get_path(self._shm_prefix_int, CACHE_USAGE))
+        self._cache_usage = MMapNumber(mode=mode,
+                                       filename=job.get_filename('cache_usage.npy'),
+                                       dtype=np.int64())
 
         # Shard states array. Tells if a shard is missing, downloading, or present (eviction
         # happens under the lock).
-        self._shard_states = SharedArray(self.num_shards, np.uint8,
-                                         _get_path(self._shm_prefix_int, SHARD_STATES))
+        self._shard_states = MMapArray(mode=mode,
+                                       filename=job.get_filename('shard_states.npy'),
+                                       shape=self.num_shards,
+                                       dtype=np.uint8())
 
         # Time of last access per shard. This is used to decide which shard(s) to evict when we run
         # out of space.
-        self._shard_access_times = SharedArray(self.num_shards, np.uint64,
-                                               _get_path(self._shm_prefix_int, SHARD_ACCESS_TIMES))
+        self._shard_access_times = MMapArray(mode=mode,
+                                             filename=job.get_filename('shard_access_times.npy'),
+                                             shape=self.num_shards,
+                                             dtype=np.uint64())
 
         # Initialize shared memory objects.
         if world.is_local_leader:
@@ -532,22 +537,16 @@ class StreamingDataset(Array, IterableDataset):
                 self._shard_states[shard_id] = _ShardState.LOCAL if size else _ShardState.REMOTE
                 self._shard_access_times[shard_id] = time_ns()
 
-            dirname = os.path.dirname(init_done_filename)
-            os.makedirs(dirname, exist_ok=True)
-            with open(init_done_filename, 'wb') as out:
-                out.write(b'')
+            with open(init_done_filename, 'x'):
+                pass
         else:
             wait_for_file_to_exist(init_done_filename, TICK, 300,
                                    'Waited too long for initialization')
 
-        # Placeholder for a shared memory object where load_state_dict() saves its data to be
-        # picked up by __iter__().
-        self._resume_shm: SharedMemory
-
         # Placeholder for an _Iterator which tracks state during __iter__().
         self._iterator: _Iterator
 
-        # For exception handling in __iter__ threads.
+        # Placeholder for exception handling in __iter__ threads.
         self._executor: ThreadPoolExecutor
         self._event: Event
 
@@ -820,7 +819,7 @@ class StreamingDataset(Array, IterableDataset):
         Args:
             next_epoch (int): Next epoch.
         """
-        self._next_epoch.set(next_epoch)
+        self._next_epoch.set(np.int64(next_epoch))
 
     @property
     def cache_usage(self) -> int:
@@ -838,7 +837,7 @@ class StreamingDataset(Array, IterableDataset):
         Args:
             cache_usage (int): Cache usage in bytes.
         """
-        self._cache_usage.set(cache_usage)
+        self._cache_usage.set(np.int64(cache_usage))
 
     def __len__(self) -> int:
         """Get the length as a PyTorch IterableDataset.
@@ -858,25 +857,17 @@ class StreamingDataset(Array, IterableDataset):
         Returns:
             Tuple[int, int]: What epoch this is, and sample offset in that epoch.
         """
-        # Get the resume state, if it exists.
-        name = _get_path(self._shm_prefix_int, RESUME)
-        try:
-            shm = SharedMemory(name=name, create=False)
-        except FileNotFoundError:
-            # There is nothing to resume.
+        # If there is no checkpoint, bail.
+        filename = self.job.get_filename('checkpoint.json')
+        if not os.path.exists(filename):
             return epoch, 0
 
-        # SharedMemory buffers may contain additional null bytes at the end.
-        buf = bytes(shm.buf)
-        index = buf.find(b'\0')
-        buf = buf[:index] if index != -1 else buf
-        obj = json.loads(buf.decode('utf-8'))
-
-        # Check if the resume state is stale.
+        # If the checkpoint is stale, bail.
+        obj = json.load(open(filename))
         if obj['epoch'] < epoch:
             return epoch, 0
 
-        # Load the correct resumption meta data.
+        # Load from checkpoint.
         epoch = obj['epoch']
         sample_in_epoch = obj['sample_in_epoch']
         self.shuffle_seed = obj['shuffle_seed']
@@ -901,7 +892,7 @@ class StreamingDataset(Array, IterableDataset):
         epoch, sample_in_epoch = self._resume(world, presumed_epoch)
 
         # Wait for everyone to get the epoch above.
-        self._shared_barrier(world.workers_per_node)
+        self._worker_barrier(world.workers_per_node)
 
         # Set the new next epoch.
         if world.is_local_leader:
@@ -959,13 +950,9 @@ class StreamingDataset(Array, IterableDataset):
         Args:
             obj (Dict[str, Any]): The state.
         """
-        name = _get_path(self._shm_prefix_int, RESUME)
-        data = json.dumps(obj, sort_keys=True).encode('utf-8')
-        # Some platforms choose to allocate chunks of memory based upon that platform's memory page
-        # size, hence the exact size of the shared memory block that was returned may be larger
-        # than what was requested.
-        self._resume_shm = SharedMemory(name=name, size=len(data))
-        self._resume_shm.buf[:len(data)] = data
+        filename = self.job.get_filename('checkpoint.json')
+        with open(filename, 'w') as out:
+            json.dump(obj, out, sort_keys=True)
 
     def resample_streams(
             self,
@@ -1044,14 +1031,14 @@ class StreamingDataset(Array, IterableDataset):
         sample_ids = np.concatenate(sample_ids).astype(np.int64)
         return shuffle_units, sample_ids
 
-    def _share_work(self, sample_ids: NDArray[np.int64]) -> Tuple[SharedMemory, SharedMemory]:
+    def _share_work(self, sample_ids: NDArray[np.int64]) -> Tuple[MMapArray, MMapArray]:
         """Put an epoch's sample ordering into shared memory.
 
         Args:
             sample_ids (NDArray[np.int64]): Sample IDs.
 
         Returns:
-            Tuple[SharedMemory, SharedMemory]: Shared memory arrays containing shape and data.
+            Tuple[MMapArray, MMapArray]: Memory-mapped arrays containing shape and data.
         """
         ndim = 5
 
@@ -1062,40 +1049,45 @@ class StreamingDataset(Array, IterableDataset):
                              f'batch size). Instead, found as {sample_ids.ndim}D shape.')
 
         # Save the generated epoch shape to shared memory.
-        name = _get_path(self._shm_prefix_int, EPOCH_SHAPE)
-        size = ndim * np.int64().nbytes
-        shape_shm = SharedMemory(name=name, create=True, size=size, auto_cleanup=False)
-        shape_shm.buf[:size] = np.array(sample_ids.shape, np.int64).tobytes()
+        work_shape = np.asarray(sample_ids.shape, np.int64)
+        work_shape_mmap = MMapArray(mode='create',
+                                    filename=self.job.get_filename('work_shape.npy'),
+                                    shape=work_shape.shape,
+                                    dtype=np.int64())
+        work_shape_mmap[:] = work_shape
+        work_shape_mmap.flush()
 
         # Save the generated epoch data to shared memory.
-        name = _get_path(self._shm_prefix_int, EPOCH_DATA)
-        size = sample_ids.size * np.int64().nbytes
-        data_shm = SharedMemory(name=name, create=True, size=size, auto_cleanup=False)
-        data_shm.buf[:size] = sample_ids.tobytes()
+        work_mmap = MMapArray(mode='create',
+                              filename=self.job.get_filename('work.npy'),
+                              shape=sample_ids.shape,
+                              dtype=np.int64())
+        work_mmap[:] = sample_ids
+        work_mmap.flush()
 
-        return shape_shm, data_shm
+        return work_shape_mmap, work_mmap
 
-    def _attach_work(self) -> Tuple[NDArray[np.int64], SharedMemory, SharedMemory]:
+    def _attach_work(self) -> Tuple[MMapArray, MMapArray]:
         """Get an epoch's sample ordering from shared memory.
 
         Returns:
-            NDArray[np.int64]: Sample IDs.
+            Tuple[MMapArray, MMapArray]: Memory-mapped arrays containing shape and data.
         """
         ndim = 5
 
         # Load the generated epoch shape from shared memory.
-        name = _get_path(self._shm_prefix_int, EPOCH_SHAPE)
-        size = ndim * np.int64().nbytes
-        shape_shm = SharedMemory(name=name, create=False, size=size, auto_cleanup=False)
-        shape = tuple(np.ndarray(5, buffer=shape_shm.buf, dtype=np.int64))
+        work_shape_mmap = MMapArray(mode='attach',
+                                    filename=self.job.get_filename('work_shape.npy'),
+                                    shape=ndim,
+                                    dtype=np.int64())
+        work_shape = tuple(work_shape_mmap.as_array())
 
-        # Attach to the generated epoch data in shared memory.
-        name = _get_path(self._shm_prefix_int, EPOCH_DATA)
-        size = int(np.prod(shape)) * np.int64().nbytes
-        data_shm = SharedMemory(name=name, create=False, size=size, auto_cleanup=False)
-        sample_ids = np.ndarray(shape, buffer=data_shm.buf, dtype=np.int64)
+        work_mmap = MMapArray(mode='attach',
+                              filename=self.job.get_filename('work.npy'),
+                              shape=work_shape,
+                              dtype=np.int64())
 
-        return sample_ids, shape_shm, data_shm
+        return work_shape_mmap, work_mmap
 
     def _get_work(self, world: World, epoch: int, sample_in_epoch: int) -> NDArray[np.int64]:
         """Get this worker's partition of this epoch's sample space.
@@ -1112,22 +1104,34 @@ class StreamingDataset(Array, IterableDataset):
         if world.is_local_leader:
             epoch_sample_ids = generate_work(self.batching_method, self, world, epoch,
                                              sample_in_epoch)
-            shape_shm, data_shm = self._share_work(epoch_sample_ids)
-            self._shared_barrier(world.workers_per_node)
+            work_shape_mmap, work_mmap = self._share_work(epoch_sample_ids)
+            self._worker_barrier(world.workers_per_node)
         else:
-            self._shared_barrier(world.workers_per_node)
-            epoch_sample_ids, shape_shm, data_shm = self._attach_work()
+            self._worker_barrier(world.workers_per_node)
+            work_shape_mmap, work_mmap = self._attach_work()
+            epoch_sample_ids = work_mmap.as_array()
 
         # Each worker gets their portion of the work.
         worker_sample_ids = epoch_sample_ids[world.node, world.rank_of_node,
                                              world.worker_of_rank].flatten()
 
-        self._shared_barrier(world.workers_per_node)
+        # Wait for each worker to extract their slice of the work.
+        self._worker_barrier(world.workers_per_node)
 
-        # Now clean up after ourselves.
-        shape_shm.cleanup()
-        data_shm.cleanup()
+        # Close.
+        if not world.is_local_leader:
+            work_shape_mmap.close()
+            work_mmap.close()
 
+        # Wait for close.
+        self._worker_barrier(world.workers_per_node)
+
+        # Delete.
+        if world.is_local_leader:
+            work_shape_mmap.delete()
+            work_mmap.delete()
+
+        # Proceed, not waiting for delete.
         return worker_sample_ids
 
     def _evict_shard(self, shard_id: int) -> None:
@@ -1164,12 +1168,12 @@ class StreamingDataset(Array, IterableDataset):
         """
         while True:
             # Find the shard with the oldest last access time.
-            shard_id = int(self._shard_access_times.numpy().argmin())
+            shard_id = int(self._shard_access_times.as_array().argmin())
 
             # Check the shard's last access time. If it is NEVER, there are no downloaded shards to
             # evict. If any shards are currently being downloaded, wait, else raise an error.
             if self._shard_access_times[shard_id] == NEVER:
-                if (self._shard_states.numpy() == _ShardState.PREPARING).any():
+                if (self._shard_states.as_array() == _ShardState.PREPARING).any():
                     sleep(TICK)
                     continue
                 else:

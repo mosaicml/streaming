@@ -3,6 +3,7 @@
 
 """Share an array across processes using mmap()."""
 
+import os
 from mmap import mmap
 from typing import Generic, Optional, Tuple, TypeVar, Union
 
@@ -40,8 +41,9 @@ class MMapArray(Generic[DType]):
     ) -> None:
         self.mode = mode
         self.filename = filename
-        self.shape = ensure_file(mode, filename, shape, 1)
+        self.shape = ensure_file(mode, filename, shape, dtype.nbytes)
         self.dtype = dtype
+
         self.file = open(filename, 'r+b', 0)
         self.data = mmap(self.file.fileno(), 0)
 
@@ -82,3 +84,20 @@ class MMapArray(Generic[DType]):
             item (DataType): The item(s).
         """
         self.as_array()[index] = item
+
+    def flush(self) -> None:
+        """Flush the mmap."""
+        self.data.flush()
+
+    def close(self) -> None:
+        """Close the mmap and file handle."""
+        if not self.data.closed:
+            self.data.close()
+
+        if not self.file.closed:
+            self.file.close()
+
+    def delete(self) -> None:
+        """Ensure everything is closed, then delete the file."""
+        self.close()
+        os.remove(self.filename)
