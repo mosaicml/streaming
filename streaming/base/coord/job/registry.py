@@ -38,6 +38,7 @@ class JobRegistry:
         self.config_root = config_root
         self._tick = tick
         self._filelock_filename = os.path.join(config_root, 'filelock.bin')
+        self._filelock: FileLock
         self._registry_filename = os.path.join(config_root, 'registry.json')
 
     def _get_live_procs(self) -> Dict[int, int]:
@@ -116,6 +117,11 @@ class JobRegistry:
 
         return stream_locals, stream_hashes, job_hash
 
+    def _ensure_filelock(self) -> None:
+        """Ensure the lazily-created file lock exists."""
+        if not hasattr(self, '_filelock'):
+            self._filelock = FileLock(self._filelock_filename)
+
     def _make_dir(self, job_hash: str) -> None:
         """Create a Streaming job config dir.
 
@@ -143,7 +149,7 @@ class JobRegistry:
         dirname = os.path.join(self.config_root, job_hash)
         while True:
             sleep(self._tick)
-            with FileLock(self._filelock_filename):
+            with self._filelock:
                 if os.path.exists(dirname):
                     break
 
@@ -156,7 +162,7 @@ class JobRegistry:
         dirname = os.path.join(self.config_root, job_hash)
         while True:
             sleep(self._tick)
-            with FileLock(self._filelock_filename):
+            with self._filelock:
                 if not os.path.exists(dirname):
                     break
 
@@ -173,6 +179,8 @@ class JobRegistry:
         Returns:
             str: Streaming config subdir for this job.
         """
+        self._ensure_filelock()
+
         register_time = time_ns()
         pid2create_time = self._get_live_procs()
         pid = os.getpid()
@@ -188,7 +196,7 @@ class JobRegistry:
                          process_id=pid,
                          register_time=register_time)
 
-        with FileLock(self._filelock_filename):
+        with self._filelock:
             reg = JobFile.read(self._registry_filename)
             reg.add(entry)
             del_job_hashes = reg.filter(pid2create_time)
@@ -243,9 +251,11 @@ class JobRegistry:
         Args:
             job_hash (str): Subdir identifying this Streaming job.
         """
+        self._ensure_filelock()
+
         pid2create_time = self._get_live_procs()
 
-        with FileLock(self._filelock_filename):
+        with self._filelock:
             reg = JobFile.read(self._registry_filename)
             reg.remove(job_hash)
             del_job_hashes = reg.filter(pid2create_time)
