@@ -116,11 +116,6 @@ class JobRegistry:
 
         return stream_locals, stream_hashes, job_hash
 
-    def _ensure_filelock(self) -> None:
-        """Ensure the lazily-created file lock exists."""
-        if not hasattr(self, '_filelock'):
-            self._filelock = FileLock(self._filelock_filename)
-
     def _make_dir(self, job_hash: str) -> None:
         """Create a Streaming job config dir.
 
@@ -178,8 +173,6 @@ class JobRegistry:
         Returns:
             str: Streaming config subdir for this job.
         """
-        self._ensure_filelock()
-
         register_time = time_ns()
         pid2create_time = self._get_live_procs()
         pid = os.getpid()
@@ -250,8 +243,6 @@ class JobRegistry:
         Args:
             job_hash (str): Subdir identifying this Streaming job.
         """
-        self._ensure_filelock()
-
         pid2create_time = self._get_live_procs()
 
         with file_lock(self._lock_filename):
