@@ -1,194 +1,26 @@
 # Copyright 2023 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Streaming job registry: local dir reuse detection."""
+"""A directory containing all Streaming-wide filesystem state.
 
-import json
+Useful for detecting collisions between different jobs' local dirs.
+"""
+
 import os
 from hashlib import sha3_224
 from shutil import rmtree
 from time import sleep, time_ns
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Sequence, Tuple
 
 from filelock import FileLock
 from psutil import process_iter
-from typing_extensions import Self
 
+from streaming.base.coord.job.entry import JobEntry
+from streaming.base.coord.job.file import JobFile
+from streaming.base.coord.world import World
 from streaming.base.stream import Stream
-from streaming.base.world import World
 
-__all__ = ['JobRegistry', 'JobDir']
-
-
-class JobEntry:
-    """Info about a Streaming job for local dir reuse detection purposes.
-
-    Args:
-        index (int, optional): The job's index in the total list.
-        job_hash (str): Job hash.
-        stream_hashes (List[str]): Stream hashes.
-        stream_locals (List[str], optional): Stream locals, if available.
-        process_id (int): PID of local rank zero of the Streaming job.
-        register_time (int): Process registration time.
-    """
-
-    def __init__(
-        self,
-        *,
-        index: Optional[int] = None,
-        job_hash: str,
-        stream_hashes: List[str],
-        stream_locals: Optional[List[str]] = None,
-        process_id: int,
-        register_time: int,
-    ) -> None:
-        self.index = index
-        self.job_hash = job_hash
-        self.stream_hashes = stream_hashes
-        self.stream_locals = stream_locals
-        self.process_id = process_id
-        self.register_time = register_time
-
-    @classmethod
-    def from_json(cls, obj: Dict[str, Any]) -> Self:
-        """Load from JSON.
-
-        Args:
-            obj (Dict[str, Any]): Source JSON object.
-
-        Returns:
-            Self: Loaded JobEntry.
-        """
-        return cls(job_hash=obj['job_hash'],
-                   stream_hashes=obj['stream_hashes'],
-                   stream_locals=obj.get('stream_locals'),
-                   process_id=obj['process_id'],
-                   register_time=obj['register_time'])
-
-    def to_json(self) -> Dict[str, Any]:
-        return {
-            'job_hash': self.job_hash,
-            'stream_hashes': self.stream_hashes,
-            # stream_locals is not saved, only their hashes.
-            'process_id': self.process_id,
-            'register_time': self.register_time,
-        }
-
-
-class JobRegistryFile:
-    """StreamingDataset job registry, which is backed by a JSON file.
-
-    Args:
-        jobs (List[JobEntry]): List of StreamingDataset jobs.
-    """
-
-    def __init__(self, jobs: List[JobEntry]) -> None:
-        self.jobs = []
-        self.job_hash2job = {}
-        self.stream_hash2job = {}
-        self.num_jobs = 0
-        for job in jobs:
-            self.add(job)
-
-    @classmethod
-    def read(cls, filename: str) -> Self:
-        if os.path.exists(filename):
-            obj = json.load(open(filename))
-        else:
-            obj = {}
-        jobs = obj.get('jobs') or []
-        jobs = [JobEntry.from_json(job) for job in jobs]
-        return cls(jobs)
-
-    def write(self, filename: str) -> None:
-        jobs = [job.to_json() for job in filter(bool, self.jobs)]
-        obj = {'jobs': jobs}
-        with open(filename, 'w') as out:
-            json.dump(obj, out)
-
-    def __len__(self) -> int:
-        """Get the number of jobs registered.
-
-        Returns:
-            int: Number of registered jobs.
-        """
-        return self.num_jobs
-
-    def add(self, job: JobEntry) -> None:
-        """Register a Stremaing job.
-
-        Args:
-            job (Job): The job.
-        """
-        # Check that stream locals line up.
-        if job.stream_locals:
-            if len(job.stream_hashes) != len(job.stream_locals):
-                raise ValueError(f'If locals are provided, must have one local per stream hash, ' +
-                                 f'but got: {len(job.stream_hashes)} hashes vs ' +
-                                 f'{len(job.stream_locals)} locals.')
-            norm_stream_locals = job.stream_locals
-        else:
-            norm_stream_locals = [None] * len(job.stream_hashes)
-
-        # Check dataset hash for reuse.
-        if job.job_hash in self.job_hash2job:
-            if job.stream_locals:
-                raise ValueError(f'Reused dataset local path(s): {job.stream_locals}.')
-            else:
-                raise ValueError(f'Reused dataset local path(s): stream hashes = ' +
-                                 f'{job.stream_hashes}, dataset hash = {job.job_hash}.')
-
-        # Check each stream hash for reuse.
-        for stream_hash, norm_stream_local in zip(job.stream_hashes, norm_stream_locals):
-            if stream_hash in self.stream_hash2job:
-                if norm_stream_local:
-                    raise ValueError('Reused stream local path: {norm_stream_local}.')
-                else:
-                    raise ValueError('Reused stream local path: stream hash = {stream_hash}.')
-
-        # Do the insertion.
-        job.index = len(self.jobs)
-        self.jobs.append(job)
-        self.job_hash2job[job.job_hash] = job
-        for stream_hash in job.stream_hashes:
-            self.stream_hash2job[stream_hash] = job
-        self.num_jobs += 1
-
-    def remove(self, job_hash: str) -> None:
-        """Deregister a Streaming job.
-
-        Args:
-            job_hash (str): Job hash.
-        """
-        job = self.job_hash2job.get(job_hash)
-        if not job:
-            raise ValueError(f'Job hash not found: {job_hash}.')
-
-        if job.index is None:
-            raise ValueError('Internal error in job registration: job index is missing.')
-
-        self.jobs[job.index] = None
-        del self.job_hash2job[job.job_hash]
-        for stream_hash in job.stream_hashes:
-            del self.stream_hash2job[stream_hash]
-        self.num_jobs -= 1
-
-    def filter(self, pid2create_time: Dict[int, int]) -> List[str]:
-        """Filter our collection of Streaming jobs.
-
-        Args:
-            pid2create_time (Dict[int, int]): Mapping of pid to creation time.
-
-        Returns:
-            List[str]: List of hashes of removed datasets.
-        """
-        del_job_hashes = []
-        for job in filter(bool, self.jobs):
-            create_time = pid2create_time.get(job.process_id)
-            if not create_time or job.register_time < create_time:
-                self.remove(job.job_hash)
-                del_job_hashes.append(job.job_hash)
-        return del_job_hashes
+__all__ = ['JobRegistry']
 
 
 class JobRegistry:
@@ -203,6 +35,7 @@ class JobRegistry:
     """
 
     def __init__(self, config_root: str, tick: float = 0.007) -> None:
+        os.makedirs(config_root, exist_ok=True)
         self.config_root = config_root
         self._tick = tick
         self._filelock_filename = os.path.join(config_root, 'filelock.bin')
@@ -357,7 +190,7 @@ class JobRegistry:
                          register_time=register_time)
 
         with FileLock(self._filelock_filename):
-            reg = JobRegistryFile.read(self._registry_filename)
+            reg = JobFile.read(self._registry_filename)
             reg.add(entry)
             del_job_hashes = reg.filter(pid2create_time)
             reg.write(self._registry_filename)
@@ -414,7 +247,7 @@ class JobRegistry:
         pid2create_time = self._get_live_procs()
 
         with FileLock(self._filelock_filename):
-            reg = JobRegistryFile.read(self._registry_filename)
+            reg = JobFile.read(self._registry_filename)
             reg.remove(job_hash)
             del_job_hashes = reg.filter(pid2create_time)
             reg.write(self._registry_filename)
@@ -435,39 +268,3 @@ class JobRegistry:
         else:
             pass
         self._wait_for_removal(job_hash)
-
-
-class JobDir:
-    """Represents a Streaming job lease. On ``__del__``, cleans up after itself.
-
-    When it goes out of scope naturally, this Job will delete its config dir and its hold on all
-    the local dirs it is streaming to.
-
-    If this process dies badly and the destructor is not reached, the same cleanup will be done by
-    some future process incidentally as it registers or unregisters a Streaming job. It can tell it
-    died by a combination of pid and process create time.
-
-    Args:
-        registry (JobRegistry): Stremaing job registry.
-    """
-
-    def __init__(self, registry: JobRegistry, streams: Sequence[Stream], world: World) -> None:
-        self.registry = registry
-        self.streams = streams
-        self.world = world
-        self.job_hash = registry.register(streams, world)
-
-    def get_filename(self, path: str) -> str:
-        """Get a filename by relative path under its job dir.
-
-        Args:
-            path (str): Path relative to job dir.
-
-        Returns:
-            str: Filename.
-        """
-        return os.path.join(self.registry.config_root, self.job_hash, path)
-
-    def __del__(self) -> None:
-        """Destructor."""
-        self.registry.unregister(self.job_hash, self.world)

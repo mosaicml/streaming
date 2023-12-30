@@ -105,6 +105,7 @@ class SimulationDataset(StreamingDataset):
     """
 
     def __init__(self,
+                 *,
                  nodes: int,
                  devices: int,
                  workers: int,

@@ -11,9 +11,9 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray
 
+from streaming.base.coord.world import World
 from streaming.base.partition import get_partitions
 from streaming.base.shuffle import get_shuffle
-from streaming.base.world import World
 
 if TYPE_CHECKING:
     from streaming.base.dataset import StreamingDataset

@@ -26,14 +26,15 @@ from streaming.base.array import Array
 from streaming.base.batching import generate_work
 from streaming.base.constant import (BARRIER, CACHE_FILELOCK, CACHE_USAGE, EPOCH_DATA, EPOCH_SHAPE,
                                      NEXT_EPOCH, RESUME, SHARD_ACCESS_TIMES, SHARD_STATES, TICK)
+from streaming.base.coord.job import JobDirectory, JobRegistry
+from streaming.base.coord.shmem import (SharedArray, SharedBarrier, SharedMemory, SharedScalar,
+                                        _get_path)
+from streaming.base.coord.world import World
 from streaming.base.format import get_index_basename
-from streaming.base.interproc.registry import JobDir, JobRegistry
 from streaming.base.sampling import get_sampling
-from streaming.base.shared import SharedArray, SharedBarrier, SharedMemory, SharedScalar, _get_path
 from streaming.base.spanner import Spanner
 from streaming.base.stream import Stream
 from streaming.base.util import bytes_to_int, number_abbrev_to_int, wait_for_file_to_exist
-from streaming.base.world import World
 
 # An arbitrary time in the future, used for cold shard eviction.
 NEVER = np.iinfo(np.uint64).max
@@ -539,7 +540,7 @@ class StreamingDataset(Array, IterableDataset):
 
         # Register/lookup our shared memory prefix and filelock root directory.
         self.registry = JobRegistry(config_root)
-        self.job_dir = JobDir(self.registry, streams, world)
+        self.job_dir = JobDirectory(self.registry, streams, world)
         self._shm_prefix_int = int(self.job_dir.job_hash, 16)
 
         init_done_filename = self.job_dir.get_filename('init_done.txt')
