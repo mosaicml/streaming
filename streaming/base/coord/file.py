@@ -6,7 +6,7 @@
 import os
 from time import sleep, time
 from types import TracebackType
-from typing import Optional, Type
+from typing import Optional, Type, Union
 
 from typing_extensions import Self
 
@@ -21,11 +21,11 @@ class SoftFileLock:
     Args:
         filename (str): Path to lock.
         timeout (float, optional): How long to wait in seconds before raising an exception.
-            Defaults to ``10``.
+            Set to ``None`` to never time out. Defaults to ``30``.
         tick (float): Polling interval in seconds. Defaults to ``0.007``.
     """
 
-    def __init__(self, filename: str, timeout: Optional[float] = 10, tick: float = 0.007) -> None:
+    def __init__(self, filename: str, timeout: Optional[float] = 30, tick: float = 0.007) -> None:
         if not filename:
             raise ValueError('Path to file lock is empty.')
 
@@ -41,14 +41,11 @@ class SoftFileLock:
         self.timeout = timeout
         self.tick = tick
 
-        self._garbage_collect(filename)
-
-        dirname = os.path.dirname(filename)
-        os.makedirs(dirname, exist_ok=True)
+        self._normalize(filename)
 
     @classmethod
-    def _set_pid(cls, filename: str, pid: int) -> None:
-        """Set the locking process's pid.
+    def _write(cls, filename: str, pid: int) -> None:
+        """Write the locking process's pid.
 
         Args:
             filename (str): Path to lock.
@@ -57,59 +54,89 @@ class SoftFileLock:
             file.write(str(pid))
 
     @classmethod
-    def _get_pid(cls, filename: str) -> int:
-        """Get the locking process's pid.
+    def _read(cls, filename: str) -> int:
+        """Read the locking process's pid.
 
         Args:
             filename (str): Path to lock.
         """
         with open(filename, 'r') as file:
-            text = file.read()
-        return int(text)
+            return int(file.read())
 
     @classmethod
-    def _try_remove(cls, filename: str) -> None:
-        """Try to remove this lock.
+    def _normalize(cls, filename: str) -> None:
+        """Ensure parent dirs exist and lock files held by dead processes do not exist.
 
         Args:
             filename (str): Path to lock.
         """
-        try:
-            os.remove(filename)
-        except:
-            pass
+        # Ensure the file's parent directory exists so we can write it in one shot.
+        dirname = os.path.dirname(filename)
+        os.makedirs(dirname, exist_ok=True)
 
-    @classmethod
-    def _garbage_collect(cls, filename: str) -> None:
-        """Release this lock if held by a dead process.
-
-        Args:
-            filename (str): Path to lock.
-        """
-        try:
-            pid = cls._get_pid(filename)
-        except:
-            cls._try_remove(filename)
+        # If no file, we don't need to do anything.
+        if not os.path.exists(filename):
             return
 
+        # If we fail to open the file and parse the pid, bail out while deleting it.
+        try:
+            pid = cls._read(filename)
+        except:
+            os.remove(filename)
+            return
+
+        # If the pid is not among the living, delete the file.
         if pid not in get_live_processes():
-            cls._try_remove(filename)
+            os.remove(filename)
 
-    def acquire(self) -> None:
-        """Acquire this lock."""
+    @classmethod
+    def _get_timeout(cls,
+                     init_timeout: Optional[float],
+                     timeout: Optional[Union[str, float]] = 'auto') -> Optional[float]:
+        """Determine the timeout for a given acquire().
+
+        Args:
+            init_timeout (float, optional): Default timeout provided to init.
+            timeout (str | float, optional): Override timeout for just this method call.
+
+        Returns:
+            float, optional: Normalized timeout as positive float seconds or ``None`` to disable.
+        """
+        if timeout is None:
+            # No timeout.
+            ret = timeout
+        elif isinstance(timeout, float):
+            # Override timeout.
+            if timeout <= 0:
+                raise ValueError(
+                    f'Timeout must be positive float seconds, but got: {timeout} sec.')
+            ret = timeout
+        elif timeout == 'auto':
+            # Default timeout.
+            ret = init_timeout
+        else:
+            raise ValueError(f'Timeout must either be positive float seconds, ``None`` to ' +
+                             f'disable timing out, or ``auto`` to use the default passed to ' +
+                             f'init, but got: {timeout}.')
+        return ret
+
+    def acquire(self, timeout: Optional[Union[str, float]] = 'auto') -> None:
+        """Acquire this lock.
+
+        Args:
+            timeout (str | float, optional): Override timeout for just this method call.
+        """
         start = time()
-
+        timeout = self._get_timeout(self.timeout, timeout)
         while True:
             try:
-                self._set_pid(self.filename, os.getpid())
+                self._write(self.filename, os.getpid())
                 break
             except:
                 pass
-
             if self.timeout is not None and start + self.timeout < time():
                 raise ValueError(f'Timed out while attempting to acquire file lock: file ' +
                                  f'{self.filename}, timeout {self.timeout} sec.')
-
             sleep(self.tick)
 
     def release(self) -> None:
@@ -125,7 +152,7 @@ class SoftFileLock:
         """Enter context manager.
 
         Returns:
-            Self: This object.
+            Self: This lock.
         """
         self.acquire()
         return self
