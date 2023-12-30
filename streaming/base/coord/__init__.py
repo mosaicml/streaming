@@ -4,12 +4,11 @@
 """Coordination among ranks and workers."""
 
 from streaming.base.coord.job import JobDirectory, JobRegistry
-from streaming.base.coord.mmap import MMapArray, MMapBarrier, MMapBuffer, MMapNumber
 from streaming.base.coord.shmem import (SharedArray, SharedBarrier, SharedMemory, SharedScalar,
                                         get_shm_prefix)
 from streaming.base.coord.world import World
 
 __all__ = [
-    'JobDirectory', 'JobRegistry', 'MMapArray', 'MMapBarrier', 'MMapBuffer', 'MMapNumber',
-    'SharedArray', 'SharedBarrier', 'SharedMemory', 'get_shm_prefix', 'SharedScalar', 'World'
+    'JobDirectory', 'JobRegistry', 'SharedArray', 'SharedBarrier', 'SharedMemory',
+    'get_shm_prefix', 'SharedScalar', 'World'
 ]
