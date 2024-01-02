@@ -181,7 +181,7 @@ def _encode_file_header(shape: Tuple[int], dtype: np.dtype) -> bytes:
 
     Args:
         shape (Tuple[int]): Normalized ndarray shape.
-        dtype (DTypeLike): Normalized ndarray dtype.
+        dtype (np.dtype): Normalized ndarray dtype.
 
     Returns:
         bytes: Header data.
