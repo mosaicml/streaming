@@ -12,7 +12,7 @@ from streaming.base.coord.mmap.base import MemMap
 __all__ = ['MemMapBuffer', 'buffer']
 
 
-class MemMapBuffer(MemMap[np.dtype[np.uint8]]):
+class MemMapBuffer(MemMap[np.dtype]):
     """A buffer backed by a memory-mapped file.
 
     Args:
