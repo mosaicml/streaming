@@ -75,8 +75,8 @@ class MemMapNumber(MemMap[T]):
         Args:
             value (Number): The value.
         """
-        dtype_class = getattr(np, self.dtype.name)
-        self.mmap[:] = dtype_class.tobytes()
+        cls = getattr(np, self.dtype.name)
+        self.mmap[self.offset:] = cls(value).tobytes()
 
 
 class MemMapInteger(MemMapNumber):

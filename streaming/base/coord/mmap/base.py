@@ -10,22 +10,28 @@ from typing import IO, Generic, Optional, Tuple, TypeVar, Union
 import numpy as np
 from numpy.typing import DTypeLike, NDArray
 
+from streaming.base.coord.file.barrier import wait_for_creation
+
 __all__ = ['T', 'MemMap', 'Number']
 
 Number = Union[int, float, complex, np.number]
 
 
-def _get_wildcarded_shape(shape: Optional[Union[int, Tuple[int]]]) -> Tuple[int]:
+def _get_wildcarded_shape(shape: Optional[Union[int, Tuple[int]]]) -> Optional[Tuple[int]]:
     """Normalize and validate a shape argument.
 
     Args:
         shape (int | Tuple[int], optional): Input shape.
 
     Returns:
-        Tuple[int]: Normalized shape containing at least one dimension, and at most one wildcard.
+        Tuple[int], optional: Normalized shape containing at least one dimension, and at most one
+            wildcard, or else ``None`` to mean accept any shape.
     """
     if shape is None:
-        wild_shape = -1,
+        return None
+
+    if shape == ():
+        wild_shape = 1,
     elif isinstance(shape, int):
         wild_shape = shape,
     else:
@@ -123,11 +129,14 @@ def _accepts_shape(shape: Tuple[int], wildcarded_shape: Tuple[int]) -> bool:
 
     Args:
         shape (Tuple[int]): Observed shape.
-        wildcarded_shape (Tuple[int]): Shape restriction.
+        wildcarded_shape (Optional[Tuple[int]]): Shape restriction, if provided.
 
     Returns:
         bool: Whether acceptable.
     """
+    if wildcarded_shape is None:
+        return True
+
     if len(shape) != len(wildcarded_shape):
         return False
 
@@ -281,8 +290,9 @@ def _write_file(arr: NDArray[np.number], shape: Tuple[int], filename: str) -> No
     if (arr == 0).all():
         _write_sparse_file(shape, arr.dtype, filename)
     else:
-        arr = arr.repeat(np.prod(shape))
-        arr = arr.reshape(shape)
+        if arr.size == 1:
+            arr = arr.repeat(np.prod(shape))
+            arr = arr.reshape(shape)
         _write_dense_file(arr, filename)
 
 
@@ -481,11 +491,17 @@ class MemMap(Generic[T]):
         shape: Optional[Union[int, Tuple[int]]] = None,
         dtype: Optional[DTypeLike] = None,
         value: Optional[Union[Number, NDArray[np.number]]] = None,
+        timeout: Optional[float] = 60,
+        poll_interval: float = 0.007,
     ) -> None:
         norm_dtype = np.dtype(dtype) if dtype is not None else None
         self.shape, self.dtype, self.offset = _ensure_file(filename, shape, norm_dtype, value)
+
+        if value is None:
+            wait_for_creation(filename, timeout, poll_interval)
+
         self.filename = filename
-        self.file = open(filename, 'w+b', 0)
+        self.file = open(filename, 'r+b', 0)
         self.mmap = mmap(self.file.fileno(), 0)
 
     def flush(self) -> None:
