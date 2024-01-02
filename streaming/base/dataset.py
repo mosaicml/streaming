@@ -810,7 +810,7 @@ class StreamingDataset(Array, IterableDataset):
         Args:
             next_epoch (int): Next epoch.
         """
-        self._next_epoch.set(np.int64(next_epoch))
+        self._next_epoch.set(next_epoch)
 
     @property
     def cache_usage(self) -> int:
@@ -828,7 +828,7 @@ class StreamingDataset(Array, IterableDataset):
         Args:
             cache_usage (int): Cache usage in bytes.
         """
-        self._cache_usage.set(np.int64(cache_usage))
+        self._cache_usage.set(cache_usage)
 
     def __len__(self) -> int:
         """Get the length as a PyTorch IterableDataset.
