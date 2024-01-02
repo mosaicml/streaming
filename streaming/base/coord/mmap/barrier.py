@@ -3,21 +3,29 @@
 
 """Share a barrier across processes using mmap()."""
 
+from enum import IntEnum
 from time import sleep
 
 import numpy as np
 
 from streaming.base.coord.file import SoftFileLock
-from streaming.base.coord.mmap.array import MMapArray
+from streaming.base.coord.mmap.ndarray import MemMapNDArray
 
-__all__ = ['MMapBarrier']
+__all__ = ['MemMapBarrier', 'barrier']
 
 
-class MMapBarrier:
-    """Share a barrier across processes using mmap().
+class BarrierFlag(IntEnum):
+    """Whether to stop or go, used internally by MemMapBarrier."""
+
+    STOP = 0
+    GO = 1
+
+
+class MemMapBarrier:
+    """A barrier backed by a memory-mapped file and a file lock.
 
     Args:
-        mode (str): Whether to ``create``, ``replace``, or ``attach``. Defaults to ``attach``.
+        create (bool): If ``True``, create. If ``False``, attach.
         mmap_filename (str): Path to memory-mapped file.
         lock_filename (str): Path to SoftFileLock file.
         tick (float): Polling interval in seconds. Defaults to ``0.007``.
@@ -25,19 +33,18 @@ class MMapBarrier:
 
     def __init__(
         self,
-        *,
-        mode: str = 'attach',
+        create: bool,
         mmap_filename: str,
         lock_filename: str,
         tick: float = 0.007,
     ) -> None:
-        self._lock = SoftFileLock(lock_filename)
-        self._arr = MMapArray(mode=mode, filename=mmap_filename, shape=3, dtype=np.int32())
-        self._tick = tick
-
+        value = 0 if create else None
+        self._arr = MemMapNDArray(mmap_filename, 3, np.int32, value)
         self._num_enter = 0
         self._num_exit = -1
-        self._flag = True
+        self._flag = BarrierFlag.GO
+        self._lock = SoftFileLock(lock_filename)
+        self._tick = tick
 
     @property
     def _num_enter(self) -> int:
@@ -55,7 +62,7 @@ class MMapBarrier:
         Args:
             num_enter (int): Entered process count.
         """
-        self._arr[0] = np.int32(num_enter)
+        self._arr[0] = num_enter
 
     @property
     def _num_exit(self) -> int:
@@ -73,53 +80,57 @@ class MMapBarrier:
         Args:
             num_exit (int): Exited process count.
         """
-        self._arr[1] = np.int32(num_exit)
+        self._arr[1] = num_exit
 
     @property
-    def _flag(self) -> bool:
+    def _flag(self) -> BarrierFlag:
         """Getter for _flag.
 
         Returns:
-            bool: Flag value.
+            BarrierFlat: Flag value.
         """
-        return bool(self._arr[2])
+        return BarrierFlag(self._arr[2])
 
     @_flag.setter
-    def _flag(self, flag: bool) -> None:
+    def _flag(self, flag: BarrierFlag) -> None:
         """Setter for _flag.
 
         Args:
-            flag (bool): Flag value.
+            flag (BarrierFlag): Flag value.
         """
-        self._arr[2] = np.int32(flag)
+        self._arr[2] = flag
 
     def __call__(self, total: int) -> None:
+        """A set number of processes enter, wait, and exit the barrier.
 
-        # Initialize num_exit to the number of processes.
+        Args:
+            num_procs (int): How many processes are sharing this barrier.
+        """
+        # Initialize `_num_exit` to the number of processes.
         with self._lock:
             if self._num_exit == -1:
                 self._num_exit = total
 
-        # If we are the first to arrive, wait for everyone to exit, then set flag to "don't go".
+        # If we are the first to arrive, wait for everyone to exit, then set `_flag` to `STOP`.
         self._lock.acquire()
         if not self._num_enter:
             self._lock.release()
             while self._num_exit != total:
                 sleep(self._tick)
             self._lock.acquire()
-            self._flag = False
+            self._flag = BarrierFlag.STOP
 
-        # Note that we entered.
+        # Note that we entered.z
         self._num_enter += 1
 
-        # If we are the last to arrive, reset `enter` and `exit`, and set flag to "go".
+        # If we are the last to arrive, reset `_enter` and `_exit`, and set `_flag` to `GO`.
         if self._num_enter == total:
             self._num_enter = 0
             self._num_exit = 0
-            self._flag = True
+            self._flag = BarrierFlag.GO
         self._lock.release()
 
-        # Everybody waits until the flag is set to "go".
+        # Everybody waits until `_flag` is set to `GO`.
         while not self._flag:
             sleep(self._tick)
 
@@ -128,3 +139,20 @@ class MMapBarrier:
             self._num_exit += 1
             if self._num_exit == total:
                 self._num_exit = -1
+
+
+def barrier(
+    create: bool,
+    mmap_filename: str,
+    lock_filename: str,
+    tick: float = 0.007,
+) -> MemMapBarrier:
+    """Get a barrier backed by a memory-mapped file and a file lock.
+
+    Args:
+        create (bool): If ``True``, create. If ``False``, attach.
+        mmap_filename (str): Path to memory-mapped file.
+        lock_filename (str): Path to SoftFileLock file.
+        tick (float): Polling interval in seconds. Defaults to ``0.007``.
+    """
+    return MemMapBarrier(create, mmap_filename, lock_filename, tick)

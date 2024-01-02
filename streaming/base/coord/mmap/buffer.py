@@ -3,35 +3,35 @@
 
 """Share a buffer across processes using mmap()."""
 
-from mmap import mmap
 from typing import Optional
 
-from streaming.base.coord.mmap.base import ensure_file
+import numpy as np
+from numpy.dtypes import UInt8DType
 
-__all__ = ['MMapBuffer']
+from streaming.base.coord.mmap.base import MemMap
+
+__all__ = ['MemMapBuffer', 'buffer']
 
 
-class MMapBuffer:
-    """Share a buffer across processes using mmap().
+class MemMapBuffer(MemMap[UInt8DType]):
+    """A buffer backed by a memory-mapped file.
 
     Args:
-        mode (str): Whether to ``create``, ``replace``, or ``attach``. Defaults to ``attach``.
-        filename (str): Path to memory-mapped file.
-        size (int, optional): Exact required size, if known in advance. Defaults to ``None``.
+        filename (str): Path to file to memory map.
+        size (int, optional): Exact required size in bytes, if known in advance. Defaults to
+            ``None``.
+        value (bytes, optional): If provided, creates as this value. If ``None``, attaches.
+            Defaults to ``None``.
     """
 
     def __init__(
         self,
-        *,
-        mode: str = 'attach',
         filename: str,
         size: Optional[int] = None,
+        value: Optional[bytes] = None,
     ) -> None:
-        self.mode = mode
-        self.filename = filename
-        self.size, = ensure_file(mode, filename, size, 1)
-        self.file = open(filename, 'r+b', 0)
-        self.data = mmap(self.file.fileno(), 0)
+        norm_value = np.frombuffer(value, np.uint8) if value is not None else None
+        super().__init__(filename, size, np.uint8, norm_value)
 
     def __len__(self) -> int:
         """Get the number of bytes in the buffer.
@@ -39,4 +39,44 @@ class MMapBuffer:
         Returns:
             int: Number of bytes in the buffer.
         """
-        return self.size
+        return self.shape[0]
+
+    def __getitem__(self, index: slice) -> bytes:
+        """Get the data at the index(es).
+
+        Args:
+            index (slice): The index(es).
+
+        Returns:
+            bytes: The data.
+        """
+        return self.mmap[index]
+
+    def __setitem__(self, index: slice, data: bytes) -> None:
+        """Set the data at the index(es).
+
+        Args:
+            index (int | slice): The index(es).
+            data (bytes): The data.
+        """
+        self.mmap[index] = data
+
+
+def buffer(
+    filename: str,
+    size: Optional[int] = None,
+    value: Optional[bytes] = None,
+) -> MemMapBuffer:
+    """Get a buffer backed by a memory-mapped file.
+
+    Args:
+        filename (str): Path to file to memory map.
+        size (int, optional): Exact required size in bytes, if known in advance. Defaults to
+            ``None``.
+        value (bytes, optional): If provided, creates as this value. If ``None``, attaches.
+            Defaults to ``None``.
+
+    Returns:
+        MemMapBuffer: A buffer backed by a memory-mapped file.
+    """
+    return MemMapBuffer(filename, size, value)

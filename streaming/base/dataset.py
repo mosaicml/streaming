@@ -24,9 +24,9 @@ from torch.utils.data import IterableDataset
 from streaming.base.array import Array
 from streaming.base.batching import generate_work
 from streaming.base.constant import TICK
+from streaming.base.coord import mmap as mm
 from streaming.base.coord.file import SoftFileLock
 from streaming.base.coord.job import JobDirectory, JobRegistry
-from streaming.base.coord.mmap import MMapArray, MMapBarrier, MMapNumber
 from streaming.base.coord.world import World
 from streaming.base.format import get_index_basename
 from streaming.base.sampling import get_sampling
@@ -466,52 +466,43 @@ class StreamingDataset(Array, IterableDataset):
 
         # Register/lookup our shared memory prefix and filelock root directory.
         self.registry = JobRegistry(self.config_root)
-        self.job = job = JobDirectory(self.registry, streams, world)
+        self.job = JobDirectory(self.registry, streams, world)
+        job_file = self.job.get_filename
 
         init_done_filename = self.job.get_filename('init_done.txt')
         if world.is_local_leader:
             if os.path.exists(init_done_filename):
                 os.remove(init_done_filename)
 
-        mode = 'create' if world.is_local_leader else 'attach'
-
         # Worker barrier.
-        self._worker_barrier = MMapBarrier(mode=mode,
-                                           mmap_filename=job.get_filename('worker_barrier.npy'),
-                                           lock_filename=job.get_filename('worker_barrier.lock'))
+        self._worker_barrier = mm.barrier(world.is_local_leader, job_file('worker_barrier.npy'),
+                                          job_file('worker_barrier.lock'))
 
         # Epoch counter.
         #
         # Note: we do not assume that the end of __iter__() will ever be reached, so we need to
         # increment the epoch counter at the start of __iter__() instead of at the end, so we need
         # to track what the next epoch is, not the current epoch.
-        self._next_epoch = MMapNumber(mode=mode,
-                                      filename=job.get_filename('epoch.npy'),
-                                      dtype=np.int64())
+        value = 0 if world.is_local_leader else None
+        self._next_epoch = mm.int64(job_file('epoch.npy'), value)
 
         # Cache filelock.
         #
         # Protects downloading and evicting shards.
-        self._cache_lock = SoftFileLock(job.get_filename('cache.lock'))
+        self._cache_lock = SoftFileLock(job_file('cache.lock'))
 
         # Cache usage in bytes.
-        self._cache_usage = MMapNumber(mode=mode,
-                                       filename=job.get_filename('cache_usage.npy'),
-                                       dtype=np.int64())
+        self._cache_usage = mm.int64(job_file('cache_usage.npy'), value)
 
         # Shard states array. Tells if a shard is missing, downloading, or present (eviction
         # happens under the lock).
-        self._shard_states = MMapArray(mode=mode,
-                                       filename=job.get_filename('shard_states.npy'),
-                                       shape=self.num_shards,
-                                       dtype=np.uint8())
+        self._shard_states = mm.ndarray(job_file('shard_states.npy'), self.num_shards, np.uint8,
+                                        value)
 
         # Time of last access per shard. This is used to decide which shard(s) to evict when we run
         # out of space.
-        self._shard_access_times = MMapArray(mode=mode,
-                                             filename=job.get_filename('shard_access_times.npy'),
-                                             shape=self.num_shards,
-                                             dtype=np.uint64())
+        self._shard_access_times = mm.ndarray(job_file('shard_access_times.npy'), self.num_shards,
+                                              np.uint64, value)
 
         # Initialize shared memory objects.
         if world.is_local_leader:
@@ -1031,64 +1022,6 @@ class StreamingDataset(Array, IterableDataset):
         sample_ids = np.concatenate(sample_ids).astype(np.int64)
         return shuffle_units, sample_ids
 
-    def _share_work(self, sample_ids: NDArray[np.int64]) -> Tuple[MMapArray, MMapArray]:
-        """Put an epoch's sample ordering into shared memory.
-
-        Args:
-            sample_ids (NDArray[np.int64]): Sample IDs.
-
-        Returns:
-            Tuple[MMapArray, MMapArray]: Memory-mapped arrays containing shape and data.
-        """
-        ndim = 5
-
-        # Validate shape.
-        if sample_ids.ndim != ndim:
-            raise ValueError(f'Sample IDs must be of {ndim}D shape (num physical nodes, ' +
-                             f'ranks per node, workers per rank, batches per worker, ' +
-                             f'batch size). Instead, found as {sample_ids.ndim}D shape.')
-
-        # Save the generated epoch shape to shared memory.
-        work_shape = np.asarray(sample_ids.shape, np.int64)
-        work_shape_mmap = MMapArray(mode='create',
-                                    filename=self.job.get_filename('work_shape.npy'),
-                                    shape=work_shape.shape,
-                                    dtype=np.int64())
-        work_shape_mmap[:] = work_shape
-        work_shape_mmap.flush()
-
-        # Save the generated epoch data to shared memory.
-        work_mmap = MMapArray(mode='create',
-                              filename=self.job.get_filename('work.npy'),
-                              shape=sample_ids.shape,
-                              dtype=np.int64())
-        work_mmap[:] = sample_ids
-        work_mmap.flush()
-
-        return work_shape_mmap, work_mmap
-
-    def _attach_work(self) -> Tuple[MMapArray, MMapArray]:
-        """Get an epoch's sample ordering from shared memory.
-
-        Returns:
-            Tuple[MMapArray, MMapArray]: Memory-mapped arrays containing shape and data.
-        """
-        ndim = 5
-
-        # Load the generated epoch shape from shared memory.
-        work_shape_mmap = MMapArray(mode='attach',
-                                    filename=self.job.get_filename('work_shape.npy'),
-                                    shape=ndim,
-                                    dtype=np.int64())
-        work_shape = tuple(work_shape_mmap.as_array())
-
-        work_mmap = MMapArray(mode='attach',
-                              filename=self.job.get_filename('work.npy'),
-                              shape=work_shape,
-                              dtype=np.int64())
-
-        return work_shape_mmap, work_mmap
-
     def _get_work(self, world: World, epoch: int, sample_in_epoch: int) -> NDArray[np.int64]:
         """Get this worker's partition of this epoch's sample space.
 
@@ -1100,38 +1033,31 @@ class StreamingDataset(Array, IterableDataset):
         Returns:
             Optional[NDArray[np.int64]]: Our partition of the epoch.
         """
-        # Do expensive work that may use a lot of cores/memory just once, in the local leader.
+        filename = self.job.get_filename('epoch_sample_ids.npy')
+
         if world.is_local_leader:
             epoch_sample_ids = generate_work(self.batching_method, self, world, epoch,
                                              sample_in_epoch)
-            work_shape_mmap, work_mmap = self._share_work(epoch_sample_ids)
+            io = mm.ndarray(filename, value=epoch_sample_ids)
             self._worker_barrier(world.workers_per_node)
         else:
             self._worker_barrier(world.workers_per_node)
-            work_shape_mmap, work_mmap = self._attach_work()
-            epoch_sample_ids = work_mmap.as_array()
+            io = mm.ndarray(filename)
+            epoch_sample_ids = io.numpy()
 
-        # Each worker gets their portion of the work.
         worker_sample_ids = epoch_sample_ids[world.node, world.rank_of_node,
                                              world.worker_of_rank].flatten()
 
-        # Wait for each worker to extract their slice of the work.
         self._worker_barrier(world.workers_per_node)
 
-        # Close.
         if not world.is_local_leader:
-            work_shape_mmap.close()
-            work_mmap.close()
+            io.close()
 
-        # Wait for close.
         self._worker_barrier(world.workers_per_node)
 
-        # Delete.
         if world.is_local_leader:
-            work_shape_mmap.delete()
-            work_mmap.delete()
+            io.delete()
 
-        # Proceed, not waiting for delete.
         return worker_sample_ids
 
     def _evict_shard(self, shard_id: int) -> None:
@@ -1168,12 +1094,12 @@ class StreamingDataset(Array, IterableDataset):
         """
         while True:
             # Find the shard with the oldest last access time.
-            shard_id = int(self._shard_access_times.as_array().argmin())
+            shard_id = int(self._shard_access_times.numpy().argmin())
 
             # Check the shard's last access time. If it is NEVER, there are no downloaded shards to
             # evict. If any shards are currently being downloaded, wait, else raise an error.
             if self._shard_access_times[shard_id] == NEVER:
-                if (self._shard_states.as_array() == _ShardState.PREPARING).any():
+                if (self._shard_states.numpy() == _ShardState.PREPARING).any():
                     sleep(TICK)
                     continue
                 else:
