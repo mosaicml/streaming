@@ -124,12 +124,12 @@ def _is_shape_nonempty(shape: Tuple[int]) -> bool:
     return True
 
 
-def _accepts_shape(shape: Tuple[int], wildcarded_shape: Tuple[int]) -> bool:
+def _accepts_shape(shape: Tuple[int], wildcarded_shape: Optional[Tuple[int]]) -> bool:
     """Tell whether the shape restriction accepts the observed shape.
 
     Args:
         shape (Tuple[int]): Observed shape.
-        wildcarded_shape (Optional[Tuple[int]]): Shape restriction, if provided.
+        wildcarded_shape (Tuple[int], optional): Shape restriction, if provided.
 
     Returns:
         bool: Whether acceptable.
@@ -291,6 +291,7 @@ def _write_file(arr: NDArray[np.number], shape: Tuple[int], filename: str) -> No
         _write_sparse_file(shape, arr.dtype, filename)
     else:
         if arr.size == 1:
+            arr = arr.flatten()
             arr = arr.repeat(np.prod(shape))
             arr = arr.reshape(shape)
         _write_dense_file(arr, filename)

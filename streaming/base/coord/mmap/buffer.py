@@ -6,14 +6,13 @@
 from typing import Optional
 
 import numpy as np
-from numpy.dtypes import UInt8DType
 
 from streaming.base.coord.mmap.base import MemMap
 
 __all__ = ['MemMapBuffer', 'buffer']
 
 
-class MemMapBuffer(MemMap[UInt8DType]):
+class MemMapBuffer(MemMap[np.dtype[np.uint8]]):
     """A buffer backed by a memory-mapped file.
 
     Args:
