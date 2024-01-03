@@ -44,7 +44,7 @@ class MemMapNDArray(MemMap[T]):
         Returns:
             NDArray[T]: Our internal buffer as an ndarray.
         """
-        return np.ndarray(self.shape, buffer=self.mmap, offset=self.offset, dtype=self.dtype)
+        return np.ndarray(self.shape, self.dtype, self.mmap, self.offset)
 
     def __getitem__(self, index: IndexType) -> Union[T, NDArray]:
         """Get the item at the index.

@@ -220,7 +220,8 @@ def _read_file_header(file: IO[bytes]) -> Tuple[Tuple[int], np.dtype]:
 
     # Get ndim.
     part = data[max_itemsize:]
-    ndim, = np.frombuffer(part, np.uint64)
+    arr = np.frombuffer(part, np.uint64)
+    ndim = int(arr[0])
     if ndim < 0:
         raise ValueError(f'Header ndim is negative: {ndim}.')
 
@@ -388,6 +389,8 @@ def _check_file(
     filename: str,
     shape: Optional[Union[int, Tuple[int]]] = None,
     dtype: Optional[np.dtype] = None,
+    timeout: Optional[float] = 30,
+    tick: float = 0.007,
 ) -> Tuple[Tuple[int], np.dtype, int]:
     """Validate the file backing the memory mapping given optional explicit shape and dtype.
 
@@ -397,14 +400,15 @@ def _check_file(
             known in advance. At most one wildcard ``-1`` may be used. Defaults to ``None``.
         dtype (np.dtype, optional): Exact required data type, if known in advance. Defaults to
             ``None``.
+        timeout (float, optional): How long to wait before raising an exception, in seconds.
+            Defaults to ``30``.
+        tick (float): Check interval, in seconds. Defaults to ``0.007``.
 
     Returns:
         Tuple[Tuple[int], np.dtype, int]: The file's exact shape, dtype, and offset.
     """
-    # The file must already exist.
-    if not os.path.exists(filename):
-        raise ValueError(f'`value` was not provided, so attaching the file, but it does not ' +
-                         f'exist: {filename}.')
+    # Wait for the file to exist.
+    wait_for_creation(filename, timeout, tick)
 
     # Read the shape and dtpye in the file header.
     with open(filename, 'rb') as file:
@@ -442,6 +446,8 @@ def _ensure_file(
     shape: Optional[Union[int, Tuple[int]]] = None,
     dtype: Optional[np.dtype] = None,
     value: Optional[Union[Number, NDArray[np.number]]] = None,
+    timeout: Optional[float] = 30,
+    tick: float = 0.007,
 ) -> Tuple[Tuple[int], np.dtype, int]:
     """Create the file backing the memory mapping given optional explicit shape and dtype.
 
@@ -453,6 +459,9 @@ def _ensure_file(
             ``None``.
         value (Number | NDArray[np.number], optional): If a number, creates as this value. If
             ``None``, attaches. Defaults to ``None``.
+        timeout (float, optional): How long to wait before raising an exception, in seconds.
+            Defaults to ``30``.
+        tick (float): Check interval, in seconds. Defaults to ``0.007``.
 
     Returns:
         Tuple[Tuple[int], np.dtype, int]: The file's exact shape, dtype, and offset.
@@ -460,7 +469,7 @@ def _ensure_file(
     if value is not None:
         return _create_file(filename, value, shape, dtype)
     else:
-        return _check_file(filename, shape, dtype)
+        return _check_file(filename, shape, dtype, timeout, tick)
 
 
 T = TypeVar('T', bound=np.dtype)
@@ -484,6 +493,9 @@ class MemMap(Generic[T]):
             ``None``.
         value (Number | NDArray[np.number], optional): If a number, creates as this value. If
             ``None``, attaches. Defaults to ``None``.
+        timeout (float, optional): How long to wait before raising an exception, in seconds.
+            Defaults to ``30``.
+        tick (float): Check interval, in seconds. Defaults to ``0.007``.
     """
 
     def __init__(
@@ -492,14 +504,12 @@ class MemMap(Generic[T]):
         shape: Optional[Union[int, Tuple[int]]] = None,
         dtype: Optional[DTypeLike] = None,
         value: Optional[Union[Number, NDArray[np.number]]] = None,
-        timeout: Optional[float] = 60,
-        poll_interval: float = 0.007,
+        timeout: Optional[float] = 30,
+        tick: float = 0.007,
     ) -> None:
         norm_dtype = np.dtype(dtype) if dtype is not None else None
-        self.shape, self.dtype, self.offset = _ensure_file(filename, shape, norm_dtype, value)
-
-        if value is None:
-            wait_for_creation(filename, timeout, poll_interval)
+        self.shape, self.dtype, self.offset = _ensure_file(filename, shape, norm_dtype, value,
+                                                           timeout, tick)
 
         self.filename = filename
         self.file = open(filename, 'r+b', 0)

@@ -22,7 +22,7 @@ class SoftFileLock:
         filename (str): Path to lock.
         timeout (float, optional): How long to wait in seconds before raising an exception.
             Set to ``None`` to never time out. Defaults to ``30``.
-        tick (float): Polling interval in seconds. Defaults to ``0.007``.
+        tick (float): Check interval in seconds. Defaults to ``0.007``.
     """
 
     def __init__(

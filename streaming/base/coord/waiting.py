@@ -25,7 +25,7 @@ def _say_duration(duration: float) -> str:
 def wait(
     stop: Callable[[], bool],
     timeout: Optional[float] = 30,
-    interval: float = 0.007,
+    tick: float = 0.007,
     lock: Optional[Any] = None,
 ) -> None:
     """Wait for the predicate to succeed.
@@ -34,7 +34,7 @@ def wait(
         stop (Callable[[], bool]): When this check returns True, you break out of the retry loop.
         timeout (float, optional): How long to wait before raising an exception, in seconds.
             Defaults to ``30``.
-        interval (float): Check interval, in seconds. Defaults to ``0.007``.
+        tick (float): Check interval, in seconds. Defaults to ``0.007``.
         lock (Any, optional): Context manager (this is intended for locks) to be held when
             checking the predicate. Defaults to ``None``.
     """
@@ -44,9 +44,8 @@ def wait(
         raise ValueError(f'Timeout must be positive if provided, but got: ' +
                          f'{_say_duration(timeout)} sec.')
 
-    if interval <= 0:
-        raise ValueError(f'Poll interval must be positive if provided, but got: ' +
-                         f'{_say_duration(interval)} sec.')
+    if tick <= 0:
+        raise ValueError(f'Tick must be positive if provided, but got: {_say_duration(tick)} sec.')
 
     if lock is not None:
         if not hasattr(lock, '__enter__'):
@@ -70,4 +69,4 @@ def wait(
                 raise RuntimeError(f'Wait timed out: timeout {_say_duration(timeout)} sec vs ' +
                                    f'elapsed {_say_duration(now - start)} sec.')
 
-        sleep(interval)
+        sleep(tick)

@@ -67,7 +67,7 @@ class MemMapNumber(MemMap[T]):
         Returns:
             np.number: The value.
         """
-        return np.frombuffer(self.mmap, self.dtype)[0]
+        return np.frombuffer(self.mmap, self.dtype, 1, self.offset)[0]
 
     def set(self, value: Number) -> None:
         """Set value.
