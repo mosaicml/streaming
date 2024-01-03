@@ -5,12 +5,14 @@
 
 import os
 from mmap import mmap
-from typing import IO, Generic, Optional, Tuple, TypeVar, Union
+from typing import Generic, Optional, Tuple, TypeVar, Union
 
 import numpy as np
 from numpy.typing import DTypeLike, NDArray
 
 from streaming.base.coord.file.waiting import wait_for_creation
+from streaming.base.coord.mmap.file import (get_file_header_size, get_file_size, read_file_header,
+                                            write_file)
 
 __all__ = ['T', 'MemMap', 'Number']
 
@@ -163,171 +165,12 @@ def _accepts_dtype(have: np.dtype, want: Optional[np.dtype]) -> bool:
     return have == want
 
 
-# For memory alignment purposes.
-_biggest_uint = np.uint64
-
-
-def _get_file_header_size(shape: Tuple[int]) -> int:
-    """Get the expected size of the header in bytes.
-
-    Args:
-        shape (Tuple[int]): Normalized ndarray shape.
-    """
-    return (1 + 1 + len(shape)) * _biggest_uint().itemsize
-
-
-def _encode_file_header(shape: Tuple[int], dtype: np.dtype) -> bytes:
-    """Serialize shape/dtype info.
-
-    Args:
-        shape (Tuple[int]): Normalized ndarray shape.
-        dtype (np.dtype): Normalized ndarray dtype.
-
-    Returns:
-        bytes: Header data.
-    """
-    max_itemsize = _biggest_uint().itemsize
-    dtype_bytes = np.dtype(dtype).name.encode('utf-8')[:max_itemsize]
-    pad_bytes = b'\0' * (max_itemsize - len(dtype_bytes))
-    ndim_bytes = np.uint64(len(shape)).tobytes()
-    shape_bytes = np.array(shape, np.uint64).tobytes()
-    return dtype_bytes + pad_bytes + ndim_bytes + shape_bytes
-
-
-def _read_file_header(file: IO[bytes]) -> Tuple[Tuple[int], np.dtype]:
-    """Deserialize shape/dtype info.
-
-    Args:
-        data (bytes): Header data.
-
-    Returns:
-        Tuple[Tuple[int], Tuple[np.number]]: Shape and type.
-    """
-    max_itemsize = _biggest_uint().itemsize
-
-    # Check against minimum possible length.
-    to_read = 2 * max_itemsize
-    data = file.read(to_read)
-    if len(data) < to_read:
-        raise ValueError(f'Header data is too short: read {len(data)} bytes, but need at the ' +
-                         f'very least {to_read} bytes.')
-
-    # Get dtype.
-    part = data[:max_itemsize]
-    part = part[:part.index(b'\0')]
-    dtype_name = part.decode('utf-8')
-    dtype = np.dtype(dtype_name)
-
-    # Get ndim.
-    part = data[max_itemsize:]
-    arr = np.frombuffer(part, np.uint64)
-    ndim = int(arr[0])
-    if ndim < 0:
-        raise ValueError(f'Header ndim is negative: {ndim}.')
-
-    # Check against required length in our case.
-    to_read = ndim * max_itemsize
-    data = file.read(to_read)
-    if len(data) < to_read:
-        offset = 2 * max_itemsize
-        raise ValueError(f'Header data is too short: got {offset + len(data)} total bytes, but ' +
-                         f'need {offset + to_read} total bytes.')
-
-    # Get shape.
-    arr = np.frombuffer(data, np.int64)
-    shape = tuple(arr.tolist())
-
-    return shape, dtype
-
-
-def _write_sparse_file(shape: Tuple[int], dtype: np.dtype, filename: str) -> None:
-    """Write a sparse file of the given size, which reads as zeros unless otherwise written.
-
-    Args:
-        shape (Tuple[int]): Normalized ndarray shape.
-        dtype (np.dtype): Normalized ndarray dtype.
-        filename (str): Path to file.
-    """
-    # Write header to a temp file.
-    tmp_filename = filename + '.tmp'
-    header = _encode_file_header(shape, dtype)
-    with open(tmp_filename, 'wb') as out:
-        out.write(header)
-
-    # Truncate to desired sparse size.
-    file_size = _get_file_size(shape, dtype)
-    os.truncate(tmp_filename, file_size)
-
-    # Rename to final name.
-    os.rename(tmp_filename, filename)
-
-
-def _write_dense_file(arr: NDArray[np.number], filename: str) -> None:
-    """Write a regular file with the given ndarray.
-
-    Args:
-        arr (NDArray[np.number]): Array to write.
-        filename (str): Path to file.
-    """
-    # Write header and body to a temp file.
-    tmp_filename = filename + '.tmp'
-    with open(tmp_filename, 'wb') as out:
-        header = _encode_file_header(arr.shape, arr.dtype)
-        out.write(header)
-        out.write(arr.tobytes())
-
-    # Rename to final name.
-    os.rename(tmp_filename, filename)
-
-
-def _write_file(arr: NDArray[np.number], shape: Tuple[int], filename: str) -> None:
-    """Write the ndarray as either a regular or sparse file.
-
-    Args:
-        arr (NDArray[np.number]): Array to write or value to broadcast.
-        shape (Tuple[int]): Normalized ndarray shape.
-        filename (str): Path to file.
-    """
-    if (arr == 0).all():
-        _write_sparse_file(shape, arr.dtype, filename)
-    else:
-        if arr.size == 1:
-            arr = arr.flatten()
-            arr = arr.repeat(np.prod(shape))
-            arr = arr.reshape(shape)
-        _write_dense_file(arr, filename)
-
-
-def _get_file_body_size(shape: Tuple[int], dtype: np.dtype) -> int:
-    """Get the expected size of the body in bytes.
-
-    Args:
-        shape (Tuple[int]): Normalized ndarray shape.
-        dtype (np.dtype): Normalized ndarray dtype.
-    """
-    numel = int(np.prod(shape)) if shape else 1
-    norm_dtype = np.dtype(dtype)
-    return numel * norm_dtype.itemsize
-
-
-def _get_file_size(shape: Tuple[int], dtype: np.dtype) -> int:
-    """Get the expected size of the file in bytes.
-
-    Args:
-        shape (Tuple[int]): Normalized ndarray shape.
-        dtype (np.dtype): Normalized ndarray dtype.
-    """
-    header_size = _get_file_header_size(shape)
-    body_size = _get_file_body_size(shape, dtype)
-    return header_size + body_size
-
-
 def _create_file(
     filename: str,
     value: Union[Number, NDArray[np.number]],
     shape: Optional[Union[int, Tuple[int]]] = None,
     dtype: Optional[np.dtype] = None,
-) -> Tuple[Tuple[int], np.dtype, int]:
+) -> Tuple[Tuple[int], np.dtype]:
     """Create the file backing the memory mapping given optional explicit shape and dtype.
 
     Args:
@@ -339,7 +182,7 @@ def _create_file(
             ``None``.
 
     Returns:
-        Tuple[Tuple[int], np.dtype, int]: The file's exact shape, dtype, and offset.
+        Tuple[Tuple[int], np.dtype, int]: The file's exact shape and dtype.
     """
     # The file must not already exist.
     if os.path.exists(filename):
@@ -377,12 +220,9 @@ def _create_file(
                          f'`value` dtype {arr.dtype} vs explicit `dtype` {dtype}.')
 
     # Create the file (dense or sparse).
-    _write_file(arr, exact_shape, filename)
+    write_file(arr, exact_shape, filename)
 
-    # Get the offset of the array part.
-    offset = _get_file_header_size(exact_shape)
-
-    return exact_shape, arr.dtype, offset
+    return exact_shape, arr.dtype
 
 
 def _check_file(
@@ -391,7 +231,7 @@ def _check_file(
     dtype: Optional[np.dtype] = None,
     timeout: Optional[float] = 30,
     tick: float = 0.007,
-) -> Tuple[Tuple[int], np.dtype, int]:
+) -> Tuple[Tuple[int], np.dtype]:
     """Validate the file backing the memory mapping given optional explicit shape and dtype.
 
     Args:
@@ -405,17 +245,17 @@ def _check_file(
         tick (float): Check interval, in seconds. Defaults to ``0.007``.
 
     Returns:
-        Tuple[Tuple[int], np.dtype, int]: The file's exact shape, dtype, and offset.
+        Tuple[Tuple[int], np.dtype]: The file's exact shape and dtype.
     """
     # Wait for the file to exist.
     wait_for_creation(filename, timeout, tick)
 
     # Read the shape and dtpye in the file header.
     with open(filename, 'rb') as file:
-        got_shape, got_dtype = _read_file_header(file)
+        got_shape, got_dtype = read_file_header(file)
 
     # From those, derive the expected file size, and compare to actual.
-    want_size = _get_file_size(got_shape, got_dtype)
+    want_size = get_file_size(got_shape, got_dtype)
     got_size = os.stat(filename).st_size
     if got_size != want_size:
         raise ValueError(f'`File size did not match what we expected given shape and dtype as ' +
@@ -435,10 +275,7 @@ def _check_file(
                          f'file: `filename` {filename}, `dtype` {dtype_name}, actual dtype ' +
                          f'{got_dtype.name}.')
 
-    # Get the offset of the array part.
-    offset = _get_file_header_size(got_shape)
-
-    return got_shape, got_dtype, offset
+    return got_shape, got_dtype
 
 
 def _ensure_file(
@@ -448,7 +285,7 @@ def _ensure_file(
     value: Optional[Union[Number, NDArray[np.number]]] = None,
     timeout: Optional[float] = 30,
     tick: float = 0.007,
-) -> Tuple[Tuple[int], np.dtype, int]:
+) -> Tuple[Tuple[int], np.dtype]:
     """Create the file backing the memory mapping given optional explicit shape and dtype.
 
     Args:
@@ -464,7 +301,7 @@ def _ensure_file(
         tick (float): Check interval, in seconds. Defaults to ``0.007``.
 
     Returns:
-        Tuple[Tuple[int], np.dtype, int]: The file's exact shape, dtype, and offset.
+        Tuple[Tuple[int], np.dtype, int]: The file's exact shape and dtype.
     """
     if value is not None:
         return _create_file(filename, value, shape, dtype)
@@ -508,9 +345,8 @@ class MemMap(Generic[T]):
         tick: float = 0.007,
     ) -> None:
         norm_dtype = np.dtype(dtype) if dtype is not None else None
-        self.shape, self.dtype, self.offset = _ensure_file(filename, shape, norm_dtype, value,
-                                                           timeout, tick)
-
+        self.shape, self.dtype = _ensure_file(filename, shape, norm_dtype, value, timeout, tick)
+        self.offset = get_file_header_size(self.shape)
         self.filename = filename
         self.file = open(filename, 'r+b', 0)
         self.mmap = mmap(self.file.fileno(), 0)
