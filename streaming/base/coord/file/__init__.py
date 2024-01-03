@@ -3,7 +3,7 @@
 
 """Coordinating processes using files."""
 
-from streaming.base.coord.file.barrier import create_file, wait_for_creation, wait_for_deletion
 from streaming.base.coord.file.lock import SoftFileLock
+from streaming.base.coord.file.waiting import create_file, wait_for_creation, wait_for_deletion
 
-__all__ = ['wait_for_creation', 'wait_for_deletion', 'create_file', 'SoftFileLock']
+__all__ = ['create_file', 'wait_for_creation', 'wait_for_deletion', 'SoftFileLock']

@@ -14,8 +14,8 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 from psutil import process_iter
 
-from streaming.base.coord.file.barrier import wait_for_creation, wait_for_deletion
 from streaming.base.coord.file.lock import SoftFileLock
+from streaming.base.coord.file.waiting import wait_for_creation, wait_for_deletion
 from streaming.base.coord.job.entry import JobEntry
 from streaming.base.coord.job.file import RegistryFile
 from streaming.base.coord.world import World
@@ -33,17 +33,20 @@ class JobRegistry:
         config_root (str): Streaming configuration root directory, used for collision detection,
             filelock paths, etc. Defaults to ``/tmp/streaming``, using the equivalent temp root on
             your system.
+        timeout (float, optional): How long to wait before raising an exception, in seconds.
+            Defaults to ``30``.
+        tick (float): Check interval, in seconds. Defaults to ``0.007``.
     """
 
     def __init__(
         self,
         config_root: str,
         timeout: Optional[float] = 30,
-        poll_interval: float = 0.007,
+        tick: float = 0.007,
     ) -> None:
         self.config_root = config_root
         self.timeout = timeout
-        self.poll_interval = poll_interval
+        self.tick = tick
 
         self.lock_filename = os.path.join(config_root, 'registry.lock')
         self.lock = SoftFileLock(self.lock_filename)
@@ -217,7 +220,7 @@ class JobRegistry:
         else:
             job_hash = self._lookup(streams)
             dirname = os.path.join(self.config_root, job_hash)
-            wait_for_creation(dirname, self.timeout, self.poll_interval, self.lock)
+            wait_for_creation(dirname, self.timeout, self.tick, self.lock)
         return job_hash
 
     def _unregister(self, job_hash: str) -> None:
@@ -251,4 +254,4 @@ class JobRegistry:
             self._unregister(job_hash)
         else:
             dirname = os.path.join(self.config_root, job_hash)
-            wait_for_deletion(dirname, self.timeout, self.poll_interval, self.lock)
+            wait_for_deletion(dirname, self.timeout, self.tick, self.lock)

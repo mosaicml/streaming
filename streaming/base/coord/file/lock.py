@@ -4,13 +4,13 @@
 """Soft file locking via file open mode 'x'."""
 
 import os
-from time import sleep, time
 from types import TracebackType
 from typing import Optional, Type, Union
 
 from typing_extensions import Self
 
 from streaming.base.coord.process import get_live_processes
+from streaming.base.coord.waiting import wait
 
 __all__ = ['SoftFileLock']
 
@@ -25,7 +25,12 @@ class SoftFileLock:
         tick (float): Polling interval in seconds. Defaults to ``0.007``.
     """
 
-    def __init__(self, filename: str, timeout: Optional[float] = 30, tick: float = 0.007) -> None:
+    def __init__(
+        self,
+        filename: str,
+        timeout: Optional[float] = 30,
+        tick: float = 0.007,
+    ) -> None:
         if not filename:
             raise ValueError('Path to file lock is empty.')
 
@@ -91,9 +96,11 @@ class SoftFileLock:
             os.remove(filename)
 
     @classmethod
-    def _get_timeout(cls,
-                     init_timeout: Optional[float],
-                     timeout: Optional[Union[str, float]] = 'auto') -> Optional[float]:
+    def _get_timeout(
+        cls,
+        init_timeout: Optional[float],
+        timeout: Optional[Union[str, float]] = 'auto',
+    ) -> Optional[float]:
         """Determine the timeout for a given acquire().
 
         Args:
@@ -121,24 +128,27 @@ class SoftFileLock:
                              f'init, but got: {timeout}.')
         return ret
 
-    def acquire(self, timeout: Optional[Union[str, float]] = 'auto') -> None:
+    def acquire(
+        self,
+        timeout: Optional[Union[str, float]] = 'auto',
+    ) -> None:
         """Acquire this lock.
 
         Args:
             timeout (str | float, optional): Override timeout for just this method call.
         """
-        start = time()
-        timeout = self._get_timeout(self.timeout, timeout)
-        while True:
+
+        def stop() -> bool:
             try:
-                self._write(self.filename, os.getpid())
-                break
+                with open(self.filename, 'x') as out:
+                    text = str(os.getpid())
+                    out.write(text)
+                return True
             except:
-                pass
-            if self.timeout is not None and start + self.timeout < time():
-                raise ValueError(f'Timed out while attempting to acquire file lock: file ' +
-                                 f'{self.filename}, timeout {self.timeout} sec.')
-            sleep(self.tick)
+                return False
+
+        norm_timeout = self._get_timeout(self.timeout, timeout)
+        wait(stop, norm_timeout, self.tick)
 
     def release(self) -> None:
         """Release this lock."""
@@ -158,10 +168,12 @@ class SoftFileLock:
         self.acquire()
         return self
 
-    def __exit__(self,
-                 err_type: Optional[Type[BaseException]] = None,
-                 err: Optional[BaseException] = None,
-                 trace: Optional[TracebackType] = None) -> None:
+    def __exit__(
+        self,
+        err_type: Optional[Type[BaseException]] = None,
+        err: Optional[BaseException] = None,
+        trace: Optional[TracebackType] = None,
+    ) -> None:
         """Exit context manager.
 
         Args:

@@ -10,7 +10,7 @@ from typing import IO, Generic, Optional, Tuple, TypeVar, Union
 import numpy as np
 from numpy.typing import DTypeLike, NDArray
 
-from streaming.base.coord.file.barrier import wait_for_creation
+from streaming.base.coord.file.waiting import wait_for_creation
 
 __all__ = ['T', 'MemMap', 'Number']
 

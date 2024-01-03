@@ -4,12 +4,13 @@
 """Share a barrier across processes using mmap()."""
 
 from enum import IntEnum
-from time import sleep
+from typing import Optional
 
 import numpy as np
 
 from streaming.base.coord.file import SoftFileLock
 from streaming.base.coord.mmap.ndarray import MemMapNDArray
+from streaming.base.coord.waiting import wait
 
 __all__ = ['MemMapBarrier', 'barrier']
 
@@ -28,7 +29,9 @@ class MemMapBarrier:
         create (bool): If ``True``, create. If ``False``, attach.
         mmap_filename (str): Path to memory-mapped file.
         lock_filename (str): Path to SoftFileLock file.
-        tick (float): Polling interval in seconds. Defaults to ``0.007``.
+        timeout (float, optional): How long to wait before raising an exception, in seconds.
+            Defaults to ``30``.
+        tick (float): Check interval, in seconds. Defaults to ``0.007``.
     """
 
     def __init__(
@@ -36,6 +39,7 @@ class MemMapBarrier:
         create: bool,
         mmap_filename: str,
         lock_filename: str,
+        timeout: Optional[float] = 30,
         tick: float = 0.007,
     ) -> None:
         value = 0 if create else None
@@ -44,6 +48,7 @@ class MemMapBarrier:
         self._num_exit = -1
         self._flag = BarrierFlag.GO
         self._lock = SoftFileLock(lock_filename)
+        self._timeout = timeout
         self._tick = tick
 
     @property
@@ -115,8 +120,7 @@ class MemMapBarrier:
         self._lock.acquire()
         if not self._num_enter:
             self._lock.release()
-            while self._num_exit != total:
-                sleep(self._tick)
+            wait(lambda: self._num_exit == total, self._timeout, self._tick, self._lock)
             self._lock.acquire()
             self._flag = BarrierFlag.STOP
 
@@ -131,8 +135,7 @@ class MemMapBarrier:
         self._lock.release()
 
         # Everybody waits until `_flag` is set to `GO`.
-        while not self._flag:
-            sleep(self._tick)
+        wait(lambda: self._flag == BarrierFlag.GO, self._timeout, self._tick, self._lock)
 
         # Note that we exited.
         with self._lock:
@@ -145,6 +148,7 @@ def barrier(
     create: bool,
     mmap_filename: str,
     lock_filename: str,
+    timeout: Optional[float] = 30,
     tick: float = 0.007,
 ) -> MemMapBarrier:
     """Get a barrier backed by a memory-mapped file and a file lock.
@@ -153,6 +157,8 @@ def barrier(
         create (bool): If ``True``, create. If ``False``, attach.
         mmap_filename (str): Path to memory-mapped file.
         lock_filename (str): Path to SoftFileLock file.
-        tick (float): Polling interval in seconds. Defaults to ``0.007``.
+        timeout (float, optional): How long to wait before raising an exception, in seconds.
+            Defaults to ``30``.
+        tick (float): Check interval, in seconds. Defaults to ``0.007``.
     """
-    return MemMapBarrier(create, mmap_filename, lock_filename, tick)
+    return MemMapBarrier(create, mmap_filename, lock_filename, timeout, tick)
