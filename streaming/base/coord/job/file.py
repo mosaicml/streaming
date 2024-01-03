@@ -11,10 +11,10 @@ from typing_extensions import Self
 
 from streaming.base.coord.job.entry import JobEntry
 
-__all__ = ['JobFile']
+__all__ = ['RegistryFile']
 
 
-class JobFile:
+class RegistryFile:
     """StreamingDataset job registry, which is backed by a JSON file.
 
     Args:

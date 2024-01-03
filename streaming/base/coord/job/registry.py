@@ -9,14 +9,15 @@ Useful for detecting collisions between different jobs' local dirs.
 import os
 from hashlib import sha3_224
 from shutil import rmtree
-from time import sleep, time_ns
-from typing import Dict, List, Sequence, Tuple
+from time import time_ns
+from typing import Dict, List, Optional, Sequence, Tuple
 
 from psutil import process_iter
 
-from streaming.base.coord.file import SoftFileLock
+from streaming.base.coord.file.barrier import wait_for_creation, wait_for_deletion
+from streaming.base.coord.file.lock import SoftFileLock
 from streaming.base.coord.job.entry import JobEntry
-from streaming.base.coord.job.file import JobFile
+from streaming.base.coord.job.file import RegistryFile
 from streaming.base.coord.world import World
 from streaming.base.stream import Stream
 
@@ -34,12 +35,20 @@ class JobRegistry:
             your system.
     """
 
-    def __init__(self, config_root: str, tick: float = 0.007) -> None:
+    def __init__(
+        self,
+        config_root: str,
+        timeout: Optional[float] = 30,
+        poll_interval: float = 0.007,
+    ) -> None:
         self.config_root = config_root
-        self._tick = tick
-        self._lock_filename = os.path.join(config_root, 'registry.lock')
-        self._lock = SoftFileLock(self._lock_filename)
-        self._registry_filename = os.path.join(config_root, 'registry.json')
+        self.timeout = timeout
+        self.poll_interval = poll_interval
+
+        self.lock_filename = os.path.join(config_root, 'registry.lock')
+        self.lock = SoftFileLock(self.lock_filename)
+
+        self.registry_filename = os.path.join(config_root, 'registry.json')
 
     def _get_live_procs(self) -> Dict[int, int]:
         """List the pids and creation times of every live process in the system.
@@ -135,32 +144,6 @@ class JobRegistry:
         dirname = os.path.join(self.config_root, job_hash)
         rmtree(dirname)
 
-    def _wait_for_existence(self, job_hash: str) -> None:
-        """Wait for a directory to be created.
-
-        Args:
-            job_hash (str): Job hash of directory.
-        """
-        dirname = os.path.join(self.config_root, job_hash)
-        while True:
-            sleep(self._tick)
-            with self._lock:
-                if os.path.exists(dirname):
-                    break
-
-    def _wait_for_removal(self, job_hash: str) -> None:
-        """Wait for a directory to be removed.
-
-        Args:
-            job_hash (str): Job hash of directory.
-        """
-        dirname = os.path.join(self.config_root, job_hash)
-        while True:
-            sleep(self._tick)
-            with self._lock:
-                if not os.path.exists(dirname):
-                    break
-
     def _register(self, streams: Sequence[Stream]) -> str:
         """Register this collection of StreamingDataset replicas.
 
@@ -189,11 +172,11 @@ class JobRegistry:
                          process_id=pid,
                          register_time=register_time)
 
-        with self._lock:
-            reg = JobFile.read(self._registry_filename)
-            reg.add(entry)
-            del_job_hashes = reg.filter(pid2create_time)
-            reg.write(self._registry_filename)
+        with self.lock:
+            conf = RegistryFile.read(self.registry_filename)
+            conf.add(entry)
+            del_job_hashes = conf.filter(pid2create_time)
+            conf.write(self.registry_filename)
             map(self._remove_dir, del_job_hashes)
             self._make_dir(job_hash)
 
@@ -233,7 +216,8 @@ class JobRegistry:
             job_hash = self._register(streams)
         else:
             job_hash = self._lookup(streams)
-            self._wait_for_existence(job_hash)
+            dirname = os.path.join(self.config_root, job_hash)
+            wait_for_creation(dirname, self.timeout, self.poll_interval, self.lock)
         return job_hash
 
     def _unregister(self, job_hash: str) -> None:
@@ -246,11 +230,11 @@ class JobRegistry:
         """
         pid2create_time = self._get_live_procs()
 
-        with self._lock:
-            reg = JobFile.read(self._registry_filename)
-            reg.remove(job_hash)
-            del_job_hashes = reg.filter(pid2create_time)
-            reg.write(self._registry_filename)
+        with self.lock:
+            conf = RegistryFile.read(self.registry_filename)
+            conf.remove(job_hash)
+            del_job_hashes = conf.filter(pid2create_time)
+            conf.write(self.registry_filename)
             map(self._remove_dir, del_job_hashes)
             self._remove_dir(job_hash)
 
@@ -266,4 +250,5 @@ class JobRegistry:
         if world.is_local_leader:
             self._unregister(job_hash)
         else:
-            self._wait_for_removal(job_hash)
+            dirname = os.path.join(self.config_root, job_hash)
+            wait_for_deletion(dirname, self.timeout, self.poll_interval, self.lock)
