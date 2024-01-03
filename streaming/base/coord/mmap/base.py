@@ -284,8 +284,8 @@ def _write_file(arr: NDArray[np.number], shape: Tuple[int], filename: str) -> No
     """Write the ndarray as either a regular or sparse file.
 
     Args:
+        arr (NDArray[np.number]): Array to write or value to broadcast.
         shape (Tuple[int]): Normalized ndarray shape.
-        dtype (np.dtype): Normalized ndarray dtype.
         filename (str): Path to file.
     """
     if (arr == 0).all():
