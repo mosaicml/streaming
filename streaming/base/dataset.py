@@ -32,7 +32,7 @@ from streaming.base.format import get_index_basename
 from streaming.base.sampling import get_sampling
 from streaming.base.spanner import Spanner
 from streaming.base.stream import Stream
-from streaming.base.util import bytes_to_int, number_abbrev_to_int, wait_for_file_to_exist
+from streaming.base.util import bytes_to_int, number_abbrev_to_int
 
 # An arbitrary time in the future, used for cold shard eviction.
 NEVER = np.iinfo(np.uint64).max
@@ -464,15 +464,14 @@ class StreamingDataset(Array, IterableDataset):
         # Length (__len__) is the resampled epoch size divided over the number of devices.
         self.length = ceil(self.epoch_size / world.num_ranks)
 
-        # Register/lookup our shared memory prefix and filelock root directory.
+        # Init registry, then register this Streaming job.
         self.registry = JobRegistry(self.config_root)
         self.job = JobDirectory(self.registry, streams, world)
         job_file = self.job.get_filename
 
-        init_done_filename = self.job.get_filename('init_done.txt')
-        if world.is_local_leader:
-            if os.path.exists(init_done_filename):
-                os.remove(init_done_filename)
+        # Rank barrier.
+        self._rank_barrier = mm.barrier(world.is_local_leader, job_file('rank_barrier.npy'),
+                                        job_file('rank_barrier.lock'))
 
         # Worker barrier.
         self._worker_barrier = mm.barrier(world.is_local_leader, job_file('worker_barrier.npy'),
@@ -504,7 +503,7 @@ class StreamingDataset(Array, IterableDataset):
         self._shard_access_times = mm.ndarray(job_file('shard_access_times.npy'), self.num_shards,
                                               np.uint64, value)
 
-        # Initialize shared memory objects.
+        # Initialize interprocess state.
         if world.is_local_leader:
             # Set initial epoch (before any resumption).
             self.next_epoch = 0
@@ -528,18 +527,13 @@ class StreamingDataset(Array, IterableDataset):
                 self._shard_states[shard_id] = _ShardState.LOCAL if size else _ShardState.REMOTE
                 self._shard_access_times[shard_id] = time_ns()
 
-            with open(init_done_filename, 'x'):
-                pass
-        else:
-            wait_for_file_to_exist(init_done_filename, TICK, 300,
-                                   'Waited too long for initialization')
+        # These fields are set each __iter__().
+        self._iterator: _Iterator  # Tracks thread positions.
+        self._executor: ThreadPoolExecutor  # Multi-threading.
+        self._event: Event  # Exception handling.
 
-        # Placeholder for an _Iterator which tracks state during __iter__().
-        self._iterator: _Iterator
-
-        # Placeholder for exception handling in __iter__ threads.
-        self._executor: ThreadPoolExecutor
-        self._event: Event
+        # Init is not done for anyone until all interprocess state is populated by local leader.
+        self._rank_barrier(world.ranks_per_node)
 
     @classmethod
     def _test_config_root(cls, config_root: str) -> None:
