@@ -11,7 +11,7 @@ from typing import Any
 
 import pytest
 
-from streaming.base.shared import SharedArray, SharedBarrier
+from streaming.base.coord.shmem import SharedArray, SharedBarrier
 
 
 class TestSharedBarrier:
