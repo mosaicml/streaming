@@ -1,4 +1,4 @@
-# Copyright 2023 MosaicML Streaming authors
+# Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 """An ordered set that can be used as an LRU cache."""

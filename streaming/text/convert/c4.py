@@ -1,4 +1,4 @@
-# Copyright 2023 MosaicML Streaming authors
+# Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 """C4 (Colossal Cleaned Common Crawl) streaming dataset conversion script."""
