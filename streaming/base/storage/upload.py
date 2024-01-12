@@ -1,4 +1,4 @@
-# Copyright 2023 MosaicML Streaming authors
+# Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 """Write files to remote location which can be either Cloud Storage or a local path."""
