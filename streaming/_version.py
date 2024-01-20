@@ -1,6 +1,6 @@
-# Copyright 2023 MosaicML Streaming authors
+# Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 """The Streaming Version."""
 
-__version__ = '0.7.2'
+__version__ = '0.7.3'
