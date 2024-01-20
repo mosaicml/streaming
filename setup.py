@@ -1,4 +1,4 @@
-# Copyright 2023 MosaicML Streaming authors
+# Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 """Streaming package setup."""
@@ -69,20 +69,20 @@ extra_deps['dev'] = [
     'docformatter>=1.4',
     'jupyter==1.0.0',
     'pre-commit>=2.18.1,<4',
-    'pytest==7.4.3',
+    'pytest==7.4.4',
     'pytest_codeblocks==0.17.0',
     'pytest-cov>=4,<5',
     'toml==0.10.2',
     'yamllint==1.33.0',
     'moto>=4.0,<5',
-    'fastapi==0.108.0',
+    'fastapi==0.109.0',
     'pydantic==2.5.3',
     'uvicorn==0.25.0',
     'pytest-split==0.8.1',
 ]
 
 extra_deps['docs'] = [
-    'GitPython==3.1.40',
+    'GitPython==3.1.41',
     'docutils==0.18.1',
     'furo==2023.7.26',
     'myst-parser==2.0.0',
