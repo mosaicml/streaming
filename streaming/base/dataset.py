@@ -559,7 +559,7 @@ class StreamingDataset(Array, IterableDataset):
         if init_pregen_epoch is not None:
             self.init_pregen_sample = init_pregen_sample or 0
         else:
-            if init_pregen_sample is None:
+            if init_pregen_sample is not None:
                 raise ValueError(f'Init pregen epoch is not set, but init pregen sample is: ' +
                                  f'epoch {init_pregen_epoch}, sample {init_pregen_sample}.')
             self.init_pregen_sample = init_pregen_sample

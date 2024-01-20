@@ -18,8 +18,8 @@ from psutil import process_iter
 from streaming.base.coord.filesystem.waiting import wait_for_creation, wait_for_deletion
 from streaming.base.coord.job.entry import JobEntry
 from streaming.base.coord.job.file import RegistryFile
-from streaming.base.coord.world import World
 from streaming.base.stream import Stream
+from streaming.base.world import World
 
 __all__ = ['JobRegistry']
 
