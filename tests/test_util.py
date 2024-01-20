@@ -12,7 +12,7 @@ from typing import List, Optional, Tuple, Union
 import pytest
 
 from streaming.base.constant import RESUME
-from streaming.base.shared.prefix import _get_path
+from streaming.base.coord.shmem.prefix import _get_path
 from streaming.base.storage.download import download_file
 from streaming.base.storage.upload import CloudUploader
 from streaming.base.util import (bytes_to_int, clean_stale_shared_memory, get_list_arg,

@@ -365,14 +365,13 @@ def _modules_to_rst() -> List[types.ModuleType]:
     document_modules: List[types.Module] = [
         streaming,
         streaming.base.compression,
+        streaming.base.coord,
         streaming.base.format,
         streaming.base.hashing,
         streaming.base.partition,
-        streaming.base.shared,
         streaming.base.shuffle,
         streaming.base.storage,
         streaming.base.util,
-        streaming.base.world,
     ]
     exclude_modules: List[types.Module] = [streaming.base, streaming._version]
     for name in streaming.__dict__:

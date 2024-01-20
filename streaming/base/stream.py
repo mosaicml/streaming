@@ -15,12 +15,12 @@ from typing_extensions import Self
 
 from streaming.base.compression import decompress
 from streaming.base.constant import TICK
+from streaming.base.coord.world import World
 from streaming.base.distributed import barrier, get_local_rank
 from streaming.base.format import FileInfo, Reader, get_index_basename, reader_from_json
 from streaming.base.hashing import get_hash
 from streaming.base.storage import download_file
 from streaming.base.util import retry, wait_for_file_to_exist
-from streaming.base.world import World
 
 
 class Stream:
@@ -86,6 +86,10 @@ class Stream:
         keep_zip (bool, optional): Whether to keep or delete the compressed form when decompressing
             downloaded shards. If ``False``, keep if and only if remote is local or no remote.
             Defaults to ``None``.
+        allow_unsafe_types (bool, optional): If a shard contains Pickle, which allows arbitrary
+            code execution during deserialization, whether to keep going if ``True`` or raise an
+            error if ``False``. Inherits from its owning StreamingDataset if ``None``. Defaults to
+            ``None``.
     """
 
     def __init__(self,
@@ -99,7 +103,8 @@ class Stream:
                  download_retry: Optional[int] = None,
                  download_timeout: Optional[float] = None,
                  validate_hash: Optional[str] = None,
-                 keep_zip: Optional[bool] = None) -> None:
+                 keep_zip: Optional[bool] = None,
+                 allow_unsafe_types: Optional[bool] = None) -> None:
         self.remote = remote
         self._local = local
         self.split = split or ''
@@ -161,6 +166,10 @@ class Stream:
             self.keep_zip = keep_zip
             self.safe_keep_zip = self.keep_zip or self.remote in {None, self.local}
 
+        self._allow_unsafe_types = allow_unsafe_types
+        if allow_unsafe_types is not None:
+            self.allow_unsafe_types = allow_unsafe_types
+
     def _get_temporary_directory(self) -> str:
         """Construct a path to a temporary directory based on remote and split."""
         root = tempfile.gettempdir()
@@ -169,28 +178,43 @@ class Stream:
             hash = hashlib.blake2s(self.remote.encode('utf-8'), digest_size=16).hexdigest()
         return os.path.join(root, hash, self.split)
 
-    def apply_default(self, default: dict) -> None:
+    def apply_defaults(self, *, split: Optional[str], download_retry: int, download_timeout: float,
+                       validate_hash: Optional[str], keep_zip: bool,
+                       allow_unsafe_types: bool) -> None:
         """Apply defaults, setting any unset fields.
 
         We use pairs of (name, _name) in order to make type checking happy.
 
         Args:
-            default (Self): Stream containing default values for all optional fields.
+            split (str, optional): Which dataset split to use, if any. If provided, we stream
+                from/to the ``split`` subdirs of  ``remote`` and ``local``.
+            download_retry (int): Number of download re-attempts before giving up.
+            download_timeout (float): Number of seconds to wait for a shard to download before
+                raising an exception.
+            validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
+                shards.
+            keep_zip (bool): Whether to keep or delete the compressed form when decompressing
+                downloaded shards. If ``False``, keep iff remote is local or no remote.
+            allow_unsafe_types (bool): If a shard contains Pickle, which allows arbitrary code
+                execution during deserialization, whether to keep going if ``True`` or raise an
+                error if ``False``.
         """
         if not (self.remote or self._local):
             raise ValueError('`remote` and/or `local` path must be provided')
 
         if not self.split:
-            self.split = default['split'] or ''
+            self.split = split or ''
         if self._download_retry is None:
-            self.download_retry = default['download_retry']
+            self.download_retry = download_retry
         if self._download_timeout is None:
-            self.download_timeout = default['download_timeout']
+            self.download_timeout = download_timeout
         if self.validate_hash is None:
-            self.validate_hash = default['validate_hash'] or None
+            self.validate_hash = validate_hash
         if self._keep_zip is None:
-            self.keep_zip = default['keep_zip']
-            self.safe_keep_zip = default['keep_zip'] or self.remote in {None, self.local}
+            self.keep_zip = keep_zip
+            self.safe_keep_zip = keep_zip or self.remote in {None, self.local}
+        if self._allow_unsafe_types is None:
+            self.allow_unsafe_types = allow_unsafe_types
 
     @classmethod
     def validate_weights(cls, streams: Sequence[Self]) -> Tuple[bool, bool]:
@@ -421,18 +445,18 @@ class Stream:
             delta += self._prepare_shard_part(raw_info, zip_info, shard.compression)
         return delta
 
-    def get_shards(self, world: World, allow_unsafe_types: bool) -> List[Reader]:
+    def get_shards(self, world: World) -> List[Reader]:
         """Load this Stream's index, retrieving its shard readers.
 
         Args:
             world (World): Distributed context.
-            allow_unsafe_types (bool): If a shard contains Pickle, which allows arbitrary code
-                execution during deserialization, whether to keep going if ``True`` or raise an
-                error.
 
         Returns:
             `List[Reader]: Shard readers.
         """
+        if self.allow_unsafe_types is None:
+            raise RuntimeError('`allow_unsafe_types` was not provided.')
+
         # Download the index file if it does not exist locally.
         basename = get_index_basename()
         filename = os.path.join(self.local, self.split, basename)  # pyright: ignore
@@ -472,7 +496,7 @@ class Stream:
         shards = []
         for info in obj['shards']:
             shard = reader_from_json(self.local, self.split, info)
-            shard.validate(allow_unsafe_types)
+            shard.validate(self.allow_unsafe_types)
             shards.append(shard)
 
         return shards

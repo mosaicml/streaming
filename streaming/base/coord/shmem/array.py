@@ -8,7 +8,7 @@ from typing import Any, Tuple, Union
 import numpy as np
 from numpy.typing import NDArray
 
-from streaming.base.shared.memory import SharedMemory
+from streaming.base.coord.shmem.memory import SharedMemory
 
 
 class SharedArray:

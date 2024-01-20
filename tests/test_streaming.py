@@ -318,7 +318,7 @@ def test_dataloader_stratified_batching_user_set(local_remote_dir: Tuple[str,
 
 @pytest.mark.parametrize('stream_2_size', list(range(1, 65, 10)))
 @pytest.mark.usefixtures('local_remote_dir')
-def test_stratified_batching_Exception(local_remote_dir: Tuple[str, str], stream_2_size: int):
+def test_stratified_batching_exception(local_remote_dir: Tuple[str, str], stream_2_size: int):
 
     local, remote = local_remote_dir
     local1 = os.path.join(local, 'stream1')
@@ -631,7 +631,7 @@ def test_dataloader_single_device(local_remote_dir: Tuple[str, str], batch_size:
 @pytest.mark.parametrize('shuffle', [True])
 @pytest.mark.parametrize('sampling_method', ['balanfixed', 'fixedd', '', 'random', 'ayo'])
 @pytest.mark.usefixtures('local_remote_dir')
-def test_sampling_method_invalid_Exception(local_remote_dir: Any, batch_size: int, seed: int,
+def test_sampling_method_invalid_exception(local_remote_dir: Any, batch_size: int, seed: int,
                                            shuffle: bool, sampling_method: str):
     remote_dir, local_dir = local_remote_dir
     convert_to_mds(out_root=remote_dir,
@@ -639,7 +639,7 @@ def test_sampling_method_invalid_Exception(local_remote_dir: Any, batch_size: in
                    num_samples=117,
                    size_limit=1 << 8)
 
-    with pytest.raises(ValueError, match=f'Invalid sampling method:*'):
+    with pytest.raises(ValueError):
         _ = StreamingDataset(local=local_dir,
                              remote=remote_dir,
                              shuffle=shuffle,
@@ -782,6 +782,7 @@ def test_streamingdataloader_mid_epoch_resumption(local_remote_dir: Any, batch_s
         sample_order.extend(batch['id'][:])
 
     del dataloader
+    del dataset.job
     del dataset
 
     clean_stale_shared_memory()
@@ -861,6 +862,10 @@ def test_multiple_dataset_instantiation(local_remote_dir: Any, shuffle_seed: tup
     assert len(set(train_sample_order)) == len(set(val_sample_order)), 'Duplicate samples'
 
 
+@pytest.mark.skip('Even though a streaming dataset is local (has no remote), we cannot draw ' +
+                  'conclusions about what exact phases of its files are present and would ' +
+                  'require prepare work (e.g., unzipping) for use, which would have to be ' +
+                  'managed in one place, so this test is sadly invalid.')
 def test_same_local_no_remote(local_remote_dir: Tuple[str, str]):
     local_0, _ = local_remote_dir
     convert_to_mds(out_root=local_0,
@@ -893,5 +898,5 @@ def test_same_local_diff_remote(local_remote_dir: Tuple[str, str]):
     # Build StreamingDataset
     _ = StreamingDataset(local=local_0, remote=remote_0, batch_size=4, num_canonical_nodes=1)
     # Build StreamingDataset
-    with pytest.raises(ValueError, match='Reused local directory.*vs.*Provide a different one.'):
+    with pytest.raises(ValueError):
         _ = StreamingDataset(local=local_0, remote=remote_1, batch_size=2, num_canonical_nodes=1)

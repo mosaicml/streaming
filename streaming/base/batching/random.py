@@ -10,9 +10,9 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray
 
+from streaming.base.coord.world import World
 from streaming.base.partition import get_partitions
 from streaming.base.shuffle import get_shuffle
-from streaming.base.world import World
 
 if TYPE_CHECKING:
     from streaming.base.dataset import StreamingDataset
@@ -58,9 +58,6 @@ def generate_work_random_batching(dataset: StreamingDataset, world: World, epoch
 
     # If we need to shuffle, shuffle in a node-aware and *underlying* shard-aware way.
     if dataset.shuffle:
-        if not isinstance(dataset.shuffle_block_size, int):
-            raise TypeError(f'Dataset `shuffle_block_size` must be an integer. ' +
-                            f'Got {type(dataset.shuffle_block_size)} instead.')
         shuffle = get_shuffle(dataset.shuffle_algo, shuffle_units, dataset.num_canonical_nodes,
                               dataset.shuffle_seed, epoch, dataset.shuffle_block_size)
         big_ids = np.where(big_ids != -1, shuffle[big_ids], -1)
