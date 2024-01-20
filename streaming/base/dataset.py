@@ -7,7 +7,6 @@ import json
 import logging
 import os
 import sys
-import warnings
 from concurrent.futures import ThreadPoolExecutor, wait
 from concurrent.futures._base import Future
 from enum import IntEnum
@@ -16,6 +15,7 @@ from tempfile import gettempdir
 from threading import Event, Lock
 from time import sleep, time_ns
 from typing import Any, Dict, Iterator, Optional, Sequence, Tuple, Union
+from warnings import warn
 
 import numpy as np
 from filelock import FileLock
@@ -26,14 +26,15 @@ from streaming.base.array import Array
 from streaming.base.batching import generate_work
 from streaming.base.constant import (BARRIER, CACHE_FILELOCK, CACHE_USAGE, EPOCH_DATA, EPOCH_SHAPE,
                                      NEXT_EPOCH, RESUME, SHARD_ACCESS_TIMES, SHARD_STATES, TICK)
+from streaming.base.coord.job import JobDirectory, JobRegistry
+from streaming.base.coord.shmem import (SharedArray, SharedBarrier, SharedMemory, SharedScalar,
+                                        _get_path)
+from streaming.base.coord.world import World
 from streaming.base.format import get_index_basename
-from streaming.base.interproc.registry import JobDir, JobRegistry
 from streaming.base.sampling import get_sampling
-from streaming.base.shared import SharedArray, SharedBarrier, SharedMemory, SharedScalar, _get_path
 from streaming.base.spanner import Spanner
 from streaming.base.stream import Stream
 from streaming.base.util import bytes_to_int, number_abbrev_to_int, wait_for_file_to_exist
-from streaming.base.world import World
 
 # An arbitrary time in the future, used for cold shard eviction.
 NEVER = np.iinfo(np.uint64).max
@@ -165,35 +166,6 @@ class _Iterator:
             self._num_exited += 1
 
 
-def _test_config_root(config_root: str) -> None:
-    """Validate that the provided config root is usable.
-
-    If you are unable to get root or 777 perms, you may encounter problems in registering your
-    Streaming jobs for collision detection, getting unique interprocess filelock paths, etc. You
-    can sort of get around this by changing config root to a directory you control, but this may
-    negatively impact collision detection.
-
-    Args:
-        config_root (str): Streaming configuration root directory.
-    """
-    os.makedirs(config_root, exist_ok=True)
-    filename = os.path.join(config_root, 'test.txt')
-    try:
-        with open(filename, 'wb') as out:
-            out.write(b'')
-    except:
-        raise ValueError('Please provide a `config_root` dir that is writeable and readable.')
-
-
-def _get_default_config_root() -> str:
-    """Get the default Streaming configuration root directory.
-
-    Returns:
-        str: Default Streaming configuration root directory.
-    """
-    return os.path.join(gettempdir(), 'streaming')
-
-
 class StreamingDataset(Array, IterableDataset):
     """A mid-epoch-resumable streaming/caching pytorch IterableDataset.
 
@@ -235,6 +207,10 @@ class StreamingDataset(Array, IterableDataset):
 
     * How to iterate (the StreamingDataset arguments):
 
+      * Configuration:
+
+        * ``config_root``
+
       * Shard lifecycle:
 
         * ``predownload``
@@ -261,10 +237,6 @@ class StreamingDataset(Array, IterableDataset):
       * Batching:
 
         * ``batching_method``
-
-      * Configuration:
-
-        * ``config_root``
 
     Args:
         epoch_size (Union[int, str], optional): Number of samples to draw per epoch balanced
@@ -294,6 +266,9 @@ class StreamingDataset(Array, IterableDataset):
         allow_unsafe_types (bool): If a shard contains Pickle, which allows arbitrary code
             execution during deserialization, whether to keep going if ``True`` or raise an error
             if ``False``. Defaults to ``False``.
+        config_root (str, optional): Streaming configuration root directory, used for collision
+            detection, filelock paths, etc. If ``None``, uses a ``/streaming/`` subdir under your
+            system's temp root. Defaults to ``None``.
         predownload (int, optional): Target number of samples to download per worker in advance
             of current sample. Workers will attempt to download ahead by this many samples during,
             but not before, training. Recommendation is to provide a value greater than per device
@@ -336,54 +311,59 @@ class StreamingDataset(Array, IterableDataset):
             ``None``.
         batching_method (str): Which batching method to use, either ``random``, ``stratified``, or
             ``per_stream``. Defaults to ``random``.
-        config_root (str): Streaming configuration root directory, used for collision detection,
-              filelock paths, etc. Defaults to ``/tmp/streaming``, using the equivalent temp root
-              on your system.
     """
 
     def __init__(
-            self,
-            *,
-            epoch_size: Optional[Union[int, str]] = None,
-            streams: Optional[Sequence[Stream]] = None,
-            remote: Optional[str] = None,
-            local: Optional[str] = None,
-            split: Optional[str] = None,
-            download_retry: int = 2,
-            download_timeout: float = 60,
-            validate_hash: Optional[str] = None,
-            keep_zip: bool = False,
-            allow_unsafe_types: bool = False,
-            predownload: Optional[int] = None,
-            cache_limit: Optional[Union[int, str]] = None,
-            sampling_method: str = 'balanced',
-            sampling_granularity: int = 1,
-            partition_algo: str = 'relaxed',
-            num_canonical_nodes: Optional[int] = None,
-            batch_size: Optional[int] = None,
-            shuffle: bool = False,
-            shuffle_algo: str = 'py1e',
-            shuffle_seed: int = 9176,
-            shuffle_block_size: Optional[int] = None,
-            batching_method: str = 'random',
-            config_root: str = _get_default_config_root(),
+        self,
+        *,
+        epoch_size: Optional[Union[int, str]] = None,
+        streams: Optional[Sequence[Stream]] = None,
+        remote: Optional[str] = None,
+        local: Optional[str] = None,
+        split: Optional[str] = None,
+        download_retry: int = 2,
+        download_timeout: float = 60,
+        validate_hash: Optional[str] = None,
+        keep_zip: bool = False,
+        allow_unsafe_types: bool = False,
+        config_root: Optional[str] = None,
+        predownload: Optional[int] = None,
+        cache_limit: Optional[Union[int, str]] = None,
+        sampling_method: str = 'balanced',
+        sampling_granularity: int = 1,
+        partition_algo: str = 'relaxed',
+        num_canonical_nodes: Optional[int] = None,
+        batch_size: Optional[int] = None,
+        shuffle: bool = False,
+        shuffle_algo: str = 'py1e',
+        shuffle_seed: int = 9176,
+        shuffle_block_size: Optional[int] = None,
+        batching_method: str = 'random',
     ) -> None:
-        # Global arguments (which do not live in Streams).
-        self.predownload = predownload
-        self.cache_limit = cache_limit
-        self.sampling_method = sampling_method
-        self.sampling_granularity = sampling_granularity
-        self.partition_algo = partition_algo
-        self.num_canonical_nodes = num_canonical_nodes
+        # Initialize the World context.
+        #
+        # Beware: This information is for the per-rank process. DataLoader worker processes may see
+        # different values for these fields. We are saving the rank World here because we cannot
+        # instantiate a World inside the StreamingDataset destructor.
+        self._rank_world = world = World()
+
+        # Purely StreamingDataset arguments (which do not live in Streams).
+        self.config_root = self._get_config_root(config_root)
+        self._test_config_root(self.config_root)
+        self.predownload = self._get_predownload(predownload, batch_size)
+        self.cache_limit = self._get_cache_limit(cache_limit)
+        self.sampling_method = self._get_sampling_method(sampling_method)
+        self.sampling_granularity = self._get_sampling_granularity(sampling_granularity)
+        self.partition_algo = self._get_partition_algo(partition_algo)
+        self.input_num_canonical_nodes = num_canonical_nodes
+        self.num_canonical_nodes: int
         self.batch_size = batch_size
         self.shuffle = shuffle
-        self.shuffle_algo = shuffle_algo
-        self.shuffle_seed = shuffle_seed
-        self.shuffle_block_size = shuffle_block_size
-        self.batching_method = batching_method
-
-        _test_config_root(config_root)
-        self.config_root = config_root
+        self.shuffle_algo = self._get_shuffle_algo(shuffle_algo)
+        self.shuffle_seed = self._get_shuffle_seed(shuffle_seed)
+        self.input_shuffle_block_size = shuffle_block_size
+        self.shuffle_block_size: int
+        self.batching_method = self._get_batching_method(batching_method)
 
         # Initialize initial_physical_nodes to None. If we are resuming, then we will set it to the
         # number of physical nodes of the initial run in the _resume function.
@@ -393,50 +373,6 @@ class StreamingDataset(Array, IterableDataset):
         if bool(streams) == (bool(remote) or bool(local)):
             raise ValueError(
                 'You must provide either `streams` or `remote`/`local`, but not both.')
-
-        # Check sampling method is one of "balanced" or "fixed".
-        if self.sampling_method not in ['balanced', 'fixed']:
-            raise ValueError(
-                f'Invalid sampling method: {sampling_method}. ' + \
-                f'Must be one of `balanced` or `fixed`.'
-            )
-
-        # Check sampling granularity.
-        if self.sampling_granularity <= 0:
-            raise ValueError(f'`sampling_granularity` must be a positive integer, but got: ' +
-                             f'{self.sampling_granularity}.')
-
-        # Check batching method is one of "random", "stratified", or "per_stream".
-        if self.batching_method not in ['random', 'stratified', 'per_stream']:
-            raise ValueError(
-                f'Invalid batching method: {batching_method}. ' + \
-                f'Must be one of `random`, `stratified`, or `per_stream.'
-            )
-
-        # issue deprecation warning for py1b shuffle algorithm.
-        if self.shuffle_algo == 'py1b':
-            warnings.warn('The \'py1b\' shuffle algorithm will soon be deprecated. \
-                Please use the more performant \'py1br\' algorithm instead.',
-                          DeprecationWarning,
-                          stacklevel=2)
-
-        # Check shuffle seed.
-        if self.shuffle_seed < 0:
-            raise ValueError(f'`shuffle_seed` must be a non-negative integer, but got: ' +
-                             f'{self.shuffle_seed}.')
-
-        # Check that predownload is at least per device batch size, and set it if currently `None`.
-        if self.predownload is not None and self.batch_size is not None and \
-            self.predownload < self.batch_size:
-            warnings.warn(f'predownload < batch_size ({self.predownload} < {self.batch_size}).' +
-                          f'This may result in slower batch time. Recommendation is to set ' +
-                          f'predownload to at-least batch_size.')
-        elif self.predownload is None:
-            logger.warning(f'Because `predownload` was not specified, it will default to ' +
-                           f'8*batch_size if batch_size is not None, otherwise 64. Prior to ' +
-                           f'Streaming v0.7.0, `predownload` defaulted to ' +
-                           f'max(batch_size, 256 * batch_size // num_canonical_nodes).')
-            self.predownload = 8 * self.batch_size if self.batch_size is not None else 64
 
         # Convert epoch size from string to int, if needed. Cannot be negative.
         epoch_size_value = None
@@ -455,32 +391,22 @@ class StreamingDataset(Array, IterableDataset):
                                       keep_zip=keep_zip,
                                       allow_unsafe_types=allow_unsafe_types)
         else:
-            stream = Stream(remote=remote,
-                            local=local,
-                            split=split,
-                            download_retry=download_retry,
-                            download_timeout=download_timeout,
-                            validate_hash=validate_hash,
-                            keep_zip=keep_zip,
-                            allow_unsafe_types=allow_unsafe_types)
-            streams = [stream]
+            streams = Stream(remote=remote,
+                             local=local,
+                             split=split,
+                             download_retry=download_retry,
+                             download_timeout=download_timeout,
+                             validate_hash=validate_hash,
+                             keep_zip=keep_zip,
+                             allow_unsafe_types=allow_unsafe_types),
 
         # Validate the stream weighting scheme (relative or absolute) to catch errors before we go
         # to the trouble of loading them.
         Stream.validate_weights(streams)
 
-        # Set streams.
+        # Download each stream's index, init their shards, and map streams <-> shards <-> samples.
         self.streams = streams
         self.num_streams = len(streams)
-
-        # Initialize the World context.
-        #
-        # Beware: This information is for the per-rank process. DataLoader worker processes may see
-        # different values for these fields. We are saving the rank World here because we cannot
-        # instantiate a World inside the StreamingDataset destructor.
-        self._rank_world = world = World()
-
-        # Download each stream's index, load their shards, and map streams <-> shards.
         self.num_samples = 0
         self.shards = []
         stream_per_shard = []
@@ -506,8 +432,6 @@ class StreamingDataset(Array, IterableDataset):
 
         # Check that cache limit is possible.
         if self.cache_limit:
-            if isinstance(self.cache_limit, str):
-                self.cache_limit = bytes_to_int(self.cache_limit)
             min_cache_usage = sum((stream.get_index_size() for stream in streams))
             if self.cache_limit <= min_cache_usage:
                 raise ValueError(f'Minimum cache usage ({min_cache_usage} bytes) is larger than ' +
@@ -538,8 +462,8 @@ class StreamingDataset(Array, IterableDataset):
         self.length = ceil(self.epoch_size / world.num_ranks)
 
         # Register/lookup our shared memory prefix and filelock root directory.
-        self.registry = JobRegistry(config_root)
-        self.job_dir = JobDir(self.registry, streams, world)
+        self.job_registry = JobRegistry(self.config_root)
+        self.job_dir = JobDirectory(self.job_registry, streams, world)
         self._shm_prefix_int = int(self.job_dir.job_hash, 16)
 
         init_done_filename = self.job_dir.get_filename('init_done.txt')
@@ -547,7 +471,7 @@ class StreamingDataset(Array, IterableDataset):
             if os.path.exists(init_done_filename):
                 os.remove(init_done_filename)
 
-        self._filelock_root = os.path.join(self.registry.config_root, self.job_dir.job_hash)
+        self._filelock_root = os.path.join(self.job_registry.config_root, self.job_dir.job_hash)
         os.makedirs(self._filelock_root, exist_ok=True)
 
         # Create the shared memory-backed barrier, without its lock, which is unpickleable.
@@ -562,8 +486,8 @@ class StreamingDataset(Array, IterableDataset):
         self._next_epoch = SharedScalar(np.int64, _get_path(self._shm_prefix_int, NEXT_EPOCH))
 
         # Cache filelock. Protects downloading and evicting shards.
-        self._cache_filelock_path = self.job_dir.get_filename('cache_filelock.bin')
-        self._cache_filelock: FileLock
+        self._cache_lock_filename = self.job_dir.get_filename('cache.lock')
+        self._cache_lock: FileLock
 
         # Cache usage in bytes.
         self._cache_usage = SharedScalar(np.int64, _get_path(self._shm_prefix_int, CACHE_USAGE))
@@ -623,6 +547,250 @@ class StreamingDataset(Array, IterableDataset):
 
         del self._shared_barrier.lock  # Remote the lock that makes it unpickleable.
 
+    @classmethod
+    def _test_config_root(cls, config_root: str) -> None:
+        """Validate that the provided config root is usable.
+
+        If you are unable to get root or 777 perms, you may encounter problems in registering your
+        Streaming jobs for collision detection, getting unique interprocess filelock paths, etc.
+        You can sort of get around this by changing config root to a directory you control, but
+        this may negatively impact collision detection.
+
+        Args:
+            config_root (str): Streaming configuration root directory.
+        """
+        os.makedirs(config_root, exist_ok=True)
+        filename = os.path.join(config_root, 'test.txt')
+        try:
+            with open(filename, 'wb') as out:
+                out.write(b'')
+        except:
+            raise ValueError('Please provide a `config_root` dir that is writeable and readable.')
+
+    @classmethod
+    def _get_config_root(cls, config_root: Optional[str]) -> str:
+        """Get the default Streaming configuration root directory.
+
+        Args:
+            config_root (str, optional): Config root, if explicitly provided.
+
+        Returns:
+            str: Streaming configuration root directory.
+        """
+        return os.path.join(gettempdir(), 'streaming')
+
+    @classmethod
+    def _get_predownload(cls, predownload: Optional[int], batch_size: Optional[int]) -> int:
+        if predownload is not None:
+            if batch_size is not None and predownload < batch_size:
+                warn(f'`predownload` < `batch_size` ({predownload} < {batch_size}). This may ' +
+                     f'result in slower batch time. The recommendation is to set `predownload` ' +
+                     f'to at least `batch_size`.')
+            norm_predownload = predownload
+        else:
+            logger.warning(f'Because `predownload` was not specified, it will default to ' +
+                           f'`8 * batch_size` if batch_size is not None, otherwise 64. Prior to ' +
+                           f'Streaming v0.7.0, `predownload` defaulted to ' +
+                           f'`max(batch_size, 256 * batch_size // num_canonical_nodes)`.')
+            if batch_size is None:
+                norm_predownload = 64
+            else:
+                norm_predownload = 8 * batch_size
+        return norm_predownload
+
+    @classmethod
+    def _get_cache_limit(cls, cache_limit: Optional[Union[int, str]]) -> Optional[int]:
+        """Get cache limit.
+
+        Args:
+            cache_limit (int | str, optional): Input cache limit.
+
+        Returns:
+            int, optional: Normalized cache limit.
+        """
+        if cache_limit is not None:
+            if isinstance(cache_limit, str):
+                norm_cache_limit = bytes_to_int(cache_limit)
+            else:
+                norm_cache_limit = cache_limit
+            if norm_cache_limit <= 0:
+                raise ValueError(f'Cache limit, if set, must be positive, but got: ' +
+                                 f'{cache_limit} -> {norm_cache_limit}.')
+        else:
+            norm_cache_limit = cache_limit
+        return norm_cache_limit
+
+    @classmethod
+    def _get_sampling_method(cls, sampling_method: str) -> str:
+        """Get sampling method.
+
+        Args:
+            sampling_method (str): Input sampling method.
+
+        Returns:
+            str: Normalized sampling method,
+        """
+        methods = 'balanced', 'fixed'
+
+        if sampling_method not in methods:
+            raise ValueError(f'`sampling_method` must be one of {sorted(methods)}, but got: ' +
+                             f'{sampling_method}.')
+
+        return sampling_method
+
+    @classmethod
+    def _get_sampling_granularity(cls, sampling_granularity: int) -> int:
+        """Get sampling granularity.
+
+        Args:
+            samping_granularity (int): Input sampling granularity.
+
+        Returns:
+            int: Normalized sampling granularity.
+        """
+        # Check sampling granularity.
+        if sampling_granularity < 1:
+            raise ValueError(f'`sampling_granularity` must be a positive integer, but got: ' +
+                             f'{sampling_granularity}.')
+
+        return sampling_granularity
+
+    @classmethod
+    def _get_partition_algo(cls, partition_algo: str) -> str:
+        """Get partition algo.
+
+        Args:
+            partition_algo (str): Input parittion algo.
+
+        Returns:
+            str: Normalized partition algo.
+        """
+        from streaming.base.partition import algos
+
+        if partition_algo not in algos:
+            raise ValueError(f'`partition_algo` must be one of {sorted(algos)}, but got: ' +
+                             f'{partition_algo}.')
+
+        return partition_algo
+
+    @classmethod
+    def _get_num_canonical_nodes(cls, num_canonical_nodes: Optional[int], shuffle_algo: str,
+                                 world: World) -> int:
+        """Get num canonical nodes.
+
+        This method is called upon resume() (from iter) -- not init -- by some 2 of 3 code paths,
+        while the last one sets num canonical nodes directly from checkpoint state.
+
+        Args:
+            num_canonical_nodes (int, optional): Input num canonical nodes.
+            shuffle_algo (str): Shuffle algo.
+            world (World): Our place in the world.
+
+        Returns:
+            int: Normalized num canonical nodes.
+        """
+        if num_canonical_nodes is not None:
+            if num_canonical_nodes < 1:
+                raise ValueError('`num_canonical_nodes`, if provided, must be a positive integer.')
+            norm_num_canonical_nodes = num_canonical_nodes
+        else:
+            if shuffle_algo in {'py1s', 'py2s'}:
+                norm_num_canonical_nodes = 64 * world.num_nodes
+            else:
+                if world.is_local_leader:
+                    logger.warning(
+                        f'Because `num_canonical_nodes` was not specified, and `shuffle_algo` ' +
+                        f'is {shuffle_algo}, it will default to be equal to the number of ' +
+                        f'physical nodes. Prior to Streaming v0.7.0, `num_canonical_nodes` ' +
+                        f'defaulted to `64 * physical nodes`.')
+                norm_num_canonical_nodes = world.num_nodes
+        return norm_num_canonical_nodes
+
+    @classmethod
+    def _get_shuffle_algo(cls, shuffle_algo: str) -> str:
+        """Get shuffle algo.
+
+        Args:
+            shuffle_algo (str): Input shuffle algo.
+
+        Returns:
+            str: Normalized shuffle algo.
+        """
+        from streaming.base.shuffle import algos
+
+        if shuffle_algo not in algos:
+            raise ValueError(f'`shuffle_algo` must be one of {sorted(algos)}, but got: ' +
+                             f'{shuffle_algo}.')
+        elif shuffle_algo == 'py1b':
+            logger.warning('The `py1b` shuffle algorithm will soon be deprecated. Please use ' +
+                           'the more performant `py1br` algorithm instead.',
+                           DeprecationWarning,
+                           stacklevel=2)
+
+        return shuffle_algo
+
+    @classmethod
+    def _get_shuffle_seed(cls, shuffle_seed: int) -> int:
+        """Get shuffle seed.
+
+        Args:
+            shuffle_seed (int): Input shuffle seed.
+
+        Returns:
+            int: Normalized shuffle seed.
+        """
+        # Check shuffle seed.
+        if not (0 <= shuffle_seed < 2**32):
+            raise ValueError(f'`shuffle_seed` must be in `0 <= x < 2**32`, but got: ' +
+                             f'{shuffle_seed}.')
+
+        return shuffle_seed
+
+    @classmethod
+    def _get_shuffle_block_size(cls, shuffle_block_size: Optional[int], num_canonical_nodes: int,
+                                world: World) -> int:
+        """Get shuffle block size.
+
+        This method is called upon resume() (from iter) -- not init -- because resuming sets the
+        official number of canonical nodes, which we depend on.
+
+        Args:
+            shuffle_block_size (int, optional): Input shuffle block size.
+            num_canonical_nodes (int): Number of canonical nodes.
+            world (World): Our place in the world.
+
+        Returns:
+            int: Normalized shuffle block size.
+        """
+        if shuffle_block_size is not None:
+            norm_shuffle_block_size = shuffle_block_size
+        else:
+            if world.is_local_leader:
+                logger.warning(f'Because `shuffle_block_size` was not specified, it will ' +
+                               f'default to `max(4_000_000 // num_canonical_nodes, 1 << 18)` if ' +
+                               f'`num_canonical_nodes` is not None, otherwise 262144. Prior to ' +
+                               f'Streaming v0.7.0, `shuffle_block_size` defaulted to 262144.')
+            norm_shuffle_block_size = max(4_000_000 // num_canonical_nodes, 1 << 18)
+        return norm_shuffle_block_size
+
+    @classmethod
+    def _get_batching_method(cls, batching_method: str) -> str:
+        """Get batching method.
+
+        Args:
+            batching_method (str): Input batching method.
+
+        Returns:
+            str: Normalized batching method.
+        """
+        from streaming.base.batching import batching_methods
+
+        if batching_method not in batching_methods:
+            raise ValueError(f'`batching_method` must be one of {sorted(batching_methods)}, but ' +
+                             f'got: {batching_method}.')
+
+        return batching_method
+
     @property
     def size(self) -> int:
         """Get the size of the dataset in samples.
@@ -676,17 +844,6 @@ class StreamingDataset(Array, IterableDataset):
         """
         return self.length
 
-    def _set_shuffle_block_size(self, world: World):
-        """Set the shuffle block size value."""
-        if self.shuffle_block_size is None:
-            if not world.worker_of_rank:
-                logger.warning(f'Because `shuffle_block_size` was not specified, it will ' +
-                               f'default to max(4_000_000 // num_canonical_nodes, 1 << 18) if ' +
-                               f'num_canonical_nodes is not None, otherwise 262144. Prior to ' +
-                               f'Streaming v0.7.0, `shuffle_block_size` defaulted to 262144.')
-            self.shuffle_block_size = max(4_000_000 // self.num_canonical_nodes, 1 << 18) \
-                if self.num_canonical_nodes is not None else 1 << 18
-
     def _resume(self, world: World, epoch: int) -> Tuple[int, int]:
         """Either resume from checkpoint or start at the beginning.
 
@@ -703,20 +860,10 @@ class StreamingDataset(Array, IterableDataset):
             shm = SharedMemory(name=name, create=False)
         except FileNotFoundError:
             # There is nothing to resume.
-            if not self.num_canonical_nodes:
-                if self.shuffle_algo in ['py1s', 'py2s']:
-                    self.num_canonical_nodes = 64 * world.num_nodes
-                else:
-                    if not world.worker_of_rank:
-                        print('yo we are here!!!!!')
-                        logger.warning(
-                            f'Because `num_canonical_nodes` was not specified, and ' +
-                            f'`shuffle_algo` is {self.shuffle_algo}, it will default to ' +
-                            f'be equal to physical nodes. Prior to Streaming ' +
-                            f'v0.7.0, `num_canonical_nodes` defaulted to 64 * physical ' +
-                            f'nodes.')
-                    self.num_canonical_nodes = world.num_nodes
-            self._set_shuffle_block_size(world)
+            self.num_canonical_nodes = self._get_num_canonical_nodes(
+                self.input_num_canonical_nodes, self.shuffle_algo, world)
+            self.shuffle_block_size = self._get_shuffle_block_size(self.input_shuffle_block_size,
+                                                                   self.num_canonical_nodes, world)
             return epoch, 0
 
         # SharedMemory buffers may contain additional null bytes at the end.
@@ -727,30 +874,22 @@ class StreamingDataset(Array, IterableDataset):
 
         # Check if the resume state is stale.
         if obj['epoch'] < epoch:
-            if not self.num_canonical_nodes:
-                if self.shuffle_algo in ['py1s', 'py2s']:
-                    self.num_canonical_nodes = 64 * world.num_nodes
-                else:
-                    if not world.worker_of_rank:
-                        logger.warning(
-                            f'Because `num_canonical_nodes` was not specified, and ' +
-                            f'`shuffle_algo` is {self.shuffle_algo}, it will default to ' +
-                            f'be equal to physical nodes. Prior to Streaming ' +
-                            f'v0.7.0, `num_canonical_nodes` defaulted to 64 * physical ' +
-                            f'nodes.')
-                    self.num_canonical_nodes = world.num_nodes
-            self._set_shuffle_block_size(world)
+            self.num_canonical_nodes = self._get_num_canonical_nodes(
+                self.input_num_canonical_nodes, self.shuffle_algo, world)
+            self.shuffle_block_size = self._get_shuffle_block_size(self.input_shuffle_block_size,
+                                                                   self.num_canonical_nodes, world)
             return epoch, 0
 
         # Load the correct resumption meta data.
         epoch = obj['epoch']
         sample_in_epoch = obj['sample_in_epoch']
-        self.num_canonical_nodes = obj['num_canonical_nodes']
         self.shuffle_seed = obj['shuffle_seed']
         # Ensure that we are backwards compatible with old checkpoint dataset state, since the
         # 'initial_physical_nodes' key may not be present.
-        self.initial_physical_nodes = obj.get('initial_physical_nodes', None)
-        self._set_shuffle_block_size(world)
+        self.initial_physical_nodes = obj.get('initial_physical_nodes')
+        self.num_canonical_nodes = obj['num_canonical_nodes']
+        self.shuffle_block_size = self._get_shuffle_block_size(self.input_shuffle_block_size,
+                                                               self.num_canonical_nodes, world)
 
         return epoch, sample_in_epoch
 
@@ -1010,7 +1149,7 @@ class StreamingDataset(Array, IterableDataset):
     def _evict_shard(self, shard_id: int) -> None:
         """Evict the given shard.
 
-        Assumes you hold ``_cache_filelock``, preventing anyone else from modifying the cache. We
+        Assumes you hold ``_cache_lock``, preventing anyone else from modifying the cache. We
         expect that shard deletions are very fast.
 
         This method is called internally by ``prepare_shard`` to clear space for more downloads.
@@ -1034,7 +1173,7 @@ class StreamingDataset(Array, IterableDataset):
     def _evict_coldest_shard(self) -> None:
         """Evict the coldeset (i.e., least recently accessed) shard.
 
-        Assumes you hold ``__cache_filelock``, preventing anyone else from modifying the cache. We
+        Assumes you hold ``_cache_lock``, preventing anyone else from modifying the cache. We
         expect that shard deletions are very fast.
 
         This method is called internally by ``prepare_shard`` to clear space for more downloads.
@@ -1067,6 +1206,15 @@ class StreamingDataset(Array, IterableDataset):
         # Evict that shard.
         self._evict_shard(shard_id)
 
+    def _ensure_cache_lock(self):
+        """Lazily initialize the cache FileLock.
+
+        ``FileLock``s contain ``threading.Lock``s, which are not pickleable, making them
+        incompatible with spawn. As a result, they must be created lazily in child processes.
+        """
+        if not hasattr(self, CACHE_FILELOCK):
+            self._cache_lock = FileLock(self._cache_lock_filename)
+
     def evict_shard(self, shard_id: int) -> None:
         """Evict the given shard.
 
@@ -1075,12 +1223,8 @@ class StreamingDataset(Array, IterableDataset):
         Args:
             shard_id (int): Shard to evict.
         """
-        # Lock the cache. FileLocks contain threading Locks, which are not pickleable, which is
-        # incompatible with spawn, so must be created lazily.
-        if not hasattr(self, CACHE_FILELOCK):
-            self._cache_filelock = FileLock(self._cache_filelock_path)
-
-        with self._cache_filelock:
+        self._ensure_cache_lock()
+        with self._cache_lock:
             self._evict_shard(shard_id)
 
     def evict_coldest_shard(self) -> None:
@@ -1088,12 +1232,8 @@ class StreamingDataset(Array, IterableDataset):
 
         This method is multithread/multiprocess-safe.
         """
-        # Lock the cache. FileLocks contain threading Locks, which are not pickleable, which is
-        # incompatible with spawn, so must be created lazily.
-        if not hasattr(self, CACHE_FILELOCK):
-            self._cache_filelock = FileLock(self._cache_filelock_path)
-
-        with self._cache_filelock:
+        self._ensure_cache_lock()
+        with self._cache_lock:
             self._evict_coldest_shard()
 
     def prepare_shard(self, shard_id: int, blocking: bool = True) -> None:
@@ -1109,12 +1249,8 @@ class StreamingDataset(Array, IterableDataset):
             blocking (bool): Whether to wait or skip if the shard is currently being downloaded by
                 someone else.
         """
-        # Lock the cache. FileLocks contain threading Locks, which are not pickleable, which is
-        # incompatible with spawn, so must be created lazily.
-        if not hasattr(self, CACHE_FILELOCK):
-            self._cache_filelock = FileLock(self._cache_filelock_path)
-        lock = self._cache_filelock
-        lock.acquire()
+        self._ensure_cache_lock()
+        self._cache_lock.acquire()
 
         # Get the state of the shard to download.
         state = self._shard_states[shard_id]
@@ -1138,21 +1274,21 @@ class StreamingDataset(Array, IterableDataset):
                     self._evict_coldest_shard()
 
             # With the above preamble done, we can release the cache lock.
-            lock.release()
+            self._cache_lock.release()
 
             # Perform the download (shard will not be modified by others in PREPARING state).
             delta = stream.prepare_shard(shard)
 
             # Download completed, so note the time and transition shard state to LOCAL.
-            lock.acquire()
+            self._cache_lock.acquire()
             self.cache_usage += delta
             self._shard_access_times[shard_id] = time_ns()
             self._shard_states[shard_id] = _ShardState.LOCAL
-            lock.release()
+            self._cache_lock.release()
         elif state == _ShardState.PREPARING:
             # Someone else is currently downloading the shard. Release the lock for others to make
             # progress.
-            lock.release()
+            self._cache_lock.release()
 
             # Do we wait on them?
             if blocking:
@@ -1174,16 +1310,16 @@ class StreamingDataset(Array, IterableDataset):
             raw_filename = os.path.join(stream.local, stream.split, raw_info.basename)  # Find raw.
             if not os.path.isfile(raw_filename):  # Is raw missing?
                 self._shard_states[shard_id] = _ShardState.PREPARING  # Lock the shard.
-                lock.release()  # Unblock other workers.
+                self._cache_lock.release()  # Unblock other workers.
                 delta = stream.prepare_shard(shard)  # Decompress and remove zip.
-                lock.acquire()  # Briefly take the lock back.
+                self._cache_lock.acquire()  # Briefly take the lock back.
                 self._shard_states[shard_id] = _ShardState.LOCAL  # Restore shard state.
                 self.cache_usage += delta  # Update accounting.
             self._shard_access_times[shard_id] = time_ns()  # Touch the shard.
-            lock.release()
+            self._cache_lock.release()
         else:
             # Unknown state.
-            lock.release()
+            self._cache_lock.release()
             raise RuntimeError(f'Invalid shard state: {state}')
 
     def get_item(self, sample_id: int, retry: int = 7) -> Any:

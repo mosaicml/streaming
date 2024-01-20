@@ -21,9 +21,9 @@ from typing import Any, Callable, List, Sequence, Tuple, Type, TypeVar, Union, c
 import torch.distributed as dist
 
 from streaming.base.constant import SHM_TO_CLEAN
+from streaming.base.coord.shmem.prefix import _get_path
 from streaming.base.distributed import get_local_rank, maybe_init_dist
 from streaming.base.format.index import get_index_basename
-from streaming.base.shared.prefix import _get_path
 
 logger = logging.getLogger(__name__)
 

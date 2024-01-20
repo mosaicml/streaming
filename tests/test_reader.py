@@ -337,6 +337,5 @@ def test_predownload_batch_size_warning(local_remote_dir: Any):
                    num_samples=117,
                    size_limit=1 << 8)
     with pytest.warns(UserWarning,
-                      match='predownload < batch_size.*This may result in slower ' +
-                      'batch time. Recommendation is to set'):
+                      match='This may result in slower batch time. The recommendation is to set'):
         _ = StreamingDataset(local=local_dir, remote=remote_dir, predownload=4, batch_size=8)

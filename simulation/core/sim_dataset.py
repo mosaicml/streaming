@@ -7,7 +7,6 @@ import logging
 import os
 import shutil
 import time
-import warnings
 from math import ceil
 from typing import Optional, Sequence, Union
 
@@ -18,6 +17,7 @@ from numpy.typing import NDArray
 
 from streaming.base import Stream, StreamingDataset
 from streaming.base.batching import generate_work
+from streaming.base.coord.world import World
 from streaming.base.format import get_index_basename
 from streaming.base.spanner import Spanner
 from streaming.base.util import bytes_to_int, number_abbrev_to_int
@@ -33,30 +33,36 @@ class SimulationDataset(StreamingDataset):
         nodes (int): Number of nodes.
         devices (int): Number of devices.
         workers (int): Number of workers.
-        streams (Optional[Sequence[Stream]]): One or more streams to stream/cache samples from,
+        epoch_size (Union[int, str], optional): Number of samples to draw per epoch balanced
+            across all streams. If ``None``, takes its value from the total number of underlying
+            samples. Provide this field if you are weighting streams relatively to target a larger
+            or smaller epoch size. Defaults to ``None``. Can also take in human-readable number
+            abbreviations (e.g., ``"100k"``, ``"64M"``, ``"77b"``, etc). Defaults to ``None``.
+        streams (Sequence[Stream], optional): One or more streams to stream/cache samples from,
             which may be upsampled or downsampled. StreamingDataset uses either ``streams`` or
             ``remote``/``local``. Defaults to ``None``.
-        remote (Optional[str]): Remote path or directory to download the dataset from. If ``None``,
+        remote (str, optional): Remote path or directory to download the dataset from. If ``None``,
             its data must exist locally. StreamingDataset uses either ``streams`` or
             ``remote``/``local``. Defaults to ``None``.
-        local (Optional[str]): Local working directory to download shards to. This is where shards
+        local (str, optional): Local working directory to download shards to. This is where shards
             are cached while they are being used. Uses a temp directory if not set.
             StreamingDataset uses either ``streams`` or ``remote``/``local``. Defaults to ``None``.
-        split (Optional[str]): Which dataset split to use, if any. If provided, we stream from/to
+        split (str, optional): Which dataset split to use, if any. If provided, we stream from/to
             the ``split`` subdirs of  ``remote`` and ``local``. Defaults to ``None``.
         download_retry (int): Number of download re-attempts before giving up. Defaults to ``2``.
         download_timeout (float): Number of seconds to wait for a shard to download before raising
             an exception. Defaults to ``60``.
-        validate_hash (Optional[str]): Optional hash or checksum algorithm to use to validate
+        validate_hash (str, optional): Optional hash or checksum algorithm to use to validate
             shards. Defaults to ``None``.
         keep_zip (bool): Whether to keep or delete the compressed form when decompressing
             downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
             ``False``.
-        epoch_size (Union[int, str], optional): Number of samples to draw per epoch balanced across all
-            streams. If ``None``, takes its value from the total number of underlying samples.
-            Provide this field if you are weighting streams relatively to target a larger or
-            smaller epoch size. Defaults to ``None``. Can also take in human-readable number
-            abbreviations (e.g., ``"100k"``, ``"64M"``, ``"77b"``, and so on). Defaults to ``None``.
+        allow_unsafe_types (bool): If a shard contains Pickle, which allows arbitrary code
+            execution during deserialization, whether to keep going if ``True`` or raise an error
+            if ``False``. Defaults to ``False``.
+        config_root (str, optional): Streaming configuration root directory, used for collision
+            detection, filelock paths, etc. If ``None``, uses a ``/streaming/`` subdir under your
+            system's temp root. Defaults to ``None``.
         predownload (int, optional): Target number of samples to download per worker in advance
             of current sample. Workers will attempt to download ahead by this many samples during,
             but not before, training. Recommendation is to provide a value greater than per device
@@ -68,6 +74,12 @@ class SimulationDataset(StreamingDataset):
             Set to ``None`` to disable shard eviction. Supports integer bytes as well as string
             human-readable bytes (e.g., ``100b``, ``64kb``, ``77mb``, and so on). Defaults to
             ``None``.
+        sampling_method (str): Which sampling method to use, either ``balanced`` or ``fixed``.
+            Defaults to ``balanced``.
+        sampling_granularity (int): When picking samples for a stream's final partial repeat,
+            how many samples to pick from the same shard at a time (``1`` for evenly balanced
+            across shards, ``1000`` to pick 1000 samples from the same shard at a time, etc).
+            Defaults to ``1``.
         partition_algo (str): Which partitioning algorithm to use. Defaults to ``relaxed``.
         num_canonical_nodes (int, optional): Canonical number of nodes for shuffling with
             resumption. The sample space is divided evenly according to the number of canonical
@@ -86,51 +98,45 @@ class SimulationDataset(StreamingDataset):
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
             ``False``.
         shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1e``.
-        shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
+        shuffle_seed (int): Seed for deterministic data shuffling. Defaults to ``9176``.
         shuffle_block_size (int, optional): Unit of shuffle. A canonical node's samples are split
             into blocks of this size, and samples within each block are shuffled. If ``None``, its
             value is calculated as ``max(4_000_000 // num_canonical_nodes), 1 << 18)``. Defaults to
             ``None``.
-        sampling_method (str): Which sampling method to use, either ``balanced`` or ``fixed``.
-            Defaults to ``balanced``.
-        sampling_granularity (int): When picking samples for a stream's final partial repeat,
-            how many samples to pick from the same shard at a time (``1`` for evenly balanced
-            across shards, ``1000`` to pick 1000 samples from the same shard at a time, etc).
-            Defaults to ``1``.
         batching_method (str): Which batching method to use, either ``random``, ``stratified``, or
             ``per_stream``. Defaults to ``random``.
-        allow_unsafe_types (bool): If a shard contains Pickle, which allows arbitrary code
-            execution during deserialization, whether to keep going if ``True`` or raise an error
-            if ``False``. Defaults to ``False``.
     """
 
-    def __init__(self,
-                 nodes: int,
-                 devices: int,
-                 workers: int,
-                 streams: Optional[Sequence[Stream]] = None,
-                 remote: Optional[str] = None,
-                 local: Optional[str] = None,
-                 split: Optional[str] = None,
-                 download_retry: int = 2,
-                 download_timeout: float = 60,
-                 validate_hash: Optional[str] = None,
-                 keep_zip: bool = False,
-                 epoch_size: Optional[Union[int, str]] = None,
-                 predownload: Optional[int] = None,
-                 cache_limit: Optional[Union[int, str]] = None,
-                 partition_algo: str = 'relaxed',
-                 num_canonical_nodes: Optional[int] = None,
-                 batch_size: Optional[int] = None,
-                 shuffle: bool = False,
-                 shuffle_algo: str = 'py1e',
-                 shuffle_seed: int = 9176,
-                 shuffle_block_size: Optional[int] = None,
-                 sampling_method: str = 'balanced',
-                 sampling_granularity: int = 1,
-                 batching_method: str = 'random',
-                 allow_unsafe_types: bool = False) -> None:
-
+    def __init__(
+        self,
+        *,
+        nodes: int,
+        devices: int,
+        workers: int,
+        epoch_size: Optional[Union[int, str]] = None,
+        streams: Optional[Sequence[Stream]] = None,
+        remote: Optional[str] = None,
+        local: Optional[str] = None,
+        split: Optional[str] = None,
+        download_retry: int = 2,
+        download_timeout: float = 60,
+        validate_hash: Optional[str] = None,
+        keep_zip: bool = False,
+        allow_unsafe_types: bool = False,
+        config_root: Optional[str] = None,
+        predownload: Optional[int] = None,
+        cache_limit: Optional[Union[int, str]] = None,
+        sampling_method: str = 'balanced',
+        sampling_granularity: int = 1,
+        partition_algo: str = 'relaxed',
+        num_canonical_nodes: Optional[int] = None,
+        batch_size: Optional[int] = None,
+        shuffle: bool = False,
+        shuffle_algo: str = 'py1e',
+        shuffle_seed: int = 9176,
+        shuffle_block_size: Optional[int] = None,
+        batching_method: str = 'random',
+    ) -> None:
         # Time how long it takes for StreamingDataset instantiation
         t0 = time.time()
 
@@ -138,58 +144,31 @@ class SimulationDataset(StreamingDataset):
         self.nodes = nodes
         self.devices = devices
         self.workers = workers
-        self.cache_limit = cache_limit
-        self.partition_algo = partition_algo
-        self.predownload = predownload
+
+        # Purely StreamingDataset arguments (which do not live in Streams).
+        self.config_root = self._get_config_root(config_root)
+        self.predownload = self._get_predownload(predownload, batch_size)
+        self.cache_limit = self._get_cache_limit(cache_limit)
+        self.sampling_method = self._get_sampling_method(sampling_method)
+        self.sampling_granularity = self._get_sampling_granularity(sampling_granularity)
+        self.partition_algo = self._get_partition_algo(partition_algo)
+        self.num_canonical_nodes: int
         self.batch_size = batch_size
         self.shuffle = shuffle
-        self.shuffle_algo = shuffle_algo
-        self.shuffle_seed = shuffle_seed
-        self.shuffle_block_size = shuffle_block_size
-        self.sampling_method = sampling_method
-        self.sampling_granularity = sampling_granularity
-        self.batching_method = batching_method
-        self.num_canonical_nodes = num_canonical_nodes
-        self.allow_unsafe_types = allow_unsafe_types
+        self.shuffle_algo = self._get_shuffle_algo(shuffle_algo)
+        self.shuffle_seed = self._get_shuffle_seed(shuffle_seed)
+        self.input_shuffle_block_size = shuffle_block_size
+        self.shuffle_block_size: int  # Set below.
+        self.batching_method = self._get_batching_method(batching_method)
+
+        # StreamingDataset arguments which depend on other such arguments.
+        world = World()
+        self.num_canonical_nodes = self._get_num_canonical_nodes(num_canonical_nodes,
+                                                                 self.shuffle_algo, world)
+        self.shuffle_block_size = self._get_shuffle_block_size(shuffle_block_size,
+                                                               self.num_canonical_nodes, world)
 
         self.initial_physical_nodes = nodes
-
-        # Set num_canonical_nodes based on the shuffling algorithm chosen.
-        if self.num_canonical_nodes is None:
-            if self.shuffle_algo in ['py1s', 'py2s']:
-                self.num_canonical_nodes = 64 * self.nodes
-            else:
-                self.num_canonical_nodes = self.nodes
-
-        # Set shuffle_block_size if not provided, based on num_canonical_nodes.
-        if self.shuffle_block_size is None:
-            self.shuffle_block_size = max(4_000_000 // self.num_canonical_nodes, 1 << 18)
-
-        # Check streams vs remote/local.
-        if bool(streams) == (bool(remote) or bool(local)):
-            raise ValueError(
-                'You must provide either `streams` or `remote`/`local`, but not both.')
-
-        # Check sampling method is one of "balanced" or "fixed".
-        if self.sampling_method not in ['balanced', 'fixed']:
-            raise ValueError(
-                f'Invalid sampling method: {sampling_method}. Must be one of `balanced` or `fixed`.'
-            )
-
-        # Check sampling method is one of "balanced" or "fixed".
-        if self.batching_method not in ['random', 'per_stream', 'stratified']:
-            raise ValueError(
-                f'Invalid batching method: {batching_method}. Must be one of `random`, \
-                    `per_stream`, or `stratified`.')
-
-        # Check that predownload is at least per device batch size, and set it if currently `None`.
-        if self.predownload is not None and self.batch_size is not None and \
-            self.predownload < self.batch_size:
-            warnings.warn(f'predownload < batch_size ({self.predownload} < {self.batch_size}).' +
-                          f'This may result in slower batch time. Recommendation is to set ' +
-                          f'predownload to at-least batch_size.')
-        elif self.predownload is None:
-            self.predownload = 8 * self.batch_size if self.batch_size is not None else 64
 
         self.batch_size = batch_size or 1
 
@@ -210,15 +189,14 @@ class SimulationDataset(StreamingDataset):
                                       keep_zip=keep_zip,
                                       allow_unsafe_types=allow_unsafe_types)
         else:
-            stream = Stream(remote=remote,
-                            local=local,
-                            split=split,
-                            download_retry=download_retry,
-                            download_timeout=download_timeout,
-                            validate_hash=validate_hash,
-                            keep_zip=keep_zip,
-                            allow_unsafe_types=allow_unsafe_types)
-            streams = [stream]
+            streams = Stream(remote=remote,
+                             local=local,
+                             split=split,
+                             download_retry=download_retry,
+                             download_timeout=download_timeout,
+                             validate_hash=validate_hash,
+                             keep_zip=keep_zip,
+                             allow_unsafe_types=allow_unsafe_types),
 
         # Validate the stream weighting scheme (relative or absolute) to catch errors before we go
         # to the trouble of loading them.
@@ -418,9 +396,6 @@ class SimulationDataset(StreamingDataset):
         Returns:
             int: The dataset's number of canonical nodes.
         """
-        if not isinstance(self.num_canonical_nodes, int):
-            raise TypeError(f'`self.num_canonical_nodes` must be an int. ' +
-                            f'Got {type(self.num_canonical_nodes)} instead.')
         return self.num_canonical_nodes
 
     def get_batch_size(self) -> int:
@@ -456,9 +431,6 @@ class SimulationDataset(StreamingDataset):
         Returns:
             int: The dataset's predownload.
         """
-        if not isinstance(self.predownload, int):
-            raise TypeError(f'`self.predownload` must be an int. ' +
-                            f'Got {type(self.predownload)} instead.')
         return self.predownload
 
     def get_cache_limit(self) -> Optional[int]:
@@ -528,9 +500,6 @@ class SimulationDataset(StreamingDataset):
         Returns:
             int: The dataset's shuffle block size.
         """
-        if not isinstance(self.shuffle_block_size, int):
-            raise TypeError(f'`self.shuffle_block_size` must be an int. ' +
-                            f'Got {type(self.shuffle_block_size)} instead.')
         return self.shuffle_block_size
 
     def get_epoch_size(self) -> int:
