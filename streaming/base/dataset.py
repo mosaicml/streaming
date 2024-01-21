@@ -1193,9 +1193,10 @@ class StreamingDataset(Array, IterableDataset):
             work = generate_work(self.batching_method, self, world, epoch, sample)
 
         # Maybe pre-generate the next epoch in the background.
-        if self.pregen_next_epoch:
-            process = Process(target=self._pregen_epoch, args=(epoch + 1, 0), daemon=True)
-            process.start()
+        # TODO: re-enable:
+        # if self.pregen_next_epoch:
+        #     process = Process(target=self._pregen_epoch, args=(epoch + 1, 0), daemon=True)
+        #     process.start()
 
         return work
 
