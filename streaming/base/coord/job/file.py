@@ -54,7 +54,7 @@ class RegistryFile:
         return self.num_jobs
 
     def add(self, job: JobEntry) -> None:
-        """Register a Stremaing job.
+        """Register a Streaming job.
 
         Args:
             job (Job): The job.
@@ -92,6 +92,17 @@ class RegistryFile:
         for stream_hash in job.stream_hashes:
             self.stream_hash2job[stream_hash] = job
         self.num_jobs += 1
+
+    def contains(self, job_hash: str) -> bool:
+        """Tell whether the given job_hash is registered.
+
+        Args:
+            job_hash (str): Potentially registered job hash.
+
+        Returns:
+            bool: Whether the job hash is registered.
+        """
+        return job_hash in self.job_hash2job
 
     def remove(self, job_hash: str) -> None:
         """Deregister a Streaming job.

@@ -44,6 +44,20 @@ class JobDir:
         """
         return os.path.join(self.registry.config_root, self.job_hash, path)
 
-    def __del__(self) -> None:
-        """Destructor."""
+    def manual_unregister(self) -> None:
+        """Explicitly un-register the job ahead of its deletion.
+
+        This is useful when you want to ensure that this job is un-registered synchronously instead
+        of whenever the garbage collector eventually gets around to it.
+
+        This job must be registered when this is called.
+        """
         self.registry.unregister(self.job_hash, self.world)
+
+    def __del__(self) -> None:
+        """Destructor.
+
+        You may unregister the job explicitly ahead of time (to ensure it happens synchronously
+        instead of eventually).
+        """
+        self.registry.ensure_unregistered(self.job_hash, self.world)

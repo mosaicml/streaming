@@ -147,7 +147,7 @@ class JobRegistry:
         dirname = os.path.join(self.config_root, job_hash)
         rmtree(dirname)
 
-    def _register(self, streams: Sequence[Stream]) -> str:
+    def _do_register(self, streams: Sequence[Stream]) -> str:
         """Register this collection of StreamingDataset replicas.
 
         Called by the local leader.
@@ -216,14 +216,29 @@ class JobRegistry:
             str: Subdir for this collection of StreamingDataset replicas.
         """
         if world.is_local_leader:
-            job_hash = self._register(streams)
+            job_hash = self._do_register(streams)
         else:
             job_hash = self._lookup(streams)
             dirname = os.path.join(self.config_root, job_hash)
             wait_for_creation(dirname, self.timeout, self.tick, self.lock)
         return job_hash
 
-    def _unregister(self, job_hash: str) -> None:
+    def is_registered(self, job_hash: str) -> bool:
+        """Tell whether the given job_hash is registered.
+
+        Called by all ranks.
+
+        Args:
+            job_hash (str): Potentially registered job hash.
+
+        Returns:
+            bool: Whether the job hash is registered.
+        """
+        with self.lock:
+            conf = RegistryFile.read(self.registry_filename)
+            return conf.contains(job_hash)
+
+    def _do_unregister(self, job_hash: str) -> None:
         """Unregister this collection of StreamingDataset replicas.
 
         Called by the local leader.
@@ -251,7 +266,30 @@ class JobRegistry:
             world (World): Rank-wise world state.
         """
         if world.is_local_leader:
-            self._unregister(job_hash)
+            self._do_unregister(job_hash)
         else:
             dirname = os.path.join(self.config_root, job_hash)
             wait_for_deletion(dirname, self.timeout, self.tick, self.lock)
+
+    def ensure_unregistered(self, job_hash: str, world: World) -> None:
+        """Ensure that this collection of StreamingDataset replicas is unregistered.
+
+        Called by all ranks.
+
+        Args:
+            job_hash (str): Subdir identifying this Streaming job.
+            world (World): Rank-wise world state.
+        """
+        pid2create_time = self._get_live_procs()
+
+        with self.lock:
+            conf = RegistryFile.read(self.registry_filename)
+            is_registered = conf.contains(job_hash)
+            if not is_registered:
+                return
+
+            conf.remove(job_hash)
+            del_job_hashes = conf.filter(pid2create_time)
+            conf.write(self.registry_filename)
+            map(self._remove_dir, del_job_hashes)
+            self._remove_dir(job_hash)

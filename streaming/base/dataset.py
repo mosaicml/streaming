@@ -683,12 +683,13 @@ class StreamingDataset(Array, IterableDataset):
 
     def __del__(self) -> None:
         """Destructor,kill which releases its local working directories."""
-        del self._dummy
         if hasattr(self, '_locals_shm'):
             try:
                 self._locals_shm.buf[:4] = np.int32(0).tobytes()
             except:
                 pass
+        del self._dummy
+        self.job.manual_unregister()
 
     @classmethod
     def _test_config_root(cls, config_root: str) -> None:
