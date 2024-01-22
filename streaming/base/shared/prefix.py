@@ -7,6 +7,7 @@ The prefix is used by all workers using this StreamingDataset of this training j
 prevent shared resources like shared memory from colliding.
 """
 
+import getpass
 from collections import Counter
 from time import sleep
 from typing import Iterator, List, Tuple, Union
@@ -41,7 +42,7 @@ def _get_path(prefix_int: int, name: str) -> str:
     Returns:
         str: Unique shared memory name.
     """
-    return f'{prefix_int:06}_{name}'
+    return f'{getpass.getuser()}_{prefix_int:06}_{name}'
 
 
 def _pack_locals(dirnames: List[str], prefix_int: int) -> bytes:
