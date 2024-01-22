@@ -6,6 +6,7 @@
 Useful for detecting collisions between different jobs' local dirs.
 """
 
+import gc
 import os
 from hashlib import sha3_224
 from shutil import rmtree
@@ -152,6 +153,24 @@ class JobRegistry:
 
         Called by the local leader.
 
+        Note: we explicitly garbage collect under the lock right before registration. This is to
+        save us and you from the following scenario:
+
+            ```py
+            dataset = StreamingDataset(...)
+
+            del dataset
+
+            # The dataset is marked deleted, but the python garbage collector does not execute
+            # dataset.__del__ in time, much less dataset.job.__del__ in time, which would have
+            # automatically ensured the job was un-registered.
+
+            dataset = StreamingDataset(...)  # Same locals as before.
+
+            # *Boom*, due to "reused" locals, matching the locals still registered from the first
+            # time the dataset was created.
+            ```
+
         Args:
             streams (Sequence[Stream]): List of this StreamingDataset's Streams, which in
                 combination with process IDs and creation times lets us uniquely identify a
@@ -176,6 +195,7 @@ class JobRegistry:
                          register_time=register_time)
 
         with self.lock:
+            gc.collect()
             conf = RegistryFile.read(self.registry_filename)
             conf.add(entry)
             del_job_hashes = conf.filter(pid2create_time)

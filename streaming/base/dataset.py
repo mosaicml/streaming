@@ -688,7 +688,6 @@ class StreamingDataset(Array, IterableDataset):
                 self._locals_shm.buf[:4] = np.int32(0).tobytes()
             except:
                 pass
-        del self._dummy
         self.job.manual_unregister()
 
     @classmethod
