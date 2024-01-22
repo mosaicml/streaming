@@ -341,6 +341,9 @@ class StreamingDataset(Array, IterableDataset):
             if ``False``. Defaults to ``False``.
     """
 
+    pregen_todos_lock_path = 'pregen_todos.lock'
+    pregen_todos_path = 'pregen_todos.npy'
+
     def __init__(self,
                  *,
                  config_root: Optional[str] = None,
@@ -584,12 +587,14 @@ class StreamingDataset(Array, IterableDataset):
         self.registry = JobRegistry(self.config_root, 42, 0.007)
         self.job = JobDir(self.registry, streams, world)
 
-        # Maybe pre-generate some epoch.
-        if init_pregen_epoch is not None:
-            process = Process(target=self._pregen_epoch,
-                              args=(self.init_pregen_epoch, self.init_pregen_sample),
-                              daemon=True)
-            process.start()
+        # Maybe note some epoch to pre-generate (like epoch 0, sample offset 0)?
+        if self.init_pregen_epoch is not None:
+            self._request_pregen_epoch(self.init_pregen_epoch, self.init_pregen_sample or 0)
+
+        # Start the epoch pre-generation loop as a daemon process.
+        if init_pregen_epoch is not None or pregen_next_epoch:
+            self.process = Process(target=self._pregen_epoch_loop, daemon=True)
+            self.process.run()
 
         # Register/lookup our shared memory prefix and filelock root directory (old style).
         streams_local = [os.path.abspath(os.path.join(x.local, x.split)) for x in streams]
@@ -675,7 +680,12 @@ class StreamingDataset(Array, IterableDataset):
         del self._shared_barrier.lock  # Remote the lock that makes it unpickleable.
 
     def __del__(self) -> None:
-        """Destructor, which releases its local working directories."""
+        """Destructor,kill which releases its local working directories."""
+        try:
+            self.process.kill()
+        except:
+            pass
+
         if hasattr(self, '_locals_shm'):
             try:
                 self._locals_shm.buf[:4] = np.int32(0).tobytes()
@@ -1072,7 +1082,7 @@ class StreamingDataset(Array, IterableDataset):
         Returns:
             str: Filename of serialized epoch work.
         """
-        return self.job.get_filename(f'epoch.{epoch:09}.{sample:012}.npy')
+        return self.job.get_filename(f'epoch.{epoch:06}.{sample:012}.npy')
 
     def _serialize_epoch_work(self, work: NDArray[np.int64]) -> bytes:
         """Serialize a 5-dimensional sample ID arrangement tensor to bytes.
@@ -1149,6 +1159,49 @@ class StreamingDataset(Array, IterableDataset):
             out.write(data)
         os.rename(tmp_filename, filename)
 
+    def _push_back_pregen_epoch_todo(self, todo_filename: str, epoch: int, sample: int) -> None:
+        now = time_ns()
+        push_back = np.array([epoch, sample, now], np.int64)
+        if os.path.exists(todo_filename):
+            old = np.fromfile(todo_filename, np.int64)
+            old = old.reshape(-1, 3)
+            new = np.concatenate([old, push_back], 0)
+        else:
+            new = push_back
+        new.tofile(todo_filename)
+
+    def _pop_front_pregen_epoch_todo(self, todo_filename: str) -> Tuple[int, int, int]:
+        old = np.fromfile(todo_filename, np.int64)
+        old = old.reshape(-1, 3)
+        pop_front = old[0]
+        new = old[1:]
+        if len(new):
+            new.tofile(todo_filename)
+        else:
+            os.remove(todo_filename)
+        return tuple(pop_front.tolist())
+
+    def _request_pregen_epoch(self, epoch: int, sample: int) -> None:
+        lock_filename = self.job.get_filename(self.pregen_todos_lock_path)
+        todo_filename = self.job.get_filename(self.pregen_todos_path)
+        with FileLock(lock_filename):
+            self._push_back_pregen_epoch_todo(todo_filename, epoch, sample)
+
+    def _each_pregen_epoch_todo(self) -> Iterator[Tuple[int, int]]:
+        lock_filename = self.job.get_filename(self.pregen_todos_lock_path)
+        todo_filename = self.job.get_filename(self.pregen_todos_path)
+        lock = FileLock(lock_filename)
+        while True:
+            with lock:
+                if os.path.exists(todo_filename):
+                    epoch, sample, _ = self._pop_front_pregen_epoch_todo(todo_filename)
+                    yield epoch, sample
+            sleep(0.777)
+
+    def _pregen_epoch_loop(self) -> None:
+        for epoch, sample in self._each_pregen_epoch_todo():
+            self._pregen_epoch(epoch, sample)
+
     def _gen_epoch(self, world: World, epoch: int, sample: int) -> NDArray[np.int64]:
         """Generate (or load pre-generated) the sample ID arrangement for some epoch.
 
@@ -1189,14 +1242,19 @@ class StreamingDataset(Array, IterableDataset):
             data = open(filename, 'rb').read()
             work = self._deserialize_epoch_work(data)
         else:
+            # Claim the epoch generation work, preventing the epoch pregen process from doing it.
+            try:
+                with open(filename, 'xb'):
+                    pass
+            except:
+                pass
+
             # Generate the epoch ourself.
             work = generate_work(self.batching_method, self, world, epoch, sample)
 
         # Maybe pre-generate the next epoch in the background.
-        # TODO: re-enable:
-        # if self.pregen_next_epoch:
-        #     process = Process(target=self._pregen_epoch, args=(epoch + 1, 0), daemon=True)
-        #     process.start()
+        if self.pregen_next_epoch:
+            self._request_pregen_epoch(epoch + 1, 0)
 
         return work
 
