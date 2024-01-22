@@ -679,13 +679,11 @@ class StreamingDataset(Array, IterableDataset):
 
         del self._shared_barrier.lock  # Remote the lock that makes it unpickleable.
 
+        self._dummy = None
+
     def __del__(self) -> None:
         """Destructor,kill which releases its local working directories."""
-        try:
-            self.process.kill()
-        except:
-            pass
-
+        del self._dummy
         if hasattr(self, '_locals_shm'):
             try:
                 self._locals_shm.buf[:4] = np.int32(0).tobytes()
@@ -1196,7 +1194,9 @@ class StreamingDataset(Array, IterableDataset):
                 if os.path.exists(todo_filename):
                     epoch, sample, _ = self._pop_front_pregen_epoch_todo(todo_filename)
                     yield epoch, sample
-            sleep(0.777)
+            if not hasattr(self, '_dummy'):
+                break
+            sleep(0.1337)
 
     def _pregen_epoch_loop(self) -> None:
         for epoch, sample in self._each_pregen_epoch_todo():
