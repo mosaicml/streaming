@@ -32,7 +32,11 @@ class RegistryFile:
     @classmethod
     def read(cls, filename: str) -> Self:
         if os.path.exists(filename):
-            obj = json.load(open(filename))
+            try:
+                obj = json.load(open(filename))
+            except:
+                os.remove(filename)
+                obj = {}
         else:
             obj = {}
         jobs = obj.get('jobs') or []

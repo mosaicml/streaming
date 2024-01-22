@@ -52,7 +52,7 @@ class JobDir:
 
         This job must be registered when this is called.
         """
-        self.registry.ensure_unregistered(self.job_hash, self.world)
+        self.registry.unregister(self.job_hash, self.world, True)
 
     def __del__(self) -> None:
         """Destructor.
@@ -60,4 +60,4 @@ class JobDir:
         You may unregister the job explicitly ahead of time (to ensure it happens synchronously
         instead of eventually).
         """
-        self.registry.ensure_unregistered(self.job_hash, self.world)
+        self.registry.unregister(self.job_hash, self.world, False)

@@ -1189,6 +1189,8 @@ class StreamingDataset(Array, IterableDataset):
     def _each_pregen_epoch_todo(self) -> Iterator[Tuple[int, int]]:
         lock_filename = self.job.get_filename(self.pregen_todos_lock_path)
         todo_filename = self.job.get_filename(self.pregen_todos_path)
+        dirname = os.path.dirname(lock_filename)
+        os.makedirs(dirname, exist_ok=True)
         lock = FileLock(lock_filename)
         while True:
             with lock:
