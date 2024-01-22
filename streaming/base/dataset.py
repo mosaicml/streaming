@@ -1159,25 +1159,26 @@ class StreamingDataset(Array, IterableDataset):
 
     def _push_back_pregen_epoch_todo(self, todo_filename: str, epoch: int, sample: int) -> None:
         now = time_ns()
-        push_back = np.array([epoch, sample, now], np.int64)
+        todo = np.array([epoch, sample, now], np.int64)
+        todo = np.expand_dims(todo, 0)
         if os.path.exists(todo_filename):
             old = np.fromfile(todo_filename, np.int64)
             old = old.reshape(-1, 3)
-            new = np.concatenate([old, push_back], 0)
+            new = np.concatenate([old, todo], 0)
         else:
-            new = push_back
+            new = todo
         new.tofile(todo_filename)
 
     def _pop_front_pregen_epoch_todo(self, todo_filename: str) -> Tuple[int, int, int]:
         old = np.fromfile(todo_filename, np.int64)
         old = old.reshape(-1, 3)
-        pop_front = old[0]
+        todo = old[0]
         new = old[1:]
         if len(new):
             new.tofile(todo_filename)
         else:
             os.remove(todo_filename)
-        return tuple(pop_front.tolist())
+        return tuple(todo.tolist())
 
     def _request_pregen_epoch(self, epoch: int, sample: int) -> None:
         lock_filename = self.job.get_filename(self.pregen_todos_lock_path)
