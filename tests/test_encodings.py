@@ -26,7 +26,6 @@ class TestMDSEncodings:
         output = byte_enc.decode(data)
         assert output == data
 
-import tempfile
     @pytest.mark.parametrize('data', ['9', 25])
     def test_byte_encode_invalid_data(self, data: Any):
         with pytest.raises(AttributeError):
