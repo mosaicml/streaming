@@ -8,7 +8,7 @@ import pickle
 from abc import ABC, abstractmethod
 from decimal import Decimal
 from io import BytesIO
-from typing import Any, Optional, Set, Tuple
+from typing import IO, Any, Optional, Set, Tuple
 
 import numpy as np
 from numpy import typing as npt
@@ -366,6 +366,77 @@ class Int64(Scalar):
         super().__init__(np.int64)
 
 
+def _varuint_encode(obj: int) -> bytes:
+    if obj < 0:
+        raise ValueError(f'Expected non-negative integer, but got: {obj}.')
+    ret = []
+    while True:
+        byte = obj & 0x7F
+        obj >>= 7
+        if obj:
+            ret.append(0x80 | byte)
+        else:
+            ret.append(byte)
+            break
+    return bytes(ret)
+
+
+def _varint_encode(obj: int) -> bytes:
+    if 0 <= obj:
+        obj = obj << 1
+    else:
+        obj = ((-obj) << 1) | 1
+    return _varuint_encode(obj)
+
+
+def _varuint_decode(stream: IO[bytes]) -> int:
+    obj = 0
+    shift = 0
+    while True:
+        byte, = stream.read(1)
+        obj |= (byte & 0x7F) << shift
+        if 0x80 <= byte:
+            shift += 7
+        else:
+            break
+    return obj
+
+
+def _varint_decode(stream: IO[bytes]) -> int:
+    obj = _varuint_decode(stream)
+    if obj & 1:
+        obj = -(obj >> 1)
+    else:
+        obj >>= 1
+    return obj
+
+
+class VarUInt(Encoding):
+    """Varint DS3 type."""
+
+    @classmethod
+    def encode(cls, obj: int) -> bytes:
+        return _varuint_encode(obj)
+
+    @classmethod
+    def decode(cls, data: bytes) -> int:
+        stream = BytesIO(data)
+        return _varuint_decode(stream)
+
+
+class VarInt(Encoding):
+    """Varint DS3 type."""
+
+    @classmethod
+    def encode(cls, obj: int) -> bytes:
+        return _varint_encode(obj)
+
+    @classmethod
+    def decode(cls, data: bytes) -> int:
+        stream = BytesIO(data)
+        return _varint_decode(stream)
+
+
 class Float16(Scalar):
     """Store float16."""
 
@@ -531,6 +602,8 @@ _encodings = {
     'int16': Int16,
     'int32': Int32,
     'int64': Int64,
+    'varuint': VarUInt,
+    'varint': VarInt,
     'float16': Float16,
     'float32': Float32,
     'float64': Float64,

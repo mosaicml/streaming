@@ -456,8 +456,8 @@ class TestMDSEncodings:
         assert dec == decoded
 
     def test_get_mds_encodings(self):
-        uints = {'uint8', 'uint16', 'uint32', 'uint64'}
-        ints = {'int8', 'int16', 'int32', 'int64', 'str_int'}
+        uints = {'uint8', 'uint16', 'uint32', 'uint64', 'varuint'}
+        ints = {'int8', 'int16', 'int32', 'int64', 'str_int', 'varint'}
         floats = {'float16', 'float32', 'float64', 'str_float', 'str_decimal'}
         scalars = uints | ints | floats
         expected_encodings = {
@@ -487,6 +487,50 @@ class TestMDSEncodings:
         assert dec == decoded
         dec = mdsEnc.mds_decode(encoding, encoded)
         assert dec == decoded
+
+    def test_varints(self):
+        from streaming.base.format.mds.encodings import mds_decode, mds_encode
+        for x in range(-700, 700, 7):
+            y = mds_encode('varint', x)
+            z = mds_decode('varint', y)
+            print(x, y, z)
+            assert x == z
+        for x in range(0, 700, 7):
+            y = mds_encode('varuint', x)
+            z = mds_decode('varuint', y)
+            print(x, y, z)
+            assert x == z
+
+    @pytest.mark.parametrize(('enc_name', 'data'), [('bytes', b'9'), ('int', 27),
+                                                    ('str', 'mosaicml')])
+    def test_mds_encode(self, enc_name: str, data: Any):
+        output = mdsEnc.mds_encode(enc_name, data)
+        assert isinstance(output, bytes)
+
+    @pytest.mark.parametrize(('enc_name', 'data'), [('bytes', 9), ('int', '27'), ('str', 12.5)])
+    def test_mds_encode_invalid_data(self, enc_name: str, data: Any):
+        with pytest.raises(AttributeError):
+            _ = mdsEnc.mds_encode(enc_name, data)
+
+    @pytest.mark.parametrize(('enc_name', 'data', 'expected_data_type'),
+                             [('bytes', b'c\x00\x00\x00\x00\x00\x00\x00', bytes),
+                              ('str', b'mosaicml', str)])
+    def test_mds_decode(self, enc_name: str, data: Any, expected_data_type: Any):
+        output = mdsEnc.mds_decode(enc_name, data)
+        assert isinstance(output, expected_data_type)
+
+    @pytest.mark.parametrize(('enc_name', 'expected_size'), [('bytes', None), ('int', 8)])
+    def test_get_mds_encoded_size(self, enc_name: str, expected_size: Any):
+        output = mdsEnc.get_mds_encoded_size(enc_name)
+        assert output is expected_size
+
+
+class TestXSVEncodings:
+
+    @pytest.mark.parametrize(('data', 'encode_data'), [('99', '99'),
+                                                       ('streaming dataset', 'streaming dataset')])
+    def test_str_encode_decode(self, data: str, encode_data: str):
+        str_enc = xsvEnc.Str()
 
     @pytest.mark.parametrize(('enc_name', 'data'), [('bytes', b'9'), ('int', 27),
                                                     ('str', 'mosaicml')])
