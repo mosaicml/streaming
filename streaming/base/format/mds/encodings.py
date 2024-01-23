@@ -412,7 +412,7 @@ def _varint_decode(stream: IO[bytes]) -> int:
 
 
 class VarUInt(Encoding):
-    """Varint DS3 type."""
+    """Store an unsigned integer as a base-128 varint."""
 
     @classmethod
     def encode(cls, obj: int) -> bytes:
@@ -425,7 +425,7 @@ class VarUInt(Encoding):
 
 
 class VarInt(Encoding):
-    """Varint DS3 type."""
+    """Store an integer as a base-128 varint."""
 
     @classmethod
     def encode(cls, obj: int) -> bytes:
