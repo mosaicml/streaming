@@ -26,6 +26,7 @@ class TestMDSEncodings:
         output = byte_enc.decode(data)
         assert output == data
 
+import tempfile
     @pytest.mark.parametrize('data', ['9', 25])
     def test_byte_encode_invalid_data(self, data: Any):
         with pytest.raises(AttributeError):
@@ -500,37 +501,6 @@ class TestMDSEncodings:
             z = mds_decode('varuint', y)
             print(x, y, z)
             assert x == z
-
-    @pytest.mark.parametrize(('enc_name', 'data'), [('bytes', b'9'), ('int', 27),
-                                                    ('str', 'mosaicml')])
-    def test_mds_encode(self, enc_name: str, data: Any):
-        output = mdsEnc.mds_encode(enc_name, data)
-        assert isinstance(output, bytes)
-
-    @pytest.mark.parametrize(('enc_name', 'data'), [('bytes', 9), ('int', '27'), ('str', 12.5)])
-    def test_mds_encode_invalid_data(self, enc_name: str, data: Any):
-        with pytest.raises(AttributeError):
-            _ = mdsEnc.mds_encode(enc_name, data)
-
-    @pytest.mark.parametrize(('enc_name', 'data', 'expected_data_type'),
-                             [('bytes', b'c\x00\x00\x00\x00\x00\x00\x00', bytes),
-                              ('str', b'mosaicml', str)])
-    def test_mds_decode(self, enc_name: str, data: Any, expected_data_type: Any):
-        output = mdsEnc.mds_decode(enc_name, data)
-        assert isinstance(output, expected_data_type)
-
-    @pytest.mark.parametrize(('enc_name', 'expected_size'), [('bytes', None), ('int', 8)])
-    def test_get_mds_encoded_size(self, enc_name: str, expected_size: Any):
-        output = mdsEnc.get_mds_encoded_size(enc_name)
-        assert output is expected_size
-
-
-class TestXSVEncodings:
-
-    @pytest.mark.parametrize(('data', 'encode_data'), [('99', '99'),
-                                                       ('streaming dataset', 'streaming dataset')])
-    def test_str_encode_decode(self, data: str, encode_data: str):
-        str_enc = xsvEnc.Str()
 
     @pytest.mark.parametrize(('enc_name', 'data'), [('bytes', b'9'), ('int', 27),
                                                     ('str', 'mosaicml')])
