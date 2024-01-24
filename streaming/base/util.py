@@ -390,7 +390,7 @@ def _format_remote_index_files(remote: str, files: List[str]) -> List[str]:
                 path = Path(remote)
                 prefix = os.path.join(path.parts[0], path.parts[1])
                 if prefix == 'dbfs:/Volumes':
-                    join_char = '/'
+                    join_char = ':/'
 
             remote_index_files.append(obj.scheme + join_char + os.path.join(obj.netloc, file))
     return remote_index_files
