@@ -253,7 +253,7 @@ def merge_index(*args: Any, **kwargs: Any):
     raise ValueError(f'Invalid arguments to merge_index: {args}, {kwargs}')
 
 
-def _merge_index_from_list(index_file_urls: List[Union[str, Tuple[str, str]]],
+def _merge_index_from_list(index_file_urls: Sequence[Union[str, Tuple[str, str]]],
                            out: Union[str, Tuple[str, str]],
                            keep_local: bool = True,
                            download_timeout: int = 60) -> None:
@@ -390,7 +390,7 @@ def _format_remote_index_files(remote: str, files: List[str]) -> List[str]:
                 path = Path(remote)
                 prefix = os.path.join(path.parts[0], path.parts[1])
                 if prefix == 'dbfs:/Volumes':
-                    join_char = '/'
+                    join_char = ':/'
 
             remote_index_files.append(obj.scheme + join_char + os.path.join(obj.netloc, file))
     return remote_index_files

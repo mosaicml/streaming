@@ -170,14 +170,16 @@ def integrity_check(out: Union[str, Tuple[str, str]],
         assert n_shard_files == expected_n_shard_files, f'expected {expected_n_shard_files} shard files but got {n_shard_files}'
 
 
-@pytest.mark.parametrize('scheme', ['gs', 's3', 'oci'])
+@pytest.mark.parametrize('scheme', ['gs', 's3', 'oci', 'dbfs'])
 def test_format_remote_index_files(scheme: str):
     """Validate the format of remote index files."""
     from streaming.base.util import _format_remote_index_files
 
-
-    full_scheme = scheme + '://'
-    remote = os.path.join(full_scheme, MY_BUCKET[full_scheme])
+    if scheme == 'dbfs':
+        remote = os.path.join('dbfs:/', 'Volumes')
+    else:
+        full_scheme = scheme + '://'
+        remote = os.path.join(full_scheme, MY_BUCKET[full_scheme], MY_PREFIX)
 
     index_files = [
         os.path.join('folder_1', 'index.json'),
