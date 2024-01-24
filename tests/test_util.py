@@ -170,6 +170,28 @@ def integrity_check(out: Union[str, Tuple[str, str]],
         assert n_shard_files == expected_n_shard_files, f'expected {expected_n_shard_files} shard files but got {n_shard_files}'
 
 
+@pytest.mark.parametrize('scheme', ['gs', 's3', 'oci'])
+def test_format_remote_index_files(scheme: str):
+    """Validate the format of remote index files."""
+    from streaming.base.util import _format_remote_index_files
+
+
+    full_scheme = scheme + '://'
+    remote = os.path.join(full_scheme, MY_BUCKET[full_scheme])
+
+    index_files = [
+        os.path.join('folder_1', 'index.json'),
+        os.path.join('folder_2', 'index.json'),
+        os.path.join('folder_3', 'index.json'),
+    ]
+    remote_index_files = _format_remote_index_files(remote, index_files)
+
+    assert len(remote_index_files) == len(index_files)
+    for file in remote_index_files:
+        obj = urllib.parse.urlparse(file)
+        assert obj.scheme == scheme
+
+
 @pytest.mark.parametrize('index_file_urls_pattern', [1, 2, 3])
 @pytest.mark.parametrize('keep_local', [True, False])
 @pytest.mark.parametrize('scheme', ['gs://', 's3://', 'oci://'])
