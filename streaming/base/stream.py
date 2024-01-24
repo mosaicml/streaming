@@ -309,7 +309,6 @@ class Stream:
 
         # Sleep between 0 and 5 seconds to avoid too many concurrent downloads.
         time.sleep(np.random.default_rng().uniform(0, 5))
-        print("we jittered.")
 
         # Attempt to download, possibly repeating on failure.
         retry(num_attempts=self.download_retry)(
