@@ -253,7 +253,7 @@ def merge_index(*args: Any, **kwargs: Any):
     raise ValueError(f'Invalid arguments to merge_index: {args}, {kwargs}')
 
 
-def _merge_index_from_list(index_file_urls: List[Union[str, Tuple[str, str]]],
+def _merge_index_from_list(index_file_urls: Sequence[Union[str, Tuple[str, str]]],
                            out: Union[str, Tuple[str, str]],
                            keep_local: bool = True,
                            download_timeout: int = 60) -> None:
@@ -357,6 +357,7 @@ def _merge_index_from_list(index_file_urls: List[Union[str, Tuple[str, str]]],
         # Clean up
         if not keep_local:
             shutil.rmtree(cu.local, ignore_errors=True)
+
 
 def _not_merged_index(index_file_path: str, out: str):
     """Check if index_file_path is the merged index at folder out.
