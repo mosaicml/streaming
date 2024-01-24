@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import tempfile
+import time
 from typing import List, Optional, Sequence, Tuple
 
 import numpy as np
@@ -305,6 +306,9 @@ class Stream:
         else:
             remote = os.path.join(self.remote, self.split, from_basename)
         local = os.path.join(self.local, self.split, to_basename or from_basename)
+
+        # Sleep between 0 and 5 seconds to avoid too many concurrent downloads.
+        time.sleep(np.random.default_rng().uniform(0, 5))
 
         # Attempt to download, possibly repeating on failure.
         retry(num_attempts=self.download_retry)(
