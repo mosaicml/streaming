@@ -358,6 +358,7 @@ def _merge_index_from_list(index_file_urls: Sequence[Union[str, Tuple[str, str]]
         if not keep_local:
             shutil.rmtree(cu.local, ignore_errors=True)
 
+
 def _not_merged_index(index_file_path: str, out: str):
     """Check if index_file_path is the merged index at folder out.
 
