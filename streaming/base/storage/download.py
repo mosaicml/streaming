@@ -292,9 +292,11 @@ def download_from_azure(remote: str, local: str) -> None:
         credential=os.environ['AZURE_ACCOUNT_ACCESS_KEY'])
     try:
         blob_client = service.get_blob_client(container=obj.netloc, blob=obj.path.lstrip('/'))
-        with open(local, 'wb') as my_blob:
+        local_tmp = local + '.tmp'
+        with open(local_tmp, 'wb') as my_blob:
             blob_data = blob_client.download_blob()
             blob_data.readinto(my_blob)
+        os.rename(local_tmp, local)
     except ResourceNotFoundError as e:
         raise FileNotFoundError(f'Object {remote} not found.') from e
     except Exception:
@@ -324,9 +326,11 @@ def download_from_azure_datalake(remote: str, local: str) -> None:
     try:
         file_client = service.get_file_client(file_system=obj.netloc,
                                               file_path=obj.path.lstrip('/'))
-        with open(local, 'wb') as my_file:
+        local_tmp = local + '.tmp'
+        with open(local_tmp, 'wb') as my_file:
             file_data = file_client.download_file()
             file_data.readinto(my_file)
+        os.rename(local_tmp, local)
     except ResourceNotFoundError as e:
         raise FileNotFoundError(f'Object {remote} not found.') from e
     except Exception:
