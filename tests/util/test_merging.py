@@ -74,7 +74,7 @@ def integrity_check(out: Union[str, Tuple[str, str]],
 @pytest.mark.parametrize('scheme', ['gs', 's3', 'oci', 'dbfs'])
 def test_format_remote_index_files(scheme: str):
     """Validate the format of remote index files."""
-    from streaming.base.util import _format_remote_index_files
+    from streaming.util.merging import _format_remote_index_files
 
     if scheme == 'dbfs':
         remote = os.path.join('dbfs:/', 'Volumes')
