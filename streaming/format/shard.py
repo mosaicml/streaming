@@ -223,7 +223,7 @@ class Shard(Array, ABC):
         else:
             if has_zip:
                 raise ValueError('Shard is invalid: compression was not used, but has a ' +
-                                 'compressed form.')
+                                 'compressed phase.')
 
         # Get cache usage. Shard is present if either raw or zip are present.
         size = 0
@@ -261,9 +261,9 @@ class Shard(Array, ABC):
         """Get the full size of this shard.
 
         "Max" in this case means both the raw (decompressed) and zip (compressed) versions are
-        resident (assuming it has a zip form). This is the maximum disk usage the shard can reach.
-        When compressed was used, even if keep_zip is ``False``, the zip form must still be
-        resident at the same time as the raw form during shard decompression.
+        resident (assuming it has a zip phase). This is the maximum disk usage the shard can reach.
+        When compressed was used, even if keep_zip is ``False``, the zip phase must still be
+        resident at the same time as the raw phase during shard decompression.
 
         Returns:
             int: Size in bytes.

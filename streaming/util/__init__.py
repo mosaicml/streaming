@@ -3,7 +3,7 @@
 
 """Utilities for streaming."""
 
-from streaming.util.auto import Auto, auto, is_auto
+from streaming.util.auto import Auto
 from streaming.util.importing import get_import_exception_message, redirect_imports
 from streaming.util.merging import merge_index
 from streaming.util.retrying import retry
@@ -14,7 +14,7 @@ from streaming.util.shorthand import (get_list_arg, get_str2str_arg, normalize_b
 from streaming.util.tabulation import Tabulator
 
 __all__ = [
-    'Auto', 'auto', 'is_auto', 'get_import_exception_message', 'redirect_imports', 'merge_index',
-    'retry', 'clean_stale_shared_memory', 'get_list_arg', 'get_str2str_arg', 'normalize_dec_bytes',
+    'Auto', 'get_import_exception_message', 'redirect_imports', 'merge_index', 'retry',
+    'clean_stale_shared_memory', 'get_list_arg', 'get_str2str_arg', 'normalize_dec_bytes',
     'normalize_bin_bytes', 'normalize_bytes', 'normalize_count', 'normalize_duration', 'Tabulator'
 ]

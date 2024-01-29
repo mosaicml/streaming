@@ -8,14 +8,14 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
+from streaming.format.base.writer.mono_row import MonoRowWriter
 from streaming.format.mds.encodings import (get_mds_encoded_size, get_mds_encodings,
                                             is_mds_encoding, mds_encode)
-from streaming.format.writer import MonoWriter
 
 __all__ = ['MDSWriter']
 
 
-class MDSWriter(MonoWriter):
+class MDSWriter(MonoRowWriter):
     """Writes a streaming MDS dataset.
 
     Args:
