@@ -1,4 +1,4 @@
-# Copyright 2023 MosaicML Streaming authors
+# Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 """Simulator web UI using streamlit."""
@@ -284,7 +284,10 @@ if use_yaml:
                                                 node. in practice, network bandwidth is \
                                                 variable and is affected by many factors, \
                                                 including cluster demand.')
-
+        col1.warning(
+            'If you are using a subclass of StreamingDataset with custom defaults, please \
+                   select "Modify Parameters" and verify that the input parameters are correct.',
+            icon='⚠️')
         submitted = col1.button('Simulate Run', use_container_width=True)
         shuffle_quality = col1.toggle('Analyze Shuffle Quality',
                                       value=False,

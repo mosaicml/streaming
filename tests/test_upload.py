@@ -1,11 +1,12 @@
-# Copyright 2023 MosaicML Streaming authors
+# Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 import shutil
 import tempfile
 from typing import Any, List, Tuple
-from unittest.mock import Mock, patch
+from unittest import mock
+from unittest.mock import ANY, MagicMock, Mock, patch
 
 import boto3
 import pytest
@@ -210,6 +211,43 @@ class TestS3Uploader:
             mock_remote_dir, _ = remote_local_dir(cloud_prefix='s9://')
             cu = CloudUploader.get(mock_remote_dir, exist_ok=True, keep_local=True)
             _ = cu.list_objects()
+
+    @pytest.mark.usefixtures('s3_client', 's3_test')
+    def test_extra_args(self, local_remote_dir: Tuple[str, str]):
+        with tempfile.NamedTemporaryFile(delete=True, suffix='.txt') as tmp:
+            filename = tmp.name.split(os.sep)[-1]
+            local, _ = local_remote_dir
+            remote = 's3://streaming-test-bucket/path'
+            local_file_path = os.path.join(local, filename)
+            s3w = S3Uploader(out=(local, remote))
+            s3w.s3.upload_file = MagicMock()
+            with mock.patch.dict('os.environ'):
+                # No ACL
+                with open(local_file_path, 'w') as _:
+                    pass
+                os.environ.pop('S3_CANNED_ACL', None)
+                s3w.upload_file(filename)
+                s3w.s3.upload_file.assert_called_once()
+                s3w.s3.upload_file.assert_called_with(ANY, ANY, ANY, ExtraArgs={}, Callback=ANY)
+
+                # With `authenticated-read` ACL
+                with open(local_file_path, 'w') as _:
+                    pass
+                os.environ['S3_CANNED_ACL'] = 'authenticated-read'
+                s3w.upload_file(filename)
+                s3w.s3.upload_file.assert_called_with(ANY,
+                                                      ANY,
+                                                      ANY,
+                                                      ExtraArgs={'ACL': 'authenticated-read'},
+                                                      Callback=ANY)
+
+                # With `bucket-owner-full-control` ACL
+                with open(local_file_path, 'w') as _:
+                    pass
+                os.environ['S3_CANNED_ACL'] = 'bucket-owner-full-control'
+                s3w.upload_file(filename)
+                s3w.s3.upload_file.assert_called_with(
+                    ANY, ANY, ANY, ExtraArgs={'ACL': 'bucket-owner-full-control'}, Callback=ANY)
 
 
 class TestGCSUploader:

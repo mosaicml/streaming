@@ -1,11 +1,12 @@
-# Copyright 2023 MosaicML Streaming authors
+# Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+import logging
 import math
 import os
 import shutil
 from multiprocessing import Process
-from typing import Any, Tuple
+from typing import Any, Callable, Tuple
 
 import pytest
 from torch.utils.data import DataLoader
@@ -16,32 +17,23 @@ from tests.common.utils import convert_to_mds
 
 
 @pytest.mark.usefixtures('local_remote_dir')
-def test_new_defaults_warning(local_remote_dir: Tuple[str, str],):
+def test_new_defaults_warning(local_remote_dir: Tuple[str, str], caplog: Callable):
+    caplog.set_level(logging.WARNING)
     local, remote = local_remote_dir
     convert_to_mds(out_root=remote,
                    dataset_name='sequencedataset',
-                   num_samples=300,
+                   num_samples=100,
                    size_limit=1 << 8)
 
-    with pytest.warns(UserWarning, match=f'Because `predownload` was not specified,*'):
-        # Build a StreamingDataset with new defaults. Should warn about the new defaults changes.
-        _ = StreamingDataset(local=local, remote=remote, shuffle=True)
+    # Build a StreamingDataset with new defaults. Should warn about the new defaults changes.
+    dataset = StreamingDataset(local=local, remote=remote, shuffle=True)
+    dataloader = StreamingDataLoader(dataset=dataset, batch_size=4)
+    for _ in dataloader:
+        pass
 
-    clean_stale_shared_memory()
-
-    with pytest.warns(UserWarning, match=f'Because `shuffle_block_size` was not specified,*'):
-        # Build a StreamingDataset with new defaults. Should warn about the new defaults changes.
-        for _ in StreamingDataset(local=local, remote=remote, shuffle=True):
-            pass
-
-    clean_stale_shared_memory()
-
-    with pytest.warns(UserWarning, match=f'Because `num_canonical_nodes` was not specified,*'):
-        # Build a StreamingDataset with new defaults. Should warn about the new defaults changes.
-        for _ in StreamingDataset(local=local, remote=remote, shuffle=True):
-            pass
-
-    clean_stale_shared_memory()
+    assert 'Because `predownload` was not specified,' in caplog.text
+    assert 'Because `shuffle_block_size` was not specified,' in caplog.text
+    assert 'Because `num_canonical_nodes` was not specified,' in caplog.text
 
 
 @pytest.mark.parametrize('batch_size', [4])

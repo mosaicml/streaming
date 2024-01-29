@@ -1,4 +1,4 @@
-# Copyright 2023 MosaicML Streaming authors
+# Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 """Streamlit widgets for simulation web UI."""
@@ -139,21 +139,21 @@ def stream_entry(component: DeltaGenerator,
         stream_entries['avg_zip_shard_size'] = avg_zip_shard_size
     proportion = component.text_input(
         'proportion',
-        value='None' if defaults is None else defaults['proportion'],
+        value='None' if defaults is None else str(defaults['proportion']),
         help='proportion of the full training dataset that this stream \
                                     represents.',
         key=str(key) + 'proportion',
         disabled=(not add_stream))
     proportion = None if proportion == 'None' or proportion == '' else float(proportion)
     repeat = component.text_input('repeat',
-                                  value='None' if defaults is None else defaults['repeat'],
+                                  value='None' if defaults is None else str(defaults['repeat']),
                                   help='number of times to repeat the samples in this \
                                 stream.',
                                   key=str(key) + 'repeat',
                                   disabled=(not add_stream))
     repeat = None if repeat == 'None' or repeat == '' else float(repeat)
     choose = component.text_input('choose',
-                                  value='None' if defaults is None else defaults['choose'],
+                                  value='None' if defaults is None else str(defaults['choose']),
                                   help='number of samples to choose from this \
                                 stream.',
                                   key=str(key) + 'choose',

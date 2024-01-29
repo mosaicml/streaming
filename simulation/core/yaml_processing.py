@@ -1,4 +1,4 @@
-# Copyright 2023 MosaicML Streaming authors
+# Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 """Ingest yaml and create SimulationDataset."""
@@ -89,6 +89,16 @@ def ingest_yaml(yaml_dict: Optional[dict] = None,
                 workers = 1
         else:
             raise ValueError('train_dataset must be specified in the yaml file.')
+    elif 'train_dataset' in config:
+        train_dataset = config['train_dataset']
+        if 'streaming_kwargs' in train_dataset:
+            # Merge streaming kwargs, if present, into train_dataset
+            train_dataset.update(train_dataset['streaming_kwargs'])
+        if 'dataloader_kwargs' in train_dataset and 'num_workers' in train_dataset[
+                'dataloader_kwargs']:
+            workers = train_dataset['dataloader_kwargs']['num_workers']
+        else:
+            workers = 1
     else:
         raise ValueError('train_loader or dataset must be specified in the yaml file.')
 

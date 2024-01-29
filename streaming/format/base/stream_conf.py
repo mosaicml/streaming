@@ -1,4 +1,4 @@
-# Copyright 2023 MosaicML Streaming authors
+# Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 """Configuration shared by one or more shards."""
@@ -228,6 +228,7 @@ class StreamConf:
         # 3.C. Maybe override phaser (phase keeper), then cache self.keep_zip in case needed.
         if not isinstance(keep_phases, Auto):
             self.keep_phases = _get_phaser(keep_phases)
+            self.safe_keep_phases = self.keep_phases.to_safe()
         self.keep_zip = kwargs.get('keep_zip')
 
     def apply_defaults(
@@ -364,3 +365,6 @@ class StreamConf:
         # good reason to want this), or it might mean the user wants to keep the original phases
         # of files instead, zipped or not (for which the knob is self.keep_phases.storage).
         del self.keep_zip
+
+        # 4. Derive safe_keep_phases from keep_phases.
+        self.safe_keep_phases = self.keep_phases.to_safe()

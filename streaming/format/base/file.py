@@ -1,4 +1,4 @@
-# Copyright 2023 MosaicML Streaming authors
+# Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 """An individual file of a Streaming shard."""
@@ -284,7 +284,7 @@ class ShardFile:
                 ddu += phase.evict()
         return ddu
 
-    def evict_phases(self, phase_dels: NDArray[np.bool_]) -> int:
+    def evict_phases(self, phase_dels: NDArray[np.int64]) -> int:
         """Delete specified phases of this file.
 
         Returns:

@@ -1,4 +1,4 @@
-# Copyright 2023 MosaicML Streaming authors
+# Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 """Write files to remote location which can be either Cloud Storage or a local path."""
@@ -258,6 +258,12 @@ class S3Uploader(CloudUploader):
 
         @retry(num_attempts=self.retry)
         def _upload_file():
+            extra_args = {}
+            # Check for canned ACL environment variable
+            canned_acl = os.environ.get('S3_CANNED_ACL')
+            if canned_acl is not None:
+                extra_args['ACL'] = canned_acl
+
             local_filename = os.path.join(self.local, filename)
             remote_filename = os.path.join(self.remote, filename)  # pyright: ignore
             obj = urllib.parse.urlparse(remote_filename)
@@ -272,6 +278,7 @@ class S3Uploader(CloudUploader):
                     local_filename,
                     obj.netloc,
                     obj.path.lstrip('/'),
+                    ExtraArgs=extra_args,
                     Callback=lambda bytes_transferred: pbar.update(bytes_transferred),
                 )
             self.clear_local(local=local_filename)

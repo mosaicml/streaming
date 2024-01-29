@@ -1,4 +1,4 @@
-# Copyright 2023 MosaicML Streaming authors
+# Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 """Apportion shards/samples such that batches have samples only from a single stream."""
@@ -92,9 +92,14 @@ def generate_work_per_stream_batching(dataset: StreamingDataset, world: World, e
         batches_per_stream.append(num_full_batches)
         if num_full_batches != global_batches_inorder.shape[0]:
             logger.warning(
-                'Because of the `per_stream` batching method, some batches with an inadequate \
-                number of samples from stream with index ' + str(stream_idx) + ' will be dropped.')
-        batches_from_partitions.append(global_batches_inorder[:num_full_batches])
+                f'Because of the `per_stream` batching method, some batches with an inadequate ' +
+                f'number of samples from stream with index {stream_idx} will be dropped.')
+        if num_full_batches > 0:
+            batches_from_partitions.append(global_batches_inorder[:num_full_batches])
+        else:
+            logger.warning(f'Stream with index {stream_idx} does not have an adequate number of ' +
+                           f'samples to construct a complete global batch. Training will occur ' +
+                           f'without any samples from this stream!')
 
     # Combine all global batches from all streams into one array.
     all_partition_batches = np.concatenate(batches_from_partitions)

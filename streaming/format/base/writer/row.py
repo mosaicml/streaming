@@ -1,4 +1,4 @@
-# Copyright 2023 MosaicML Streaming authors
+# Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 """Serialize samples into streaming dataset shards and index."""
@@ -79,7 +79,6 @@ class RowWriter(Writer):
                  extra_bytes_per_shard: int = 0,
                  extra_bytes_per_sample: int = 0,
                  **kwargs: Any) -> None:
-
         compression = compression or None
         if compression:
             if not is_compression(compression):

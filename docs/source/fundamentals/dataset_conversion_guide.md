@@ -18,13 +18,13 @@ out = {'/local/data', 'oci://bucket/data'}
 
 | Name   | Class  | Name    | Class   | Name | Class  |
 | ------ | ------ | ------- | ------- | ---- | ------ |
-| bytes  | `Bytes`  | int8    | `Int8`    | pil  | `PIL`    |
-| str    | `Str`    | int16   | `Int16`   | jpeg | `JPEG`   |
-| int    | `Int`    | int32   | `Int32`   | png  | `PNG`    |
-| uint8  | `UInt8`  | int64   | `Int64`   | pkl  | `Pickle` |
-| uint16 | `UInt16` | float16 | `Float16` | json | `JSON`   |
-| uint32 | `UInt32` | float32 | `Float32` |      |        |
-| uint64 | `UInt64` | float64 | `Float64` |      |        |
+| bytes  | `Bytes`  | int8    | `Int8`    | pil     | `PIL`     |
+| str    | `Str`    | int16   | `Int16`   | jpeg    | `JPEG`    |
+| int    | `Int`    | int32   | `Int32`   | png     | `PNG`     |
+| uint8  | `UInt8`  | int64   | `Int64`   | pkl     | `Pickle`  |
+| uint16 | `UInt16` | float16 | `Float16` | json    | `JSON`    |
+| uint32 | `UInt32` | float32 | `Float32` | ndarray | `NDArray` |
+| uint64 | `UInt64` | float64 | `Float64` |         |           |
 
 Below is one example where the feature name `x` is an image, and the label `y` is a class value.
 <!--pytest.mark.skip-->

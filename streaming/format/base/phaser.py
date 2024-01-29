@@ -1,10 +1,14 @@
-# Copyright 2023 MosaicML Streaming authors
+# Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 """What shard file phases to keep or delete."""
 
 from enum import Enum
 from typing import Union
+
+import numpy as np
+from numpy.typing import NDArray
+from typing_extensions import Self
 
 from streaming.util.auto import Auto
 
@@ -75,3 +79,26 @@ class Phaser:
         self.zip = zip
         self.raw = raw
         self.can = can
+
+    def to_safe(self) -> Self:
+        """Get the safe version of this Phaser, which never deletes the storage/download phase.
+
+        Returns:
+            Self: Safe version of this Phaser.
+        """
+        from copy import deepcopy
+
+        ret = deepcopy(self)
+        ret.storage = True
+        return ret
+
+    def get_phase_deletions(self, phase_locs: NDArray[np.int64]) -> NDArray[np.int64]:
+        """Get phase deletions.
+
+        Args:
+            phase_locs (NDArray[np.int64]): Phase localities.
+
+        Returns:
+            NDArray[np.int64]: Phase deletions.
+        """
+        return np.zeros(3, np.int64)

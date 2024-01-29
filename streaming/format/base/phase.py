@@ -1,4 +1,4 @@
-# Copyright 2023 MosaicML Streaming authors
+# Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
 """An individual file of a Streaming shard."""
@@ -94,7 +94,7 @@ class ShardFilePhase:
                 f'The first existing phase, i.e. the phase that is stored persistently and ' +
                 f'downloaded, must be of known size.')
 
-        if self.stream.download_max_size < self.size:
+        if self.stream.download_max_size is not None and self.stream.download_max_size < self.size:
             raise ValueError(
                 f'Download would be too large: {self.get_remote_filename()} is {self.size:,} ' +
                 f'bytes vs limit {self.stream.download_max_size} bytes. As you raise shard size, '
@@ -191,8 +191,15 @@ class ShardFilePhase:
         # Do the download, retrying if necessary.
         local = self.get_local_filename()
         remote = self.get_remote_filename()
-        download = lambda: download_file(remote, local, self.stream.download_timeout)
-        retry(num_attempts=self.stream.download_retry)(download)
+
+        timeout = self.stream.download_timeout
+        if timeout is None:
+            timeout = float('inf')
+        download = lambda: download_file(remote, local, timeout)
+        num_retry = self.stream.download_retry
+        if num_retry is None:
+            num_retry = 1 << 64 - 2
+        retry(num_attempts=1 + num_retry)(download)
         size = os.stat(local).st_size
 
         # Validate downloaded size agsainst expected size.
@@ -208,13 +215,14 @@ class ShardFilePhase:
         # basically free, so let's be extra careful.
         if self.stream.download_max_size is not None:
             if self.stream.download_max_size < size:
-                raise ValueError(f'Download was too large: {self.get_local_filename()} is ' +
-                                 f'{size:,} bytes vs limit {self.stream.download_size} ' +
-                                 f'bytes. As you raise shard size, you will experience ' +
-                                 f'hard-to-debug choppiness, thrashing, and indefinite stalls. ' +
-                                 f'Please reduce shard size. To continue anyway, raise the ' +
-                                 f'StreamingDataset or Stream argument `download_size` or set ' +
-                                 f'it to `None` to disable this check completely.')
+                raise ValueError(
+                    f'Download was too large: {self.get_local_filename()} is ' +
+                    f'{size:,} bytes vs limit {self.stream.download_max_size} ' +
+                    f'bytes. As you raise shard size, you will experience ' +
+                    f'hard-to-debug choppiness, thrashing, and indefinite stalls. ' +
+                    f'Please reduce shard size. To continue anyway, raise the ' +
+                    f'StreamingDataset or Stream argument `download_max_size` or set ' +
+                    f'it to `None` to disable this check completely.')
 
         # Validate hashes against expected.
         if self.stream.apply_hash_algos:
