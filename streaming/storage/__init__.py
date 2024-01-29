@@ -1,9 +1,6 @@
 # Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-# Copyright 2023 MosaicML Streaming authors
-# SPDX-License-Identifier: Apache-2.0
-
 """Base module for downloading/uploading files from/to cloud storage."""
 
 from streaming.storage.download import (download_file, download_from_azure,

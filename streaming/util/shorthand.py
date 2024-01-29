@@ -1,9 +1,6 @@
 # Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-# Copyright 2023 MosaicML Streaming authors
-# SPDX-License-Identifier: Apache-2.0
-
 """Conversions between human-friendly string forms and int/float."""
 
 from collections import defaultdict

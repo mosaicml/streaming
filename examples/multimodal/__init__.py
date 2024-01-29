@@ -1,9 +1,6 @@
 # Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-# Copyright 2023 MosaicML Streaming authors
-# SPDX-License-Identifier: Apache-2.0
-
 """Example multimodal streaming datasets."""
 
 from examples.multimodal import laion400m as laion400m
