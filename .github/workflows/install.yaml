@@ -13,7 +13,7 @@ on:
 jobs:
   streaming-Pip-Install:
     timeout-minutes: 10
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
         python_version:
