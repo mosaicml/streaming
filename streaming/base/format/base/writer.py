@@ -307,10 +307,7 @@ class Writer(ABC):
     def cancel_future_jobs(self) -> None:
         """Shutting down the executor and cancel all the pending jobs."""
         # Beginning python v3.9, ThreadPoolExecutor.shutdown() has a new parameter `cancel_futures`
-        if sys.version_info[1] <= 8:  # check if python version <=3.8
-            self.executor.shutdown(wait=False)
-        else:
-            self.executor.shutdown(wait=False, cancel_futures=True)
+        self.executor.shutdown(wait=False, cancel_futures=True)
         if self.remote and not self.keep_local:
             shutil.rmtree(self.local, ignore_errors=True)
 
