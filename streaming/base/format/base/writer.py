@@ -7,7 +7,6 @@ import json
 import logging
 import os
 import shutil
-import sys
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures._base import Future

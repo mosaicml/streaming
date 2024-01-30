@@ -7,7 +7,6 @@ import json
 import logging
 import mmap
 import os
-import sys
 import warnings
 from concurrent.futures import ThreadPoolExecutor, wait
 from concurrent.futures._base import Future
