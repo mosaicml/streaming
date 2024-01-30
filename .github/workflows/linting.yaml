@@ -3,12 +3,12 @@ name: Linting
 on:
   push:
     branches:
-      - main
-      - release/*
+    - main
+    - release/*
   pull_request:
     branches:
-      - main
-      - release/*
+    - main
+    - release/*
   workflow_call:
   workflow_dispatch: {}
 defaults:
@@ -21,29 +21,29 @@ jobs:
     strategy:
       matrix:
         python_version:
-          - "3.9"
+        - "3.9"
         install_version:
-          - "[dev]"
+        - "[dev]"
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python_version }}
-      - name: Cache pip
-        uses: actions/cache@v3
-        with:
-          # This path is specific to Ubuntu
-          path: ~/.cache/pip
-          # Look to see if there is a cache hit for the corresponding requirements file
-          key: ${{ runner.os }}-pip-${{ hashFiles('setup.py', 'requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-            ${{ runner.os }}-
-      - name: Setup
-        run: |
-          set -ex
-          python -m pip install --upgrade pip wheel
-          python -m pip install -e .${{ matrix.install_version }}
-      - name: Linting
-        run: |
-          pre-commit run --all-files
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python_version }}
+    - name: Cache pip
+      uses: actions/cache@v3
+      with:
+        # This path is specific to Ubuntu
+        path: ~/.cache/pip
+        # Look to see if there is a cache hit for the corresponding requirements file
+        key: ${{ runner.os }}-pip-${{ hashFiles('setup.py', 'requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          ${{ runner.os }}-
+    - name: Setup
+      run: |
+        set -ex
+        python -m pip install --upgrade pip wheel
+        python -m pip install -e .${{ matrix.install_version }}
+    - name: Linting
+      run: |
+        pre-commit run --all-files

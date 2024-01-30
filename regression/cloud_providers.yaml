@@ -1,6 +1,6 @@
 name: streaming-regression-test-cloud-providers
 compute:
-  gpus: 8 # Number of GPUs to use
+  gpus: 8  # Number of GPUs to use
   # cluster: TODO # Name of the cluster to use for this run
 command: |-
   pip uninstall -y mosaicml-streaming
@@ -10,11 +10,13 @@ command: |-
   composer -n 2 regression/iterate_data.py --remote $GCS_URL --validate-files
   python regression/synthetic_dataset.py --delete --out $GCS_URL
 
-  python regression/synthetic_dataset.py --create --name imagedataset --out $S3_URL --num_samples 500 --size_limit 134217728 # 128 mb
+  python regression/synthetic_dataset.py --create --name imagedataset --out $S3_URL --num_samples 500 --size_limit \
+    134217728 # 128 mb
   composer -n 4 regression/iterate_data.py --remote $S3_URL --local /tmp/local_dataset/ --validate-files
   python regression/synthetic_dataset.py --delete --out $S3_URL
 
-  python regression/synthetic_dataset.py --create --name imagedataset --out $OCI_URL --num_samples 500 --size_limit 268435456 # 256 mb
+  python regression/synthetic_dataset.py --create --name imagedataset --out $OCI_URL --num_samples 500 --size_limit \
+    268435456 # 256 mb
   composer -n 8 regression/iterate_data.py --remote $OCI_URL --validate-files
   python regression/synthetic_dataset.py --delete --out $OCI_URL
 
@@ -23,7 +25,7 @@ scheduling:
   resumable: true
   priority: medium
 integrations:
-  - integration_type: git_repo
-    git_repo: mosaicml/streaming
-    git_branch: main
-    ssh_clone: false
+- integration_type: git_repo
+  git_repo: mosaicml/streaming
+  git_branch: main
+  ssh_clone: false

@@ -5,9 +5,9 @@
 
 version: 2
 updates:
-  - package-ecosystem: "pip"  # See documentation for possible values
-    directory: "/"  # Location of package manifests
-    schedule:
-      interval: "weekly"
-    # Allow up to 5 open pull requests for pip dependencies
-    open-pull-requests-limit: 5
+- package-ecosystem: "pip"  # See documentation for possible values
+  directory: "/"  # Location of package manifests
+  schedule:
+    interval: "weekly"
+  # Allow up to 5 open pull requests for pip dependencies
+  open-pull-requests-limit: 5
