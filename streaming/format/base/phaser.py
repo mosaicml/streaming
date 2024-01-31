@@ -3,6 +3,7 @@
 
 """What shard file phases to keep or delete."""
 
+from copy import deepcopy
 from enum import Enum
 from typing import Union
 
@@ -86,8 +87,6 @@ class Phaser:
         Returns:
             Self: Safe version of this Phaser.
         """
-        from copy import deepcopy
-
         ret = deepcopy(self)
         ret.storage = True
         return ret
@@ -101,4 +100,4 @@ class Phaser:
         Returns:
             NDArray[np.int64]: Phase deletions.
         """
-        return np.zeros(3, np.int64)
+        return np.zeros(3, np.int64)  # TODO

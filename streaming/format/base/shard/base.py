@@ -11,7 +11,6 @@ from typing_extensions import Self
 
 from streaming.array import Array
 from streaming.format.base.stream_conf import StreamConf
-from streaming.util.json import JSONDict
 
 __all__ = ['Shard']
 
@@ -51,7 +50,7 @@ class Shard(Array):
 
     @classmethod
     @abstractmethod
-    def from_json(cls, stream: StreamConf, obj: JSONDict) -> Self:
+    def from_json(cls, stream: StreamConf, obj: Dict[str, Any]) -> Self:
         """Initialize a Shard from this configuration.
 
         Args:
