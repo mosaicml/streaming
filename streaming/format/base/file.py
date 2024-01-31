@@ -10,10 +10,10 @@ import numpy as np
 from numpy.typing import NDArray
 
 from streaming.compression import decompress
-from streaming.format.base.canonical import canonicalize
 from streaming.format.base.phase import ShardFilePhase
 from streaming.format.base.phaser import Locality
 from streaming.format.base.stream_conf import StreamConf
+from streaming.format.canonical import canonicalize
 
 __all__ = ['ShardFile']
 
