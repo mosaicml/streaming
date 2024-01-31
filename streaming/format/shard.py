@@ -17,13 +17,13 @@ __all__ = ['FileInfo', 'Shard', 'MonoShard', 'DualShard']
 
 
 @dataclass
-class FileInfo(object):
-    """File validation info.
+class FileInfo:
+    """Per-file metadata, by which we know exactly what to expect.
 
     Args:
-        basename (str): File basename.
-        bytes (int): File size in bytes.
-        hashes (Dict[str, str]): Mapping of hash algorithm to hash value.
+    basename (str): File path relative to the root of this dataset or split.
+    bytes (int): File size in bytes.
+    hashes (Dict[str, str]): Map of hash algo to hash value.
     """
     basename: str
     bytes: int
@@ -142,17 +142,20 @@ class Shard(Array, ABC):
         """
         return self._evict_raw() + self._evict_zip()
 
-    def set_up_local(self, listing: Set[str], safe_keep_zip: bool) -> int:
+    def set_up_local(self, listing: Set[str], safe_keep_zip: bool, safe_keep_parquet: bool) -> int:
         """Bring what shard files are present to a consistent state, returning whether present.
 
         Args:
             listing (Set[str]): The listing of all files under dirname/[split/]. This is listed
                 once and then saved because there could potentially be very many shard files.
-            safe_keep_zip (bool): Whether to keep zip files when decompressing. Possible when
-                compression was used. Necessary when local is the remote or there is no remote.
+            safe_keep_zip (bool): Whether to keep or drop the zip form after decompression, if
+                applicable, safely taking into account whether this directory is the official copy.
+            safe_keep_parquet (bool): Whether to keep or drop the Parquet form after MDS
+                conversion, if applicable, safely taking into account whether this directory is the
+                official copy.
 
         Returns:
-            bool: Whether the shard is present.
+            int: This shard's current contribution to cache usage after normalization.
         """
         # For raw/zip to be considered present, each raw/zip file must be present.
         raw_files_present = 0
@@ -336,6 +339,21 @@ class Shard(Array, ABC):
         """
         for i in range(len(self)):
             yield self[i]
+
+    def prepare(self, safe_keep_zip: bool, safe_keep_parquet: bool) -> int:
+        """Any work that needs to happen between shard download and shard access.
+
+        Args:
+            safe_keep_zip (bool): Whether to keep or drop the zip form after decompression, if
+                applicable, safely taking into account whether this directory is the official copy.
+            safe_keep_parquet (bool): Whether to keep or drop the Parquet form after MDS
+                conversion, if applicable, safely taking into account whether this directory is the
+                official copy.
+
+        Returns:
+            int: Resulting change in cache usage in bytes.
+        """
+        return 0
 
 
 class MonoShard(Shard):
