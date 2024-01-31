@@ -7,8 +7,8 @@ from argparse import ArgumentParser, Namespace
 
 from torchvision.datasets import CIFAR10
 
+from streaming.modality.vision import convert_image_class_dataset
 from streaming.util import get_list_arg
-from streaming.vision import convert_image_class_dataset
 
 
 def parse_args() -> Namespace:

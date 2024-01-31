@@ -15,7 +15,7 @@ from tqdm import tqdm
 from streaming import MDSWriter
 from streaming.dataset import StreamingDataset
 
-__all__ = ['StreamingVisionDataset']
+__all__ = ['StreamingVisionDataset', 'convert_image_class_dataset']
 
 
 class StandardTransform:
