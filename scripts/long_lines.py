@@ -10,6 +10,8 @@ from argparse import ArgumentParser, Namespace
 from re import Pattern
 from typing import IO, Iterator, Optional
 
+import numpy as np
+
 
 def parse_args() -> Namespace:
     """Parse command-line arguments.
@@ -55,6 +57,12 @@ def parse_args() -> Namespace:
         type=str,
         default='light',
         help='Whether to output in color. Supported options: none, light.',
+    )
+    args.add_argument(
+        '--fancy',
+        type=int,
+        default=0,
+        help='Whether to do fancy output, which is harder to parse programmatically.',
     )
     return args.parse_args()
 
@@ -163,7 +171,7 @@ def main(args: Namespace) -> int:
         txt = ', '.join(sorted(non_text_behaviors))
         raise ValueError(f'Unknown non-text behavior (must be one of: {txt}): {args.non_text}.')
 
-    count = 0
+    pairs = []
     for path in sorted(each_path(args.root, include, exclude)):
         if not (file := open_text(path, args.non_text)):
             continue
@@ -171,17 +179,35 @@ def main(args: Namespace) -> int:
         lines = map(drop_newline, file)
         for line_no, line in enumerate(lines):
             if args.max_len < len(line):
-                good_line = line[:args.max_len]
+                fg_len = len(f'{path}:{line_no}:')
+                good_line = line[fg_len:args.max_len]
                 bad_line = line[args.max_len:]
-                if args.color == 'light':
-                    path = f'\033[0;97m{path}\033[0;0m'
-                    line_no = f'\033[0;92m{line_no}\033[0;0m'
-                    good_line = f'\033[0;94m{good_line}\033[0;0m'
-                    bad_line = f'\033[0;91m{bad_line}\033[0;0m'
-                print(f'{path}:{line_no}:{good_line}{bad_line}')
-                count += 1
 
-    return 1 if count else 0
+                if args.color == 'light':
+                    color_path = f'\033[0;97m{path}\033[0;0m'
+                    line_no = f'\033[1;92m{line_no}\033[0;0m'
+                    good_line = f'\033[1;34m{good_line}\033[0;0m'
+                    bad_line = f'\033[1;91m{bad_line}\033[0;0m'
+                else:
+                    color_path = str(path)
+
+                out_line = f'{color_path}:{line_no}:{good_line}{bad_line}\n'
+                pair = len(line), out_line
+                pairs.append(pair)
+
+    vis_lens, _ = zip(*pairs)
+    max_vis_len = max(vis_lens)
+    vocab = 0x2571, 0x2572
+    for vis_len, out_line in pairs:
+        if args.pad:
+            count = max_vis_len - vis_len + 1
+            ords = np.random.choice(vocab, count)
+            pad = ''.join(map(chr, ords))
+            print(f'{out_line[:-1]}{chr(0x2523)}{pad}')
+        else:
+            print(out_line[:-1])
+
+    return 1 if pairs else 0
 
 
 if __name__ == '__main__':
