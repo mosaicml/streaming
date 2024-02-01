@@ -1,7 +1,7 @@
 # Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Configuration shared by one or more shards."""
+"""Configures a StreamingDataset directory."""
 
 import os
 from collections.abc import Sequence
@@ -128,10 +128,7 @@ def _get_keep_zip(arg: bool) -> Phaser:
 
 
 class StreamConf:
-    """The configuration of one of more Shards.
-
-    A StreamingDataset is composed of one/multiple/many Streams, which are each composed of
-    one/multiple/many Shards.
+    """Configures a StreamingDataset directory.
 
     Args:
         remote (str, optional): Remote path to stream the dataset from. If ``None``, dataset must
@@ -223,7 +220,7 @@ class StreamConf:
         if not isinstance(download_max_size, Auto):
             self.download_max_size = _get_bytes(download_max_size)
         if not isinstance(validate_hash, Auto):
-            self.apply_hash_algos = _get_hash_algos(validate_hash)
+            self.check_hashes = _get_hash_algos(validate_hash)
 
         # 3.C. Maybe override phaser (phase keeper), then cache self.keep_zip in case needed.
         if not isinstance(keep_phases, Auto):
@@ -345,9 +342,9 @@ class StreamConf:
             else:
                 raise err_unset_arg('download_max_size')
 
-        if not hasattr(self, 'apply_hash_algos'):
+        if not hasattr(self, 'check_hashes'):
             if not isinstance(validate_hash, Auto):
-                self.apply_hash_algos = _get_hash_algos(validate_hash)
+                self.check_hashes = _get_hash_algos(validate_hash)
             else:
                 raise err_unset_arg('validate_hash')
 
