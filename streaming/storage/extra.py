@@ -5,56 +5,28 @@
 
 import os
 import re
+from collections.abc import Sequence
 from re import Pattern
-from time import sleep, time
 from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Union
 from urllib.parse import urlparse
 
 from streaming.hashing import get_hash
 from streaming.storage.download import download_file
 from streaming.storage.upload import CloudUploader
-from streaming.util.shorthand import normalize_bytes, normalize_duration
+from streaming.util.retrying import retry as retry_loop
+from streaming.util.shorthand import normalize_bytes, normalize_count, normalize_duration
 
-__all__ = [
-    'wait_for_file_to_exist', 'walk_prefix', 'walk_dir', 'list_dataset_files',
-    'smart_download_file', 'file_exists'
-]
+__all__ = ['walk_prefix', 'walk_dir', 'list_dataset_files', 'smart_download_file', 'file_exists']
 
 
-def wait_for_file_to_exist(filename: str, poll_interval: float, timeout: float,
-                           err_msg: str) -> None:
-    """Wait for the file to exist till timeout seconds. Raise an Exception after that.
-
-    File must be local.
-
-    Args:
-        filename (str): A file name
-        poll_interval (float): Number of seconds to wait before next polling
-        timeout (float): Number of seconds to wait for a file to exist before raising an exception
-        err_msg (str): Error message description for an exception
-
-    Raises:
-        RuntimeError: Raise an Exception if file does not exist after timeout
-    """
-    start_time = time()
-    while True:
-        sleep(poll_interval)
-        if os.path.exists(filename):
-            sleep(poll_interval)
-            break
-        dt = time() - start_time
-        if dt > timeout:
-            raise RuntimeError(f'{err_msg}' + f'{timeout:.3f} < {dt:.3f} secs.')
-
-
-def _normalize_path(path: str) -> Tuple[str, bool]:
+def _analyze_path(path: str) -> Tuple[str, bool]:
     """Analyze the path, returning URI scheme-normalized form and whether is on the local fs.
 
     Args:
         path (str): Path to analyze.
 
     Returns:
-        Tuple[str, bool]: Normalized path, and whether it is local.
+        Tuple[str, bool]: Normalized path, and whether it is a normal local filesystem path.
     """
     obj = urlparse(path)
     if obj.scheme == '':
@@ -64,7 +36,44 @@ def _normalize_path(path: str) -> Tuple[str, bool]:
         path = obj.path
     else:
         is_local = False
+
+    path = os.path.normpath(path)
+
+    idx = path.find(':/')
+    if idx != -1:
+        path = path[:idx] + '://' + path[idx:]
+    else:
+        path = os.path.abspath(path)
+
     return path, is_local
+
+
+def normalize_path(path: str) -> str:
+    """Normalize the path, which may be remote or local.
+
+    Args:
+        path (str): Input path.
+
+    Returns:
+        str: Normalized path.
+    """
+    path, _ = _analyze_path(path)
+    return path
+
+
+def normalize_local_path(path: str) -> str:
+    """Normalize the path, which may be remote or local.
+
+    Args:
+        path (str): Input path.
+
+    Returns:
+        str: Normalized path.
+    """
+    path, is_local = _analyze_path(path)
+    if not is_local:
+        raise ValueError(f'Path must be on the local filesystem, but got: {path}.')
+    return path
 
 
 def _normalize_dir(dirname: str) -> str:
@@ -95,7 +104,7 @@ def walk_prefix(prefix: str) -> List[str]:
     Returns:
         List[str]: All file paths under the prefix, which are all relative to the given prefix.
     """
-    prefix, is_local = _normalize_path(prefix)
+    prefix, is_local = _analyze_path(prefix)
 
     if is_local:
         # Prefix points to local filesystem.
@@ -207,12 +216,13 @@ def _get_overlap(want: Set[str], have: Set[str]) -> Dict[str, Any]:
 
 
 def list_dataset_files(
-        *,
-        local: str,
-        remote: Optional[str] = None,
-        split: Optional[str] = None,
-        paths: Optional[Iterable[str]] = None,
-        keep: Optional[Union[str, Pattern, Callable[[str], bool]]] = None) -> List[str]:
+    *,
+    local: str,
+    remote: Optional[str] = None,
+    split: Optional[str] = None,
+    paths: Optional[Iterable[str]] = None,
+    keep: Optional[Union[str, Pattern, Callable[[str], bool]]] = None,
+) -> List[str]:
     """Collect all/certain local/remote dataset files, which are then filtered.
 
     Args:
@@ -273,66 +283,137 @@ def list_dataset_files(
                      f'{r_obj["ignored"]} ignored.')
 
 
-def smart_download_file(*,
-                        remote: str,
-                        local: str,
-                        timeout: Union[float, str] = 60,
-                        size: Optional[Union[int, str]] = None,
-                        max_size: Optional[Union[int, str]] = None,
-                        hashes: Optional[Dict[str, str]] = None) -> None:
-    """Download a file from the remote path to the local path, with size/hash checks.
+def smart_download_file(
+    *,
+    remote: str,
+    local: str,
+    timeout: Union[None, str, float] = 60,
+    retry: Union[None, str, int] = 2,
+    size: Union[None, str, int] = None,
+    max_size: Union[None, str, int] = '200mb',
+    hashes: Optional[Dict[str, str]] = None,
+    check_hashes: Union[None, str, Sequence[str]] = None,
+) -> None:
+    """Download a file from remote to local, with optional size/hash checks.
 
     Args:
         remote (str): Remote path.
         local (str): Local path.
-        timeout (Union[float, str]): Maximum time to download, in seconds. Defaults to ``60``.
-        size (Union[int, str], optional): Expected file size. This check is a weak but fast/cheap
-            way to detect overwrites, truncation, tampering, and corruption. Defaults to ``None``.
-        max_size (Union[int, str], optional): Maximum file size. This check is a fast/cheap way to
-            prevent the user from inadvertently using shards that are far too large for Streaming
-            purposes, which is non-obvious and would result in a terrible user experience. Defaults
-            to ``None``.
-        hashes (Dict[str, str], optional): Hashes to check, as a dict of hash algo name to expected
-            hex digest. These checks are a very strong but slow/expensive way to detect changes to
-            data. See our benchmarks for more details. Defaults to ``None``.
+        timeout (None | str | float): Maximum time to wait for downloading to complete, in seconds.
+            Defaults to ``60``.
+        retry (None | str | int): Maximum number of times to reattempt the download upon failure.
+            Defaults to ``2``.
+        size (None | str | int): Expected file size. This check is a weak but fast/cheap way to
+            detect overwrites, truncation, tampering, and corruption. Defaults to ``None``.
+        max_size (None | str | int): Maximum size of a single download, in bytes. This check is a
+            fast/cheap way to prevent the user from inadvertently using shards that are far too
+            large for Streaming purposes, which is non-obvious and might result in a terrible user
+            experience. Defaults to ``200mb``.
+        hashes (Dict[str, str], optional): Available hashes. This is a mapping of hash algo name to
+            expected hash digest. Defaults to ``None``.
+        check_hashes (None | str | Sequence[str]]): Selected hashes. Ranked ordering of names of
+            hash algorithms to check. These checks are a very strong but slow/expensive way to
+            detect changes to data. See our benchmarks for more details. Defaults to ``None``.
     """
-    # Download.
-    want_timeout = normalize_duration(timeout)
-    download_file(remote, local, want_timeout)
 
-    # Size checks.
+    def call_if(f: Callable, x: Optional[Any] = None, z: Optional[Any] = None) -> Any:
+        """If the value exists, call the method on it, otherwise return the fallback."""
+        if x is not None:
+            return f(x)
+        else:
+            return z
+
+    def normalize_check_hashes(arg: Union[str, Sequence[str]]) -> List[str]:
+        """Normalize a collection of names of hash algorithm names to use."""
+        if isinstance(arg, str):
+            arg = arg,
+        algos = list(arg)
+        if sorted(algos) != sorted(set(algos)):
+            raise ValueError(f'The provided hash algorithms to check contains one or more ' +
+                             f'duplicate entries: {arg}.')
+        return algos
+
+    # Path analysis.
+    remote, _ = normalize_path(remote)
+    local = normalize_local_path(local)
+    if os.path.isfile(local):
+        return
+    elif remote == local:
+        return
+
+    # Normalize args.
+    timeout = call_if(normalize_duration, timeout, float('inf'))
+    retry = call_if(normalize_count, retry, (1 << 64) - 1)
+    size = call_if(normalize_bytes, size)
+    max_size = call_if(normalize_bytes, max_size)
+    check_hashes = call_if(normalize_check_hashes, check_hashes)
+
+    # Optional size args pre-check.
+    if size is not None and max_size is not None:
+        if max_size < size:
+            raise ValueError(f'File to download was required to be exactly {size:,} bytes, but ' +
+                             f'the maximum download size is {max_size:,}. Please adjust your ' +
+                             f'downloading parameters.')
+
+    # Optional download.
+    if os.path.isfile(local):
+        pass
+    elif os.path.exists(local):
+        raise ValueError(f'Something already exists at the local path, but it is not a regular ' +
+                         f'file. Please check your dataset directory. Note: remote file ' +
+                         f'{remote}, local file {local}.')
+    else:
+        max_times = 1 + retry
+        action = lambda: download_file(remote, local, timeout)
+        retry_loop(max_times)(action)
+
+    # Optional size checks.
     if size is not None or max_size is not None:
-        have_size = os.stat(local).st_size
+        got_size = os.stat(local).st_size
 
         # Exact size check.
         if size is not None:
-            want_size = normalize_bytes(size)
-            if want_size != have_size:
+            if size != got_size:
                 raise ValueError(
-                    f'The file as downloaded does not match the expected size: remote path = ' +
-                    f'{remote}, local path = {local}, expected size = {want_size}, got size = ' +
-                    f'{have_size}.')
+                    f'The file as downloaded does not match the expected size. Please check ' +
+                    f'your dataset for corruption. Note: remote file {remote}, local file ' +
+                    f'{local}, expected size {size:,} bytes, downloaded size {got_size:,} bytes.')
 
         # Size limit check.
         if max_size is not None:
-            want_max_size = normalize_bytes(max_size)
-            if want_max_size < have_size:
+            if max_size < got_size:
                 raise ValueError(
-                    f'The file is too large for efficient use by Streaming, please reduce shard ' +
-                    f'size: remote path = {remote}, local path = {local}, maximum size = ' +
-                    f'{want_max_size}, got size = {have_size}.')
+                    f'File is too large for efficient use by Streaming. Please reduce shard ' +
+                    f'size for smoother performance. To proceed anyway, raise the ' +
+                    f'`StreamingDataset` argument `download_max_size`. Note: remote file ' +
+                    f'{remote}, local file {local}, maximum download size {max_size} bytes, ' +
+                    f'downloaded size {got_size} bytes.')
 
-    # Hash checks.
-    if hashes:
+    # Optional hash checks.
+    if check_hashes:
         data = open(local, 'rb').read()
-        for hash_algo in sorted(hashes):
-            want_hex_digest = hashes[hash_algo]
-            have_hex_digest = get_hash(hash_algo, data)
-            if want_hex_digest != have_hex_digest:
-                raise ValueError(
-                    f'The file as downloaded does not match the expected hash: remote path = ' +
-                    f'{remote}, local path = {local}, hash algo = {hash_algo}, expected hex ' +
-                    f'digest = {want_hex_digest}, got digest = {have_hex_digest}.')
+        for algo in check_hashes:
+            digest = hashes.get(algo)
+            if digest is None:
+                # Hash algo not found, so we skip.
+                continue
+            got_digest = get_hash(algo, data)
+            if digest != got_digest:
+                # Hash check failed, so we raise.
+                raise ValueError(f'File hash check failure. Please check your dataset for ' +
+                                 f'corruption. Note: remote file {remote}, local file {local}, ' +
+                                 f'hash algo {algo}, expected hex digest {digest}, observed hex ' +
+                                 f'digest {got_digest}.')
+            else:
+                # Hash check succeeded, so we're done.
+                break
+        else:
+            # No hash algos found, so we raise.
+            raise ValueError(f'File hash check was required, but could not be performed because ' +
+                             f'the hashes to check do not overlap with the hashes for which we ' +
+                             f'have digests of the file: remote file {remote}, local file ' +
+                             f'{local}, available hashes {sorted(hashes)}, selected hashes ' +
+                             f'{check_hashes}.')
 
 
 def file_exists(*,
