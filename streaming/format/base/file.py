@@ -12,8 +12,8 @@ from numpy.typing import NDArray
 from streaming.compression import decompress
 from streaming.format.base.phase import ShardFilePhase
 from streaming.format.base.phaser import Locality
-from streaming.format.base.stream_conf import StreamConf
 from streaming.format.canonical import canonicalize
+from streaming.stream.dir_conf import StreamDirConf
 
 __all__ = ['ShardFile']
 
@@ -57,9 +57,9 @@ class ShardFile:
         their last phase.
 
     Args:
-        stream (StreamConf): Link back up to the Stream that owns this shard, from which we get
+        stream (StreamDirConf): Link back up to the Stream that owns this shard, from which we get
             arguments which are shared across all shards like remote/local paths. Avoids an import
-            cycle by Stream subclassing StreamConf.
+            cycle by Stream subclassing StreamDirConf.
         zip_phase (ShardFilePhase, optional): Metadata for validating the compressed phase of the
             file. Defaults to ``None``.
         zip_algo (str, optional): Decompression algorithm, if zip is used. Defaults to ``None``.
@@ -71,7 +71,7 @@ class ShardFile:
 
     def __init__(self,
                  *,
-                 stream: StreamConf,
+                 stream: StreamDirConf,
                  zip_phase: Optional[ShardFilePhase] = None,
                  zip_algo: Optional[str] = None,
                  raw_phase: ShardFilePhase,
@@ -85,11 +85,11 @@ class ShardFile:
         self.can_phase = can_phase
         self.phases = zip_phase, raw_phase, can_phase
 
-    def set_stream(self, stream: StreamConf) -> None:
+    def set_stream(self, stream: StreamDirConf) -> None:
         """Save a link to the owning Stream, as many Stream args apply to all its Shards.
 
         Args:
-            stream (StreamConf): The Stream that owns this Shard.
+            stream (StreamDirConf): The Stream that owns this Shard.
         """
         self.stream = stream
         for phase in self.phases:

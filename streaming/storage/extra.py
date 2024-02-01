@@ -315,8 +315,13 @@ def smart_download_file(
             hash algorithms to check. These checks are a very strong but slow/expensive way to
             detect changes to data. See our benchmarks for more details. Defaults to ``None``.
     """
+    from typing import TypeVar
+    U = TypeVar('U')
+    V = TypeVar('V')
 
-    def call_if(f: Callable, x: Optional[Any] = None, z: Optional[Any] = None) -> Any:
+    def call_if(f: Callable[[Any], U],
+                x: Optional[Any] = None,
+                z: Union[V, Any] = V) -> Union[U, V]:
         """If the value exists, call the method on it, otherwise return the fallback."""
         if x is not None:
             return f(x)
@@ -344,9 +349,10 @@ def smart_download_file(
     # Normalize args.
     timeout = call_if(normalize_duration, timeout, float('inf'))
     retry = call_if(normalize_count, retry, (1 << 64) - 1)
-    size = call_if(normalize_bytes, size)
-    max_size = call_if(normalize_bytes, max_size)
-    check_hashes = call_if(normalize_check_hashes, check_hashes)
+    size = call_if(normalize_bytes, size, None)
+    max_size = call_if(normalize_bytes, max_size, None)
+    hashes = hashes or {}
+    check_hashes = call_if(normalize_check_hashes, check_hashes, [])
 
     # Optional size args pre-check.
     if size is not None and max_size is not None:
@@ -365,7 +371,7 @@ def smart_download_file(
     else:
         max_times = 1 + retry
         action = lambda: download_file(remote, local, timeout)
-        retry_loop(max_times)(action)
+        retry_loop(num_attempts=max_times)(action)
 
     # Optional size checks.
     if size is not None or max_size is not None:

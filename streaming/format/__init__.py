@@ -8,12 +8,12 @@ from typing import Any, Dict, Optional
 from streaming.format.index import get_index_basename
 from streaming.format.jsonl import JSONLShard, JSONLWriter
 from streaming.format.mds import MDSShard, MDSWriter
-from streaming.format.shard import FileInfo, Shard
+from streaming.format.shard import Shard
 from streaming.format.xsv import CSVShard, CSVWriter, TSVShard, TSVWriter, XSVShard, XSVWriter
 
 __all__ = [
     'CSVWriter', 'get_index_basename', 'JSONLWriter', 'MDSWriter', 'shard_from_json', 'TSVWriter',
-    'XSVWriter', 'FileInfo', 'Shard'
+    'XSVWriter', 'Shard'
 ]
 
 # Mapping of shard metadata dict "format" field to what type of Shard it is.

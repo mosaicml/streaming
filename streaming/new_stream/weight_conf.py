@@ -1,7 +1,7 @@
 # Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Configures a StreamingDataset directory which is combined with others into one dataset."""
+"""Configures how a Stream is weighted."""
 
 from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
@@ -9,12 +9,13 @@ import numpy as np
 from numpy.typing import NDArray
 from typing_extensions import Self
 
-from streaming.format.base.stream_conf import StreamConf
 from streaming.util.shorthand import normalize_count
 
+__all__ = ['StreamWeightConf']
 
-class WeightedStreamConf(StreamConf):
-    """Configures a StreamingDataset directory which is combined with others into one dataset.
+
+class StreamWeightConf:
+    """Configures how a Stream is weighted.
 
     Args:
         proportion (float, optional): The proportion of this StreamingDataset's samples that are
@@ -24,7 +25,7 @@ class WeightedStreamConf(StreamConf):
             Stream's samples per epoch. Defaults to ``None``.
         choose (str | int, optional): Stream size, aka number of samples to draw from this Stream
             per epoch. Defaults to ``None``.
-        kwargs (Dict[str, Any]): Arguments inherited from StreamConf.
+        kwargs (Dict[str, Any]): Any unsupported (for forward compat) or deprecated args.
     """
 
     def __init__(
@@ -35,8 +36,6 @@ class WeightedStreamConf(StreamConf):
         choose: Optional[Union[str, int]] = None,
         **kwargs: Dict[str, Any],
     ) -> None:
-        super().__init__(**kwargs)
-
         has_proportion = proportion is not None
         has_repeat = repeat is not None
         has_choose = choose is not None

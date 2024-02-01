@@ -8,9 +8,9 @@ from typing import Any, Dict, Optional, Set
 
 from typing_extensions import Self
 
-from streaming.format.base.stream_conf import StreamConf
 from streaming.hashing import get_hash
 from streaming.storage.download import download_file
+from streaming.stream.dir_conf import StreamDirConf
 from streaming.util.retrying import retry
 
 __all__ = ['ShardFilePhase']
@@ -20,9 +20,9 @@ class ShardFilePhase:
     """Metadata for validating one specific phase of a file.
 
     Args:
-        stream (StreamConf): Link back up to the Stream that owns this shard, from which we get
+        stream (StreamDirConf): Link back up to the Stream that owns this shard, from which we get
             arguments which are shared across all shards like remote/local paths. Avoids an import
-            cycle by Stream subclassing StreamConf.
+            cycle by Stream subclassing StreamDirConf.
         relative_path (str): Dataset-relative path to file.
         size  (int, optional): Size, if known in advance. Defaults to ``None``.
         hashes (Dict[str, str], optional): Hashes, if known in advance. Defaults to ``None``.
@@ -31,7 +31,7 @@ class ShardFilePhase:
     def __init__(
         self,
         *,
-        stream: StreamConf,
+        stream: StreamDirConf,
         relative_path: str,
         size: Optional[int] = None,
         hashes: Optional[Dict[str, str]] = None,
@@ -45,7 +45,7 @@ class ShardFilePhase:
         self.hashes = hashes or {}
 
     @classmethod
-    def from_json(cls, stream: StreamConf, obj: Dict[str, Any]) -> Self:
+    def from_json(cls, stream: StreamDirConf, obj: Dict[str, Any]) -> Self:
         """Initialize from JSON object.
 
         Example input:
@@ -62,7 +62,7 @@ class ShardFilePhase:
         ```
 
         Args:
-            stream (StreamConf): Reference to the owning Stream.
+            stream (StreamDirConf): Reference to the owning Stream.
             obj (Dict[str, Any]): Shard file phase JSON metadata.
 
         Returns:
@@ -75,11 +75,11 @@ class ShardFilePhase:
             hashes=obj['hashes'],
         )
 
-    def set_stream(self, stream: StreamConf) -> None:
+    def set_stream(self, stream: StreamDirConf) -> None:
         """Save a link to the owning Stream, as many Stream args apply to all its Shards.
 
         Args:
-            stream (StreamConf): The Stream that owns this Shard.
+            stream (StreamDirConf): The Stream that owns this Shard.
         """
         self.stream = stream
 

@@ -1,7 +1,7 @@
 # Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Configures a StreamingDataset directory."""
+"""Configures a Stream directory."""
 
 import os
 from collections.abc import Sequence
@@ -12,6 +12,8 @@ from typing import Any, Dict, List, Optional, Union
 from streaming.format.base.phaser import Phaser
 from streaming.util.auto import Auto
 from streaming.util.shorthand import normalize_bytes, normalize_count, normalize_duration
+
+__all__ = ['StreamDirConf']
 
 
 def _derive_local(remote: str, split: Optional[str]) -> str:
@@ -127,8 +129,8 @@ def _get_keep_zip(arg: bool) -> Phaser:
     return Phaser(storage=arg)
 
 
-class StreamConf:
-    """Configures a StreamingDataset directory.
+class StreamDirConf:
+    """Configures a Stream.
 
     Args:
         remote (str, optional): Remote path to stream the dataset from. If ``None``, dataset must
@@ -167,7 +169,7 @@ class StreamConf:
             mapping of uses or phases to whether to keep or drop, a ``Phaser`` (which performs the
             same keeping or dropping), or ``Auto`` to inherit from StreamingDataset. Defaults to
             ``Auto()``.
-        kwargs (Dict[str, Any]): Deprecated arguments, if any: ``keep_zip``.
+        kwargs (Dict[str, Any]): Any unsupported (for forward compat) or deprecated args.
     """
 
     def __init__(

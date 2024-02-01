@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Set
 from typing_extensions import Self
 
 from streaming.array import Array
-from streaming.format.base.stream_conf import StreamConf
+from streaming.stream.dir_conf import StreamDirConf
 
 __all__ = ['Shard']
 
@@ -30,9 +30,9 @@ class Shard(Array):
     Args:
         writer_conf (WriterConf, optional): Keyword arguments used when writing this shard.
             This metadata is kept just for informational purposes. Defaults to ``None``.
-        stream (StreamConf): Link back up to the Stream that owns this shard, from which we
+        stream (StreamDirConf): Link back up to the Stream that owns this shard, from which we
             get arguments which are shared across all shards like remote/local paths. Avoids an
-            import cycle by Stream subclassing StreamConf.
+            import cycle by Stream subclassing StreamDirConf.
         num_samples (int): Number of samples in this shard.
     """
 
@@ -40,7 +40,7 @@ class Shard(Array):
         self,
         *,
         writer_conf: Optional[WriterConf] = None,
-        stream: StreamConf,
+        stream: StreamDirConf,
         num_samples: int,
     ) -> None:
         self.writer_conf = writer_conf
@@ -50,11 +50,11 @@ class Shard(Array):
 
     @classmethod
     @abstractmethod
-    def from_json(cls, stream: StreamConf, obj: Dict[str, Any]) -> Self:
+    def from_json(cls, stream: StreamDirConf, obj: Dict[str, Any]) -> Self:
         """Initialize a Shard from this configuration.
 
         Args:
-            stream (StreamConf): Owning Stream.
+            stream (StreamDirConf): Owning Stream.
             obj (Dict[str, Any]): JSON object.
 
         Returns:
@@ -75,11 +75,11 @@ class Shard(Array):
         """
         return self.num_samples
 
-    def set_stream(self, stream: StreamConf) -> None:
+    def set_stream(self, stream: StreamDirConf) -> None:
         """Save a reference to the owning Stream, as many Stream args apply to all its Shards.
 
         Args:
-            stream (StreamConf): The Stream that owns this Shard.
+            stream (StreamDirConf): The Stream that owns this Shard.
         """
         self.stream = stream
         for file in self.files:

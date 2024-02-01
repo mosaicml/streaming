@@ -13,13 +13,16 @@ from typing_extensions import Self
 
 from streaming.compression import decompress
 from streaming.constant import TICK
-from streaming.format import FileInfo, Shard, get_index_basename, shard_from_json
+from streaming.format import shard_from_json
+from streaming.format.index import get_index_basename
 from streaming.format.score import StreamCore
+from streaming.format.shard import FileInfo, Shard
 from streaming.hashing import get_hash
-from streaming.storage import download_file, wait_for_file_to_exist
+from streaming.storage import download_file
 from streaming.util.auto import Auto, auto
 from streaming.util.retrying import retry
 from streaming.util.shorthand import normalize_count
+from streaming.util.waiting import wait_for_creation
 from streaming.world import World
 
 
@@ -420,11 +423,7 @@ class Stream(StreamCore):
                         raise RuntimeError(f'No `remote` provided, but local file {filename} ' +
                                            'does not exist either')
             else:
-                wait_for_file_to_exist(
-                    filename, TICK, self.download_timeout,
-                    f'Index file {os.path.join(self.remote or "", self.split or "", basename)} ' +
-                    f'-> {filename} took too long to download. Either increase the ' +
-                    f'`download_timeout` value or check the other traceback.')
+                wait_for_creation(filename, self.download_timeout, TICK)
 
         # Load the index.
         try:
