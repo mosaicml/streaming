@@ -285,7 +285,7 @@ def list_dataset_files(
 
 def smart_download_file(
     *,
-    remote: str,
+    remote: Optional[str],
     local: str,
     timeout: Union[None, str, float] = 60,
     retry: Union[None, str, int] = 2,
@@ -342,12 +342,9 @@ def smart_download_file(
         return algos
 
     # Path analysis.
-    remote, _ = normalize_path(remote)
+    if remote is not None:
+        remote, _ = normalize_path(remote)
     local = normalize_local_path(local)
-    if os.path.isfile(local):
-        return
-    elif remote == local:
-        return
 
     # Normalize args.
     timeout = call_if(normalize_duration, timeout, float('inf'))
@@ -365,7 +362,9 @@ def smart_download_file(
                              f'downloading parameters.')
 
     # Optional download.
-    if os.path.isfile(local):
+    if remote in {None, local}:
+        pass
+    elif os.path.isfile(local):
         pass
     elif os.path.exists(local):
         raise ValueError(f'Something already exists at the local path, but it is not a regular ' +

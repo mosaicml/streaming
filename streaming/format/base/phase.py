@@ -4,6 +4,7 @@
 """An individual file of a Streaming shard."""
 
 import os
+from shutil import rmtree
 from typing import Any, Dict, Optional, Set
 
 from typing_extensions import Self
@@ -42,7 +43,7 @@ class ShardFilePhase:
         self.size = size
         self.hashes = hashes or {}
 
-        self.got_size: int
+        self.got_size: Optional[int]
 
     @classmethod
     def from_json(cls, stream: StreamDirConf, obj: Dict[str, Any]) -> Self:
