@@ -3,9 +3,7 @@
 
 """A magical argument keyword that means derive this argument's value automatically."""
 
-from typing import Any
-
-__all__ = ['Auto', 'auto', 'is_auto']
+__all__ = ['Auto']
 
 
 class Auto:
@@ -18,21 +16,3 @@ class Auto:
     """
 
     pass
-
-
-# The singleton instance of this class.
-auto = Auto()
-
-
-def is_auto(arg: Any) -> bool:
-    """Wrap the is-auto checking hack.
-
-    Typechecking is not satisfied with `is auto`, you have to do `isinstance(Auto)`.
-
-    Args:
-        arg (Any): The argument.
-
-    Returns:
-        bool: Whether the argument is .
-    """
-    return isinstance(arg, Auto)
