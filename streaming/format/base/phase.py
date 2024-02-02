@@ -8,10 +8,8 @@ from typing import Any, Dict, Optional, Set
 
 from typing_extensions import Self
 
-from streaming.hashing import get_hash
-from streaming.storage.download import download_file
+from streaming.storage.extra import smart_download_file
 from streaming.stream.dir_conf import StreamDirConf
-from streaming.util.retrying import retry
 
 __all__ = ['ShardFilePhase']
 
@@ -189,58 +187,21 @@ class ShardFilePhase:
                              f'because we are the authoritative copy.')
 
         # Do the download, retrying if necessary.
-        local = self.get_local_filename()
         remote = self.get_remote_filename()
+        local = self.get_local_filename()
 
-        timeout = self.stream.download_timeout
-        if timeout is None:
-            timeout = float('inf')
-        download = lambda: download_file(remote, local, timeout)
-        num_retry = self.stream.download_retry
-        if num_retry is None:
-            num_retry = 1 << 64 - 2
-        retry(num_attempts=1 + num_retry)(download)
-        size = os.stat(local).st_size
+        smart_download_file(
+            remote=remote,
+            local=local,
+            timeout=self.stream.download_timeout,
+            retry=self.stream.download_retry,
+            size=self.size,
+            max_size=self.stream.download_max_size,
+            hashes=self.hashes,
+            check_hashes=self.stream.check_hashes,
+        )
 
-        # Validate downloaded size agsainst expected size.
-        if self.size is not None:
-            if self.size != size:
-                raise ValueError(f'Downloaded file was not the expected size: expected ' +
-                                 f'{self.size:,} bytes but got {size:,} bytes.')
-
-        # Validate downloaded size against limit.
-        #
-        # This check is necessary when expected size is not known, otherwise expected size vs limit
-        # in validate() and downloaded size vs expected size above has it covered, but it's
-        # basically free, so let's be extra careful.
-        if self.stream.download_max_size is not None:
-            if self.stream.download_max_size < size:
-                raise ValueError(
-                    f'Download was too large: {self.get_local_filename()} is ' +
-                    f'{size:,} bytes vs limit {self.stream.download_max_size} ' +
-                    f'bytes. As you raise shard size, you will experience ' +
-                    f'hard-to-debug choppiness, thrashing, and indefinite stalls. ' +
-                    f'Please reduce shard size. To continue anyway, raise the ' +
-                    f'StreamingDataset or Stream argument `download_max_size` or set ' +
-                    f'it to `None` to disable this check completely.')
-
-        # Validate hashes against expected.
-        if self.stream.check_hashes:
-            data = open(local, 'rb').read()
-            for algo in self.stream.check_hashes:
-                if algo in self.hashes:
-                    if get_hash(algo, data) == self.hashes[algo]:
-                        break
-                    else:
-                        raise ValueError(f'Hash check failure: {local}.')
-            else:
-                raise ValueError(f'There is no overlap between what hash algorithms we have ' +
-                                 f'chosen to validate shard files with and what hash algos ' +
-                                 f'and digests the index has stored for us to compare against: ' +
-                                 f'we wanted {self.stream.check_hashes}, but the index accepts ' +
-                                 f'{sorted(self.hashes)}.')
-
-        return size
+        return os.stat(local).st_size if self.size is None else self.size
 
     def evict(self) -> int:
         """Delete this phase.

@@ -390,10 +390,10 @@ def smart_download_file(
             if max_size < got_size:
                 raise ValueError(
                     f'File is too large for efficient use by Streaming. Please reduce shard ' +
-                    f'size for smoother performance. To proceed anyway, raise the ' +
-                    f'`StreamingDataset` argument `download_max_size`. Note: remote file ' +
-                    f'{remote}, local file {local}, maximum download size {max_size} bytes, ' +
-                    f'downloaded size {got_size} bytes.')
+                    f'size for smoother performance. To proceed anyway, raise the value of ' +
+                    f'`StreamingDataset` `download_max_size` or set it to `None` to disable it ' +
+                    f'completely. Note: remote file {remote}, local file {local}, download max ' +
+                    f'size {max_size} bytes, this downloaded size {got_size} bytes.')
 
     # Optional hash checks.
     if check_hashes:
@@ -422,11 +422,13 @@ def smart_download_file(
                              f'{check_hashes}.')
 
 
-def file_exists(*,
-                path: str,
-                local: str,
-                remote: Optional[str] = None,
-                split: Optional[str] = None) -> bool:
+def file_exists(
+    *,
+    path: str,
+    local: str,
+    remote: Optional[str] = None,
+    split: Optional[str] = None,
+) -> bool:
     """Determine whether the file path exists across local and/or remote.
 
     Args:
