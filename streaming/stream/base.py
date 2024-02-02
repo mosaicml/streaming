@@ -38,7 +38,7 @@ class Stream(StreamDirConf, StreamWeightConf):
         self.index: JSONDict
         self.shards: List[Shard]
 
-    def ensure_index_file(self) -> None:
+    def download_index(self) -> None:
         """Download and/or verify the index file.
 
         Notes:
@@ -46,6 +46,7 @@ class Stream(StreamDirConf, StreamWeightConf):
           * It is only called in local rank zero processes.
           * This method is executed in parallel, with one Python thread per Stream, by a
             ThreadPoolExecutor.
+          * It doesn't redownload if it already exists, but it still checks size/hashes.
         """
         self.got_index_size = smart_download_file(
             remote=self.remote_index_path,

@@ -93,7 +93,7 @@ def manual_shard_eviction(remote: str, local: str, keep_zip: bool):
     dataset = StreamingDataset(remote=remote, local=local, keep_zip=keep_zip)
 
     for shard_id in range(dataset.num_shards):
-        dataset.prepare_shard(shard_id)
+        dataset.fetch_shard(shard_id)
 
     full = set(os.listdir(local))
 

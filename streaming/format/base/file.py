@@ -257,7 +257,7 @@ class ShardFile:
                 ddu = self.raw_phase.download()
         return ddu
 
-    def load(self) -> int:
+    def fetch(self) -> int:
         """Download and/or unzip and/or canonicalize this file to being ready for use.
 
         Returns:

@@ -109,7 +109,7 @@ class Shard(Array):
             du += file_du
         return du
 
-    def load(self) -> int:
+    def fetch(self) -> int:
         """Download and/or unzip and/or canonicalize this shard to being ready for use.
 
         Returns:
@@ -117,7 +117,7 @@ class Shard(Array):
         """
         ddu = 0
         for file in self.files:
-            ddu += file.load()
+            ddu += file.fetch()
         return ddu
 
     def evict(self) -> int:
