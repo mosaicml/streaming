@@ -269,7 +269,7 @@ class SimulationDataset(StreamingDataset):
         local_foldernames = []
         for stream_id, stream in enumerate(self.streams):
             logger.info(f' Processing index file for stream {stream_id + 1}')
-            stream_shards = stream.get_shards(self.world, self.allow_unsafe_types)
+            stream_shards = stream.load_index()
             num_stream_samples = sum(map(len, stream_shards))
             index_filename = os.path.join(stream.local, stream.split or '', get_index_basename())
             index_filenames.append(index_filename)
@@ -290,7 +290,7 @@ class SimulationDataset(StreamingDataset):
         # Check that cache limit is possible.
         if cache_limit:
             self.cache_limit = normalize_bytes(cache_limit)
-            min_cache_usage = sum((stream.get_index_size() for stream in streams))
+            min_cache_usage = sum((stream.got_index_size for stream in streams))
             if self.cache_limit <= min_cache_usage:
                 raise ValueError(f'Minimum cache usage ({min_cache_usage} bytes) is larger than ' +
                                  f'the cache limit ({self.cache_limit} bytes). Please raise ' +

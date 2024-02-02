@@ -59,22 +59,29 @@ class Stream(StreamDirConf, StreamWeightConf):
             check_hashes=self.check_hashes,
         )
 
-    def await_then_load_index(self) -> List[Shard]:
+    def await_index(self) -> None:
+        """Wait for the index file to become downloaded.
+
+        Notes:
+          * This method is called by StreamingDataset init.
+          * As the index download threads run in the background, all ranks loop over all Streams,
+            calling ``await_index()`` and ``load_index()`` on each Stream.
+          * This method is on the critical path.
+        """
+        wait_for_creation(self.local_index_path, self.download_timeout, 0.07)
+
+    def load_index(self) -> List[Shard]:
         """Wait for the index file to become downloaded, then load it.
 
         Notes:
           * This method is called by StreamingDataset init.
           * As the index download threads run in the background, all ranks loop over all Streams,
-            calling this method on each Stream.
+            calling ``await_index()`` and ``load_index()`` on each Stream.
           * This method is on the critical path.
-          * When the ranks are done looping and loading, we are ready.
 
         Returns:
             List[Shared]: List of loaded Shards.
         """
-        # Stall until the index file is done downloading.
-        wait_for_creation(self.local_index_path, self.download_timeout, 0.07)
-
         # Read the index file and parse its JSON.
         with open(self.local_index_path) as file:
             self.index = json.load(file)

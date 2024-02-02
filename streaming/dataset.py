@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor, wait
 from concurrent.futures._base import Future
 from enum import IntEnum
 from math import ceil
+from multiprocessing import Pool
 from tempfile import gettempdir
 from threading import Event, Lock
 from time import sleep, time_ns
@@ -29,7 +30,6 @@ from streaming.constant import (BARRIER, BARRIER_FILELOCK, CACHE_FILELOCK, CACHE
                                 EPOCH_SHAPE, NEXT_EPOCH, RESUME, SHARD_ACCESS_TIMES, SHARD_STATES,
                                 TICK)
 from streaming.distributed import maybe_init_dist
-from streaming.format import get_index_basename
 from streaming.sampling import get_sampling
 from streaming.shared import (SharedArray, SharedBarrier, SharedMemory, SharedScalar, _get_path,
                               get_shm_prefix)
@@ -449,7 +449,16 @@ class StreamingDataset(Array, IterableDataset):
         # instantiate a World inside the StreamingDataset destructor.
         self._rank_world = world = World()
 
-        # Download each stream's index, load their shards, and map streams <-> shards.
+        # Download each Stream's index in parallel from local rank 0.
+        #
+        # Parallelism is important because there could be a very large number of Streams, and we
+        # expect equal performance as them having been concatenated into one Stream.
+        if world.is_local_leader:
+            with Pool() as pool:
+                pool.imap_unordered(lambda stream: stream.download_index(), self.streams)
+
+        # All ranks then walk all Streams, for which they (1) wait for its index to become
+        # downloaded, (2) load its shards, and (3) map streams <-> shards <-> samples.
         self.num_samples = 0
         self.shards = []
         stream_per_shard = []
@@ -458,12 +467,11 @@ class StreamingDataset(Array, IterableDataset):
         self.sample_offset_per_stream = np.zeros(self.num_streams, np.int64)
         self.samples_per_stream = np.zeros(self.num_streams, np.int64)
         for stream_id, stream in enumerate(self.streams):
-            stream_shards = stream.get_shards(world, self.allow_unsafe_types)
+            stream.await_index()
+            stream_shards = stream.load_index()
             num_stream_samples = sum(map(len, stream_shards))
             if not num_stream_samples:
-                index_filename = os.path.join(stream.local, stream.split or '',
-                                              get_index_basename())
-                raise RuntimeError(f'Stream contains no samples: {index_filename}.')
+                raise RuntimeError(f'Stream contains no samples: {stream.local_index_path}.')
             stream_per_shard += [stream_id] * len(stream_shards)
             self.shard_offset_per_stream[stream_id] = len(self.shards)
             self.shards_per_stream[stream_id] = len(stream_shards)
@@ -573,7 +581,7 @@ class StreamingDataset(Array, IterableDataset):
             for stream_id, stream in enumerate(self.streams):
                 begin = self.shard_offset_per_stream[stream_id]
                 end = begin + self.shards_per_stream[stream_id]
-                stream.set_up_local(self.shards[begin:end], cache_usage_per_shard[begin:end])
+                stream.inventory_local(cache_usage_per_shard[begin:end])
             self.cache_usage += cache_usage_per_shard.sum()
 
             # If either raw or zip are present after local dir setup, the shard is considered
