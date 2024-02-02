@@ -15,7 +15,7 @@ from streaming.format.base.file import ShardFile
 from streaming.format.base.phase import ShardFilePhase
 from streaming.format.base.shard.base import WriterConf
 from streaming.format.base.shard.mono_row import MonoRowShard
-from streaming.format.base.stream_conf import StreamConf
+from streaming.stream.dir_conf import StreamDirConf
 from streaming.format.mds.encodings import is_mds_encoding_safe, mds_decode
 
 __all__ = ['MDSShard']
@@ -37,7 +37,7 @@ class MDSShard(MonoRowShard):
         self,
         *,
         writer_conf: Optional[WriterConf] = None,
-        stream: StreamConf,
+        stream: StreamDirConf,
         num_samples: int,
         file: ShardFile,
         columns: List[MDSColumn],
@@ -51,11 +51,11 @@ class MDSShard(MonoRowShard):
         self.columns = columns
 
     @classmethod
-    def from_json(cls, stream: StreamConf, obj: Dict[str, Any]) -> Self:
+    def from_json(cls, stream: StreamDirConf, obj: Dict[str, Any]) -> Self:
         """Initialize from JSON object.
 
         Args:
-            stream (StreamConf): Reference to the owning Stream.
+            stream (StreamDirConf): Reference to the owning Stream.
             obj (Dict[str, Any]): MDS shard JSON metadata.
 
         Returns:
