@@ -3,13 +3,14 @@
 
 """Streaming serialization format, consisting of an index and multiple types of shards."""
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from streaming.format.index import get_index_basename
 from streaming.format.jsonl import JSONLShard, JSONLWriter
 from streaming.format.mds import MDSShard, MDSWriter
 from streaming.format.shard import Shard
 from streaming.format.xsv import CSVShard, CSVWriter, TSVShard, TSVWriter, XSVShard, XSVWriter
+from streaming.stream.dir_conf import StreamDirConf
 
 __all__ = [
     'CSVWriter', 'get_index_basename', 'JSONLWriter', 'MDSWriter', 'shard_from_json', 'TSVWriter',
@@ -30,12 +31,11 @@ shard_formats = {
 }
 
 
-def shard_from_json(dirname: str, split: Optional[str], obj: Dict[str, Any]) -> Shard:
+def shard_from_json(stream: StreamDirConf, obj: Dict[str, Any]) -> Shard:
     """Create a shard from a JSON config.
 
     Args:
-        dirname (str): Local directory containing shards.
-        split (str, optional): Which dataset split to use, if any.
+        stream (StreamDirConf): The Stream that we are a part of.
         obj (Dict[str, Any]): JSON object to load.
 
     Returns:
@@ -50,4 +50,4 @@ def shard_from_json(dirname: str, split: Optional[str], obj: Dict[str, Any]) -> 
         raise ValueError(f'Got shard format {fmt}, but our supported formats are ' +
                          f'{sorted(shard_formats)}.')
 
-    return cls.from_json(dirname, split, obj)
+    return cls.from_json(stream, obj)

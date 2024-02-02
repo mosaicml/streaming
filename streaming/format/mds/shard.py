@@ -1,125 +1,177 @@
 # Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""MDS shard reading."""
+"""An MDS shard."""
 
+import json
 import os
-from copy import deepcopy
-from typing import Any, Dict, List, Optional, Union
+from dataclasses import dataclass
+from typing import IO, Any, Dict, List, Optional
 
 import numpy as np
 from typing_extensions import Self
 
+from streaming.format.base.file import ShardFile
+from streaming.format.base.phase import ShardFilePhase
+from streaming.format.base.shard.base import WriterConf
+from streaming.format.base.shard.mono_row import MonoRowShard
+from streaming.format.base.stream_conf import StreamConf
 from streaming.format.mds.encodings import is_mds_encoding_safe, mds_decode
-from streaming.format.shard import FileInfo, MonoShard
 
 __all__ = ['MDSShard']
 
 
-class MDSShard(MonoShard):
-    """Provides random access to the samples of an MDS shard.
+@dataclass
+class MDSColumn:
+    """An MDS column."""
 
-    Args:
-        dirname (str): Local dataset directory.
-        split (str, optional): Which dataset split to use, if any.
-        column_encodings (List[str]): Column encodings.
-        column_names (List[str]): Column names.
-        column_sizes (List[Optional[int]]): Column fixed sizes, if any.
-        compression (str, optional): Optional compression or compression:level.
-        hashes (List[str]): Optional list of hash algorithms to apply to shard files.
-        raw_data (FileInfo): Uncompressed data file info.
-        samples (int): Number of samples in this shard.
-        size_limit (Union[int, str], optional): Optional shard size limit, after
-            which point to start a new shard. If None, puts everything in one shard.
-            Can specify bytes in human-readable format as well, for example
-            ``"100kb"`` for 100 kilobyte (100*1024) and so on.
-        zip_data (FileInfo, optional): Compressed data file info.
-    """
+    name: str
+    encoding: str
+    size: Optional[int]
+
+
+class MDSShard(MonoRowShard):
+    """An MDS shard."""
 
     def __init__(
         self,
-        dirname: str,
-        split: Optional[str],
-        column_encodings: List[str],
-        column_names: List[str],
-        column_sizes: List[Optional[int]],
-        compression: Optional[str],
-        hashes: List[str],
-        raw_data: FileInfo,
-        samples: int,
-        size_limit: Optional[Union[int, str]],
-        zip_data: Optional[FileInfo],
+        *,
+        writer_conf: Optional[WriterConf] = None,
+        stream: StreamConf,
+        num_samples: int,
+        file: ShardFile,
+        columns: List[MDSColumn],
     ) -> None:
-        super().__init__(dirname, split, compression, hashes, raw_data, samples, size_limit,
-                         zip_data)
-        self.column_encodings = column_encodings
-        self.column_names = column_names
-        self.column_sizes = column_sizes
+        super().__init__(
+            writer_conf=writer_conf,
+            stream=stream,
+            num_samples=num_samples,
+            file=file,
+        )
+        self.columns = columns
 
     @classmethod
-    def from_json(cls, dirname: str, split: Optional[str], obj: Dict[str, Any]) -> Self:
+    def from_json(cls, stream: StreamConf, obj: Dict[str, Any]) -> Self:
         """Initialize from JSON object.
 
         Args:
-            dirname (str): Local directory containing shards.
-            split (str, optional): Which dataset split to use, if any.
-            obj (Dict[str, Any]): JSON object to load.
+            stream (StreamConf): Reference to the owning Stream.
+            obj (Dict[str, Any]): MDS shard JSON metadata.
 
         Returns:
-            Self: Loaded MDSShard.
+            Self: The loaded MDS shard object.
         """
-        args = deepcopy(obj)
-        if args['version'] != 2:
-            raise ValueError(f'Unsupported streaming data version: {args["version"]}. ' +
-                             f'Expected version 2.')
-        del args['version']
-        if args['format'] != 'mds':
-            raise ValueError(f'Unsupported data format: {args["format"]}. ' +
-                             f'Expected to be `mds`.')
-        del args['format']
-        args['dirname'] = dirname
-        args['split'] = split
-        for key in ['raw_data', 'zip_data']:
-            arg = args[key]
-            args[key] = FileInfo(**arg) if arg else None
-        return cls(**args)
+        writer_conf = WriterConf(
+            compression=obj.get('compression'),
+            hashes=obj.get('hashes') or [],
+            size_limit=obj.get('size_limit'),
+        )
 
-    def validate(self, allow_unsafe_types: bool) -> None:
-        """Check whether this shard is acceptable to be part of some Stream.
+        num_samples = obj['num_samples']
 
-        Args:
-            allow_unsafe_types (bool): If a shard contains Pickle, which allows arbitrary code
-                execution during deserialization, whether to keep going if ``True`` or raise an
-                error if ``False``.
-        """
-        if not allow_unsafe_types:
-            for column_id, encoding in enumerate(self.column_encodings):
-                if not is_mds_encoding_safe(encoding):
-                    name = self.column_names[column_id]
-                    raise ValueError(f'Column {name} contains an unsafe type: {encoding}. To ' +
-                                     f'proceed anyway, set ``allow_unsafe_types=True``.')
+        zip_obj = obj.get('zip_data')
+        zip_phase = ShardFilePhase.from_json(stream, zip_obj) if zip_obj else None
 
-    def get_sample_data(self, idx: int) -> bytes:
+        zip_algo = obj.get('compression')
+
+        raw_phase = ShardFilePhase.from_json(stream, obj['raw_data'])
+
+        file = ShardFile(
+            stream=stream,
+            zip_phase=zip_phase,
+            zip_algo=zip_algo,
+            raw_phase=raw_phase,
+        )
+
+        names = obj['column_names']
+        encodings = obj['column_encodings']
+        sizes = obj['column_sizes']
+        columns = [MDSColumn(*args) for args in zip(names, encodings, sizes)]
+
+        return cls(
+            writer_conf=writer_conf,
+            stream=stream,
+            num_samples=num_samples,
+            file=file,
+            columns=columns,
+        )
+
+    def validate(self):
+        """Check whether this shard is acceptable to be part of some Stream."""
+        super().validate()
+        for column in self.columns:
+            if not is_mds_encoding_safe(column.encoding):
+                raise ValueError(f'Column {column.name} contains an unsafe type: ' +
+                                 f'{column.encoding}. To proceed anyway, set ' +
+                                 f'`allow_unsafe_types` to `True`.')
+
+    def _analyze(self, fp: IO[bytes]) -> Dict[str, Any]:
+        obj = {
+            'index_adv_samples': self.num_samples,
+            'index_adv_bytes': self.file.raw_phase.size,
+        }
+
+        obj['file_got_bytes'] = fp.seek(0, os.SEEK_END)
+
+        fp.seek(0)
+        data = fp.read(4)
+        if len(data) < 4:
+            return obj
+        file_adv_samples, = np.frombuffer(data, np.uint32)
+        obj['file_adv_samples'] = file_adv_samples
+
+        fp.seek(4 + file_adv_samples * 4)
+        data = fp.read(4)
+        if len(data) < 4:
+            return obj
+        file_adv_bytes, = np.frombuffer(data, np.uint32)
+        obj['file_adv_bytes'] = file_adv_bytes
+
+        obj['samples_match'] = obj['index_adv_samples'] == obj['file_adv_samples']
+        obj['bytes_match'] = obj['index_adv_bytes'] == obj['file_adv_bytes'] == \
+            obj['file_got_bytes']
+
+        obj['match'] = obj['samples_match'] and obj['bytes_match']
+
+        return obj
+
+    def get_sample_data(self, sample_id: int) -> bytes:
         """Get the raw sample data at the index.
 
         Args:
-            idx (int): Sample index.
+            sample_id (int): Sample index.
 
         Returns:
             bytes: Sample data.
         """
-        filename = os.path.join(self.dirname, self.split, self.raw_data.basename)
-        offset = (1 + idx) * 4
+        filename = os.path.join(self.stream.local, self.stream.split or '',
+                                self.file.raw_phase.relative_path)
+
+        def get_err(fp: IO[bytes], msg_txt: str) -> ValueError:
+            chk = self._analyze(fp)
+            chk_txt = json.dumps(chk, sort_keys=True)
+            return ValueError(
+                f'{msg_txt}: filename {filename}, sample ID {sample_id}, predicted num samples ' +
+                f'{self.num_samples}, cross-check {chk_txt}.')
+
         with open(filename, 'rb', 0) as fp:
-            fp.seek(offset)
-            pair = fp.read(8)
-            begin, end = np.frombuffer(pair, np.uint32)
+            if not (0 <= sample_id < self.num_samples):
+                raise get_err(fp, 'Attempted to read and out-of-range sample ID')
+
+            begin = (1 + sample_id) * 4
+            fp.seek(begin)
+            data = fp.read(8)
+
+            if len(data) < 8:
+                raise get_err(fp, 'Dataset corruption detected')
+
+            begin, end = np.frombuffer(data, np.uint32)
             fp.seek(begin)
             data = fp.read(end - begin)
-        if not data:
-            raise IndexError(
-                f'Relative sample index {idx} is not present in the {self.raw_data.basename} file.'
-            )
+
+            if len(data) < end - begin:
+                raise get_err(fp, 'Dataset corruption detected')
+
         return data
 
     def decode_sample(self, data: bytes) -> Dict[str, Any]:
@@ -133,16 +185,18 @@ class MDSShard(MonoShard):
         """
         sizes = []
         idx = 0
-        for key, size in zip(self.column_names, self.column_sizes):
-            if size:
-                sizes.append(size)
+        for column in self.columns:
+            if column.size is not None:
+                sizes.append(column.size)
             else:
                 size, = np.frombuffer(data[idx:idx + 4], np.uint32)
                 sizes.append(size)
                 idx += 4
+
         sample = {}
-        for key, encoding, size in zip(self.column_names, self.column_encodings, sizes):
+        for column, size in zip(self.columns, sizes):
             value = data[idx:idx + size]
-            sample[key] = mds_decode(encoding, value)
+            sample[column.name] = mds_decode(column.encoding, value)
             idx += size
+
         return sample

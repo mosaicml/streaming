@@ -43,7 +43,7 @@ def _get_bool(arg: bool) -> bool:
     return arg
 
 
-def _get_bytes(arg: Union[None, str, int]) -> Optional[float]:
+def _get_bytes(arg: Union[None, str, int]) -> Optional[int]:
     """Normalize a bytes arg.
 
     Args:
@@ -67,7 +67,7 @@ def _get_count(arg: Union[None, str, int]) -> Optional[int]:
     return normalize_count(arg) if arg is not None else None
 
 
-def _get_duration(arg: Union[None, str, float]) -> Optional[float]:
+def _get_duration(arg: Union[None, str, float]) -> float:
     """Normalize a duration arg.
 
     Args:
@@ -76,7 +76,7 @@ def _get_duration(arg: Union[None, str, float]) -> Optional[float]:
     Returns:
         float: Normalized arg.
     """
-    return normalize_duration(arg) if arg is not None else None
+    return normalize_duration(arg) if arg is not None else float('inf')
 
 
 def _get_hash_algos(arg: Union[None, str, Sequence[str]]) -> List[str]:
@@ -139,6 +139,9 @@ class StreamDirConf:
             deterministically-calculated temp directory if not set. Defaults to ``None``.
         split (str | Auto, optional): Which dataset split sub-path to use, if any. Set to ``Auto``
             to inherit from StreamingDataset. Defaults to ``Auto()``.
+        index_size (None | str | int): Expected index size in bytes. Defaults to ``None``.
+        index_hashes (Dict[str, str], optional): Available index hashes. This is a mapping of hash
+            algo name to expected hex digest. Defaults to ``None``.
         allow_schema_mismatch (bool | Auto): If ``True``, continue if schemas mismatch across
             shards, streams, or the whole dataset. If ``False``, raises if schemas mismatch. Set to
             ``Auto`` to inherit from StreamingDataset. Defaults to ``Auto()``.
@@ -169,8 +172,10 @@ class StreamDirConf:
             mapping of uses or phases to whether to keep or drop, a ``Phaser`` (which performs the
             same keeping or dropping), or ``Auto`` to inherit from StreamingDataset. Defaults to
             ``Auto()``.
-        kwargs (Dict[str, Any]): Any unsupported (for forward compat) or deprecated args.
+        kwargs (Any): Any unsupported (for forward compat) or deprecated args.
     """
+
+    index_relative_path = 'index.json'
 
     def __init__(
         self,
@@ -178,6 +183,8 @@ class StreamDirConf:
         remote: Optional[str] = None,
         local: Optional[str] = None,
         split: Union[None, str, Auto] = Auto(),
+        index_size: Union[None, str, int] = None,
+        index_hashes: Optional[Dict[str, str]] = None,
         allow_schema_mismatch: Union[bool, Auto] = Auto(),
         allow_unsafe_types: Union[bool, Auto] = Auto(),
         allow_unchecked_resumption: Union[bool, Auto] = Auto(),
@@ -187,7 +194,7 @@ class StreamDirConf:
         validate_hash: Union[None, str, Sequence[str], Auto] = Auto(),
         keep_phases: Union[None, str, Sequence[str], Dict[str, Optional[bool]], Phaser, Auto] = \
             Auto(),
-        **kwargs: Dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         # 1. Maybe set remote, local, and split.
         self.remote = os.path.abspath(remote) if remote is not None else None
@@ -206,7 +213,21 @@ class StreamDirConf:
             else:
                 raise ValueError(f'You must provide `remote` and/or `local`.')
 
-        # 3.A. Maybe override init args.
+        # 3. Maybe derive remote/local index paths.
+        if self.remote is None:
+            self.remote_index_path = None
+        elif hasattr(self, 'split'):
+            self.remote_index_path = os.path.join(self.remote, self.split or '',
+                                                  self.index_relative_path)
+        if hasattr(self, 'local') and hasattr(self, 'split'):
+            self.local_index_path = os.path.join(self.local, self.split or '',
+                                                 self.index_relative_path)
+
+        # 4. Maybe set index size and hashes.
+        self.index_size = _get_count(index_size)
+        self.index_hashes = index_hashes or {}
+
+        # 5. Maybe override init args.
         if not isinstance(allow_schema_mismatch, Auto):
             self.allow_schema_mismatch = _get_bool(allow_schema_mismatch)
         if not isinstance(allow_unsafe_types, Auto):
@@ -214,7 +235,7 @@ class StreamDirConf:
         if not isinstance(allow_unchecked_resumption, Auto):
             self.allow_unchecked_resumption = _get_bool(allow_unchecked_resumption)
 
-        # 3.B. Maybe override download args.
+        # 6. Maybe override download args.
         if not isinstance(download_retry, Auto):
             self.download_retry = _get_count(download_retry)
         if not isinstance(download_timeout, Auto):
@@ -224,7 +245,7 @@ class StreamDirConf:
         if not isinstance(validate_hash, Auto):
             self.check_hashes = _get_hash_algos(validate_hash)
 
-        # 3.C. Maybe override phaser (phase keeper), then cache self.keep_zip in case needed.
+        # 7. Maybe override phaser (phase keeper), then cache self.keep_zip in case needed.
         if not isinstance(keep_phases, Auto):
             self.keep_phases = _get_phaser(keep_phases)
             self.safe_keep_phases = self.keep_phases.to_safe()
@@ -243,7 +264,7 @@ class StreamDirConf:
         validate_hash: Union[None, str, Sequence[str], Auto] = Auto(),
         keep_phases: Union[None, str, Sequence[str], Dict[str, Optional[bool]], Phaser, Auto] = \
             Auto(),
-        **kwargs: Dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         """Inherit from our owning StreamingDataset the values of any arguments left as auto.
 
@@ -286,7 +307,7 @@ class StreamDirConf:
                 to keep, a mapping of uses or phases to whether to keep or drop, a ``Phaser``
                 (which performs the same keeping or dropping), or ``Auto`` to not inherit from
                 StreamingDataset. Defaults to ``Auto()``.
-            kwargs (Dict[str, Any]): Deprecated arguments, if any: ``keep_zip``.
+            kwargs (Any): Deprecated arguments, if any: ``keep_zip``.
         """
         err_pattern = 'You must set {txt} in `Stream.__init__()` and/or `Stream.apply_defaults()`.'
         err_unset = lambda txt: ValueError(err_pattern.format(txt=txt))
@@ -306,7 +327,18 @@ class StreamDirConf:
             else:
                 raise err_unset('`remote` and/or `local`')
 
-        # 3.A. Maybe default init args.
+        # 3. Maybe derive remote/local index paths.
+        if not hasattr(self, 'remote_index_path'):
+            if self.remote is None:
+                self.remote_index_path = None
+            else:
+                self.remote_index_path = os.path.join(self.remote, self.split or '',
+                                                      self.index_relative_path)
+        if not hasattr(self, 'local_index_path'):
+            self.local_index_path = os.path.join(self.local, self.split or '',
+                                                 self.index_relative_path)
+
+        # 4. Maybe default init args.
         if not hasattr(self, 'allow_schema_mismatch'):
             if not isinstance(allow_schema_mismatch, Auto):
                 self.allow_schema_mismatch = _get_bool(allow_schema_mismatch)
@@ -325,7 +357,7 @@ class StreamDirConf:
             else:
                 raise err_unset_arg('allow_unchecked_resumption')
 
-        # 3.B. Maybe default download args.
+        # 5. Maybe default download args.
         if not hasattr(self, 'download_retry'):
             if not isinstance(download_retry, Auto):
                 self.download_retry = _get_count(download_retry)
@@ -350,7 +382,7 @@ class StreamDirConf:
             else:
                 raise err_unset_arg('validate_hash')
 
-        # 3.C. Maybe default phaser (phase keeper), then delete self.keep_zip.
+        # 6. Maybe default phaser (phase keeper), then delete self.keep_zip.
         if not hasattr(self, 'keep_phases'):
             if not isinstance(keep_phases, Auto):
                 self.keep_phases = _get_phaser(keep_phases)
@@ -365,5 +397,5 @@ class StreamDirConf:
         # of files instead, zipped or not (for which the knob is self.keep_phases.storage).
         del self.keep_zip
 
-        # 4. Derive safe_keep_phases from keep_phases.
+        # 7. Derive safe_keep_phases from keep_phases.
         self.safe_keep_phases = self.keep_phases.to_safe()

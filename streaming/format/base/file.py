@@ -124,7 +124,7 @@ class ShardFile:
                 arr[phase_id] = Locality.DNE
         return arr
 
-    def init_dir(self, listing: Set[str]) -> int:
+    def inventory_local(self, listing: Set[str]) -> int:
         """Normalize this file's phases' presence in the local directory to a coherent state.
 
         Args:
@@ -138,7 +138,7 @@ class ShardFile:
         du = 0
         for phase in self.phases:
             if phase:
-                phase_du = phase.init_dir(listing)
+                phase_du = phase.inventory_local(listing)
                 if phase_du:
                     du += phase_du
                     phase_loc = Locality.LOCAL

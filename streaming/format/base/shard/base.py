@@ -85,7 +85,7 @@ class Shard(Array):
         for file in self.files:
             file.set_stream(stream)
 
-    def init_local(self, listing: Set[str]) -> Optional[int]:
+    def inventory_local(self, listing: Set[str]) -> Optional[int]:
         """Normalize what files/phases of files are present to a coherent state.
 
         This is used to initialize with a local cache directory that already contains shard files.
@@ -101,7 +101,7 @@ class Shard(Array):
         """
         du = 0
         for file in self.files:
-            file_du = file.init_local(listing)
+            file_du = file.inventory_local(listing)
             if file_du is None:
                 self.evict()
                 du = 0

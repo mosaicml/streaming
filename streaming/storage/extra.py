@@ -310,7 +310,7 @@ def smart_download_file(
             large for Streaming purposes, which is non-obvious and might result in a terrible user
             experience. Defaults to ``200mb``.
         hashes (Dict[str, str], optional): Available hashes. This is a mapping of hash algo name to
-            expected hash digest. Defaults to ``None``.
+            expected hex digest. Defaults to ``None``.
         check_hashes (None | str | Sequence[str]]): Selected hashes. Ranked ordering of names of
             hash algorithms to check. These checks are a very strong but slow/expensive way to
             detect changes to data. See our benchmarks for more details. Defaults to ``None``.

@@ -135,7 +135,7 @@ class ShardFilePhase:
         filename = self.get_local_filename()
         return filename in listing
 
-    def init_dir(self, listing: Set[str]) -> int:
+    def inventory_local(self, listing: Set[str]) -> int:
         """Initialize the given local directory wrf this shard file phase.
 
         Args:
@@ -225,9 +225,9 @@ class ShardFilePhase:
                     f'it to `None` to disable this check completely.')
 
         # Validate hashes against expected.
-        if self.stream.apply_hash_algos:
+        if self.stream.check_hashes:
             data = open(local, 'rb').read()
-            for algo in self.stream.apply_hash_algos:
+            for algo in self.stream.check_hashes:
                 if algo in self.hashes:
                     if get_hash(algo, data) == self.hashes[algo]:
                         break
@@ -237,8 +237,8 @@ class ShardFilePhase:
                 raise ValueError(f'There is no overlap between what hash algorithms we have ' +
                                  f'chosen to validate shard files with and what hash algos ' +
                                  f'and digests the index has stored for us to compare against: ' +
-                                 f'we wanted {self.stream.apply_hash_algos}, but the index ' +
-                                 f'accepts {sorted(self.hashes)}.')
+                                 f'we wanted {self.stream.check_hashes}, but the index accepts ' +
+                                 f'{sorted(self.hashes)}.')
 
         return size
 
