@@ -69,14 +69,16 @@ class ShardFile:
             the file. Defaults to ``None``.
     """
 
-    def __init__(self,
-                 *,
-                 stream: StreamDirConf,
-                 zip_phase: Optional[ShardFilePhase] = None,
-                 zip_algo: Optional[str] = None,
-                 raw_phase: ShardFilePhase,
-                 can_algo: Optional[str] = None,
-                 can_phase: Optional[ShardFilePhase] = None) -> None:
+    def __init__(
+        self,
+        *,
+        stream: StreamDirConf,
+        zip_phase: Optional[ShardFilePhase] = None,
+        zip_algo: Optional[str] = None,
+        raw_phase: ShardFilePhase,
+        can_algo: Optional[str] = None,
+        can_phase: Optional[ShardFilePhase] = None,
+    ) -> None:
         self.stream = stream
         self.zip_phase = zip_phase
         self.zip_algo = zip_algo

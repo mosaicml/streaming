@@ -62,7 +62,7 @@ class Shard(Array):
         """
         raise NotImplementedError
 
-    def validate(self):
+    def validate(self) -> None:
         """Check whether this shard is acceptable to be part of some Stream."""
         for file in self.files:
             file.validate()
@@ -132,7 +132,7 @@ class Shard(Array):
         return ddu
 
     @property
-    def size(self):
+    def size(self) -> int:
         """Get the number of samples in this shard.
 
         Note: the ``Array`` abstract class, from which we inherit, gets its concept of length from
