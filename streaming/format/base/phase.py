@@ -42,6 +42,8 @@ class ShardFilePhase:
         self.size = size
         self.hashes = hashes or {}
 
+        self.got_size: int
+
     @classmethod
     def from_json(cls, stream: StreamDirConf, obj: Dict[str, Any]) -> Self:
         """Initialize from JSON object.
@@ -133,7 +135,7 @@ class ShardFilePhase:
         filename = self.get_local_filename()
         return filename in listing
 
-    def inventory_local(self, listing: Set[str]) -> int:
+    def inventory_local(self, listing: Set[str]) -> Optional[int]:
         """Initialize the given local directory wrf this shard file phase.
 
         Args:
@@ -143,28 +145,40 @@ class ShardFilePhase:
             int: Disk usage.
         """
         filename = self.get_local_filename()
-        if filename not in listing:
-            return 0
 
-        if self.size is not None:
-            try:
-                got_size = os.stat(filename).st_size
-            except:
-                return 0
-            if got_size == self.size:
-                return self.size
-            else:
-                os.remove(filename)
-                return 0
+        # Is the file in the listing?
+        if filename not in listing:
+            # Problem: it's not listed.
+            got_size = None
         else:
-            if self.stream.allow_unchecked_resumption:
-                try:
-                    return os.stat(filename).st_size
-                except:
-                    return 0
+            # It's listed. Is the file actually there in the filesystem?
+            if not os.path.exists(filename):
+                # Problem: it's not there anymore.
+                got_size = None
+            elif not os.path.isfile(filename):
+                # Problem: it's not a file.
+                rmtree(filename)
+                got_size = None
             else:
-                os.remove(filename)
-                return 0
+                # It's there. Do we know its expected size?
+                if self.size is not None:
+                    # Expected size is known, so they had better match.
+                    got_size = os.stat(filename).st_size
+                    if got_size != self.size:
+                        os.remove(filename)
+                        got_size = None
+                else:
+                    # Expected size is unknown. Is that a problem?
+                    if self.stream.allow_unchecked_resumption:
+                        # Not a problem.
+                        got_size = os.stat(filename).st_size
+                    else:
+                        # Is a problem.
+                        os.remove(filename)
+                        got_size = None
+
+        self.got_size = got_size
+        return got_size
 
     def is_local(self) -> bool:
         """Check the filesystem for this phase of the file.
@@ -190,7 +204,7 @@ class ShardFilePhase:
         remote = self.get_remote_filename()
         local = self.get_local_filename()
 
-        smart_download_file(
+        self.got_size = smart_download_file(
             remote=remote,
             local=local,
             timeout=self.stream.download_timeout,
@@ -201,7 +215,7 @@ class ShardFilePhase:
             check_hashes=self.stream.check_hashes,
         )
 
-        return os.stat(local).st_size if self.size is None else self.size
+        return self.got_size
 
     def evict(self) -> int:
         """Delete this phase.

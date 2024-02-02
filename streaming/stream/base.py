@@ -34,11 +34,12 @@ class Stream(StreamDirConf, StreamWeightConf):
     ) -> None:
         StreamDirConf.__init__(self, **kwargs)
         StreamWeightConf.__init__(self, **kwargs)
+        self.got_index_size: int
         self.index: JSONDict
         self.shards: List[Shard]
 
-    def download_index(self) -> None:
-        """Download the index file.
+    def ensure_index_file(self) -> None:
+        """Download and/or verify the index file.
 
         Notes:
           * This method is called by StreamingDataset init.
@@ -46,17 +47,16 @@ class Stream(StreamDirConf, StreamWeightConf):
           * This method is executed in parallel, with one Python thread per Stream, by a
             ThreadPoolExecutor.
         """
-        if self.remote_index_path:
-            smart_download_file(
-                remote=self.remote_index_path,
-                local=self.local_index_path,
-                timeout=self.download_timeout,
-                retry=self.download_retry,
-                size=self.index_size,
-                max_size=self.download_max_size,
-                hashes=self.index_hashes,
-                check_hashes=self.check_hashes,
-            )
+        self.got_index_size = smart_download_file(
+            remote=self.remote_index_path,
+            local=self.local_index_path,
+            timeout=self.download_timeout,
+            retry=self.download_retry,
+            size=self.index_size,
+            max_size=self.download_max_size,
+            hashes=self.index_hashes,
+            check_hashes=self.check_hashes,
+        )
 
     def await_then_load_index(self) -> List[Shard]:
         """Wait for the index file to become downloaded, then load it.

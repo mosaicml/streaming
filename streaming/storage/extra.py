@@ -293,7 +293,7 @@ def smart_download_file(
     max_size: Union[None, str, int] = '200mb',
     hashes: Optional[Dict[str, str]] = None,
     check_hashes: Union[None, str, Sequence[str]] = None,
-) -> None:
+) -> int:
     """Download a file from remote to local, with optional size/hash checks.
 
     Args:
@@ -314,6 +314,9 @@ def smart_download_file(
         check_hashes (None | str | Sequence[str]]): Selected hashes. Ranked ordering of names of
             hash algorithms to check. These checks are a very strong but slow/expensive way to
             detect changes to data. See our benchmarks for more details. Defaults to ``None``.
+
+    Returns:
+        int: Observed size of the downloaded file in bytes.
     """
     from typing import TypeVar
     U = TypeVar('U')
@@ -374,9 +377,8 @@ def smart_download_file(
         retry_loop(num_attempts=max_times)(action)
 
     # Optional size checks.
+    got_size = os.stat(local).st_size
     if size is not None or max_size is not None:
-        got_size = os.stat(local).st_size
-
         # Exact size check.
         if size is not None:
             if size != got_size:
@@ -420,6 +422,8 @@ def smart_download_file(
                              f'have digests of the file: remote file {remote}, local file ' +
                              f'{local}, available hashes {sorted(hashes)}, selected hashes ' +
                              f'{check_hashes}.')
+
+    return got_size
 
 
 def file_exists(
