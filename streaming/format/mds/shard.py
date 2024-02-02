@@ -15,8 +15,8 @@ from streaming.format.base.file import ShardFile
 from streaming.format.base.phase import ShardFilePhase
 from streaming.format.base.shard.base import WriterConf
 from streaming.format.base.shard.mono_row import MonoRowShard
-from streaming.stream.dir_conf import StreamDirConf
 from streaming.format.mds.encodings import is_mds_encoding_safe, mds_decode
+from streaming.stream.dir_conf import StreamDirConf
 
 __all__ = ['MDSShard']
 
