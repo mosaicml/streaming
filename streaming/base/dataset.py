@@ -825,6 +825,7 @@ class StreamingDataset(Array, IterableDataset):
                 print("PATH EXISTS, UNLINKING!")
                 prev_shm.shm.unlink()
                 os.remove(prev_shm_path)
+            sleep(TICK*25)
             self._resume_shm = SharedMemory(name=name, size=len(data), create=True)
         print("data is:", data)
         print("length of data:", len(data))
