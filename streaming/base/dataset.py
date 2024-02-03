@@ -831,7 +831,7 @@ class StreamingDataset(Array, IterableDataset):
             prev_shm.cleanup()
             if os.path.exists(prev_shm_path):
                 os.remove(prev_shm_path)
-            self._resume_shm = SharedMemory(name=name, size=len(data), create=True)
+            self._resume_shm = SharedMemory(name=name, size=len(data))
         print("data is:", data)
         print("length of data:", len(data))
         print("size of shm:", self._resume_shm.shm._size)
