@@ -140,7 +140,7 @@ class ShardFilePhase:
         return filename in listing
 
     def inventory_local(self, listing: Set[str]) -> Optional[int]:
-        """Initialize the given local directory wrf this shard file phase.
+        """Initialize/normalize the given local directory with respect to this shard file phase.
 
         Args:
             listing (Set[str]): Recursive dataset file listing.
