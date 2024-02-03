@@ -35,14 +35,17 @@ class ShardFilePhase:
         size: Optional[int] = None,
         hashes: Optional[Dict[str, str]] = None,
     ) -> None:
+        # Checks.
         if size is not None and size < 0:
             raise ValueError(f'Shard file size must be a non-negative integer, but got: {size}.')
 
+        # Provided to init.
         self.stream = stream
         self.relative_path = relative_path
         self.size = size
         self.hashes = hashes or {}
 
+        # Not known until we `download()` or `inventory_local()`.
         self.got_size: Optional[int]
 
     @classmethod
