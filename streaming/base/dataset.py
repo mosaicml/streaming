@@ -817,8 +817,12 @@ class StreamingDataset(Array, IterableDataset):
         except FileExistsError:
             # Previous shared memory block exists. Clean it up and make a new one.
             prev_shm = SharedMemory(name=name, create=False)
+            prev_shm_path = prev_shm.shm._name
+            print("prev shm path:", prev_shm_path)
             prev_shm.cleanup()
             sleep(TICK)
+            if os.path.exists(prev_shm_path):
+                os.remove(prev_shm_path)
             self._resume_shm = SharedMemory(name=name, size=len(data), create=True)
         print("data is:", data)
         print("length of data:", len(data))
