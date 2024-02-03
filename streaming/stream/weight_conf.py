@@ -69,7 +69,7 @@ class StreamWeightConf:
             streams (Sequence[Stream]): Every stream comprising the dataset.
 
         Returns:
-            bool: Whether streams are weighted relatively (proportionally).
+            Tuple[bool, bool]: Whether weights are relative and specified.
         """
         # Validate stream weights ("proportion", "repeat", "choose", or none).
         is_proportional = hasattr(streams[0], 'proportion')
