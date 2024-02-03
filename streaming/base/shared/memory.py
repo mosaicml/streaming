@@ -55,6 +55,7 @@ class SharedMemory:
                     self.created_shms.append(shm)
                 except FileExistsError:
                     sleep(TICK)
+                    print("FILE ALREADY EXISTS")
                     resource_tracker.register = self.fix_register
                     # Attaches to an existing shared memory block
                     shm = BuiltinSharedMemory(name, False, size)
