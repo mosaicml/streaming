@@ -696,6 +696,7 @@ class StreamingDataset(Array, IterableDataset):
         buf = bytes(shm.buf)
         index = buf.find(b'\0')
         buf = buf[:index] if index != -1 else buf
+        print("buffer decoded:", buf.decode('utf-8'))
         obj = json.loads(buf.decode('utf-8'))
 
         # Check if the resume state is stale.
