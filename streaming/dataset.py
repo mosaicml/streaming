@@ -30,6 +30,7 @@ from streaming.constant import (BARRIER, BARRIER_FILELOCK, CACHE_FILELOCK, CACHE
                                 EPOCH_SHAPE, NEXT_EPOCH, RESUME, SHARD_ACCESS_TIMES, SHARD_STATES,
                                 TICK)
 from streaming.distributed import maybe_init_dist
+from streaming.format.base.phaser import Phaser
 from streaming.sampling import get_sampling
 from streaming.shared import (SharedArray, SharedBarrier, SharedMemory, SharedScalar, _get_path,
                               get_shm_prefix)
@@ -173,98 +174,99 @@ class StreamingDataset(Array, IterableDataset):
     Features elastically deterministic shuffling, which enables fast mid-epoch resumption.
 
     Checkpoints are represented in JSON as follows:
+    >>> from typing import TypedDict
+    >>>
+    >>> class StateDict(TypedDict):
+    >>>     epoch: int
+    >>>     sample_in_epoch: int
+    >>>     shuffle_seed: int
+    >>>     num_canonical_nodes: int
+    >>>     num_physical_nodes: int
 
-    .. code-block:: json
-
-        {
-            "epoch" :"int",
-            "sample_in_epoch": "int",
-            "shuffle_seed": "int",
-            "num_canonical_nodes": "int"
-        }
-
-    StreamingDataset init takes two kinds of arguments:
-
-    * What to iterate:
-
-      * One or more streams (you must provide either ``streams`` or ``remote``/``local``):
-
-        * ``streams``
-        * ``remote``
-        * ``local``
-
-      * Knobs to control streaming behavior, which, if multiple streams are provided,
-        become defaults applied to each of them:
-
-        * ``split``
-        * ``download_retry``
-        * ``download_timeout``
-        * ``validate_hash``
-        * ``keep_zip``
-
-      * Absolute dataset size, if streams were weighted relatively:
-
-        * ``epoch_size``
-
-    * How to iterate:
-
-      * Shard lifecycle:
-
-        * ``predownload``
-        * ``cache_limit``
-
-      * Sampling:
-
-        * ``sampling_method``
-        * ``sampling_granularity``
-
-      * Determinism:
-
-        * ``partition_algo``
-        * ``num_canonical_nodes``
-        * ``batch_size``
-
-      * Shuffling:
-
-        * ``shuffle``
-        * ``shuffle_algo``
-        * ``shuffle_seed``
-        * ``shuffle_block_size``
-
-      * Batching:
-
-        * ``batching_method``
-
+    Organization of arguments:
+      * What to iterate:
+          * The streams (either provide streams, or remote and/or local for an implicit stream):
+              * ``epoch_size``
+              * ``streams``
+              * ``remote``
+              * ``local``
+          * Stream arguments (used as defaults if explicit streams, or as args if implicit stream):
+              * Filesystem:
+                  * ``split``
+                  * ``index_size``
+                  * ``index_hashes``
+              * Schema:
+                  * ``allow_schema_mismatch``
+                  * ``allow_unsafe_types``
+                  * ``allow_unchecked_resumption``
+              * Downloads:
+                  * ``download_retry``
+                  * ``download_timeout``
+                  * ``download_max_size``
+                  * ``validate_hash``
+                  * ``keep_phases``
+      * How to iterate:
+          * Shard lifecycle:
+              * ``predownload``
+              * ``cache_limit``
+          * Reproducibility:
+              * ``shuffle_seed``
+          * Sampling:
+              * ``sampling_method``
+              * ``sampling_granularity``
+          * Partitioning:
+              * ``partition_algo``
+              * ``num_canonical_nodes``
+              * ``batch_size``
+          * Shuffling:
+              * ``shuffle``
+              * ``shuffle_algo``
+              * ``shuffle_seed``
+              * ``shuffle_block_size``
+          * Batching:
+              * ``batching_method``
 
     Args:
-        streams (Sequence[Stream], optional): One or more streams to stream/cache samples from,
-            which may be upsampled or downsampled. StreamingDataset uses either ``streams`` or
-            ``remote``/``local``. Defaults to ``None``.
-        remote (str, optional): Remote path or directory to download the dataset from. If ``None``,
-            its data must exist locally. StreamingDataset uses either ``streams`` or
-            ``remote``/``local``. Defaults to ``None``.
-        local (str, optional): Local working directory to download shards to. This is where shards
-            are cached while they are being used. Uses a temp directory if not set.
-            StreamingDataset uses either ``streams`` or ``remote``/``local``. Defaults to ``None``.
-        split (str, optional): Which dataset split to use, if any. If provided, we stream from/to
-            the ``split`` subdirs of  ``remote`` and ``local``. Defaults to ``None``.
-        download_retry (int): Number of download re-attempts before raising an error. Defaults to
-            ``2``.
-        download_timeout (str | float): Time in seconds to wait for a file download to complete
-            before raising an error. Streaming duration shorthand (e.g., ``1m23s``) is also
-            accepted. Defaults to ``1m``.
-        hash_algos (str | Sequence[str], optional): Ranked list of hashing algorithms to try.
-            Defaults to ``None``.
-        validate_hash (str, optional): Deprecated. See ``hash_algos``. Defaults to ``None``.
-        keep_old_phases (str, optional): Which old phases of shard files to cache (until shard
-            eviction). If set, must be one of ``nil``, ``src``, or ``all``. Defaults to ``None``,
-            which uses ``keep_zip``, falling back to ``nil``.
-        keep_zip (bool, optional): Deprecated. See ``keep_old_phases``. Defaults to ``None``.
         epoch_size (Union[str, int], optional): Number of samples to draw per epoch balanced
             across all streams. If ``None``, takes its value from the total number of underlying
             samples. Provide this field if you are weighting streams relatively to target a larger
             or smaller epoch size. Defaults to ``None``. Can also take in human-readable number
             abbreviations (e.g., ``"100k"``, ``"64M"``, ``"77b"``, etc). Defaults to ``None``.
+        streams (Sequence[Stream], optional): One or more streams to stream/cache samples from,
+            which may be upsampled or downsampled. StreamingDataset uses either ``streams`` or
+            ``remote``/``local``. Defaults to ``None``.
+        remote (str, optional): Remote path to stream the dataset from. If ``None``, dataset must
+            be complete locally. Defaults to ``None``.
+        local (str, optional): Local working directory to stream the dataset to. Uses a
+            deterministically-calculated temp directory if not set. Defaults to ``None``.
+        split (str, optional): Which dataset split sub-path to use, if any. Defaults to ``None``.
+        index_size (str | int, optional): Expected index size in bytes. Defaults to ``None``.
+        index_hashes (Dict[str, str], optional): Available index hashes. This is a mapping of hash
+            algo name to expected hex digest. Defaults to ``None``.
+        allow_schema_mismatch (bool): If ``True``, continue if schemas mismatch across
+            shards, streams, or the whole dataset. If ``False``, raises if schemas mismatch.
+            Defaults to ``False``.
+        allow_unsafe_types (bool): If ``True``, continue if unsafe type(s) are encountered
+            in shard(s). If ``False``, raises if unsafe type(s) encountered. Defaults to ``False``.
+        allow_unchecked_resumption (bool): If ``True``, upon resume, accept and use shard
+            file phases that we are unable to check the size/hash(es) of. If ``False``, upon
+            resume, drop such files, to regenerate on the fly when needed. Defaults to ``True``.
+        download_retry (str | int): Number of download re-attempts before raising an error.
+            Defaults to ``2``.
+        download_timeout (str | float, optional): Time to wait for a file download to complete
+            before raising an error, if any. Set to ``None`` for no limit. Streaming duration
+            shorthand (e.g., ``1m23s``) is also accepted. Defaults to ``2m``.
+        download_max_size (str | int, optional): Maximum size of an individual download, if any.
+            This is used to prevent over-large shard files from cripping Streaming performance. Set
+            to ``None`` for no size limit. Set to ``str`` to specify the limit using Streaming
+            bytes shorthand. Set to ``int`` to specify bytes. Defaults to ``200mb``.
+        validate_hash (str | Sequence[str], optional): Ranked list of hashing algorithms to
+            apply if expected digest is available. Defaults to ``None``.
+        keep_phases (str | Sequence[str] | Dict[str, Optional[bool]] | Phaser): Which phases
+            to keep and to drop upon conversion, given either by intended use case or literally.
+            Specified as a single use or phase to keep, a sequence of uses or phases to keep, a
+            mapping of uses or phases to whether to keep or drop, or a ``Phaser`` (which performs
+            the same keeping or dropping). Defaults to ``None``.
         predownload (int, optional): Target number of samples to download per worker in advance
             of current sample. Workers will attempt to download ahead by this many samples during,
             but not before, training. Recommendation is to provide a value greater than per device
@@ -276,6 +278,7 @@ class StreamingDataset(Array, IterableDataset):
             Set to ``None`` to disable shard eviction. Supports integer bytes as well as string
             human-readable bytes (e.g., ``100b``, ``64kb``, ``77mb``, and so on). Defaults to
             ``None``.
+        shuffle_seed (int): Seed for deterministic data shuffling. Defaults to ``9176``.
         sampling_method (str): Which sampling method to use, either ``balanced`` or ``fixed``.
             Defaults to ``balanced``.
         sampling_granularity (int): When picking samples for a stream's final partial repeat,
@@ -300,7 +303,6 @@ class StreamingDataset(Array, IterableDataset):
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
             ``False``.
         shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1e``.
-        shuffle_seed (int): Seed for deterministic data shuffling. Defaults to ``9176``.
         shuffle_block_size (int, optional): Unit of shuffle. A canonical node's samples are split
             into blocks of this size, and samples within each block are shuffled. If ``None``, its
             value is calculated as ``max(4_000_000 // num_canonical_nodes), 1 << 18)``. Defaults to
@@ -310,36 +312,44 @@ class StreamingDataset(Array, IterableDataset):
         allow_unsafe_types (bool): If a shard contains Pickle, which allows arbitrary code
             execution during deserialization, whether to keep going if ``True`` or raise an error
             if ``False``. Defaults to ``False``.
+        kwargs (Any): Any unsupported (for forward compat) or deprecated args.
     """
 
-    def __init__(self,
-                 *,
-                 streams: Optional[Sequence[Stream]] = None,
-                 remote: Optional[str] = None,
-                 local: Optional[str] = None,
-                 split: Optional[str] = None,
-                 download_retry: int = 2,
-                 download_timeout: Union[str, float] = '1m',
-                 hash_algos: Optional[Union[str, Sequence[str]]] = None,
-                 validate_hash: Optional[str] = None,
-                 keep_old_phases: Optional[str] = None,
-                 keep_zip: Optional[bool] = None,
-                 epoch_size: Optional[Union[str, int]] = None,
-                 predownload: Optional[int] = None,
-                 cache_limit: Optional[Union[str, int]] = None,
-                 sampling_method: str = 'balanced',
-                 sampling_granularity: int = 1,
-                 partition_algo: str = 'relaxed',
-                 num_canonical_nodes: Optional[int] = None,
-                 batch_size: Optional[int] = None,
-                 shuffle: bool = False,
-                 shuffle_algo: str = 'py1e',
-                 shuffle_seed: int = 9176,
-                 shuffle_block_size: Optional[int] = None,
-                 batching_method: str = 'random',
-                 allow_unsafe_types: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        epoch_size: Optional[Union[str, int]] = None,
+        streams: Optional[Sequence[Stream]] = None,
+        remote: Optional[str] = None,
+        local: Optional[str] = None,
+        split: Optional[str] = None,
+        index_size: Optional[Union[str, int]] = None,
+        index_hashes: Optional[Dict[str, str]] = None,
+        allow_schema_mismatch: bool = False,
+        allow_unsafe_types: bool = False,
+        allow_unchecked_resumption: bool = True,
+        download_retry: Union[str, int] = 2,
+        download_timeout: Optional[Union[str, float]] = '2m',
+        download_max_size: Optional[Union[str, int]] = '200mb',
+        validate_hash: Union[None, str, Sequence[str]] = None,
+        keep_phases: Union[None, str, Sequence[str], Dict[str, Optional[bool]], Phaser] = None,
+        predownload: Optional[int] = None,
+        cache_limit: Optional[Union[str, int]] = None,
+        shuffle_seed: int = 9176,
+        sampling_method: str = 'balanced',
+        sampling_granularity: int = 1,
+        partition_algo: str = 'relaxed',
+        num_canonical_nodes: Optional[int] = None,
+        batch_size: Optional[int] = None,
+        shuffle: bool = False,
+        shuffle_algo: str = 'py1e',
+        shuffle_block_size: Optional[int] = None,
+        batching_method: str = 'random',
+        **kwargs: Any,
+    ) -> None:
         # Global arguments (which do not live in Streams).
         self.predownload = predownload
+        self.shuffle_seed = shuffle_seed
         self.sampling_method = sampling_method
         self.sampling_granularity = sampling_granularity
         self.partition_algo = partition_algo
@@ -347,7 +357,6 @@ class StreamingDataset(Array, IterableDataset):
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.shuffle_algo = shuffle_algo
-        self.shuffle_seed = shuffle_seed
         self.shuffle_block_size = shuffle_block_size
         self.batching_method = batching_method
         self.allow_unsafe_types = allow_unsafe_types
@@ -414,25 +423,35 @@ class StreamingDataset(Array, IterableDataset):
         # Initialize the Stream defaults and normalize to a list of Streams.
         if streams:
             for stream in streams:
-                stream.apply_defaults(split=split,
-                                      download_retry=download_retry,
-                                      download_timeout=download_timeout,
-                                      hash_algos=hash_algos,
-                                      validate_hash=validate_hash,
-                                      keep_old_phases=keep_old_phases,
-                                      keep_zip=keep_zip)
+                stream.apply_defaults(
+                    split=split,
+                    allow_schema_mismatch=allow_schema_mismatch,
+                    allow_unsafe_types=allow_unsafe_types,
+                    allow_unchecked_resumption=allow_unchecked_resumption,
+                    download_retry=download_retry,
+                    download_timeout=download_timeout,
+                    download_max_size=download_max_size,
+                    validate_hash=validate_hash,
+                    keep_phases=keep_phases,
+                    **kwargs,
+                )
         else:
-            stream = Stream(remote=remote,
-                            local=local,
-                            split=split,
-                            download_retry=download_retry,
-                            download_timeout=download_timeout,
-                            hash_algos=hash_algos,
-                            validate_hash=validate_hash,
-                            keep_old_phases=keep_old_phases,
-                            keep_zip=keep_zip)
-            stream.apply_defaults()
-            streams = stream,
+            streams = Stream(
+                remote=remote,
+                local=local,
+                split=split,
+                index_size=index_size,
+                index_hashes=index_hashes,
+                allow_schema_mismatch=allow_schema_mismatch,
+                allow_unsafe_types=allow_unsafe_types,
+                allow_unchecked_resumption=allow_unchecked_resumption,
+                download_retry=download_retry,
+                download_timeout=download_timeout,
+                download_max_size=download_max_size,
+                validate_hash=validate_hash,
+                keep_phases=keep_phases,
+                **kwargs,
+            ),
 
         # Validate the stream weighting scheme (relative or absolute) to catch errors before we go
         # to the trouble of loading them.

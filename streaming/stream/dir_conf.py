@@ -259,8 +259,8 @@ class StreamDirConf:
         allow_unsafe_types: Union[bool, Auto] = Auto(),
         allow_unchecked_resumption: Union[bool, Auto] = Auto(),
         download_retry: Union[str, int, Auto] = Auto(),
-        download_timeout: Union[str, float, Auto] = Auto(),
-        download_max_size: Union[str, int, Auto] = Auto(),
+        download_timeout: Union[None, str, float, Auto] = Auto(),
+        download_max_size: Union[None, str, int, Auto] = Auto(),
         validate_hash: Union[None, str, Sequence[str], Auto] = Auto(),
         keep_phases: Union[None, str, Sequence[str], Dict[str, Optional[bool]], Phaser, Auto] = \
             Auto(),
@@ -293,7 +293,7 @@ class StreamDirConf:
                 duration shorthand (e.g., ``1m23s``) is also accepted. Numeric values are in
                 seconds. Set to ``Auto`` to not inherit from StreamingDataset. Defaults to
                 ``Auto()``.
-            download_max_size (None, str | int | Auto): Maximum size of an individual download, if
+            download_max_size (None | str | int | Auto): Maximum size of an individual download, if
                 any. This is used to prevent over-large shard files from cripping Streaming
                 performance. Set to ``None`` for no size limit. Set to ``str`` to specify the limit
                 using Streaming bytes shorthand. Set to ``int`` to specify bytes. Set to ``Auto``
