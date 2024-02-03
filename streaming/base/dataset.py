@@ -816,7 +816,8 @@ class StreamingDataset(Array, IterableDataset):
             self._resume_shm = SharedMemory(name=name, size=len(data), create=True)
         except FileExistsError:
             # Previous shared memory block exists. Clean it up and make a new one.
-            self._resume_shm.cleanup()
+            prev_shm = SharedMemory(name=name, create=False)
+            prev_shm.cleanup()
             sleep(TICK)
             self._resume_shm = SharedMemory(name=name, size=len(data), create=True)
 
