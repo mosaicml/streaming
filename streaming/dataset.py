@@ -35,7 +35,7 @@ from streaming.sampling import get_sampling
 from streaming.shared import (SharedArray, SharedBarrier, SharedMemory, SharedScalar, _get_path,
                               get_shm_prefix)
 from streaming.spanner import Spanner
-from streaming.stream import Stream
+from streaming.stream.base import Stream
 from streaming.util.shorthand import normalize_bytes, normalize_count
 from streaming.world import World
 

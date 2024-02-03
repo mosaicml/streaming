@@ -8,7 +8,7 @@ from typing import Optional
 from streaming.format.base.file import ShardFile
 from streaming.format.base.shard.base import WriterConf
 from streaming.format.base.shard.row import RowShard
-from streaming.format.base.stream_conf import StreamDirConf
+from streaming.stream.dir_conf import StreamDirConf
 
 __all__ = ['DualRowShard']
 
