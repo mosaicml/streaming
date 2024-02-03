@@ -820,14 +820,17 @@ class StreamingDataset(Array, IterableDataset):
             prev_shm = SharedMemory(name=name, create=False)
             prev_shm_path = prev_shm.shm._name
             print("prev shm path:", prev_shm_path)
-            prev_shm.shm.close()
-            sleep(TICK)
+            #prev_shm.shm.close()
+            #sleep(TICK)
+            #prev_shm.cleanup()
+            #if os.path.exists(prev_shm_path):
+            #    print("PATH EXISTS, UNLINKING!")
+            #    prev_shm.shm.unlink()
+            #    os.remove(prev_shm_path)
+            #sleep(TICK*25)
             prev_shm.cleanup()
             if os.path.exists(prev_shm_path):
-                print("PATH EXISTS, UNLINKING!")
-                prev_shm.shm.unlink()
                 os.remove(prev_shm_path)
-            sleep(TICK*25)
             self._resume_shm = SharedMemory(name=name, size=len(data), create=True)
         print("data is:", data)
         print("length of data:", len(data))
