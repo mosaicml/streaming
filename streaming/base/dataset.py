@@ -822,7 +822,7 @@ class StreamingDataset(Array, IterableDataset):
             self._resume_shm = SharedMemory(name=name, size=len(data), create=True)
         print("data is:", data)
         print("length of data:", len(data))
-        print("size of shm:", self._resume_shm._size)
+        print("size of shm:", self._resume_shm.shm._size)
         self._resume_shm.buf[:len(data)] = data
 
     def resample_streams(
