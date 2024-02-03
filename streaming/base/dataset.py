@@ -821,6 +821,7 @@ class StreamingDataset(Array, IterableDataset):
             print("prev shm path:", prev_shm_path)
             prev_shm.shm.close()
             sleep(TICK)
+            prev_shm.cleanup()
             if os.path.exists(prev_shm_path):
                 print("PATH EXISTS, UNLINKING!")
                 prev_shm.shm.unlink()
