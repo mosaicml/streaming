@@ -19,7 +19,7 @@ class Locality(Enum):
 
     LOCAL = 1
     REMOTE = 2
-    DNE = 3
+    DNE = 3  # Does Not Exist
 
 
 class Phaser:
