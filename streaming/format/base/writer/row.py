@@ -48,7 +48,7 @@ class RowWriter(Writer):
             ``None``.
         hashes (List[str], optional): Optional list of hash algorithms to apply to shard files.
             Defaults to ``None``.
-        size_limit (Union[int, str], optional): Optional shard size limit, after which point
+        size_limit (Union[str, int], optional): Optional shard size limit, after which point
             to start a new shard. If ``None``, puts everything in one shard. Can specify bytes
             human-readable format as well, for example ``"100kb"`` for 100 kilobyte
             (100*1024) and so on. Defaults to ``1 << 26``.
@@ -75,7 +75,7 @@ class RowWriter(Writer):
                  keep_local: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,
-                 size_limit: Optional[Union[int, str]] = 1 << 26,
+                 size_limit: Optional[Union[str, int]] = 1 << 26,
                  extra_bytes_per_shard: int = 0,
                  extra_bytes_per_sample: int = 0,
                  **kwargs: Any) -> None:

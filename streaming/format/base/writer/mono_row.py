@@ -29,8 +29,8 @@ class MonoRowWriter(RowWriter):
             ``None``.
         hashes (List[str], optional): Optional list of hash algorithms to apply to shard files.
             Defaults to ``None``.
-        size_limit (int, optional): Optional shard size limit, after which point to start a new
-            shard. If None, puts everything in one shard. Defaults to ``1 << 26``.
+        size_limit (str | int, optional): Optional shard size limit, after which point to start a
+            new shard. If None, puts everything in one shard. Defaults to ``1 << 26``.
         extra_bytes_per_shard (int): Extra bytes per serialized shard (for computing shard size
             while writing). Defaults to ``0``.
         extra_bytes_per_sample (int): Extra bytes per serialized sample (for computing shard size
@@ -52,7 +52,7 @@ class MonoRowWriter(RowWriter):
                  keep_local: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,
-                 size_limit: Optional[Union[int, str]] = 1 << 26,
+                 size_limit: Optional[Union[str, int]] = 1 << 26,
                  extra_bytes_per_shard: int = 0,
                  extra_bytes_per_sample: int = 0,
                  **kwargs: Any) -> None:
