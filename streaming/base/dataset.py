@@ -812,17 +812,14 @@ class StreamingDataset(Array, IterableDataset):
 
         # Handle cases where `load_state_dict` is called multiple times, meaning that we need
         # to clean up the old shared memory block before creating a new one.
-        # try:
-        #     self._resume_shm = SharedMemory(name=name, size=len(data), create=True)
-        # except FileExistsError:
-        #     # Previous shared memory block exists. Clean it up and make a new one.
-        #     prev_shm = SharedMemory(name=name, create=False)
-        #     prev_shm.cleanup()
-        #     del self._resume_shm
-        #     sleep(TICK)
-            
-        #     self._resume_shm = SharedMemory(name=name, size=len(data))
-        self._resume_shm = SharedMemory(name=name, size=len(data), create=True)
+        try:
+            self._resume_shm = SharedMemory(name=name, size=len(data), create=True)
+        except FileExistsError:
+            # Previous shared memory block exists. Clean it up and make a new one.
+            prev_shm = SharedMemory(name=name, create=False)
+            prev_shm.cleanup()
+            sleep(TICK)
+            self._resume_shm = SharedMemory(name=name, size=len(data))
         self._resume_shm.buf[:len(data)] = data
 
     def resample_streams(
