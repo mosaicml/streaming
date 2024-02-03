@@ -819,7 +819,7 @@ class StreamingDataset(Array, IterableDataset):
             prev_shm = SharedMemory(name=name, create=False)
             prev_shm.cleanup()
             sleep(TICK)
-            self._resume_shm = SharedMemory(name=name, size=len(data))
+            self._resume_shm = SharedMemory(name=name, size=len(data), create=True)
         print("data is:", data)
         print("length of data:", len(data))
         print("size of shm:", self._resume_shm._size)
