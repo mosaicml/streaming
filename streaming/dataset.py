@@ -852,9 +852,10 @@ class StreamingDataset(Array, IterableDataset):
         self._resume_shm.buf[:len(data)] = data
 
     def resample_streams(
-            self,
-            epoch: int,
-            stream_id: Optional[int] = None) -> Tuple[NDArray[np.int64], NDArray[np.int64]]:
+        self,
+        epoch: int,
+        stream_id: Optional[int] = None,
+    ) -> Tuple[NDArray[np.int64], NDArray[np.int64]]:
         """Perform the up/down-sampling needed to generate the weighted epoch.
 
         Args:

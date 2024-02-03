@@ -5,10 +5,10 @@
 
 from typing import Any, Dict
 
+from streaming.format.base.shard.base import Shard
 from streaming.format.index import get_index_basename
 from streaming.format.jsonl import JSONLShard, JSONLWriter
 from streaming.format.mds import MDSShard, MDSWriter
-from streaming.format.shard import Shard
 from streaming.format.xsv import CSVShard, CSVWriter, TSVShard, TSVWriter, XSVShard, XSVWriter
 from streaming.stream.dir_conf import StreamDirConf
 
