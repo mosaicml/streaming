@@ -10,7 +10,6 @@ from typing import Any, List
 import numpy as np
 from numpy.typing import NDArray
 
-from streaming.format import shard_from_json
 from streaming.format.base.shard.base import Shard
 from streaming.storage.extra import smart_download_file
 from streaming.stream.dir_conf import StreamDirConf
@@ -82,6 +81,8 @@ class Stream(StreamDirConf, StreamWeightConf):
         Returns:
             List[Shared]: List of loaded Shards.
         """
+        from streaming.format import shard_from_json
+
         # Read the index file and parse its JSON.
         with open(self.local_index_path) as file:
             self.index = json.load(file)
