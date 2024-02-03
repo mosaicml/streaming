@@ -110,7 +110,7 @@ class ShardFile:
     def locate(self, listing: Set[str]) -> NDArray[np.int64]:
         """Probe the given directory listing for each phase of this file.
 
-        Try to minimize hitting the filesystem for performance resaons.
+        Try to minimize hitting the filesystem for performance reasons.
 
         Args:
             listing (Set[str]): Recursive dataset file listing.

@@ -23,7 +23,7 @@ class ShardFilePhase:
             arguments which are shared across all shards like remote/local paths. Avoids an import
             cycle by Stream subclassing StreamDirConf.
         relative_path (str): Dataset-relative path to file.
-        size  (int, optional): Size, if known in advance. Defaults to ``None``.
+        size (int, optional): Size, if known in advance. Defaults to ``None``.
         hashes (Dict[str, str], optional): Hashes, if known in advance. Defaults to ``None``.
     """
 
