@@ -820,6 +820,9 @@ class StreamingDataset(Array, IterableDataset):
             prev_shm = SharedMemory(name=name, create=False)
             prev_shm_path = prev_shm.shm._name
             print("prev shm path:", prev_shm_path)
+            print("data is:", data)
+            print("length of data:", len(data))
+            print("size of shm:", self._resume_shm.shm.size)
             #prev_shm.shm.close()
             #sleep(TICK)
             #prev_shm.cleanup()
@@ -832,9 +835,6 @@ class StreamingDataset(Array, IterableDataset):
             if os.path.exists(prev_shm_path):
                 os.remove(prev_shm_path)
             self._resume_shm = SharedMemory(name=name, size=len(data))
-        print("data is:", data)
-        print("length of data:", len(data))
-        print("size of shm:", self._resume_shm.shm._size)
         self._resume_shm.buf[:len(data)] = data
 
     def resample_streams(
