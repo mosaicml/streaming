@@ -815,7 +815,7 @@ class StreamingDataset(Array, IterableDataset):
         # Handle cases where `load_state_dict` is called multiple times, meaning that we need
         # to clean up the old shared memory block before creating a new one.
 
-        self._resume_shm = SharedMemory(name=name)
+        self._resume_shm = SharedMemory(name=name, size=len(data))
         shm_len = len(self._resume_shm.buf)
         if shm_len != len(data):
             # We need to make a new shared memory block with the correct size.
