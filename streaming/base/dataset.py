@@ -823,7 +823,7 @@ class StreamingDataset(Array, IterableDataset):
             self._resume_shm.cleanup()
             sleep(5)
             # Create new shared memory block with the correct size.
-            self._resume_shm = SharedMemory(name=name, size=len(data), create=True)
+            self._resume_shm = SharedMemory(name=name, size=len(data))
         # Write the data to the shared memory block.
         self._resume_shm.buf[:len(data)] = data
 
