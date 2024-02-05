@@ -14,6 +14,7 @@ import tempfile
 import urllib.parse
 from collections import OrderedDict
 from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
+from multiprocessing import Pool
 from pathlib import Path
 from time import sleep, time
 from typing import Any, Callable, List, Sequence, Tuple, Type, TypeVar, Union, cast, overload
@@ -253,6 +254,46 @@ def merge_index(*args: Any, **kwargs: Any):
     raise ValueError(f'Invalid arguments to merge_index: {args}, {kwargs}')
 
 
+def _download_url(url_info):
+    """Download a file given URL information."""
+    from streaming.base.storage.download import download_file
+    src, dest, download_timeout = url_info
+    try:
+        download_file(src, dest, download_timeout)
+    except Exception as ex:
+        return f'Failed to download index.json: {src} to {dest}: {str(ex)}', ex
+    return dest, None
+
+def _merge_partition_indices(partition_indices):
+    """Function to be executed by each process to merge a subset of partition indices."""
+    shards = []
+    for partition_index in partition_indices:
+        p = Path(partition_index)
+        with open(partition_index, 'r') as f:
+            obj = json.load(f)
+        for shard in obj['shards']:
+            for key in ('raw_data', 'zip_data', 'raw_meta', 'zip_meta'):
+                if shard.get(key):
+                    basename = shard[key]['basename']
+                    shard[key]['basename'] = os.path.join(os.path.basename(p.parent), basename)
+        shards.extend(obj['shards'])
+    return shards
+
+def _parallel_merge_partitions(partitions, n_processes=4):
+    """Divide the list of partitions among multiple processes and merge them in parallel."""
+    with Pool(processes=n_processes) as pool:
+        # Split the list of partitions into N chunks where N is the number of processes
+        chunk_size = len(partitions) // n_processes + (len(partitions) % n_processes > 0)
+        partition_chunks = [partitions[i:i + chunk_size] for i in range(0, len(partitions), chunk_size)]
+
+        # Process each chunk in parallel
+        results = pool.map(_merge_partition_indices, partition_chunks)
+
+    # Combine the results from all processes
+    final_shards = [shard for result in results for shard in result]
+    return final_shards
+
+
 def _merge_index_from_list(index_file_urls: Sequence[Union[str, Tuple[str, str]]],
                            out: Union[str, Tuple[str, str]],
                            keep_local: bool = True,
@@ -273,7 +314,6 @@ def _merge_index_from_list(index_file_urls: Sequence[Union[str, Tuple[str, str]]
         keep_local (bool): Keep local copy of the merged index file. Defaults to ``True``
         download_timeout (int): The allowed time for downloading each json file. Defaults to 60.
     """
-    from streaming.base.storage.download import download_file
     from streaming.base.storage.upload import CloudUploader
 
     if not index_file_urls or not out:
@@ -297,10 +337,10 @@ def _merge_index_from_list(index_file_urls: Sequence[Union[str, Tuple[str, str]]
 
     # Prepare a temp folder to download index.json from remote if necessary. Removed in the end.
     with tempfile.TemporaryDirectory() as temp_root:
-        logging.warning(f'A temporary folder {temp_root} is created to store index files')
+        logging.info(f'A temporary folder {temp_root} is created to store index files')
 
         # Copy files to a temporary directory. Download if necessary
-        partitions = []
+        download_tasks = []
         for url in urls:
             if isinstance(url, tuple):
                 src = url[0] if os.path.exists(url[0]) else url[1]
@@ -314,30 +354,18 @@ def _merge_index_from_list(index_file_urls: Sequence[Union[str, Tuple[str, str]]
                     f'Check data availability! local index {url[0]} is not accessible.' +
                     f'remote index {url[1]} does not have a valid url format')
             dest = os.path.join(temp_root, path.lstrip('/'))
+            download_tasks.append((src, dest, download_timeout))
 
-            try:
-                download_file(src, dest, download_timeout)
-            except Exception as ex:
-                raise RuntimeError(f'Failed to download index.json: {src} to {dest}') from ex
+        with Pool(processes=os.cpu_count()) as pool:
+            results = pool.map(_download_url, download_tasks)
 
-            if not os.path.exists(dest):
-                raise FileNotFoundError(f'Index file {dest} does not exist or not accessible.')
+        partitions = []
+        for partition_index, error in results:
+            if error:
+                raise RuntimeError(partition_index)
+            partitions.append(partition_index)
 
-            partitions.append(dest)
-
-        # merge shards from all index files
-        shards = []
-        for partition_index in partitions:
-            p = Path(partition_index)
-            obj = json.load(open(partition_index))
-            for i in range(len(obj['shards'])):
-                shard = obj['shards'][i]
-                for key in ('raw_data', 'zip_data', 'raw_meta', 'zip_meta'):
-                    if shard.get(key):
-                        basename = shard[key]['basename']
-                        obj['shards'][i][key]['basename'] = os.path.join(
-                            os.path.basename(p.parent), basename)
-            shards += obj['shards']
+        shards = _parallel_merge_partitions(partitions)
 
         # Save merged index locally
         obj = {
@@ -357,7 +385,6 @@ def _merge_index_from_list(index_file_urls: Sequence[Union[str, Tuple[str, str]]
         # Clean up
         if not keep_local:
             shutil.rmtree(cu.local, ignore_errors=True)
-
 
 def _not_merged_index(index_file_path: str, out: str):
     """Check if index_file_path is the merged index at folder out.
