@@ -824,7 +824,7 @@ class StreamingDataset(Array, IterableDataset):
             print("prev shm path:", shm._name)
             print("data is:", data)
             print("length of data:", len(data))
-            print("size of prev shm:", shm.shm.size)
+            print("size of prev shm:", shm.size)
             shm.close()
             shm.unlink()
             sleep(5)
