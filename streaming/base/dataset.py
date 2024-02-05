@@ -815,23 +815,38 @@ class StreamingDataset(Array, IterableDataset):
         # Handle cases where `load_state_dict` is called multiple times, meaning that we need
         # to clean up the old shared memory block before creating a new one.
 
-        try:
-            # Create new shared memory block if it doesn't exist.
-            self._resume_shm = SharedMemory(name=name, size=len(data), create=True)
-        except FileExistsError:
-            # If it does exist, clean it up and make a new one.
-            shm = BuiltinSharedMemory(name=name, create=False)
-            print("prev shm path:", shm._name)
-            print("data is:", data)
-            print("length of data:", len(data))
-            print("size of prev shm:", shm.size)
-            shm.close()
-            shm.unlink()
+        self._resume_shm = SharedMemory(name=name)
+        shm_len = len(self._resume_shm.buf)
+        if shm_len != len(data):
+            # We need to make a new shared memory block with the correct size.
+            # Clean up old resume state from shared memory.
+            self._resume_shm.cleanup()
             sleep(5)
-            print("creating new shm after deleting old one.")
+            # Create new shared memory block with the correct size.
             self._resume_shm = SharedMemory(name=name, size=len(data), create=True)
         # Write the data to the shared memory block.
         self._resume_shm.buf[:len(data)] = data
+
+        # try:
+        #     # Create new shared memory block if it doesn't exist.
+        #     self._resume_shm = SharedMemory(name=name, size=len(data), create=True)
+        # except FileExistsError:
+        #     # If it does exist, clean it up and make a new one.
+        #     shm = BuiltinSharedMemory(name=name, create=False)
+        #     print("prev shm path:", shm._name)
+        #     print("data is:", data)
+        #     print("length of data:", len(data))
+        #     print("size of prev shm:", shm.size)
+        #     shm.close()
+        #     shm.unlink()
+        #     sleep(5)
+        #     print("creating new shm after deleting old one.")
+        #     try:
+        #         self._resume_shm = SharedMemory(name=name, size=len(data), create=True)
+        #     except FileExistsError:
+        #         print("new shm has been created by different rank. don't worry!")
+        # # Write the data to the shared memory block.
+        # self._resume_shm.buf[:len(data)] = data
 
     def resample_streams(
             self,
