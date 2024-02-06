@@ -133,16 +133,16 @@ class ShardFile:
             listing (Set[str]): Recursive dataset file listing.
 
         Returns:
-            int: Disk usage.
+            int: Cache usage.
         """
         # Collect this file's current cache usage, and the locality of each of its phases.
         phase_locs = []
-        du = 0
+        cache_usage = 0
         for phase in self.phases:
             if phase:
-                phase_du = phase.inventory_local(listing)
-                if phase_du:
-                    du += phase_du
+                phase_cache_usage = phase.inventory_local(listing)
+                if phase_cache_usage:
+                    cache_usage += phase_cache_usage
                     phase_loc = Locality.LOCAL
                 else:
                     phase_loc = Locality.REMOTE
@@ -155,16 +155,16 @@ class ShardFile:
         phase_dels = self.stream.safe_keep_phases.get_phase_deletions(phase_locs)
 
         # Apply any evictions.
-        du += self.evict_phases(phase_dels)
+        cache_usage += self.evict_phases(phase_dels)
 
-        # Finally, return our local dir usage after evictions.
-        return du
+        # Finally, return our local dir cache usage for this file after evictions.
+        return cache_usage
 
     def _unzip(self) -> int:
         """Decompress zip phase, resulting in raw phase, maybe deleting zip phase.
 
         Returns:
-            int: Delta disk usage, in bytes.
+            int: Change in cache usage, in bytes.
         """
         if not self.zip_phase:
             raise RuntimeError('Wanted to unzip a shard, but required metadata is missing.')
@@ -210,7 +210,7 @@ class ShardFile:
         """Canonicalize raw phase, resulting in can phase, maybe deleting raw phase.
 
         Returns:
-            int: Delta disk usage, in bytes.
+            int: Change in cache usage, in bytes.
         """
         if not self.can_algo or not self.can_phase:
             raise RuntimeError('Wanted to canonicalize a shard, but required metadata is missing.')
@@ -245,58 +245,58 @@ class ShardFile:
         """Sub-method to prepare up to the regular phase of this file.
 
         Returns:
-            int: Delta disk usage, in bytes.
+            int: Change in cache usage, in bytes.
         """
         if self.raw_phase.is_local():
-            ddu = 0
+            cache_usage_change = 0
         else:
             if self.zip_phase:
                 if self.zip_phase.is_local():
-                    ddu = self._unzip()
+                    cache_usage_change = self._unzip()
                 else:
-                    ddu = self.zip_phase.download() + self._unzip()
+                    cache_usage_change = self.zip_phase.download() + self._unzip()
             else:
-                ddu = self.raw_phase.download()
-        return ddu
+                cache_usage_change = self.raw_phase.download()
+        return cache_usage_change
 
     def fetch(self) -> int:
         """Download and/or unzip and/or canonicalize this file to being ready for use.
 
         Returns:
-            int: Delta disk usage, in bytes.
+            int: Change in cache usage, in bytes.
         """
         if self.can_phase:
             if self.can_phase.is_local():
-                ddu = 0
+                cache_usage_change = 0
             else:
-                ddu = self._load_raw() + self._canonicalize()
+                cache_usage_change = self._load_raw() + self._canonicalize()
         else:
-            ddu = self._load_raw()
-        return ddu
+            cache_usage_change = self._load_raw()
+        return cache_usage_change
 
     def evict(self) -> int:
         """Delete all phases of this file.
 
         Returns:
-            int: Delta disk usage, in bytes.
+            int: Change in cache usage, in bytes.
         """
-        ddu = 0
+        cache_usage_change = 0
         for phase in self.phases:
             if phase:
-                ddu += phase.evict()
-        return ddu
+                cache_usage_change += phase.evict()
+        return cache_usage_change
 
     def evict_phases(self, phase_dels: NDArray[np.int64]) -> int:
         """Delete specified phases of this file.
 
         Returns:
-            int: Delta disk usage, in bytes.
+            int: Change in cache usage, in bytes.
         """
-        ddu = 0
+        cache_usage_change = 0
         for phase, phase_del in zip(self.phases, phase_dels):
             if phase_del:
                 if not phase:
                     raise RuntimeError('Internal error: attempted to evict a phase that is not ' +
                                        'valid.')
-                ddu += phase.evict()
-        return ddu
+                cache_usage_change += phase.evict()
+        return cache_usage_change

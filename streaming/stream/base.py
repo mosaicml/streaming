@@ -93,7 +93,7 @@ class Stream(StreamDirConf, StreamWeightConf):
 
         return self.shards
 
-    def inventory_local(self, du_per_shard: NDArray[np.int64]) -> None:
+    def inventory_local(self, cache_usage_per_shard: NDArray[np.int64]) -> None:
         """Bring this Stream's local directory into a consistent state, tallying disk usage.
 
         We list all the files under the local dir up front for performance reasons, to avoid
@@ -101,7 +101,7 @@ class Stream(StreamDirConf, StreamWeightConf):
         by files per shard, multiplied by phases of files present.
 
         Args:
-            du_per_shard (NDArray[np.int64]): Disk usage per shard of this Stream.
+            cache_usage_per_shard (NDArray[np.int64]): Disk usage per shard of this Stream.
         """
         local_dir = os.path.join(self.local, self.split or '')
         listing = set()
@@ -111,4 +111,4 @@ class Stream(StreamDirConf, StreamWeightConf):
                 listing.add(filename)
 
         for idx, shard in enumerate(self.shards):
-            du_per_shard[idx] = shard.inventory_local(listing)
+            cache_usage_per_shard[idx] = shard.inventory_local(listing)

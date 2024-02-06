@@ -99,37 +99,37 @@ class Shard(Array):
         Returns:
             Optional[int]: Cache usage if present, or None if not present, after normalization.
         """
-        du = 0
+        cache_usage = 0
         for file in self.files:
-            file_du = file.inventory_local(listing)
-            if file_du is None:
+            file_cache_usage = file.inventory_local(listing)
+            if file_cache_usage is None:
                 self.evict()
-                du = 0
+                cache_usage = 0
                 break
-            du += file_du
-        return du
+            cache_usage += file_cache_usage
+        return cache_usage
 
     def fetch(self) -> int:
         """Download and/or unzip and/or canonicalize this shard to being ready for use.
 
         Returns:
-            int: Delta disk usage, in bytes.
+            int: Change in cache usage, in bytes.
         """
-        ddu = 0
+        cache_usage_change = 0
         for file in self.files:
-            ddu += file.fetch()
-        return ddu
+            cache_usage_change += file.fetch()
+        return cache_usage_change
 
     def evict(self) -> int:
         """Delete all of this shard's files in any of their phases.
 
         Returns:
-            int: Delta disk usage, in bytes.
+            int: Change in cache usage, in bytes.
         """
-        ddu = 0
+        cache_usage_change = 0
         for file in self.files:
-            ddu += file.evict()
-        return ddu
+            cache_usage_change += file.evict()
+        return cache_usage_change
 
     @property
     def size(self) -> int:

@@ -198,7 +198,7 @@ class ShardFilePhase:
         """Download this phase.
 
         Returns:
-            int: Delta disk usage, in bytes.
+            int: Change in cache usage, in bytes.
         """
         # Verify there is a remote to download from.
         if self.stream.remote in {None, self.stream.local}:
@@ -226,14 +226,14 @@ class ShardFilePhase:
         """Delete this phase.
 
         Returns:
-            int: Delta disk usage, in bytes.
+            int: Change in cache usage, in bytes.
         """
-        ddu = 0
+        cache_usage_change = 0
         filename = self.get_local_filename()
         if os.path.isfile(filename):
-            ddu -= os.stat(filename).st_size
+            cache_usage_change -= os.stat(filename).st_size
             os.remove(filename)
         elif os.path.exists(filename):
             rmtree(filename)
         self.size = None
-        return ddu
+        return cache_usage_change
