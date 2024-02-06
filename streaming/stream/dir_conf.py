@@ -4,10 +4,10 @@
 """Configures a Stream directory."""
 
 import os
-from collections.abc import Sequence
+from collections.abc import Sequence as SequenceClass
 from hashlib import blake2s
 from tempfile import gettempdir
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from streaming.format.base.phaser import Phaser
 from streaming.util.auto import Auto
@@ -109,10 +109,10 @@ def _get_phaser(arg: Union[None, str, Sequence[str], Dict[str, Optional[bool]], 
         return Phaser()
     elif isinstance(arg, str):
         return Phaser(**{arg: True})
-    elif isinstance(arg, Sequence):
-        return Phaser(**dict(zip(arg, [True] * len(arg))))
     elif isinstance(arg, dict):
         return Phaser(**arg)
+    elif isinstance(arg, SequenceClass):
+        return Phaser(**dict(zip(arg, [True] * len(arg))))
     else:
         return arg
 
