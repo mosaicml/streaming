@@ -10,6 +10,7 @@ from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
 from typing import List, Optional, Sequence, Tuple, Union
 
 import pytest
+from unittest.mock import MagicMock
 
 from streaming.base.constant import RESUME
 from streaming.base.shared.prefix import _get_path
@@ -193,12 +194,69 @@ def test_format_remote_index_files(scheme: str):
         obj = urllib.parse.urlparse(file)
         assert obj.scheme == scheme
 
+@pytest.mark.parametrize('cpu_count', [0, 1,4,2000])
+def test_merge_index_from_list_local_cpucount(local_remote_dir: Tuple[str, str], cpu_count: int):
+    """Validate the multiprocessing setting"""
+    import random
+    import string
+    from pyspark.sql import SparkSession
+    from streaming.base.converters import dataframeToMDS
 
-@pytest.mark.parametrize('index_file_urls_pattern', [1])  # , 2, 3])
-@pytest.mark.parametrize('keep_local', [True])  # , False])
-@pytest.mark.parametrize('scheme', ['gs://'])  # , 's3://', 'oci://'])
+    def not_merged_index(index_file_path: str, out: str):
+        """Check if index_file_path is the merged index at folder out."""
+        prefix = str(urllib.parse.urlparse(out).path)
+        return os.path.dirname(index_file_path).strip('/') != prefix.strip('/')
+
+    keep_local = True
+
+    local, _ = local_remote_dir
+
+    mds_out = out = local
+
+    os.cpu_count = MagicMock()
+    os.cpu_count.return_value = cpu_count
+
+    spark = SparkSession.builder.getOrCreate()  # pyright: ignore
+
+    def random_string(length: int = 1000):
+        """Generate a random string of fixed length."""
+        letters = string.ascii_letters + string.digits + string.punctuation + ' '
+        return ''.join(random.choice(letters) for _ in range(length))
+
+    # Generate a DataFrame with 10000 rows of random text
+    num_rows = 100
+    data = [(i, random_string(), random_string()) for i in range(num_rows)]
+    df = spark.createDataFrame(data, ['id', 'name', 'amount'])
+
+    mds_kwargs = {'out': mds_out, 'columns': {'id': 'int64', 'name': 'str'}, 'keep_local': True}
+    dataframeToMDS(df, merge_index=False, mds_kwargs=mds_kwargs)
+
+    local_cu = CloudUploader.get(local, exist_ok=True, keep_local=True)
+    local_index_files = [
+        o for o in local_cu.list_objects() if o.endswith('.json') and not_merged_index(o, local)
+    ]
+
+    merge_index(local_index_files, out, keep_local=keep_local)
+
+    d1 = json.load(open(os.path.join(out, 'index.json')))
+
+    _merge_index_from_list_serial(local_index_files, out, keep_local=keep_local)
+    d2 = json.load(open(os.path.join(out, 'index.json')))
+
+    print('d1 = ', d1)
+    print('d2 = ', d2)
+
+    assert len(d1['shards']) == len(d2['shards']), 'parallel and serial results different'
+    assert d1['shards'] == d2['shards'], 'parallel and serial results different'
+
+
+
+@pytest.mark.parametrize('cpu_count', [1,4,2000])
+@pytest.mark.parametrize('index_file_urls_pattern', [1, 2, 3])
+@pytest.mark.parametrize('keep_local', [True, False])
+@pytest.mark.parametrize('scheme', ['gs://', 's3://', 'oci://'])
 def test_merge_index_from_list_local(local_remote_dir: Tuple[str, str], keep_local: bool,
-                                     index_file_urls_pattern: int, scheme: str):
+                                     index_file_urls_pattern: int, scheme: str, cpu_count: int):
     """Validate the final merge index json for following patterns of index_file_urls:
     1. All URLs are str (local). All URLs are accessible locally -> no download
     2. All URLs are str (local). At least one url is unaccessible locally -> Error
@@ -224,7 +282,7 @@ def test_merge_index_from_list_local(local_remote_dir: Tuple[str, str], keep_loc
 
     spark = SparkSession.builder.getOrCreate()  # pyright: ignore
 
-    def random_string(length=1000):
+    def random_string(length: int = 1000):
         """Generate a random string of fixed length."""
         letters = string.ascii_letters + string.digits + string.punctuation + ' '
         return ''.join(random.choice(letters) for _ in range(length))
@@ -244,16 +302,18 @@ def test_merge_index_from_list_local(local_remote_dir: Tuple[str, str], keep_loc
 
     if index_file_urls_pattern == 1:
         merge_index(local_index_files, out, keep_local=keep_local)
-        d1 = json.load(open(os.path.join(out, 'index.json')))
 
-        _merge_index_from_list_serial(local_index_files, out, keep_local=keep_local)
-        d2 = json.load(open(os.path.join(out, 'index.json')))
+        if keep_local:
+            d1 = json.load(open(os.path.join(out, 'index.json')))
 
-        print('d1 = ', d1)
-        print('d2 = ', d2)
+            _merge_index_from_list_serial(local_index_files, out, keep_local=keep_local)
+            d2 = json.load(open(os.path.join(out, 'index.json')))
 
-        assert len(d1['shards']) == len(d2['shards']), 'parallel and serial results different'
-        assert d1['shards'] == d2['shards'], 'parallel and serial results different'
+            print('d1 = ', d1)
+            print('d2 = ', d2)
+
+            assert len(d1['shards']) == len(d2['shards']), 'parallel and serial results different'
+            assert d1['shards'] == d2['shards'], 'parallel and serial results different'
 
     if index_file_urls_pattern == 2:
         with tempfile.TemporaryDirectory() as a_temporary_folder:
@@ -424,7 +484,7 @@ def _merge_index_from_list_serial(index_file_urls: Sequence[Union[str, Tuple[str
 
         # Move merged index from temp path to local part in out
         # Upload merged index to remote if out has remote part
-        shutil.move(merged_index_path, cu.local)
+        shutil.move(merged_index_path, os.path.join(cu.local, index_basename))
         if cu.remote is not None:
             cu.upload_file(index_basename)
 

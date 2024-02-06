@@ -17,7 +17,8 @@ from multiprocessing import Pool
 from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
 from pathlib import Path
 from time import sleep, time
-from typing import Any, Callable, List, Sequence, Tuple, Type, TypeVar, Union, cast, overload
+from typing import (Any, Callable, List, Optional, Sequence, Tuple, Type, TypeVar, Union, cast,
+                    overload)
 
 import torch.distributed as dist
 
@@ -254,7 +255,7 @@ def merge_index(*args: Any, **kwargs: Any):
     raise ValueError(f'Invalid arguments to merge_index: {args}, {kwargs}')
 
 
-def _download_url(url_info):
+def _download_url(url_info: Tuple[str, str, int]):
     """Download a file given URL information."""
     from streaming.base.storage.download import download_file
     src, dest, download_timeout = url_info
@@ -265,7 +266,7 @@ def _download_url(url_info):
     return dest, None
 
 
-def _merge_partition_indices(partition_indices):
+def _merge_partition_indices(partition_indices: List[str]):
     """Function to be executed by each process to merge a subset of partition indices."""
     shards = []
     for partition_index in partition_indices:
@@ -281,7 +282,7 @@ def _merge_partition_indices(partition_indices):
     return shards
 
 
-def _parallel_merge_partitions(partitions, n_processes=4):
+def _parallel_merge_partitions(partitions: List[str], n_processes: Optional[int] = 1):
     """Divide the list of partitions among multiple processes and merge them in parallel."""
     with Pool(processes=n_processes) as pool:
         # Split the list of partitions into N chunks where N is the number of processes
@@ -301,7 +302,8 @@ def _parallel_merge_partitions(partitions, n_processes=4):
 def _merge_index_from_list(index_file_urls: Sequence[Union[str, Tuple[str, str]]],
                            out: Union[str, Tuple[str, str]],
                            keep_local: bool = True,
-                           download_timeout: int = 60) -> None:
+                           download_timeout: int = 60,
+                           n_processes: int = 8) -> None:
     """Merge index.json from a list of index files of MDS directories to create joined index.
 
     Args:
@@ -317,6 +319,7 @@ def _merge_index_from_list(index_file_urls: Sequence[Union[str, Tuple[str, str]]
         out (Union[str, Tuple[str, str]]): path to put the merged index file
         keep_local (bool): Keep local copy of the merged index file. Defaults to ``True``
         download_timeout (int): The allowed time for downloading each json file. Defaults to 60.
+        n_processes (int): The number of cores to run the function in parallel
     """
     from streaming.base.storage.upload import CloudUploader
 
@@ -339,6 +342,8 @@ def _merge_index_from_list(index_file_urls: Sequence[Union[str, Tuple[str, str]]
         else:
             urls.append((url[0].rstrip('/').strip(), url[1].rstrip('/').strip()))
 
+    n_processes = n_processes if (n_processes is not None and 1 <= n_processes <= os.cpu_count()) else 1
+
     # Prepare a temp folder to download index.json from remote if necessary. Removed in the end.
     with tempfile.TemporaryDirectory() as temp_root:
         logging.info(f'A temporary folder {temp_root} is created to store index files')
@@ -360,7 +365,7 @@ def _merge_index_from_list(index_file_urls: Sequence[Union[str, Tuple[str, str]]
             dest = os.path.join(temp_root, path.lstrip('/'))
             download_tasks.append((src, dest, download_timeout))
 
-        with Pool(processes=os.cpu_count()) as pool:
+        with Pool(processes=n_processes) as pool:
             results = pool.map(_download_url, download_tasks)
 
         partitions = []
@@ -369,7 +374,7 @@ def _merge_index_from_list(index_file_urls: Sequence[Union[str, Tuple[str, str]]
                 raise RuntimeError(partition_index)
             partitions.append(partition_index)
 
-        shards = _parallel_merge_partitions(partitions)
+        shards = _parallel_merge_partitions(partitions, n_processes)
 
         # Save merged index locally
         obj = {
@@ -466,18 +471,21 @@ def _merge_index_from_root(out: Union[str, Tuple[str, str]],
             _merge_index_from_list(list(zip(local_index_files, remote_index_files)),
                                    out,
                                    keep_local=keep_local,
-                                   download_timeout=download_timeout)
+                                   download_timeout=download_timeout,
+                                   n_processes = os.cpu_count())
         else:
             _merge_index_from_list(remote_index_files,
                                    out,
                                    keep_local=keep_local,
-                                   download_timeout=download_timeout)
+                                   download_timeout=download_timeout,
+                                   n_processes = os.cpu_count())
         return
 
     _merge_index_from_list(local_index_files,
                            out,
                            keep_local=keep_local,
-                           download_timeout=download_timeout)
+                           download_timeout=download_timeout,
+                           n_processes = os.cpu_count())
 
 
 @overload
