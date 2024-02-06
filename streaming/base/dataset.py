@@ -813,7 +813,7 @@ class StreamingDataset(Array, IterableDataset):
         # and replacing it with a new one is causing great difficulties.
 
         name = _get_path(self._shm_prefix_int, RESUME)
-        data = json.dumps(obj, sort_keys=True).encode('utf-8')
+        data = json.dumps(obj, sort_keys=True)
 
         len_needed = len(data)
         if len_needed > RESUME_SHM_SIZE:
@@ -824,11 +824,12 @@ class StreamingDataset(Array, IterableDataset):
         # size, hence the exact size of the shared memory block that was returned may be larger
         # than what was requested.
         self._resume_shm = SharedMemory(name=name, size=RESUME_SHM_SIZE)
-        self._resume_shm.buf[:len(data)] = data
         # Write a null byte at the end of the shared memory block so that we read in the state
         # dict correctly in `_resume`.
-        self._resume_shm.buf[len(data)] = '\0'.encode('utf-8')
-
+        data += '\0'
+        data = data.encode('utf-8')
+        self._resume_shm.buf[:len(data)] = data
+        
     def resample_streams(
             self,
             epoch: int,
