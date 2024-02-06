@@ -33,7 +33,7 @@ class Stream(StreamDirConf, StreamWeightConf):
     ) -> None:
         StreamDirConf.__init__(self, **kwargs)
         StreamWeightConf.__init__(self, **kwargs)
-        self.got_index_size: int
+        self.index_size: int
         self.index: JSONDict
         self.shards: List[Shard]
 
@@ -47,15 +47,12 @@ class Stream(StreamDirConf, StreamWeightConf):
             ThreadPoolExecutor.
           * It doesn't redownload if it already exists, but it still checks size/hashes.
         """
-        self.got_index_size = smart_download_file(
+        self.index_size = smart_download_file(
             remote=self.remote_index_path,
             local=self.local_index_path,
             timeout=self.download_timeout,
             retry=self.download_retry,
-            size=self.index_size,
             max_size=self.download_max_size,
-            hashes=self.index_hashes,
-            check_hashes=self.check_hashes,
         )
 
     def await_index(self) -> None:

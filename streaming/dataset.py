@@ -193,8 +193,6 @@ class StreamingDataset(Array, IterableDataset):
           * Stream arguments (used as defaults if explicit streams, or as args if implicit stream):
               * Filesystem:
                   * ``split``
-                  * ``index_size``
-                  * ``index_hashes``
               * Schema:
                   * ``allow_schema_mismatch``
                   * ``allow_unsafe_types``
@@ -244,9 +242,6 @@ class StreamingDataset(Array, IterableDataset):
         local (str, optional): Local working directory to stream the dataset to. Uses a
             deterministically-calculated temp directory if not set. Defaults to ``None``.
         split (str, optional): Which dataset split sub-path to use, if any. Defaults to ``None``.
-        index_size (str | int, optional): Expected index size in bytes. Defaults to ``None``.
-        index_hashes (Dict[str, str], optional): Available index hashes. This is a mapping of hash
-            algo name to expected hex digest. Defaults to ``None``.
         allow_schema_mismatch (bool): If ``True``, continue if schemas mismatch across
             shards, streams, or the whole dataset. If ``False``, raises if schemas mismatch.
             Defaults to ``False``.
@@ -336,8 +331,6 @@ class StreamingDataset(Array, IterableDataset):
         remote: Optional[str] = None,
         local: Optional[str] = None,
         split: Optional[str] = None,
-        index_size: Optional[Union[str, int]] = None,
-        index_hashes: Optional[Dict[str, str]] = None,
         allow_schema_mismatch: bool = False,
         allow_unsafe_types: bool = False,
         allow_unchecked_resumption: bool = True,
@@ -456,8 +449,6 @@ class StreamingDataset(Array, IterableDataset):
                 remote=remote,
                 local=local,
                 split=split,
-                index_size=index_size,
-                index_hashes=index_hashes,
                 allow_schema_mismatch=allow_schema_mismatch,
                 allow_unsafe_types=allow_unsafe_types,
                 allow_unchecked_resumption=allow_unchecked_resumption,
@@ -531,7 +522,7 @@ class StreamingDataset(Array, IterableDataset):
         # Check that cache limit is possible.
         if cache_limit:
             self.cache_limit = normalize_bytes(cache_limit)
-            min_cache_usage = sum((stream.got_index_size for stream in streams))
+            min_cache_usage = sum((stream.index_size for stream in streams))
             if self.cache_limit <= min_cache_usage:
                 raise ValueError(f'Minimum cache usage ({min_cache_usage} bytes) is larger than ' +
                                  f'the cache limit ({self.cache_limit} bytes). Please raise ' +
@@ -620,7 +611,7 @@ class StreamingDataset(Array, IterableDataset):
             # Get cache usage due to streams.
             self.cache_usage = 0
             for stream in self.streams:
-                self.cache_usage += stream.got_index_size
+                self.cache_usage += stream.index_size
 
             # Get cache usage due to shards.
             cache_usage_per_shard = np.zeros(self.num_shards, np.int64)

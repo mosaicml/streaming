@@ -139,9 +139,6 @@ class StreamDirConf:
             deterministically-calculated temp directory if not set. Defaults to ``None``.
         split (str | Auto, optional): Which dataset split sub-path to use, if any. Set to ``Auto``
             to inherit from StreamingDataset. Defaults to ``Auto()``.
-        index_size (None | str | int): Expected index size in bytes. Defaults to ``None``.
-        index_hashes (Dict[str, str], optional): Available index hashes. This is a mapping of hash
-            algo name to expected hex digest. Defaults to ``None``.
         allow_schema_mismatch (bool | Auto): If ``True``, continue if schemas mismatch across
             shards, streams, or the whole dataset. If ``False``, raises if schemas mismatch. Set to
             ``Auto`` to inherit from StreamingDataset. Defaults to ``Auto()``.
@@ -183,8 +180,6 @@ class StreamDirConf:
         remote: Optional[str] = None,
         local: Optional[str] = None,
         split: Union[None, str, Auto] = Auto(),
-        index_size: Union[None, str, int] = None,
-        index_hashes: Optional[Dict[str, str]] = None,
         allow_schema_mismatch: Union[bool, Auto] = Auto(),
         allow_unsafe_types: Union[bool, Auto] = Auto(),
         allow_unchecked_resumption: Union[bool, Auto] = Auto(),
@@ -222,10 +217,6 @@ class StreamDirConf:
         if hasattr(self, 'local') and hasattr(self, 'split'):
             self.local_index_path = os.path.join(self.local, self.split or '',
                                                  self.index_relative_path)
-
-        # 4. Maybe set index size and hashes.
-        self.index_size = _get_count(index_size)
-        self.index_hashes = index_hashes or {}
 
         # 5. Maybe override init args.
         if not isinstance(allow_schema_mismatch, Auto):
