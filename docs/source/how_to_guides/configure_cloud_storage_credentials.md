@@ -106,6 +106,27 @@ export S3_ENDPOINT_URL='https://<accountid>.r2.cloudflarestorage.com'
 ```
 ````
 
+One can also set credentials through environment variables. For example, with Backblaze:
+
+```{note}
+Your endpoint url is 'https://s3.<your region>.backblazeb2.com'. The account ID can be retrieved through your [Backblaze console](https://secure.backblaze.com/b2_buckets.htm).
+```
+
+````{tabs}
+```{code-tab} py
+import os
+os.environ['S3_ENDPOINT_URL'] = 'https://s3.<your region>.backblazeb2.com'
+os.environ["AWS_ACCESS_KEY_ID"] = '<Backblaze key ID>'
+os.environ["AWS_SECRET_ACCESS_KEY"] = '<Backblaze application key>'
+```
+
+```{code-tab} sh
+export S3_ENDPOINT_URL='https://s3.<your region>.backblazeb2.com'
+export AWS_ACCESS_KEY_ID='<Backblaze key ID>'
+export AWS_SECRET_ACCESS_KEY='<Backblaze application key>'
+```
+````
+
 ## Google Cloud Storage
 
 ### MosaicML platform
