@@ -3,22 +3,20 @@
 
 """A non-streaming pytorch map Dataset."""
 
-import json
-import os
 from typing import Any, Dict, Optional
 
 import numpy as np
 from torch.utils.data import Dataset
 
 from streaming.array import Array
-from streaming.format import get_index_basename, shard_from_json
 from streaming.spanner import Spanner
+from streaming.stream.base import Stream
 
 __all__ = ['LocalDataset']
 
 
 class LocalDataset(Array, Dataset):
-    """A streaming dataset whose shards reside locally as a pytorch Dataset.
+    """A streaming dataset whose shards reside locally as a PyTorch Dataset.
 
     Args:
         local (str): Local dataset directory where shards are cached by split.
@@ -26,25 +24,12 @@ class LocalDataset(Array, Dataset):
     """
 
     def __init__(self, local: str, split: Optional[str] = None):
-        split = split or ''
-
-        self.local = local
-        self.split = split
-
-        filename = os.path.join(local, split, get_index_basename())  # pyright: ignore
-        obj = json.load(open(filename))
-        if obj['version'] != 2:
-            raise ValueError(f'Unsupported streaming data version: {obj["version"]}. ' +
-                             f'Expected version 2.')
-
-        self.shards = []
-        for info in obj['shards']:
-            shard = shard_from_json(local, split, info)
-            self.shards.append(shard)
-        self.num_samples = sum([shard.samples for shard in self.shards])
-
-        shard_sizes = np.array([x.samples for x in self.shards])
+        self.stream = Stream(local=local, split=split)
+        self.stream.download_index()
+        self.shards = self.stream.load_index()
+        shard_sizes = np.array([shard.num_samples for shard in self.stream.shards], np.int64)
         self.spanner = Spanner(shard_sizes)
+        self.num_samples = sum(shard_sizes)
 
     def __len__(self) -> int:
         """Get the length as a PyTorch Dataset.
