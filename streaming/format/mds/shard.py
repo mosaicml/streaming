@@ -13,7 +13,6 @@ from typing_extensions import Self
 
 from streaming.format.base.file import ShardFile
 from streaming.format.base.phase import ShardFilePhase
-from streaming.format.base.shard.base import WriterConf
 from streaming.format.base.shard.mono_row import MonoRowShard
 from streaming.format.mds.encodings import is_mds_encoding_safe, mds_decode
 from streaming.stream.dir_conf import StreamDirConf
@@ -31,19 +30,29 @@ class MDSColumn:
 
 
 class MDSShard(MonoRowShard):
-    """An MDS shard."""
+    """An MDS shard.
+
+    Args:
+        conf (Any, optional): JSON shard config. Defaults to ``None``.
+        stream (StreamDirConf): Link back up to the Stream that owns this shard, from which we
+            get arguments which are shared across all shards like remote/local paths. Avoids an
+            import cycle by Stream subclassing StreamDirConf.
+        num_samples (int): Number of samples in this shard.
+        file (ShardFile): The file containing shard data and metadata.
+        columns (List[MDSColumn]): Column metadata.
+    """
 
     def __init__(
         self,
         *,
-        writer_conf: Optional[WriterConf] = None,
+        conf: Any,
         stream: StreamDirConf,
         num_samples: int,
         file: ShardFile,
         columns: List[MDSColumn],
     ) -> None:
         super().__init__(
-            writer_conf=writer_conf,
+            conf=conf,
             stream=stream,
             num_samples=num_samples,
             file=file,
@@ -61,35 +70,23 @@ class MDSShard(MonoRowShard):
         Returns:
             Self: The loaded MDS shard object.
         """
-        writer_conf = WriterConf(
-            compression=obj.get('compression'),
-            hashes=obj.get('hashes') or [],
-            size_limit=obj.get('size_limit'),
-        )
-
         num_samples = obj['num_samples']
-
         zip_obj = obj.get('zip_data')
         zip_phase = ShardFilePhase.from_json(stream, zip_obj) if zip_obj else None
-
         zip_algo = obj.get('compression')
-
         raw_phase = ShardFilePhase.from_json(stream, obj['raw_data'])
-
         file = ShardFile(
             stream=stream,
             zip_phase=zip_phase,
             zip_algo=zip_algo,
             raw_phase=raw_phase,
         )
-
         names = obj['column_names']
         encodings = obj['column_encodings']
         sizes = obj['column_sizes']
         columns = [MDSColumn(*args) for args in zip(names, encodings, sizes)]
-
         return cls(
-            writer_conf=writer_conf,
+            conf=obj,
             stream=stream,
             num_samples=num_samples,
             file=file,
@@ -144,8 +141,7 @@ class MDSShard(MonoRowShard):
         Returns:
             bytes: Sample data.
         """
-        filename = os.path.join(self.stream.local, self.stream.split or '',
-                                self.file.raw_phase.relative_path)
+        filename = self.file.raw_phase.get_local_filename()
 
         def get_err(fp: IO[bytes], msg_txt: str) -> ValueError:
             chk = self._analyze(fp)

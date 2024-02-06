@@ -4,32 +4,22 @@
 """Streaming shard abstract base classes."""
 
 from abc import abstractmethod
-from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Set
 
 from typing_extensions import Self
 
 from streaming.array import Array
+from streaming.format.base.file import ShardFile
 from streaming.stream.dir_conf import StreamDirConf
 
 __all__ = ['Shard']
-
-
-@dataclass
-class WriterConf:
-    """Writer arguments when writing the shard, for informational purposes."""
-
-    compression: Optional[str]
-    hashes: List[str]
-    size_limit: Optional[int]
 
 
 class Shard(Array):
     """Streaming shard abstract base class.
 
     Args:
-        writer_conf (WriterConf, optional): Keyword arguments used when writing this shard.
-            This metadata is kept just for informational purposes. Defaults to ``None``.
+        conf (Any, optional): JSON shard config. Defaults to ``None``.
         stream (StreamDirConf): Link back up to the Stream that owns this shard, from which we
             get arguments which are shared across all shards like remote/local paths. Avoids an
             import cycle by Stream subclassing StreamDirConf.
@@ -39,14 +29,15 @@ class Shard(Array):
     def __init__(
         self,
         *,
-        writer_conf: Optional[WriterConf] = None,
+        conf: Optional[Any] = None,
         stream: StreamDirConf,
         num_samples: int,
+        files: List[ShardFile],
     ) -> None:
-        self.writer_conf = writer_conf
+        self.conf = conf
         self.stream = stream
         self.num_samples = num_samples
-        self.files = []
+        self.files = files
 
     @classmethod
     @abstractmethod

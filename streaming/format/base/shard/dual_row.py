@@ -3,10 +3,9 @@
 
 """Streaming shard abstract base classes."""
 
-from typing import Optional
+from typing import Any, Optional
 
 from streaming.format.base.file import ShardFile
-from streaming.format.base.shard.base import WriterConf
 from streaming.format.base.shard.row import RowShard
 from streaming.stream.dir_conf import StreamDirConf
 
@@ -17,8 +16,7 @@ class DualRowShard(RowShard):
     """A RowShard that is stored as a pair of data and metadata files.
 
     Args:
-        writer_conf (WriterConf, optional): Keyword arguments used when writing this shard.
-            This metadata is kept just for informational purposes. Defaults to ``None``.
+        conf (Any, optional): JSON shard config. Defaults to ``None``.
         stream (StreamDirConf): Link back up to the Stream that owns this shard, from which
             we get arguments which are shared across all shards like remote/local paths. Optional
             to avoid a chicken and egg problem, but required by most methods. Defaults to ``None``.
@@ -30,17 +28,17 @@ class DualRowShard(RowShard):
     def __init__(
         self,
         *,
-        writer_conf: Optional[WriterConf] = None,
+        conf: Optional[Any] = None,
         stream: StreamDirConf,
         num_samples: int,
         data_file: ShardFile,
         meta_file: ShardFile,
     ) -> None:
         super().__init__(
-            writer_conf=writer_conf,
+            conf=conf,
             stream=stream,
             num_samples=num_samples,
+            files=[data_file, meta_file],
         )
-        self.files += [data_file, meta_file]
         self.data_file = data_file
         self.meta_file = meta_file
