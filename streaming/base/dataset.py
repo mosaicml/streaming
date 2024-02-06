@@ -828,7 +828,7 @@ class StreamingDataset(Array, IterableDataset):
                 self._resume_shm = SharedMemory(name=name, size=len(data), create=True)
             except FileExistsError:
                 sleep(5)
-                self._resume_shm = SharedMemory(name=name, size=len(data), create=True)
+                self._resume_shm = SharedMemory(name=name, size=len(data))
             sleep(5)
             print("new shm buf length:", len(self._resume_shm.buf))
         # Write the data to the shared memory block.
