@@ -10,6 +10,7 @@ from typing import Any, List
 import numpy as np
 from numpy.typing import NDArray
 
+from streaming.constant import FILESYSTEM_POLL_INTERVAL
 from streaming.format.base.shard.base import Shard
 from streaming.storage.extra import smart_download_file
 from streaming.stream.dir_conf import StreamDirConf
@@ -64,7 +65,7 @@ class Stream(StreamDirConf, StreamWeightConf):
             calling ``await_index()`` and ``load_index()`` on each Stream.
           * This method is on the critical path.
         """
-        wait_for_creation(self.local_index_path, self.download_timeout, 0.07)
+        wait_for_creation(self.local_index_path, self.download_timeout, FILESYSTEM_POLL_INTERVAL)
 
     def load_index(self) -> List[Shard]:
         """Wait for the index file to become downloaded, then load it.

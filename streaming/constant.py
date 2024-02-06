@@ -30,4 +30,5 @@ BARRIER_FILELOCK = 'barrier_filelock'
 CACHE_FILELOCK = 'cache_filelock'
 
 # Time to wait, in seconds.
-TICK = 0.007
+MEMORY_TICK = TICK = 0.007
+FILESYSTEM_POLL_INTERVAL = 0.07
