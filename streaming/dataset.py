@@ -1195,7 +1195,7 @@ class StreamingDataset(Array, IterableDataset):
         Args:
             shard_id (int): Shard to download.
             blocking (bool): Whether to wait or skip if the shard is currently being downloaded by
-                someone else.
+                someone else. Defaults to ``True``.
         """
         # Lock the cache. FileLocks contain threading Locks, which are not pickleable, which is
         # incompatible with spawn, so must be created lazily.
