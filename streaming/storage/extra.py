@@ -292,7 +292,7 @@ def smart_download_file(
     size: Union[None, str, int] = None,
     max_size: Union[None, str, int] = '200mb',
     hashes: Optional[Dict[str, str]] = None,
-    check_hashes: Union[None, str, Sequence[str]] = None,
+    check_hashes: Union[None, str, Sequence] = None,
 ) -> int:
     """Download a file from remote to local, with optional size/hash checks.
 
@@ -311,7 +311,7 @@ def smart_download_file(
             experience. Defaults to ``200mb``.
         hashes (Dict[str, str], optional): Available hashes. This is a mapping of hash algo name to
             expected hex digest. Defaults to ``None``.
-        check_hashes (None | str | Sequence[str]]): Selected hashes. Ranked ordering of names of
+        check_hashes (None | str | Sequence]): Selected hashes. Ranked ordering of names of
             hash algorithms to check. These checks are a very strong but slow/expensive way to
             detect changes to data. See our benchmarks for more details. Defaults to ``None``.
 
@@ -331,7 +331,7 @@ def smart_download_file(
         else:
             return z
 
-    def normalize_check_hashes(arg: Union[str, Sequence[str]]) -> List[str]:
+    def normalize_check_hashes(arg: Union[str, Sequence]) -> List[str]:
         """Normalize a collection of names of hash algorithm names to use."""
         if isinstance(arg, str):
             arg = arg,
