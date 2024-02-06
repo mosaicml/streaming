@@ -820,11 +820,18 @@ class StreamingDataset(Array, IterableDataset):
         if shm_len != len(data):
             # We need to make a new shared memory block with the correct size.
             # Clean up old resume state from shared memory.
+            print("old shm buf length:", shm_len)
             self._resume_shm.cleanup()
             sleep(5)
             # Create new shared memory block with the correct size.
             self._resume_shm = SharedMemory(name=name, size=len(data))
+            sleep(5)
+            print("new shm buf length:", len(self._resume_shm.buf))
         # Write the data to the shared memory block.
+        print("data is:", data)
+        print("length of data:", len(data))
+        print("len of shm:", len(self._resume_shm.buf))
+        print("size of shm:", self._resume_shm.shm.size)
         self._resume_shm.buf[:len(data)] = data
 
         # try:
