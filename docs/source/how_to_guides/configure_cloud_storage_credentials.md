@@ -127,6 +127,9 @@ export AWS_SECRET_ACCESS_KEY='<Backblaze application key>'
 ```
 ````
 
+Note that even with S3 compatible object stores, URLs should be of the form `s3://<bucket name>/<path within the bucket>`, instead of `<endpoint url>/<bucket name>/<path within the bucket>` or in the example of Backblaze `b2://<bucket name>/<path within the bucket>`.
+
+
 ## Google Cloud Storage
 
 ### MosaicML platform
