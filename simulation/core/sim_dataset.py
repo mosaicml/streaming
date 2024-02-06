@@ -290,7 +290,7 @@ class SimulationDataset(StreamingDataset):
         # Check that cache limit is possible.
         if cache_limit:
             self.cache_limit = normalize_bytes(cache_limit)
-            min_cache_usage = sum((stream.got_index_size for stream in streams))
+            min_cache_usage = sum((stream.index_size for stream in streams))
             if self.cache_limit <= min_cache_usage:
                 raise ValueError(f'Minimum cache usage ({min_cache_usage} bytes) is larger than ' +
                                  f'the cache limit ({self.cache_limit} bytes). Please raise ' +
