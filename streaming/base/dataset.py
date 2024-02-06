@@ -27,7 +27,7 @@ from streaming.base.array import Array
 from streaming.base.batching import generate_work
 from streaming.base.constant import (BARRIER, BARRIER_FILELOCK, CACHE_FILELOCK, CACHE_USAGE,
                                      EPOCH_DATA, EPOCH_SHAPE, NEXT_EPOCH, RESUME,
-                                     SHARD_ACCESS_TIMES, SHARD_STATES, TICK)
+                                     SHARD_ACCESS_TIMES, SHARD_STATES, TICK, RESUME_SHM_SIZE)
 from streaming.base.distributed import maybe_init_dist, get_local_rank
 from streaming.base.format import get_index_basename
 from streaming.base.sampling import get_sampling
@@ -806,61 +806,28 @@ class StreamingDataset(Array, IterableDataset):
         Args:
             obj (Dict[str, Any]): The state.
         """
-        if self._rank_world.is_local_leader:
 
-            name = _get_path(self._shm_prefix_int, RESUME)
-            data = json.dumps(obj, sort_keys=True).encode('utf-8')
-            # Some platforms choose to allocate chunks of memory based upon that platform's memory page
-            # size, hence the exact size of the shared memory block that was returned may be larger
-            # than what was requested.
+        # Set shared memory block to be 1024 characters long. This enables calling
+        # `load_state_dict` multiple times without needing to resize the shared memory block.
+        # Resizing the shared memory block is not possible, and closing the shared memory block
+        # and replacing it with a new one is causing great difficulties.
 
-            # Handle cases where `load_state_dict` is called multiple times, meaning that we need
-            # to clean up the old shared memory block before creating a new one.
-            self._resume_shm = SharedMemory(name=name, size=len(data))
-            shm_len = len(self._resume_shm.buf)
-            if shm_len != len(data):
-                # We need to make a new shared memory block with the correct size.
-                # Clean up old resume state from shared memory.
-                print("old shm buf length:", shm_len)
-                self._resume_shm.cleanup()
-                sleep(5)
-                # Create new shared memory block with the correct size.
-                try:
-                    self._resume_shm = SharedMemory(name=name, size=len(data), create=True)
-                except FileExistsError:
-                    sleep(5)
-                    self._resume_shm = SharedMemory(name=name, size=len(data))
-                sleep(5)
-                print("new shm buf length:", len(self._resume_shm.buf))
-            # Write the data to the shared memory block.
-            print("data is:", data)
-            print("length of data:", len(data))
-            print("len of shm:", len(self._resume_shm.buf))
-            print("size of shm:", self._resume_shm.shm.size)
-            self._resume_shm.buf[:len(data)] = data
-        else:
-            print("We are not the local leader!!!")
+        name = _get_path(self._shm_prefix_int, RESUME)
+        data = json.dumps(obj, sort_keys=True).encode('utf-8')
 
-        # try:
-        #     # Create new shared memory block if it doesn't exist.
-        #     self._resume_shm = SharedMemory(name=name, size=len(data), create=True)
-        # except FileExistsError:
-        #     # If it does exist, clean it up and make a new one.
-        #     shm = BuiltinSharedMemory(name=name, create=False)
-        #     print("prev shm path:", shm._name)
-        #     print("data is:", data)
-        #     print("length of data:", len(data))
-        #     print("size of prev shm:", shm.size)
-        #     shm.close()
-        #     shm.unlink()
-        #     sleep(5)
-        #     print("creating new shm after deleting old one.")
-        #     try:
-        #         self._resume_shm = SharedMemory(name=name, size=len(data), create=True)
-        #     except FileExistsError:
-        #         print("new shm has been created by different rank. don't worry!")
-        # # Write the data to the shared memory block.
-        # self._resume_shm.buf[:len(data)] = data
+        len_needed = len(data)
+        if len_needed > RESUME_SHM_SIZE:
+            raise ValueError(f"State dict for resumption is too large to fit in shared memory. " +
+                             f"Please reduce the state dict size to less than {RESUME_SHM_SIZE} " +
+                             f"bytes. Current size is {len_needed} bytes.")
+        # Some platforms choose to allocate chunks of memory based upon that platform's memory page
+        # size, hence the exact size of the shared memory block that was returned may be larger
+        # than what was requested.
+        self._resume_shm = SharedMemory(name=name, size=RESUME_SHM_SIZE)
+        self._resume_shm.buf[:len(data)] = data
+        # Write a null byte at the end of the shared memory block so that we read in the state
+        # dict correctly in `_resume`.
+        self._resume_shm.buf[len(data)] = b'\0'
 
     def resample_streams(
             self,
