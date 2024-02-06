@@ -827,7 +827,7 @@ class StreamingDataset(Array, IterableDataset):
         self._resume_shm.buf[:len(data)] = data
         # Write a null byte at the end of the shared memory block so that we read in the state
         # dict correctly in `_resume`.
-        self._resume_shm.buf[len(data)] = b'\0'
+        self._resume_shm.buf[len(data)] = '\0'.encode('utf-8')
 
     def resample_streams(
             self,
