@@ -70,7 +70,7 @@ class MDSShard(MonoRowShard):
         Returns:
             Self: The loaded MDS shard object.
         """
-        num_samples = obj['num_samples']
+        num_samples = obj['samples']
         zip_obj = obj.get('zip_data')
         zip_phase = ShardFilePhase.from_json(stream, zip_obj) if zip_obj else None
         zip_algo = obj.get('compression')

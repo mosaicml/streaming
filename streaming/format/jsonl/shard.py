@@ -21,7 +21,7 @@ class JSONLShard(DualRowShard):
     """A JSONL shard.
 
     Args:
-        conf (Any, optional): JSON shard config. Defaults to ``None``.
+        conf (Any, optional): JSONL shard config. Defaults to ``None``.
         stream (StreamDirConf): Link back up to the Stream that owns this shard, from which we
             get arguments which are shared across all shards like remote/local paths. Avoids an
             import cycle by Stream subclassing StreamDirConf.
@@ -64,7 +64,6 @@ class JSONLShard(DualRowShard):
         Returns:
             Self: The loaded JSONL shard object.
         """
-        num_samples = obj['num_samples']
         zip_algo = obj.get('compression')
         key_pairs = [
             ('raw_data', 'zip_data'),
@@ -89,7 +88,7 @@ class JSONLShard(DualRowShard):
         return cls(
             conf=obj,
             stream=stream,
-            num_samples=num_samples,
+            num_samples=obj['samples'],
             data_file=data_file,
             meta_file=meta_file,
             columns=columns,
