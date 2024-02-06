@@ -42,11 +42,11 @@ class ShardFilePhase:
         # Provided to init.
         self.stream = stream
         self.relative_path = relative_path
-        self.size = size
+        self.expected_size = size
         self.hashes = hashes or {}
 
         # Not known until we `download()` or `inventory_local()`.
-        self.got_size: Optional[int]
+        self.size: Optional[int]
 
     @classmethod
     def from_json(cls, stream: StreamDirConf, obj: Dict[str, Any]) -> Self:
@@ -93,19 +93,20 @@ class ShardFilePhase:
         The download phase (``zip`` or ``raw``) of a shard file must be sized, and if there is a
         limit on download size, must fit the limit.
         """
-        if self.size is None:
+        if self.expected_size is None:
             raise ValueError(
                 f'The first existing phase, i.e. the phase that is stored persistently and ' +
                 f'downloaded, must be of known size.')
 
-        if self.stream.download_max_size is not None and self.stream.download_max_size < self.size:
+        if self.stream.download_max_size is not None and \
+                self.stream.download_max_size < self.expected_size:
             raise ValueError(
-                f'Download would be too large: {self.get_remote_filename()} is {self.size:,} ' +
-                f'bytes vs limit {self.stream.download_max_size} bytes. As you raise shard size, '
-                + f'you will experience hard-to-debug choppiness, thrashing, and indefinite ' +
-                f'stalls. Please reduce shard reduce shard size. To continue anyway, raise the ' +
-                f'StreamingDataset or Stream argument `download_max_size` or set it to `None` ' +
-                f'to disable this check completely.')
+                f'Download would be too large: {self.get_remote_filename()} is ' +
+                f'{self.expected_size:,} bytes vs limit {self.stream.download_max_size} bytes. ' +
+                f'As you raise shard size, you will experience hard-to-debug choppiness, ' +
+                f'thrashing, and indefinite stalls. Please reduce shard size. To continue ' +
+                f'anyway, raise the StreamingDataset or Stream argument `download_max_size` or ' +
+                f'set it to `None` to disable this check completely.')
 
     def get_local_filename(self) -> str:
         """Get this phase's local filename.
@@ -153,36 +154,36 @@ class ShardFilePhase:
         # Is the file in the listing?
         if filename not in listing:
             # Problem: it's not listed.
-            got_size = None
+            size = None
         else:
             # It's listed. Is the file actually there in the filesystem?
             if not os.path.exists(filename):
                 # Problem: it's not there anymore.
-                got_size = None
+                size = None
             elif not os.path.isfile(filename):
                 # Problem: it's not a file.
                 rmtree(filename)
-                got_size = None
+                size = None
             else:
                 # It's there. Do we know its expected size?
-                if self.size is not None:
+                if self.expected_size is not None:
                     # Expected size is known, so they had better match.
-                    got_size = os.stat(filename).st_size
-                    if got_size != self.size:
+                    size = os.stat(filename).st_size
+                    if size != self.expected_size:
                         os.remove(filename)
-                        got_size = None
+                        size = None
                 else:
                     # Expected size is unknown. Is that a problem?
                     if self.stream.allow_unchecked_resumption:
                         # Not a problem.
-                        got_size = os.stat(filename).st_size
+                        size = os.stat(filename).st_size
                     else:
                         # Is a problem.
                         os.remove(filename)
-                        got_size = None
+                        size = None
 
-        self.got_size = got_size
-        return got_size
+        self.size = size
+        return size
 
     def is_local(self) -> bool:
         """Check the filesystem for this phase of the file.
@@ -208,18 +209,18 @@ class ShardFilePhase:
         remote = self.get_remote_filename()
         local = self.get_local_filename()
 
-        self.got_size = smart_download_file(
+        self.size = smart_download_file(
             remote=remote,
             local=local,
             timeout=self.stream.download_timeout,
             retry=self.stream.download_retry,
-            size=self.size,
+            size=self.expected_size,
             max_size=self.stream.download_max_size,
             hashes=self.hashes,
             check_hashes=self.stream.check_hashes,
         )
 
-        return self.got_size
+        return self.size
 
     def evict(self) -> int:
         """Delete this phase.
@@ -229,8 +230,10 @@ class ShardFilePhase:
         """
         ddu = 0
         filename = self.get_local_filename()
-        size = self.size if self.size is not None else os.stat(filename).st_size
         if os.path.isfile(filename):
+            ddu -= os.stat(filename).st_size
             os.remove(filename)
-            ddu -= size
+        elif os.path.exists(filename):
+            rmtree(filename)
+        self.size = None
         return ddu
