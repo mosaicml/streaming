@@ -169,8 +169,8 @@ class CloudUploader:
         if os.path.exists(self.local) and len(os.listdir(self.local)) != 0:
             if not exist_ok:
                 raise FileExistsError(
-                    f'Directory is not empty: {self.local}. Set exist_ok to True to overwrite the current contents. '
-                    f'NOTE: this will delete the contents of {self.local}.')
+                    f'{self.local} not empty. Set exist_ok to True to overwrite the current contents (will delete).'
+                )
             else:
                 logger.warning(
                     f'Directory {self.local} exists and is not empty; exist_ok is set to True so will remove contents.'
