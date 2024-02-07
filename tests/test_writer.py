@@ -256,3 +256,28 @@ class TestXSVWriter:
         # Ensure sample iterator is deterministic
         for before, after in zip(dataset, mds_dataset):
             assert before == after
+
+
+def test_dir_exist_and_non_empty(local_remote_dir: Tuple[str, str]):
+    local, _ = local_remote_dir
+    os.makedirs(local, exist_ok=True)
+    local_file_path = os.path.join(local, 'file.txt')
+    # Creating an empty file at specified location
+    with open(local_file_path, 'w') as _:
+        pass
+    columns = {'tokens': 'bytes'}
+    with pytest.raises(FileExistsError, match=f'Directory is not empty.*'):
+        _ = MDSWriter(out=local, columns=columns)
+
+
+def test_dir_exist_and_non_empty_and_overwrite(caplog: Any, local_remote_dir: Tuple[str, str]):
+    caplog.set_level(logging.WARNING)
+    local, _ = local_remote_dir
+    os.makedirs(local, exist_ok=True)
+    local_file_path = os.path.join(local, 'file.txt')
+    # Creating an empty file at specified location
+    with open(local_file_path, 'w') as _:
+        pass
+    columns = {'tokens': 'bytes'}
+    _ = MDSWriter(out=local, columns=columns, exist_ok=True)
+    assert 'exists and not empty since you' in caplog.text

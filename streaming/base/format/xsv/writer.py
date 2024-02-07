@@ -46,6 +46,11 @@ class XSVWriter(SplitWriter):
             max_workers (int): Maximum number of threads used to upload output dataset files in
                 parallel to a remote location. One thread is responsible for uploading one shard
                 file to a remote location. Default to ``min(32, (os.cpu_count() or 1) + 4)``.
+            retry (int): Number of times to retry uploading a file to a remote location.
+                Default to ``2``.
+            exist_ok (bool): If the local directory exists and not empty, whether to overwrite
+                the content or raise an error. `False` raises an error. `True` overwrites the
+                content. Defaults to `False`.
     """
 
     format = 'xsv'
@@ -164,6 +169,11 @@ class CSVWriter(XSVWriter):
             max_workers (int): Maximum number of threads used to upload output dataset files in
                 parallel to a remote location. One thread is responsible for uploading one shard
                 file to a remote location. Default to ``min(32, (os.cpu_count() or 1) + 4)``.
+            retry (int): Number of times to retry uploading a file to a remote location.
+                Default to ``2``.
+            exist_ok (bool): If the local directory exists and not empty, whether to overwrite
+                the content or raise an error. `False` raises an error. `True` overwrites the
+                content. Defaults to `False`.
     """
 
     format = 'csv'
@@ -230,6 +240,11 @@ class TSVWriter(XSVWriter):
             max_workers (int): Maximum number of threads used to upload output dataset files in
                 parallel to a remote location. One thread is responsible for uploading one shard
                 file to a remote location. Default to ``min(32, (os.cpu_count() or 1) + 4)``.
+            retry (int): Number of times to retry uploading a file to a remote location.
+                Default to ``2``.
+            exist_ok (bool): If the local directory exists and not empty, whether to overwrite
+                the content or raise an error. `False` raises an error. `True` overwrites the
+                content. Defaults to `False`.
     """
 
     format = 'tsv'

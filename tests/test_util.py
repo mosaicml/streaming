@@ -137,13 +137,13 @@ def integrity_check(out: Union[str, Tuple[str, str]],
 
     def get_expected(mds_root: str):
         n_shard_files = 0
-        cu = CloudUploader.get(mds_root, exist_ok=True, keep_local=True)
+        cu = CloudUploader.get(mds_root, keep_local=True)
         for o in cu.list_objects():
             if o.endswith('.mds'):
                 n_shard_files += 1
         return n_shard_files
 
-    cu = CloudUploader.get(out, keep_local=True, exist_ok=True)
+    cu = CloudUploader.get(out, keep_local=True)
 
     with tempfile.TemporaryDirectory() as temp_dir:
         if cu.remote:
@@ -234,7 +234,7 @@ def test_merge_index_from_list_local(local_remote_dir: Tuple[str, str], keep_loc
     mds_kwargs = {'out': mds_out, 'columns': {'id': 'int', 'name': 'str'}, 'keep_local': True}
     dataframeToMDS(df, merge_index=False, mds_kwargs=mds_kwargs)
 
-    local_cu = CloudUploader.get(local, exist_ok=True, keep_local=True)
+    local_cu = CloudUploader.get(local, keep_local=True)
     local_index_files = [
         o for o in local_cu.list_objects() if o.endswith('.json') and not_merged_index(o, local)
     ]
