@@ -174,17 +174,17 @@ class ShardFile:
         zip_data = open(zip_filename, 'rb').read()
 
         # Mandatory cheap compressed phase size check.
-        if len(zip_data) != self.zip_phase.size:
+        if len(zip_data) != self.zip_phase.expected_size:
             raise ValueError(f'Compressed data does not match the expected size: ' +
-                             f'{len(zip_data):,} bytes vs {self.zip_phase.size:,} bytes.')
+                             f'{len(zip_data):,} bytes vs {self.zip_phase.expected_size:,} bytes.')
 
         # Decompress.
         raw_data = decompress(self.zip_algo, zip_data)
 
         # Mandatory cheap decompressed phase size check.
-        if len(raw_data) != self.raw_phase.size:
+        if len(raw_data) != self.raw_phase.expected_size:
             raise ValueError(f'Decompressed data does not match the expected size: ' +
-                             f'{len(raw_data):,} bytes vs {self.raw_phase.size:,} bytes.')
+                             f'{len(raw_data):,} bytes vs {self.raw_phase.expected_size:,} bytes.')
 
         # Save the raw phase data.
         raw_filename = self.raw_phase.get_local_filename()

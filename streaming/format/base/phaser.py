@@ -4,7 +4,7 @@
 """What shard file phases to keep or delete."""
 
 from copy import deepcopy
-from enum import Enum
+from enum import IntEnum
 from typing import Union
 
 import numpy as np
@@ -14,7 +14,7 @@ from typing_extensions import Self
 from streaming.util.auto import Auto
 
 
-class Locality(Enum):
+class Locality(IntEnum):
     """Where a shard file phase is to be found."""
 
     LOCAL = 1
