@@ -814,9 +814,12 @@ class StreamingDataset(Array, IterableDataset):
 
         len_needed = len(data)
         if len_needed > RESUME_SHM_SIZE:
-            raise ValueError(f'State dict for resumption is too large to fit in shared memory. ' +
-                             f'Please reduce the state dict size to less than {RESUME_SHM_SIZE} ' +
-                             f'bytes. Current size is {len_needed} bytes.')
+            raise ValueError(
+                f'The StreamingDataset state dict for resumption is currently ',
+                f'allocated {RESUME_SHM_SIZE} bytes, insufficient to store the ',
+                f'state dict that was attempted to load in, which uses {len_needed} ',
+                f'bytes. Please increase the bytes allocated to the state dict by ',
+                f'increasing the value of the RESUME_SHM_SIZE constant.')
         # Some platforms choose to allocate chunks of memory based upon that platform's memory page
         # size, hence the exact size of the shared memory block that was returned may be larger
         # than what was requested.
