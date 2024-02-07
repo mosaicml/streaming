@@ -26,14 +26,13 @@ from torch.utils.data import IterableDataset
 from streaming.base.array import Array
 from streaming.base.batching import generate_work
 from streaming.base.constant import (BARRIER, BARRIER_FILELOCK, CACHE_FILELOCK, CACHE_USAGE,
-                                     EPOCH_DATA, EPOCH_SHAPE, NEXT_EPOCH, RESUME,
-                                     SHARD_ACCESS_TIMES, SHARD_STATES, TICK, RESUME_SHM_SIZE)
-from streaming.base.distributed import maybe_init_dist, get_local_rank
+                                     EPOCH_DATA, EPOCH_SHAPE, NEXT_EPOCH, RESUME, RESUME_SHM_SIZE,
+                                     SHARD_ACCESS_TIMES, SHARD_STATES, TICK)
+from streaming.base.distributed import maybe_init_dist
 from streaming.base.format import get_index_basename
 from streaming.base.sampling import get_sampling
 from streaming.base.shared import (SharedArray, SharedBarrier, SharedMemory, SharedScalar,
                                    _get_path, get_shm_prefix)
-from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
 from streaming.base.spanner import Spanner
 from streaming.base.stream import Stream
 from streaming.base.util import bytes_to_int, number_abbrev_to_int
@@ -691,19 +690,13 @@ class StreamingDataset(Array, IterableDataset):
                             f'nodes.')
                     self.num_canonical_nodes = world.num_nodes
             self._set_shuffle_block_size(world)
-            print("IN RESUME returning because the shared memory file was not found.")
             return epoch, 0
 
         # SharedMemory buffers may contain additional null bytes at the end.
         buf = bytes(shm.buf)
         index = buf.find(b'\0')
         buf = buf[:index] if index != -1 else buf
-        print("buffer decoded:", buf.decode('utf-8'))
         obj = json.loads(buf.decode('utf-8'))
-
-        print("presumed epoch:", epoch)
-        print("loaded epoch:", obj['epoch'])
-        print("full loaded state dict:", obj)
 
         # Check if the resume state is stale.
         if obj['epoch'] < epoch:
@@ -720,7 +713,6 @@ class StreamingDataset(Array, IterableDataset):
                             f'nodes.')
                     self.num_canonical_nodes = world.num_nodes
             self._set_shuffle_block_size(world)
-            print("IN RESUME returning because resume state was considered stale.")
             return epoch, 0
 
         # Load the correct resumption meta data.
@@ -733,7 +725,6 @@ class StreamingDataset(Array, IterableDataset):
         self.initial_physical_nodes = obj.get('initial_physical_nodes', None)
         self._set_shuffle_block_size(world)
 
-        print(f"returning the epoch as {epoch} and sample in epoch as {sample_in_epoch}")
         return epoch, sample_in_epoch
 
     def _resume_incr_epoch(self, world: World) -> Tuple[int, int]:
@@ -813,7 +804,6 @@ class StreamingDataset(Array, IterableDataset):
         Args:
             obj (Dict[str, Any]): The state.
         """
-
         # Set shared memory block to be 1024 characters long. This enables calling
         # `load_state_dict` multiple times without needing to resize the shared memory block.
         # Resizing the shared memory block is not possible, and closing the shared memory block
@@ -824,9 +814,9 @@ class StreamingDataset(Array, IterableDataset):
 
         len_needed = len(data)
         if len_needed > RESUME_SHM_SIZE:
-            raise ValueError(f"State dict for resumption is too large to fit in shared memory. " +
-                             f"Please reduce the state dict size to less than {RESUME_SHM_SIZE} " +
-                             f"bytes. Current size is {len_needed} bytes.")
+            raise ValueError(f'State dict for resumption is too large to fit in shared memory. ' +
+                             f'Please reduce the state dict size to less than {RESUME_SHM_SIZE} ' +
+                             f'bytes. Current size is {len_needed} bytes.')
         # Some platforms choose to allocate chunks of memory based upon that platform's memory page
         # size, hence the exact size of the shared memory block that was returned may be larger
         # than what was requested.
@@ -836,7 +826,7 @@ class StreamingDataset(Array, IterableDataset):
         data += '\0'
         data = data.encode('utf-8')
         self._resume_shm.buf[:len(data)] = data
-        
+
     def resample_streams(
             self,
             epoch: int,

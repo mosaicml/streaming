@@ -5,9 +5,9 @@ from typing import Tuple
 
 import pytest
 
+from streaming.base import StreamingDataset
 from streaming.base.shared import get_shm_prefix
 from streaming.base.world import World
-from streaming.base import StreamingDataset
 from tests.common.utils import convert_to_mds
 
 
@@ -88,6 +88,7 @@ def test_load_get_state_dict_once(local_remote_dir: Tuple[str, str], from_beginn
         else:
             assert new_loaded_state_dict[key] == old_state_dict[key] + 1
 
+
 @pytest.mark.parametrize('iterations', [10])
 @pytest.mark.usefixtures('local_remote_dir')
 def test_load_get_state_dict_multiple(local_remote_dir: Tuple[str, str], iterations: int):
@@ -114,7 +115,7 @@ def test_load_get_state_dict_multiple(local_remote_dir: Tuple[str, str], iterati
                 new_state_dict[key] *= -5
             else:
                 new_state_dict[key] *= 5
-        
+
         dataset.load_state_dict(new_state_dict)
         new_loaded_state_dict = dataset.state_dict(0, False)
 
@@ -126,7 +127,7 @@ def test_load_get_state_dict_multiple(local_remote_dir: Tuple[str, str], iterati
                 assert new_loaded_state_dict[key] == old_state_dict[key] * -5
             else:
                 assert new_loaded_state_dict[key] == old_state_dict[key] * 5
-        
+
         old_state_dict = new_loaded_state_dict
 
 
