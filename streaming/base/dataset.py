@@ -691,6 +691,7 @@ class StreamingDataset(Array, IterableDataset):
                             f'nodes.')
                     self.num_canonical_nodes = world.num_nodes
             self._set_shuffle_block_size(world)
+            print("IN RESUME returning because the shared memory file was not found.")
             return epoch, 0
 
         # SharedMemory buffers may contain additional null bytes at the end.
@@ -699,6 +700,10 @@ class StreamingDataset(Array, IterableDataset):
         buf = buf[:index] if index != -1 else buf
         print("buffer decoded:", buf.decode('utf-8'))
         obj = json.loads(buf.decode('utf-8'))
+
+        print("presumed epoch:", epoch)
+        print("loaded epoch:", obj['epoch'])
+        print("full loaded state dict:", obj)
 
         # Check if the resume state is stale.
         if obj['epoch'] < epoch:
@@ -715,6 +720,7 @@ class StreamingDataset(Array, IterableDataset):
                             f'nodes.')
                     self.num_canonical_nodes = world.num_nodes
             self._set_shuffle_block_size(world)
+            print("IN RESUME returning because resume state was considered stale.")
             return epoch, 0
 
         # Load the correct resumption meta data.
@@ -727,6 +733,7 @@ class StreamingDataset(Array, IterableDataset):
         self.initial_physical_nodes = obj.get('initial_physical_nodes', None)
         self._set_shuffle_block_size(world)
 
+        print(f"returning the epoch as {epoch} and sample in epoch as {sample_in_epoch}")
         return epoch, sample_in_epoch
 
     def _resume_incr_epoch(self, world: World) -> Tuple[int, int]:
