@@ -64,6 +64,9 @@ class Writer(ABC):
                 file to a remote location. Default to ``min(32, (os.cpu_count() or 1) + 4)``.
             retry (int): Number of times to retry uploading a file to a remote location.
                 Default to ``2``.
+            exist_ok (bool): If the local directory exists and is not empty, whether to overwrite
+                the content or raise an error. `False` raises an error. `True` deletes the
+                content and starts fresh. Defaults to `False`.
     """
 
     format: str = ''  # Name of the format (like "mds", "csv", "json", etc).
