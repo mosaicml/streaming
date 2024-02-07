@@ -100,7 +100,8 @@ class Writer(ABC):
 
         # Validate keyword arguments
         invalid_kwargs = [
-            arg for arg in kwargs.keys() if arg not in ('progress_bar', 'max_workers', 'retry')
+            arg for arg in kwargs.keys()
+            if arg not in ('progress_bar', 'max_workers', 'retry', 'exist_ok')
         ]
         if invalid_kwargs:
             raise ValueError(f'Invalid Writer argument(s): {invalid_kwargs} ')
@@ -117,7 +118,8 @@ class Writer(ABC):
         self.shards = []
 
         self.cloud_writer = CloudUploader.get(out, keep_local, kwargs.get('progress_bar', False),
-                                              kwargs.get('retry', 2))
+                                              kwargs.get('retry', 2),
+                                              kwargs.get('exist_ok', False))
         self.local = self.cloud_writer.local
         self.remote = self.cloud_writer.remote
         # `max_workers`: The maximum number of threads that can be executed in parallel.
