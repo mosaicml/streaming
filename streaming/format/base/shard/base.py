@@ -36,7 +36,7 @@ class Shard(Array):
     ) -> None:
         self.conf = conf
         self.stream = stream
-        self.num_samples = num_samples
+        self.num_samples = self.samples = num_samples
         self.files = files
 
     @classmethod

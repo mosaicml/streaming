@@ -29,8 +29,9 @@ class XSVShard(DualRowShard):
         data_file (ShardFile): The file containing shard data.
         meta_file (ShardFile): The file containing shard metadata.
         column_names (List[str]): Column names.
-        column_types (List[str]): Column encodings.
+        column_encodings (List[str]): Column encodings.
         newline (str): Newline separator.
+        separator (str): Field separator.
     """
 
     def __init__(
@@ -42,7 +43,7 @@ class XSVShard(DualRowShard):
         data_file: ShardFile,
         meta_file: ShardFile,
         column_names: List[str],
-        column_types: List[str],
+        column_encodings: List[str],
         newline: str,
         separator: str,
     ) -> None:
@@ -54,7 +55,7 @@ class XSVShard(DualRowShard):
             meta_file=meta_file,
         )
         self.column_names = column_names
-        self.column_types = column_types
+        self.column_encodings = column_encodings
         self.newline = newline
         self.separator = separator
 
@@ -88,7 +89,7 @@ class XSVShard(DualRowShard):
             files.append(file)
         data_file, meta_file = files
         column_names = obj['column_names']
-        column_types = obj['column_encodings']
+        column_encodings = obj['column_encodings']
         return cls(
             conf=obj,
             stream=stream,
@@ -96,7 +97,7 @@ class XSVShard(DualRowShard):
             data_file=data_file,
             meta_file=meta_file,
             column_names=column_names,
-            column_types=column_types,
+            column_encodings=column_encodings,
             newline=obj['newline'],
             separator=obj['separator'],
         )
@@ -135,8 +136,8 @@ class XSVShard(DualRowShard):
         text = text[:-len(self.newline)]
         parts = text.split(self.separator)
         sample = {}
-        for col_name, col_type, part in zip(self.column_names, self.column_types, parts):
-            sample[col_name] = xsv_decode(col_type, part)
+        for col_name, col_encoding, part in zip(self.column_names, self.column_encodings, parts):
+            sample[col_name] = xsv_decode(col_encoding, part)
         return sample
 
 

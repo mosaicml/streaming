@@ -67,6 +67,9 @@ class Stream(StreamDirConf, StreamWeightConf):
         """
         wait_for_creation(self.local_index_path, self.download_timeout, FILESYSTEM_POLL_INTERVAL)
 
+        # Because download_index() is called in another process, self.index_size is not set.
+        self.index_size = os.stat(self.local_index_path).st_size
+
     def load_index(self) -> List[Shard]:
         """Wait for the index file to become downloaded, then load it.
 

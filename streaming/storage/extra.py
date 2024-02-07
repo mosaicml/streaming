@@ -342,7 +342,7 @@ def smart_download_file(
 
     # Path analysis.
     if remote is not None:
-        remote, _ = normalize_path(remote)
+        remote = normalize_path(remote)
     local = normalize_local_path(local)
 
     # Normalize args.
