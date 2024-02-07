@@ -253,7 +253,7 @@ def merge_index(*args: Any, **kwargs: Any):
     raise ValueError(f'Invalid arguments to merge_index: {args}, {kwargs}')
 
 
-def _merge_index_from_list(index_file_urls: List[Union[str, Tuple[str, str]]],
+def _merge_index_from_list(index_file_urls: Sequence[Union[str, Tuple[str, str]]],
                            out: Union[str, Tuple[str, str]],
                            keep_local: bool = True,
                            download_timeout: int = 60) -> None:
@@ -359,6 +359,44 @@ def _merge_index_from_list(index_file_urls: List[Union[str, Tuple[str, str]]],
             shutil.rmtree(cu.local, ignore_errors=True)
 
 
+def _not_merged_index(index_file_path: str, out: str):
+    """Check if index_file_path is the merged index at folder out.
+
+    Args:
+        index_file_path (str): the path to index.json file
+        out (str): remote or local url of a folder
+    Return:
+        (bool): no if index.json sits in out instead of in the subfolders of out
+    """
+    prefix = str(urllib.parse.urlparse(out).path)
+    return os.path.dirname(index_file_path).strip('/') != prefix.strip('/')
+
+
+def _format_remote_index_files(remote: str, files: List[str]) -> List[str]:
+    """Formats the remote index files by appending the remote URL scheme and netloc to each file.
+
+    Args:
+        remote (str): The remote URL.
+        files (list[str]): The list of files.
+
+    Returns:
+        list[str]: The formatted remote index files.
+    """
+    remote_index_files = []
+    obj = urllib.parse.urlparse(remote)
+    for file in files:
+        if file.endswith(get_index_basename()) and _not_merged_index(file, remote):
+            join_char = '://'
+            if obj.scheme == 'dbfs':
+                path = Path(remote)
+                prefix = os.path.join(path.parts[0], path.parts[1])
+                if prefix == 'dbfs:/Volumes':
+                    join_char = ':/'
+
+            remote_index_files.append(obj.scheme + join_char + os.path.join(obj.netloc, file))
+    return remote_index_files
+
+
 def _merge_index_from_root(out: Union[str, Tuple[str, str]],
                            keep_local: bool = True,
                            download_timeout: int = 60) -> None:
@@ -378,18 +416,6 @@ def _merge_index_from_root(out: Union[str, Tuple[str, str]],
     """
     from streaming.base.storage.upload import CloudUploader
 
-    def not_merged_index(index_file_path: str, out: str):
-        """Check if index_file_path is the merged index at folder out.
-
-        Args:
-            index_file_path (str): the path to index.json file
-            out (str): remote or local url of a folder
-        Return:
-            (bool): no if index.json sits in out instead of in the subfolders of out
-        """
-        prefix = str(urllib.parse.urlparse(out).path)
-        return os.path.dirname(index_file_path).strip('/') != prefix.strip('/')
-
     if not out:
         logger.warning('No MDS dataset folder specified, no index merged')
         return
@@ -399,21 +425,11 @@ def _merge_index_from_root(out: Union[str, Tuple[str, str]],
     local_index_files = []
     cl = CloudUploader.get(cu.local, exist_ok=True, keep_local=True)
     for file in cl.list_objects():
-        if file.endswith('.json') and not_merged_index(file, cu.local):
+        if file.endswith('.json') and _not_merged_index(file, cu.local):
             local_index_files.append(file)
 
     if cu.remote:
-        obj = urllib.parse.urlparse(cu.remote)
-        remote_index_files = []
-        for file in cu.list_objects():
-            if file.endswith(get_index_basename()) and not_merged_index(file, cu.remote):
-                join_char = '//'
-                if obj.scheme == 'dbfs':
-                    path = Path(cu.remote)
-                    prefix = os.path.join(path.parts[0], path.parts[1])
-                    if prefix == 'dbfs:/Volumes':
-                        join_char = '/'
-                remote_index_files.append(obj.scheme + join_char + os.path.join(obj.netloc, file))
+        remote_index_files = _format_remote_index_files(cu.remote, cu.list_objects())
         if len(local_index_files) == len(remote_index_files):
             _merge_index_from_list(list(zip(local_index_files, remote_index_files)),
                                    out,

@@ -76,7 +76,7 @@ extra_deps['dev'] = [
     'moto>=4.0,<5',
     'fastapi==0.109.0',
     'pydantic==2.5.3',
-    'uvicorn==0.25.0',
+    'uvicorn==0.26.0',
     'pytest-split==0.8.1',
 ]
 
@@ -91,7 +91,7 @@ extra_deps['docs'] = [
     'sphinx-argparse==0.4.0',
     'sphinx-copybutton==0.5.2',
     'sphinx==6.2.1',
-    'sphinx-tabs==3.4.4',
+    'sphinx-tabs==3.4.5',
 ]
 
 extra_deps['simulator'] = [
