@@ -140,10 +140,10 @@ def test_state_dict_too_large(local_remote_dir: Tuple[str, str]):
                    size_limit=1 << 8)
     dataset = StreamingDataset(local=local, remote=remote)
 
-    old_state_dict = dataset.state_dict(0, False)
-    new_state_dict = old_state_dict.copy()
-    for key in new_state_dict:
-        # Set the state dict entries to be absurdly large.
-        new_state_dict[key] = 10**64000
+    # Make a state dict that is too large to fit in the allocated shared memory.
+    import mmap
+    key = 'a' * mmap.PAGESIZE
+    big_state_dict = {key: 1}
+
     with pytest.raises(ValueError, match='The StreamingDataset state dict*'):
-        dataset.load_state_dict(new_state_dict)
+        dataset.load_state_dict(big_state_dict)
