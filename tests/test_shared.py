@@ -144,6 +144,6 @@ def test_state_dict_too_large(local_remote_dir: Tuple[str, str]):
     new_state_dict = old_state_dict.copy()
     for key in new_state_dict:
         # Set the state dict entries to be absurdly large.
-        new_state_dict[key] = 2**1000
+        new_state_dict[key] = 10**8000
     with pytest.raises(ValueError, match='State dict for resumption is too large*'):
         dataset.load_state_dict(new_state_dict)
