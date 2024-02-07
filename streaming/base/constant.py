@@ -31,6 +31,3 @@ CACHE_FILELOCK = 'cache_filelock'
 
 # Time to wait, in seconds.
 TICK = 0.007
-
-# Resumption shared memory size
-RESUME_SHM_SIZE = 1024

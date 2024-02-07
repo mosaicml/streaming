@@ -5,6 +5,7 @@
 
 import json
 import logging
+import mmap
 import os
 import sys
 import warnings
@@ -26,7 +27,7 @@ from torch.utils.data import IterableDataset
 from streaming.base.array import Array
 from streaming.base.batching import generate_work
 from streaming.base.constant import (BARRIER, BARRIER_FILELOCK, CACHE_FILELOCK, CACHE_USAGE,
-                                     EPOCH_DATA, EPOCH_SHAPE, NEXT_EPOCH, RESUME, RESUME_SHM_SIZE,
+                                     EPOCH_DATA, EPOCH_SHAPE, NEXT_EPOCH, RESUME,
                                      SHARD_ACCESS_TIMES, SHARD_STATES, TICK)
 from streaming.base.distributed import maybe_init_dist
 from streaming.base.format import get_index_basename
@@ -698,6 +699,9 @@ class StreamingDataset(Array, IterableDataset):
         buf = buf[:index] if index != -1 else buf
         obj = json.loads(buf.decode('utf-8'))
 
+        print('READ IN STATE DICT:')
+        print(obj)
+
         # Check if the resume state is stale.
         if obj['epoch'] < epoch:
             if not self.num_canonical_nodes:
@@ -813,17 +817,17 @@ class StreamingDataset(Array, IterableDataset):
         data = json.dumps(obj, sort_keys=True)
 
         len_needed = len(data)
-        if len_needed > RESUME_SHM_SIZE:
+        if len_needed > mmap.PAGESIZE:
             raise ValueError(
                 f'The StreamingDataset state dict for resumption is currently ',
-                f'allocated {RESUME_SHM_SIZE} bytes, insufficient to store the ',
+                f'allocated {mmap.PAGESIZE} bytes, insufficient to store the ',
                 f'state dict that was attempted to load in, which uses {len_needed} ',
                 f'bytes. Please increase the bytes allocated to the state dict by ',
-                f'increasing the value of the RESUME_SHM_SIZE constant.')
+                f'changing the SharedMemory size parameter, set in this function.')
         # Some platforms choose to allocate chunks of memory based upon that platform's memory page
         # size, hence the exact size of the shared memory block that was returned may be larger
         # than what was requested.
-        self._resume_shm = SharedMemory(name=name, size=RESUME_SHM_SIZE)
+        self._resume_shm = SharedMemory(name=name, size=mmap.PAGESIZE)
         # Write a null byte at the end of the shared memory block so that we read in the state
         # dict correctly in `_resume`.
         data += '\0'
