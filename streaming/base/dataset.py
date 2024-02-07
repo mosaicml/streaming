@@ -699,9 +699,6 @@ class StreamingDataset(Array, IterableDataset):
         buf = buf[:index] if index != -1 else buf
         obj = json.loads(buf.decode('utf-8'))
 
-        print('READ IN STATE DICT:')
-        print(obj)
-
         # Check if the resume state is stale.
         if obj['epoch'] < epoch:
             if not self.num_canonical_nodes:
@@ -826,7 +823,8 @@ class StreamingDataset(Array, IterableDataset):
                 f'allocated {mmap.PAGESIZE} bytes, insufficient to store the ',
                 f'state dict that was attempted to load in, which uses {len_needed} ',
                 f'bytes. Please increase the bytes allocated to the state dict by ',
-                f'changing the SharedMemory size parameter, set in this function.')
+                f'changing the SharedMemory size parameter, set in this function.',
+                f'The state dict may also be corrupted. The state dict is: {data}.')
         # Some platforms choose to allocate chunks of memory based upon that platform's memory page
         # size, hence the exact size of the shared memory block that was returned may be larger
         # than what was requested.
