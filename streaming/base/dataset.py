@@ -817,6 +817,9 @@ class StreamingDataset(Array, IterableDataset):
         data = json.dumps(obj, sort_keys=True)
 
         len_needed = len(data)
+        # Note: mmap.PAGESIZE has a minimum size of 4096 bytes across systems. For reference,
+        # see the link below:
+        # https://en.wikipedia.org/wiki/Page_(computer_memory)#Multiple_page_sizes
         if len_needed > mmap.PAGESIZE:
             raise ValueError(
                 f'The StreamingDataset state dict for resumption is currently ',
