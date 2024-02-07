@@ -145,5 +145,5 @@ def test_state_dict_too_large(local_remote_dir: Tuple[str, str]):
     for key in new_state_dict:
         # Set the state dict entries to be absurdly large.
         new_state_dict[key] = 10**8000
-    with pytest.raises(ValueError, match='State dict for resumption is too large*'):
+    with pytest.raises(ValueError, match='The StreamingDataset state dict*'):
         dataset.load_state_dict(new_state_dict)
