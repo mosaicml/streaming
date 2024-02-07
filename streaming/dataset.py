@@ -168,6 +168,15 @@ class _Iterator:
             self._num_exited += 1
 
 
+def download_index(stream: Stream) -> None:
+    """A Stream index download process.
+
+    Args:
+        stream (Stream): The stream.
+    """
+    stream.download_index()
+
+
 class StreamingDataset(Array, IterableDataset):
     """A mid-epoch-resumable streaming/caching pytorch IterableDataset.
 
@@ -486,7 +495,7 @@ class StreamingDataset(Array, IterableDataset):
                 index_download_max_procs,
             )
             pool = Pool(num_procs)
-            pool.imap_unordered(lambda stream: stream.download_index(), self.streams)
+            pool.imap_unordered(download_index, self.streams)
             pool.close()
         else:
             pool = None
