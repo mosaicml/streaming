@@ -81,8 +81,7 @@ def get_partitions_orig(num_samples: int,
             padding = node_ratio - overflow
     padded_samples_per_canonical_node = samples_per_canonical_node + padding
 
-    if num_samples > num_canonical_nodes or (num_samples == num_canonical_nodes and
-                                             num_canonical_nodes >= num_physical_nodes):
+    if num_samples > num_canonical_nodes:
         # Create the initial sample ID matrix.
         #
         # ids: (canonical nodes, padded samples per canonical node).
