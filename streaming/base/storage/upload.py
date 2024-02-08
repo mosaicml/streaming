@@ -168,14 +168,11 @@ class CloudUploader:
 
         if os.path.exists(self.local) and len(os.listdir(self.local)) != 0:
             if not exist_ok:
-                raise FileExistsError(
-                    f'{self.local} not empty. Set exist_ok to True to overwrite the current contents (will delete).'
-                )
+                raise FileExistsError(f'Directory is not empty: {self.local}')
             else:
                 logger.warning(
-                    f'Directory {self.local} exists and is not empty; exist_ok is set to True so will remove contents.'
+                    f'Directory {self.local} exists and not empty. But continue to mkdir since exist_ok is set to be True.'
                 )
-                shutil.rmtree(self.local)
 
         os.makedirs(self.local, exist_ok=True)
 

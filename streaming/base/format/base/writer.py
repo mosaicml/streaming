@@ -120,9 +120,15 @@ class Writer(ABC):
 
         self.shards = []
 
+        # Remove local directory if requested prior to creating writer
+        local = out if isinstance(out, str) else out[0]
+        if os.path.exists(local) and kwargs.get('exist_ok', False):
+            logger.warning(
+                f'Directory {local} exists and is not empty; exist_ok is set to True so will remove contents.'
+            )
+            shutil.rmtree(local)
         self.cloud_writer = CloudUploader.get(out, keep_local, kwargs.get('progress_bar', False),
-                                              kwargs.get('retry', 2),
-                                              kwargs.get('exist_ok', False))
+                                              kwargs.get('retry', 2))
         self.local = self.cloud_writer.local
         self.remote = self.cloud_writer.remote
         # `max_workers`: The maximum number of threads that can be executed in parallel.
@@ -230,6 +236,10 @@ class Writer(ABC):
             'hashes': self.hashes,
             'size_limit': self.size_limit
         }
+
+    def clear_local(self) -> None:
+        """Remove the local directory, allowing it to be written to."""
+        shutil.rmtree(self.local)
 
     @abstractmethod
     def flush_shard(self) -> None:
