@@ -538,12 +538,23 @@ class StreamingDataset(Array, IterableDataset):
                                  f'the cache limit ({self.cache_limit} bytes). Please raise ' +
                                  f'`cache_limit`. Recommendation is to provide a `cache_limit` ' +
                                  f'as high as possible to avoid thrashing.')
-            self.max_shard_size_across_all_streams = max(
-                np.array([shard.get_max_size() for shard in self.shards]))
-            if self.cache_limit < 4 * self.max_shard_size_across_all_streams:
+
+            max_phase_size = 0
+            for stream in self.streams:
+                for shard in stream.shards:
+                    for file in shard.files:
+                        for phase in file.phases:
+                            if not phase:
+                                continue
+                            if not phase.expected_size:
+                                continue
+                            if max_phase_size < phase.expected_size:
+                                max_phase_size = phase.expected_size
+
+            if self.cache_limit < 4 * max_phase_size:
                 raise ValueError(f'Cache limit ({self.cache_limit} bytes) is too low. ' +
                                  f'Increase the `cache_limit` to at-least four times the ' +
-                                 f'largest shard size ({self.max_shard_size_across_all_streams} ' +
+                                 f'largest shard size ({max_phase_size} ' +
                                  f'bytes) which includes raw (decompressed) and zip ' +
                                  f'(compressed) file size. Recommendation is to provide a ' +
                                  f'`cache_limit` as high as possible to avoid thrashing.')
