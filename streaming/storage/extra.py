@@ -370,6 +370,7 @@ def smart_download_file(
                          f'file. Please check your dataset directory. Note: remote file ' +
                          f'{remote}, local file {local}.')
     else:
+
         @retry_loop(num_attempts=1 + retry)
         def work() -> None:
             download_file(remote, local, timeout)

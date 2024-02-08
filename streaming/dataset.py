@@ -1222,9 +1222,7 @@ class StreamingDataset(Array, IterableDataset):
             # If missing, transition state to preparing.
             self._shard_states[shard_id] = _ShardState.FETCHING
 
-            # Get the stream and shard.
-            stream_id = self.stream_per_shard[shard_id]
-            stream = self.streams[stream_id]
+            # Get the shard.
             shard = self.shards[shard_id]
 
             # With the above preamble done, we can release the cache lock.

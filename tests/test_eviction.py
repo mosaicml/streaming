@@ -21,7 +21,7 @@ def validate(remote: str, local: str, dataset: StreamingDataset, keep_zip: bool,
     else:
         ops = operator.eq
     if keep_zip:
-        if dataset.shards[0].compression:
+        if dataset.shards[0].files[0].zip_algo:
             # Local has raw + zip, remote has zip.
             assert ops(
                 set(filter(lambda f: f == 'index.json' or f.endswith('.zstd'), os.listdir(local))),
@@ -31,7 +31,7 @@ def validate(remote: str, local: str, dataset: StreamingDataset, keep_zip: bool,
             assert ops(set(filter(lambda f: not f.endswith('.zstd'), os.listdir(local))),  \
                 set(os.listdir(remote)))
     else:
-        if dataset.shards[0].compression:
+        if dataset.shards[0].files[0].zip_algo:
             # Local has raw, remote has zip.
             assert ops(set(os.listdir(local)),
                        {f.replace('.zstd', '') for f in os.listdir(remote)})
