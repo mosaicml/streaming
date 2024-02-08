@@ -237,10 +237,6 @@ class Writer(ABC):
             'size_limit': self.size_limit
         }
 
-    def clear_local(self) -> None:
-        """Remove the local directory, allowing it to be written to."""
-        shutil.rmtree(self.local)
-
     @abstractmethod
     def flush_shard(self) -> None:
         """Flush cached samples to storage, creating a new shard."""
