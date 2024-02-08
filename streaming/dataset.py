@@ -525,6 +525,7 @@ class StreamingDataset(Array, IterableDataset):
         self.stream_per_shard = np.array(stream_per_shard, np.int64)
         self.num_shards = len(self.shards)
 
+        # Wait for the pool workers (stream index download processes) to finish.
         if pool is not None:
             pool.join()
 
@@ -1217,7 +1218,7 @@ class StreamingDataset(Array, IterableDataset):
         state = self._shard_states[shard_id]
 
         # Which state is it in?
-        if state == _ShardState.REMOTE:
+        if state == _ShardState.REMOTE or state == _ShardState.LOCAL:
             # If missing, transition state to preparing.
             self._shard_states[shard_id] = _ShardState.FETCHING
 
@@ -1226,23 +1227,22 @@ class StreamingDataset(Array, IterableDataset):
             stream = self.streams[stream_id]
             shard = self.shards[shard_id]
 
-            # If cache_limit is enabled, we first may have to make space for the new shard.
-            if self.cache_limit:
-                # Evict one shard at a time until our download will stay under the cache limit.
-                # This means both the raw and zip forms of the shard due to decompressing.
-                shard_max_cache_usage = shard.get_max_size()
-                while self.cache_limit < self.cache_usage + shard_max_cache_usage:
-                    self._evict_coldest_shard()
-
             # With the above preamble done, we can release the cache lock.
             lock.release()
 
             # Perform the download (shard will not be modified by others in FETCHING state).
-            delta = shard.fetch()
+            self.cache_usage += shard.fetch()
 
-            # Download completed, so note the time and transition shard state to LOCAL.
             lock.acquire()
-            self.cache_usage += delta
+
+            # If cache_limit is enabled, we first may have to make space for the new shard.
+            if self.cache_limit:
+                # Evict one shard at a time until our download stays under the cache limit.
+                # This means all phases of the shard due to decompression, canonicalization, etc.
+                while self.cache_limit < self.cache_usage:
+                    self._evict_coldest_shard()
+
+            # Download accounting complete, note the time and transition shard state to LOCAL.
             self._shard_access_times[shard_id] = time_ns()
             self._shard_states[shard_id] = _ShardState.LOCAL
             lock.release()
@@ -1260,25 +1260,6 @@ class StreamingDataset(Array, IterableDataset):
 
             # There is no need to update the last access time, because that will be set by the
             # process that downloaded the shard.
-        elif state == _ShardState.LOCAL:
-            # Get the stream and shard.
-            stream_id = self.stream_per_shard[shard_id]
-            stream = self.streams[stream_id]
-            shard = self.shards[shard_id]
-
-            # We may need to decompress the shard (if local dir just contains zips).
-            raw_info, _ = shard.file_pairs[0]  # Each file pair is present in the same way.
-            raw_filename = os.path.join(stream.local, stream.split or '',
-                                        raw_info.basename)  # Find raw.
-            if not os.path.isfile(raw_filename):  # Is raw missing?
-                self._shard_states[shard_id] = _ShardState.FETCHING  # Lock the shard.
-                lock.release()  # Unblock other workers.
-                delta = shard.fetch()  # Decompress and remove zip.
-                lock.acquire()  # Briefly take the lock back.
-                self._shard_states[shard_id] = _ShardState.LOCAL  # Restore shard state.
-                self.cache_usage += delta  # Update accounting.
-            self._shard_access_times[shard_id] = time_ns()  # Touch the shard.
-            lock.release()
         else:
             # Unknown state.
             lock.release()
