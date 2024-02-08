@@ -105,13 +105,13 @@ export S3_CANNED_ACL='authenticated-read'
 ````
 
 ## Any S3 compatible object store
-For any S3 compatible object store such as [Cloudflare R2](https://www.cloudflare.com/products/r2/), [Coreweave](https://docs.coreweave.com/storage/object-storage), [Backblaze b2](https://www.backblaze.com/b2/cloud-storage.html), etc., setup your credentials as mentioned in the above `Amazon S3` section. Alternatively, you may use the `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` environment variable names to specify credentials even though you are not using AWS. The only difference is you must set your object store endpoint url. To do this, you need to set the ``S3_ENDPOINT_URL`` environment variable.
+For any S3 compatible object store such as [Cloudflare R2](https://www.cloudflare.com/products/r2/), [Coreweave](https://docs.coreweave.com/storage/object-storage), [Backblaze b2](https://www.backblaze.com/b2/cloud-storage.html), etc., set up your credentials as mentioned in the above `Amazon S3` section. Alternatively, you may use the `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` environment variable names to specify your credentials, even though you are not using AWS. The only difference is that you must set your object store endpoint url. To do this, you need to set the ``S3_ENDPOINT_URL`` environment variable.
 
 Below are the examples of setting an R2 or Backblaze `endpoint url` in your run environment.
 
 ```{note}
 R2: Your endpoint url is `https://<accountid>.r2.cloudflarestorage.com`. The account ID can be retrieved through your [Cloudflare console](https://dash.cloudflare.com/).
-Backblaze: Your endpoint url is 'https://s3.<your region>.backblazeb2.com'. The account ID can be retrieved through your [Backblaze console](https://secure.backblaze.com/b2_buckets.htm).
+Backblaze: Your endpoint url is 'https://s3.<your region>.backblazeb2.com'. The region can be retrieved through your [Backblaze console](https://secure.backblaze.com/b2_buckets.htm).
 ```
 
 ````{tabs}
@@ -132,7 +132,7 @@ export S3_ENDPOINT_URL='https://s3.<your region>.backblazeb2.com'
 ````
 
 
-Note that even with S3 compatible object stores, URLs should be of the form `s3://<bucket name>/<path within the bucket>` and use the `s3` path prefix, instead of `<endpoint url>/<bucket name>/<path within the bucket>`.
+Note that even with S3 compatible object stores, URLs should be of the form `s3://<bucket name>/<path within the bucket>` and use the `s3://` path prefix, instead of `<endpoint url>/<bucket name>/<path within the bucket>`.
 
 
 ## Google Cloud Storage
