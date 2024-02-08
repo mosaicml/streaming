@@ -25,6 +25,7 @@ class LocalDataset(Array, Dataset):
 
     def __init__(self, local: str, split: Optional[str] = None):
         self.stream = Stream(local=local, split=split)
+        self.stream.apply_defaults()
         self.stream.download_index()
         self.shards = self.stream.load_index()
         shard_sizes = np.array([shard.num_samples for shard in self.stream.shards], np.int64)
