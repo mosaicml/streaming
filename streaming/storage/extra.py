@@ -370,9 +370,11 @@ def smart_download_file(
                          f'file. Please check your dataset directory. Note: remote file ' +
                          f'{remote}, local file {local}.')
     else:
-        max_times = 1 + retry
-        action = lambda: download_file(remote, local, timeout)
-        retry_loop(num_attempts=max_times)(action)
+        @retry_loop(num_attempts=1 + retry)
+        def work() -> None:
+            download_file(remote, local, timeout)
+
+        work()
 
     # Optional size checks.
     got_size = os.stat(local).st_size
