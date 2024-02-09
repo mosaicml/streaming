@@ -126,7 +126,7 @@ def _get_keep_zip(arg: bool) -> Phaser:
     Returns:
         Phaser: Normalized arg.
     """
-    return Phaser(storage=arg)
+    return Phaser(persistent=arg)
 
 
 class StreamDirConf:
@@ -385,7 +385,7 @@ class StreamDirConf:
         # We delete self.keep_zip because files are maximally three-phase not two-phase now, and
         # keep_zip might mean the user wants to literally keep zip phases only (but there is known
         # good reason to want this), or it might mean the user wants to keep the original phases
-        # of files instead, zipped or not (for which the knob is self.keep_phases.storage).
+        # of files instead, zipped or not (for which the knob is `self.keep_phases.persistent`).
         del self.keep_zip
 
         # 7. Derive safe_keep_phases from keep_phases.

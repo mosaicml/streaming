@@ -126,6 +126,17 @@ class ShardFile:
                 arr[phase_id] = Locality.DNE
         return arr
 
+    def _get_phase_sizednesses(self) -> NDArray[np.int64]:
+        """Get whether we have an expected size for each phase.
+
+        Returns:
+            NDArray[np.int64]: Phase sizednesses.
+        """
+        is_sized = np.zeros(3, np.int64)
+        for phase_idx, phase in enumerate(self.phases):
+            is_sized[phase_idx] = bool(phase) and (phase.expected_size is not None)
+        return is_sized
+
     def inventory_local(self, listing: Set[str]) -> int:
         """Normalize this file's phases' presence in the local directory to a coherent state.
 
@@ -152,7 +163,8 @@ class ShardFile:
         phase_locs = np.array(phase_locs, np.int64)
 
         # From phase localities, determine phase evictions according to the keep policy.
-        phase_dels = self.stream.safe_keep_phases.get_phase_deletions(phase_locs)
+        phase_chks = self._get_phase_sizednesses()
+        phase_dels = self.stream.safe_keep_phases.get_phase_deletions(phase_locs, phase_chks)
 
         # Apply any evictions.
         cache_usage += self.evict_phases(phase_dels)
@@ -201,7 +213,8 @@ class ShardFile:
         phase_locs = np.array([Locality.LOCAL, Locality.LOCAL, can_loc], np.int64)
 
         # Given localities and policy, determine phase evictions.
-        phase_dels = self.stream.safe_keep_phases.get_phase_deletions(phase_locs)
+        phase_chks = self._get_phase_sizednesses()
+        phase_dels = self.stream.safe_keep_phases.get_phase_deletions(phase_locs, phase_chks)
 
         # Delete phases we don't want.
         return len(raw_data) + self.evict_phases(phase_dels)
@@ -236,7 +249,8 @@ class ShardFile:
         phase_locs = np.array([zip_loc, Locality.LOCAL, Locality.LOCAL], np.int64)
 
         # Given localities and policy, determine phase evictions.
-        phase_dels = self.stream.safe_keep_phases.get_phase_deletions(phase_locs)
+        phase_chks = self._get_phase_sizednesses()
+        phase_dels = self.stream.safe_keep_phases.get_phase_deletions(phase_locs, phase_chks)
 
         # Delete phases we don't want.
         return can_size + self.evict_phases(phase_dels)
