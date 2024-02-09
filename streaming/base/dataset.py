@@ -356,14 +356,19 @@ class StreamingDataset(Array, IterableDataset):
         self.allow_unsafe_types = allow_unsafe_types
 
         # Initialize the World context.
-        #
-        # Beware: This information is for the per-rank process. DataLoader worker processes may see
-        # different values for these fields. We are saving the rank World here because we cannot
-        # instantiate a World inside the StreamingDataset destructor.
+        #   * This information is for the per-rank process.
+        #   * DataLoader worker processes may get a different worker ID and worker count than us.
+        #   * We save the rank Worlds here because we cannot instantiate a World inside our
+        #     destructor.
+        #   * `unique_` is who are for coordination purposes, where every process must be unique.
+        #   * `parallel_` is who we think we are for iterating purposes, where groups of process
+        #     must act the same if tensor parallelism is applied.
         world = world or World.detect()
+        self._unique_rank_world = world
         if tensor_parallelism is not None:
-            world = world.tensor_parallel(tensor_parallelism)
-        self._rank_world = world
+            self._parallel_rank_world = world.tensor_parallel(tensor_parallelism)
+        else:
+            self._parallel_rank_world = world.copy()
 
         # Initialize initial_physical_nodes to None. If we are resuming, then we will set it to the
         # number of physical nodes of the initial run in the _resume function.
@@ -468,7 +473,7 @@ class StreamingDataset(Array, IterableDataset):
         self.sample_offset_per_stream = np.zeros(self.num_streams, np.int64)
         self.samples_per_stream = np.zeros(self.num_streams, np.int64)
         for stream_id, stream in enumerate(self.streams):
-            stream_shards = stream.get_shards(world, self.allow_unsafe_types)
+            stream_shards = stream.get_shards(self._unique_rank_world, self.allow_unsafe_types)
             num_stream_samples = sum(map(len, stream_shards))
             if not num_stream_samples:
                 index_filename = os.path.join(stream.local, stream.split, get_index_basename())
@@ -514,7 +519,7 @@ class StreamingDataset(Array, IterableDataset):
                                                epoch_size_value, self.shuffle_seed)
 
         # Length (__len__) is the resampled epoch size divided over the number of devices.
-        self.length = ceil(self.epoch_size / world.num_ranks)
+        self.length = ceil(self.epoch_size / self._parallel_rank_world.num_ranks)
 
         # Register/lookup our shared memory prefix and filelock root directory.
         streams_local = [os.path.abspath(os.path.join(x.local, x.split)) for x in streams]
@@ -522,7 +527,7 @@ class StreamingDataset(Array, IterableDataset):
             os.path.join(x.remote, x.split) if x.remote is not None else None for x in streams
         ]
         self._shm_prefix_int, self._locals_shm = get_shm_prefix(streams_local, streams_remote,
-                                                                world)
+                                                                self._unique_rank_world)
         self._filelock_root = os.path.join(gettempdir(), 'streaming')
         os.makedirs(self._filelock_root, exist_ok=True)
 
@@ -557,7 +562,7 @@ class StreamingDataset(Array, IterableDataset):
                                                _get_path(self._shm_prefix_int, SHARD_ACCESS_TIMES))
 
         # Initialize shared memory objects.
-        if world.is_local_leader:
+        if self._unique_rank_world.is_local_leader:
             # Set initial epoch (before any resumption).
             self.next_epoch = 0
 
@@ -780,7 +785,7 @@ class StreamingDataset(Array, IterableDataset):
         Returns:
             Dict[str, Any]: The state.
         """
-        world = self._rank_world
+        world = self._parallel_rank_world
         epoch = self.next_epoch - 1
         epoch, offset = self._resume(world, epoch)
         if from_beginning:
@@ -1446,7 +1451,7 @@ class StreamingDataset(Array, IterableDataset):
 
         # Discover where we left off, if there is a checkpoint, or start at the next epoch.
         # Also pre-increment the epoch counter.
-        world = self._rank_world.detect_workers()
+        world = self._parallel_rank_world.detect_workers()
         epoch, sample_in_epoch = self._resume_incr_epoch(world)
 
         # Get this worker's partition of samples to process.

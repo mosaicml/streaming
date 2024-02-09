@@ -101,6 +101,19 @@ class World:
         worker = rank * workers_per_rank + worker_of_rank
         return cls(num_nodes, ranks_per_node, workers_per_rank, worker)
 
+    def copy(self) -> Self:
+        """Get a copy of this world state.
+
+        Returns:
+            Self: A new copy with the same state.
+        """
+        return World(
+            num_nodes=self.num_nodes,
+            ranks_per_node=self.ranks_per_node,
+            workers_per_rank=self.workers_per_rank,
+            worker=self.worker,
+        )
+
     def tensor_parallel(self, ratio: int) -> Self:
         """Get a copy of this world state with the given tensor paralellism.
 
