@@ -123,7 +123,7 @@ class World:
         Returns:
             Self: A new tensor-parallel version of this World state object.
         """
-        if 0 <= ratio:
+        if ratio <= 0:
             raise ValueError(f'Tensor parallelism ratio must be postiive.')
 
         if self.num_ranks % ratio:
