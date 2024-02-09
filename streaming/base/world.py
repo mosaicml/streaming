@@ -3,7 +3,10 @@
 
 """Information about nodes, ranks, and workers."""
 
+from typing import Tuple
+
 from torch.utils.data import get_worker_info
+from typing_extensions import Self
 
 from streaming.base import distributed as dist
 
@@ -37,28 +40,95 @@ class World:
       - is_local_leader
     """
 
-    def __init__(self):
-        self.rank = dist.get_rank()
-        self.num_ranks = dist.get_world_size()
-        self.ranks_per_node = dist.get_local_world_size()
-        self.rank_of_node = self.rank % self.ranks_per_node
+    def __init__(
+        self,
+        num_nodes: int,
+        ranks_per_node: int,
+        workers_per_rank: int,
+        worker: int,
+    ) -> None:
+        self.node = workers_per_rank // (ranks_per_node * workers_per_rank)
+        self.num_nodes = num_nodes
+        self.is_multinode = 1 < num_nodes
 
-        self.node = self.rank // self.ranks_per_node
-        self.num_nodes = self.num_ranks // self.ranks_per_node
-        self.is_multinode = 1 < self.num_nodes
+        self.rank = worker // workers_per_rank
+        self.num_ranks = num_nodes * ranks_per_node
+        self.rank_of_node = self.rank % ranks_per_node
+        self.ranks_per_node = ranks_per_node
 
+        self.worker = worker
+        self.num_workers = num_nodes * ranks_per_node * workers_per_rank
+        self.worker_of_node = self.worker % (ranks_per_node * workers_per_rank)
+        self.workers_per_node = ranks_per_node * workers_per_rank
+        self.worker_of_rank = self.worker % workers_per_rank
+        self.workers_per_rank = workers_per_rank
+        self.is_leader = not worker
+        self.is_local_leader = not self.worker_of_node
+
+    @classmethod
+    def _get_worker_info(cls) -> Tuple[int, int]:
+        """Get worker info, or default to 0 of 1.
+
+        Returns:
+            Tuple[int, int]: Worker ID out of how many workers.
+        """
         info = get_worker_info()
         if info:
-            self.worker_of_rank = info.id
-            self.workers_per_rank = info.num_workers
+            ret = info.id, info.num_workers
         else:
-            self.worker_of_rank = 0
-            self.workers_per_rank = 1
+            ret = 0, 1
+        return ret
 
-        self.worker = self.rank * self.workers_per_rank + self.worker_of_rank
-        self.num_workers = self.num_ranks * self.workers_per_rank
-        self.worker_of_node = self.rank_of_node * self.workers_per_rank + self.worker_of_rank
-        self.workers_per_node = self.ranks_per_node * self.workers_per_rank
+    @classmethod
+    def detect(cls) -> Self:
+        """Detect the world state.
 
-        self.is_leader = not self.worker
-        self.is_local_leader = not self.worker_of_node
+        Returns:
+            Self: A new World state object according to dist and get_worker_info().
+        """
+        rank = dist.get_rank()
+        ranks_per_node = dist.get_local_world_size()
+        num_nodes = dist.get_world_size() // ranks_per_node
+        worker_of_rank, workers_per_rank = cls._get_worker_info()
+        worker = rank * workers_per_rank + worker_of_rank
+        return cls(num_nodes, ranks_per_node, workers_per_rank, worker)
+
+    def tensor_parallel(self, ratio: int) -> Self:
+        """Get a copy of this world state with the given tensor paralellism.
+
+        Args:
+            ratio (int): Ratio of tensor parallelism.
+
+        Returns:
+            Self: A new tensor-parallel version of this World state object.
+        """
+        if 0 <= ratio:
+            raise ValueError(f'Tensor parallelism ratio must be postiive.')
+
+        if self.ranks_per_node % ratio:
+            raise ValueError(f'Ranks per node must be divisible by your tensor parallelism ratio.')
+
+        rank_of_node = self.rank_of_node // ratio
+        ranks_per_node = self.ranks_per_node // ratio
+        worker = rank_of_node * self.workers_per_rank + self.worker_of_rank
+        return World(
+            num_nodes=self.num_nodes,
+            ranks_per_node=ranks_per_node,
+            workers_per_rank=self.workers_per_rank,
+            worker=worker,
+        )
+
+    def detect_workers(self) -> Self:
+        """Get a copy of this world state with the worker information newly detected.
+
+        Returns:
+            Self: A new workers-newly-detected version of this World state object.
+        """
+        worker_of_rank, workers_per_rank = self._get_worker_info()
+        worker = self.rank * workers_per_rank + worker_of_rank
+        return World(
+            num_nodes=self.num_nodes,
+            ranks_per_node=self.ranks_per_node,
+            workers_per_rank=workers_per_rank,
+            worker=worker,
+        )

@@ -308,6 +308,10 @@ class StreamingDataset(Array, IterableDataset):
         allow_unsafe_types (bool): If a shard contains Pickle, which allows arbitrary code
             execution during deserialization, whether to keep going if ``True`` or raise an error
             if ``False``. Defaults to ``False``.
+        world (World, optional): Override the world state (otherwise it is detected from standard
+            env vars). Defaults to ``None``.
+        tensor_parallelism (int, optional): Tensor parallelism to apply to the given or detected
+            world state. Defaults to ``None``.
     """
 
     def __init__(self,
@@ -333,7 +337,9 @@ class StreamingDataset(Array, IterableDataset):
                  shuffle_seed: int = 9176,
                  shuffle_block_size: Optional[int] = None,
                  batching_method: str = 'random',
-                 allow_unsafe_types: bool = False) -> None:
+                 allow_unsafe_types: bool = False,
+                 world: Optional[World] = None,
+                 tensor_parallelism: Optional[int] = None) -> None:
         # Global arguments (which do not live in Streams).
         self.predownload = predownload
         self.cache_limit = cache_limit
@@ -348,6 +354,16 @@ class StreamingDataset(Array, IterableDataset):
         self.shuffle_block_size = shuffle_block_size
         self.batching_method = batching_method
         self.allow_unsafe_types = allow_unsafe_types
+
+        # Initialize the World context.
+        #
+        # Beware: This information is for the per-rank process. DataLoader worker processes may see
+        # different values for these fields. We are saving the rank World here because we cannot
+        # instantiate a World inside the StreamingDataset destructor.
+        world = world or World.detect()
+        if tensor_parallelism is not None:
+            world = world.tensor_parallel(tensor_parallelism)
+        self._rank_world = world
 
         # Initialize initial_physical_nodes to None. If we are resuming, then we will set it to the
         # number of physical nodes of the initial run in the _resume function.
@@ -442,13 +458,6 @@ class StreamingDataset(Array, IterableDataset):
         # Set streams.
         self.streams = streams
         self.num_streams = len(streams)
-
-        # Initialize the World context.
-        #
-        # Beware: This information is for the per-rank process. DataLoader worker processes may see
-        # different values for these fields. We are saving the rank World here because we cannot
-        # instantiate a World inside the StreamingDataset destructor.
-        self._rank_world = world = World()
 
         # Download each stream's index, load their shards, and map streams <-> shards.
         self.num_samples = 0
@@ -771,7 +780,7 @@ class StreamingDataset(Array, IterableDataset):
         Returns:
             Dict[str, Any]: The state.
         """
-        world = World()
+        world = self._rank_world
         epoch = self.next_epoch - 1
         epoch, offset = self._resume(world, epoch)
         if from_beginning:
@@ -1437,7 +1446,7 @@ class StreamingDataset(Array, IterableDataset):
 
         # Discover where we left off, if there is a checkpoint, or start at the next epoch.
         # Also pre-increment the epoch counter.
-        world = World()
+        world = self._rank_world.detect_workers()
         epoch, sample_in_epoch = self._resume_incr_epoch(world)
 
         # Get this worker's partition of samples to process.

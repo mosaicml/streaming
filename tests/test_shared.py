@@ -15,7 +15,7 @@ from tests.common.utils import convert_to_mds
 def test_get_shm_prefix(local_remote_dir: Tuple[str, str]):
     local, remote = local_remote_dir
 
-    _, _ = get_shm_prefix(streams_local=[local], streams_remote=[remote], world=World())
+    _, _ = get_shm_prefix(streams_local=[local], streams_remote=[remote], world=World.detect())
 
 
 @pytest.mark.usefixtures('local_remote_dir')
@@ -24,7 +24,7 @@ def test_get_shm_prefix_same_local_dir(local_remote_dir: Tuple[str, str]):
     with pytest.raises(ValueError, match='Reused local directory.*Provide a different one.'):
         _, _ = get_shm_prefix(streams_local=[local, local],
                               streams_remote=[remote, remote],
-                              world=World())
+                              world=World.detect())
 
 
 @pytest.mark.usefixtures('local_remote_dir')
@@ -32,17 +32,17 @@ def test_get_shm_prefix_same_split_dir(local_remote_dir: Tuple[str, str]):
     local, remote = local_remote_dir
     _, _ = get_shm_prefix(streams_local=[local, remote],
                           streams_remote=[local, remote],
-                          world=World())
+                          world=World.detect())
     with pytest.raises(ValueError, match='Reused local directory.*vs.*Provide a different one.'):
         _, _ = get_shm_prefix(streams_local=[local, remote],
                               streams_remote=[local, remote],
-                              world=World())
+                              world=World.detect())
 
 
 def test_same_local_remote_none(local_remote_dir: Tuple[str, str]):
     local, _ = local_remote_dir
-    _, _ = get_shm_prefix(streams_local=[local], streams_remote=[None], world=World())
-    _, _ = get_shm_prefix(streams_local=[local], streams_remote=[None], world=World())
+    _, _ = get_shm_prefix(streams_local=[local], streams_remote=[None], world=World.detect())
+    _, _ = get_shm_prefix(streams_local=[local], streams_remote=[None], world=World.detect())
 
 
 @pytest.mark.parametrize('from_beginning', [True, False])
