@@ -129,15 +129,11 @@ class World:
         if self.num_ranks % ratio:
             raise ValueError(f'World size must be divisible by your tensor parallelism ratio.')
 
-        rank = self.rank // ratio
-        num_ranks = self.num_ranks // ratio
-        worker = rank * self.workers_per_rank + self.worker_of_rank
-        if self.ranks_per_node <= num_ranks:
-            num_nodes = num_ranks // self.ranks_per_node
-            ranks_per_node = self.ranks_per_node
-        else:
-            num_nodes = 1
-            ranks_per_node = num_ranks
+        rank = self.rank // ratio  # Evenly divide ranks.
+        num_ranks = self.num_ranks // ratio  # Floor divide our rank.
+        worker = rank * self.workers_per_rank + self.worker_of_rank  # Derive worker.
+        num_nodes = (num_ranks + self.ranks_per_node - 1) // self.ranks_per_node  # Ceil divide.
+        ranks_per_node = num_ranks // num_nodes  # Evenly divide ranks per node.
         return World(
             num_nodes=num_nodes,
             ranks_per_node=ranks_per_node,
