@@ -356,8 +356,8 @@ class StreamingDataset(Array, IterableDataset):
         self.allow_unsafe_types = allow_unsafe_types
 
         # Initialize the World context.
-        #   * This information is for the per-rank process.
-        #   * DataLoader worker processes may get a different worker ID and worker count than us.
+        #   * This information is for the per-rank or per-worker process.
+        #   * DataLoader worker processes may get a different worker ID and worker count than rank.
         #   * We save the rank Worlds here because we cannot instantiate a World inside our
         #     destructor.
         #   * `unique_` is who are for coordination purposes, where every process must be unique.
@@ -369,6 +369,8 @@ class StreamingDataset(Array, IterableDataset):
             self._parallel_rank_world = world.tensor_parallel(tensor_parallelism)
         else:
             self._parallel_rank_world = world.copy()
+        self._unique_worker_world: World
+        self._parallel_worker_world: World
 
         # Initialize initial_physical_nodes to None. If we are resuming, then we will set it to the
         # number of physical nodes of the initial run in the _resume function.
@@ -742,11 +744,10 @@ class StreamingDataset(Array, IterableDataset):
 
         return epoch, sample_in_epoch
 
-    def _resume_incr_epoch(self, world: World) -> Tuple[int, int]:
+    def _resume_incr_epoch(self) -> Tuple[int, int]:
         """Start or resume training, pre-incrementing the next epoch.
 
-        Args:
-            world (World): World state.
+        This is called on each worker.
 
         Returns:
             Tuple[int, int]: What epoch this is, and sample offset in that epoch.
@@ -758,13 +759,13 @@ class StreamingDataset(Array, IterableDataset):
 
         # Either resume from checkpoint, or start from scratch.
         presumed_epoch = self.next_epoch
-        epoch, sample_in_epoch = self._resume(world, presumed_epoch)
+        epoch, sample_in_epoch = self._resume(self._parallel_worker_world, presumed_epoch)
 
         # Wait for everyone to get the epoch above.
-        self._shared_barrier(world.workers_per_node)
+        self._shared_barrier(self._unique_worker_world.workers_per_node)
 
         # Set the new next epoch.
-        if world.is_local_leader:
+        if self._unique_worker_world.is_local_leader:
             self.next_epoch = epoch + 1
 
         return epoch, sample_in_epoch
@@ -979,11 +980,10 @@ class StreamingDataset(Array, IterableDataset):
 
         return sample_ids, shape_shm, data_shm
 
-    def _get_work(self, world: World, epoch: int, sample_in_epoch: int) -> NDArray[np.int64]:
+    def _get_work(self, epoch: int, sample_in_epoch: int) -> NDArray[np.int64]:
         """Get this worker's partition of this epoch's sample space.
 
         Args:
-            world (World): World state.
             epoch (int): Which epoch it is.
             sample_in_epoch (int): Where we are in the epoch.
 
@@ -995,21 +995,24 @@ class StreamingDataset(Array, IterableDataset):
         if not hasattr(self._shared_barrier, 'lock'):
             self._shared_barrier.lock = FileLock(self._shared_barrier.filelock_path)
 
+        u_world = self._unique_worker_world
+        p_world = self._parallel_worker_world
+
         # Do expensive work that may use a lot of cores/memory just once, in the local leader.
-        if world.is_local_leader:
-            epoch_sample_ids = generate_work(self.batching_method, self, world, epoch,
+        if u_world.is_local_leader:
+            epoch_sample_ids = generate_work(self.batching_method, self, p_world, epoch,
                                              sample_in_epoch)
             shape_shm, data_shm = self._share_work(epoch_sample_ids)
-            self._shared_barrier(world.workers_per_node)
+            self._shared_barrier(u_world.workers_per_node)
         else:
-            self._shared_barrier(world.workers_per_node)
+            self._shared_barrier(u_world.workers_per_node)
             epoch_sample_ids, shape_shm, data_shm = self._attach_work()
 
         # Each worker gets their portion of the work.
-        worker_sample_ids = epoch_sample_ids[world.node, world.rank_of_node,
-                                             world.worker_of_rank].flatten()
+        worker_sample_ids = epoch_sample_ids[p_world.node, p_world.rank_of_node,
+                                             p_world.worker_of_rank].flatten()
 
-        self._shared_barrier(world.workers_per_node)
+        self._shared_barrier(u_world.workers_per_node)
 
         # Now clean up after ourselves.
         shape_shm.cleanup()
@@ -1451,11 +1454,12 @@ class StreamingDataset(Array, IterableDataset):
 
         # Discover where we left off, if there is a checkpoint, or start at the next epoch.
         # Also pre-increment the epoch counter.
-        world = self._parallel_rank_world.detect_workers()
-        epoch, sample_in_epoch = self._resume_incr_epoch(world)
+        self._unique_worker_world = self._unique_rank_world.detect_workers()
+        self._parallel_worker_world = self._parallel_rank_world.detect_workers()
+        epoch, sample_in_epoch = self._resume_incr_epoch()
 
         # Get this worker's partition of samples to process.
-        sample_ids = self._get_work(world, epoch, sample_in_epoch)
+        sample_ids = self._get_work(epoch, sample_in_epoch)
         if not len(sample_ids):  # Resumed at end of epoch, out of samples.
             return
 
