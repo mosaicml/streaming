@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional, Tuple, Type, Union
 from typing_extensions import Self
 
 from streaming.base.compression import compress, get_compression_extension, is_compression
+from streaming.base.format.base.timer import Timer
 from streaming.base.format.index import get_index_basename
 from streaming.base.hashing import get_hash, is_hash
 from streaming.base.storage.upload import CloudUploader
@@ -111,22 +112,51 @@ class Writer(ABC):
         self.size_limit = size_limit_value
         self.extra_bytes_per_shard = extra_bytes_per_shard
         self.extra_bytes_per_sample = extra_bytes_per_sample
+
         self.new_samples: List[bytes]
         self.new_shard_size: int
-
         self.shards = []
 
-        self.cloud_writer = CloudUploader.get(out, keep_local, kwargs.get('progress_bar', False),
-                                              kwargs.get('retry', 2))
-        self.local = self.cloud_writer.local
-        self.remote = self.cloud_writer.remote
+        self._uploader = CloudUploader.get(out, keep_local, kwargs.get('progress_bar', False),
+                                           kwargs.get('retry', 2))
+        self.local = self._uploader.local
+        self.remote = self._uploader.remote
         # `max_workers`: The maximum number of threads that can be executed in parallel.
         # One thread is responsible for uploading one shard file to a remote location.
         self.executor = ThreadPoolExecutor(max_workers=kwargs.get('max_workers', None))
         # Create an event to track an exception in a thread.
         self.event = Event()
 
+        self.timer = self._get_timer()
+
         self._reset_cache()
+
+    @classmethod
+    def _get_timer(cls) -> Timer:
+        """Get a timer tree for the process of writing a dataset.
+
+        Returns:
+            Timer: The tree of timers.
+        """
+        return Timer([
+            ('write', Timer([
+                'serialize_sample',
+                'flush_shard',
+            ])),
+            ('finish',
+             Timer([
+                 'flush_last_shard',
+                 ('save_index',
+                  Timer([
+                      'serialize_index',
+                      'write_index',
+                      'wait_for_shard_uploads',
+                      'upload_index',
+                  ])),
+                 'shutdown_executor',
+                 'remove_local',
+             ])),
+        ])
 
     def _reset_cache(self) -> None:
         """Reset our internal shard-building cache.
@@ -245,53 +275,88 @@ class Writer(ABC):
             self.cancel_future_jobs()
             raise Exception('One of the threads failed. Check other traceback for more ' +
                             'details.')
-        # Execute the task if there is no exception in any of the async threads.
-        new_sample = self.encode_sample(sample)
-        new_sample_size = len(new_sample) + self.extra_bytes_per_sample
-        if self.size_limit and self.size_limit < self.new_shard_size + new_sample_size:
-            self.flush_shard()
-            self._reset_cache()
-        self.new_samples.append(new_sample)
-        self.new_shard_size += new_sample_size
 
-    def _write_index(self) -> None:
+        with self.timer.write as ctx:  # pyright: ignore
+
+            with ctx.serialize_sample:
+                new_sample = self.encode_sample(sample)
+                new_sample_size = len(new_sample) + self.extra_bytes_per_sample
+
+            with ctx.flush_shard:
+                if self.size_limit and self.size_limit < self.new_shard_size + new_sample_size:
+                    self.flush_shard()
+                    self._reset_cache()
+
+            self.new_samples.append(new_sample)
+            self.new_shard_size += new_sample_size
+
+    def _upload_file(self, basename: str) -> None:
+        """Do the file upload, calling the callback when done.
+
+        Args:
+            basename (str): File basename.
+        """
+        future = self.executor.submit(self._uploader.upload_file, basename)
+        future.add_done_callback(self.exception_callback)
+
+    def _save_index(self) -> None:
         """Write the index, having written all the shards."""
+        ctx = self.timer.finish.save_index  # pyright: ignore
+
         if self.new_samples:
             raise RuntimeError('Internal error: not all samples have been written.')
+
         if self.event.is_set():
-            # Shutdown the executor and cancel all the pending futures due to exception in one of
-            # the threads.
+            # Shutdown the executor and cancel all the pending futures due to exception in
+            # one of the threads.
             self.cancel_future_jobs()
             return
-        basename = get_index_basename()
-        filename = os.path.join(self.local, basename)
-        obj = {
-            'version': 2,
-            'shards': self.shards,
-        }
-        with open(filename, 'w') as out:
-            json.dump(obj, out, sort_keys=True)
-        # Execute the task if there is no exception in any of the async threads.
-        while self.executor._work_queue.qsize() > 0:
-            logger.debug(
-                f'Queue size: {self.executor._work_queue.qsize()}. Waiting for all ' +
-                f'shard files to get uploaded to {self.remote} before uploading index.json')
-            sleep(1)
-        logger.debug(f'Queue size: {self.executor._work_queue.qsize()}. Uploading ' +
-                     f'index.json to {self.remote}')
-        future = self.executor.submit(self.cloud_writer.upload_file, basename)
-        future.add_done_callback(self.exception_callback)
+
+        with ctx.serialize_index:
+            basename = get_index_basename()
+            filename = os.path.join(self.local, basename)
+            obj = {
+                'version': 2,
+                'shards': self.shards,
+            }
+            text = json.dumps(obj, sort_keys=True)
+            data = text.encode('utf-8')
+
+        with ctx.write_index:
+            with open(filename, 'wb') as out:
+                out.write(data)
+
+        with ctx.wait_for_shard_uploads:
+            while self.executor._work_queue.qsize():
+                logger.debug(
+                    f'Queue size: {self.executor._work_queue.qsize()}. Waiting for all ' +
+                    f'shard files to get uploaded to {self.remote} before uploading index.json')
+                sleep(1)
+
+        with ctx.upload_index:
+            logger.debug(f'Queue size: {self.executor._work_queue.qsize()}. Uploading ' +
+                         f'index.json to {self.remote}')
+            self._upload_file(basename)
 
     def finish(self) -> None:
         """Finish writing samples."""
-        if self.new_samples:
-            self.flush_shard()
-            self._reset_cache()
-        self._write_index()
-        logger.debug(f'Waiting for all shard files to get uploaded to {self.remote}')
-        self.executor.shutdown(wait=True)
-        if self.remote and not self.keep_local:
-            shutil.rmtree(self.local, ignore_errors=True)
+        ctx = self.timer.finish  # pyright: ignore
+
+        with ctx.flush_last_shard:
+            if self.new_samples:
+                self.flush_shard()
+                self._reset_cache()
+
+        with ctx.save_index:
+            self._save_index()
+
+        with ctx.shutdown_executor:
+            logger.debug(f'Waiting for all shard files to get uploaded to {self.remote}')
+            self.executor.shutdown(wait=True)
+
+        with ctx.remove_local:
+            if self.remote and not self.keep_local:
+                shutil.rmtree(self.local, ignore_errors=True)
 
     def cancel_future_jobs(self) -> None:
         """Shutting down the executor and cancel all the pending jobs."""
@@ -315,12 +380,10 @@ class Writer(ABC):
         Raises:
             exception: re-raise an exception
         """
-        exception = future.exception()
-        if exception:
-            # Set the event to let other pool thread know about the exception
-            self.event.set()
-            # re-raise the same exception
-            raise exception
+        err = future.exception()
+        if err:
+            self.event.set()  # Set the event to let other pool thread know about the exception.
+            raise err  # Re-raise the same exception.
 
     def __enter__(self) -> Self:
         """Enter context manager.
@@ -328,23 +391,33 @@ class Writer(ABC):
         Returns:
             Self: This object.
         """
+        self.timer = self._get_timer()
+        self.timer.__enter__()
         return self
 
-    def __exit__(self, exc_type: Optional[Type[BaseException]], exc: Optional[BaseException],
-                 traceback: Optional[TracebackType]) -> None:
+    def __exit__(self,
+                 exc_type: Optional[Type[BaseException]] = None,
+                 exc: Optional[BaseException] = None,
+                 traceback: Optional[TracebackType] = None) -> None:
         """Exit context manager.
 
         Args:
-            exc_type (Type[BaseException], optional): Exc type.
-            exc (BaseException, optional): Exc.
-            traceback (TracebackType, optional): Traceback.
+            exc_type (Type[BaseException], optional): Exception type. Defaults to ``None``.
+            exc (BaseException, optional): Exception. Defaults to ``None``.
+            traceback (TracebackType, optional): Traceback. Defaults to ``None``.
         """
+        ctx = self.timer
+
         if self.event.is_set():
             # Shutdown the executor and cancel all the pending futures due to exception in one of
             # the threads.
             self.cancel_future_jobs()
             return
-        self.finish()
+
+        with ctx.finish:  # pyright: ignore
+            self.finish()
+
+        ctx.__exit__()
 
 
 class JointWriter(Writer):
@@ -429,10 +502,7 @@ class JointWriter(Writer):
         obj.update(self.get_config())
         self.shards.append(obj)
 
-        # Execute the task if there is no exception in any of the async threads.
-        future = self.executor.submit(self.cloud_writer.upload_file, zip_data_basename or
-                                      raw_data_basename)
-        future.add_done_callback(self.exception_callback)
+        self._upload_file(zip_data_basename or raw_data_basename)
 
 
 class SplitWriter(Writer):
@@ -521,12 +591,5 @@ class SplitWriter(Writer):
         obj.update(self.get_config())
         self.shards.append(obj)
 
-        # Execute the task if there is no exception in any of the async threads.
-        future = self.executor.submit(self.cloud_writer.upload_file, zip_data_basename or
-                                      raw_data_basename)
-        future.add_done_callback(self.exception_callback)
-
-        # Execute the task if there is no exception in any of the async threads.
-        future = self.executor.submit(self.cloud_writer.upload_file, zip_meta_basename or
-                                      raw_meta_basename)
-        future.add_done_callback(self.exception_callback)
+        self._upload_file(zip_data_basename or raw_data_basename)
+        self._upload_file(zip_meta_basename or raw_meta_basename)
