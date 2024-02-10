@@ -16,7 +16,15 @@ class Locality(IntEnum):
 
     LOCAL = 1
     REMOTE = 2
-    DNE = 3  # Does Not Exist
+    UNUSED = 3
+
+
+class Sizedness(IntEnum):
+    """Whether a shard file phase is of known size."""
+
+    SIZED = 1
+    UNSIZED = 2
+    UNUSED = 3
 
 
 class Phaser:
@@ -105,28 +113,28 @@ class Phaser:
             raise ValueError(f'All shard formats use some selection of the three phases.')
 
         # The `raw` phase must must exist somewhere (either LOCAL or REMOTE).
-        if phase_locs[1] == Locality.DNE:
+        if phase_locs[1] == Locality.UNUSED:
             raise ValueError(f'All shard formats must define at least their `raw` phase, but ' +
                              f'got phase localities: {phase_locs}.')
 
         # The first phase used is the `persistent` phase. It is either LOCAL or REMOTE.
         for persistent_idx, loc in enumerate(phase_locs):
-            if loc != Locality.DNE:
+            if loc != Locality.UNUSED:
                 break
         else:
             raise ValueError(f'All shard formats must define at least their `raw` phase, but ' +
                              f'got phase localities: {phase_locs}.')
 
         # The last phase of known size is the `checked` phase. -1 if no phase has a known size.
-        for checked_idx, is_sized in reversed(list(enumerate(phase_chks))):
-            if is_sized:
+        for checked_idx, sizedness in reversed(list(enumerate(phase_chks))):
+            if sizedness == Sizedness.SIZED:
                 break
         else:
             checked_idx = -1
 
         # Sizes must start known, then transition to unknown (works for -1 too).
-        for is_sized in phase_chks[:checked_idx + 1]:
-            if not is_sized:
+        for sizedness in phase_chks[:checked_idx + 1]:
+            if sizedness == Sizedness.UNSIZED:
                 raise ValueError(f'All sized phases must precede all unsized phases, but got: ' +
                                  f'{phase_chks.tolist()}.')
 

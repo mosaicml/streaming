@@ -11,7 +11,7 @@ from numpy.typing import NDArray
 
 from streaming.compression import decompress
 from streaming.format.base.phase import ShardFilePhase
-from streaming.format.base.phaser import Locality
+from streaming.format.base.phaser import Locality, Sizedness
 from streaming.format.canonical import canonicalize
 from streaming.stream.dir_conf import StreamDirConf
 
@@ -123,7 +123,7 @@ class ShardFile:
             if phase:
                 arr[phase_id] = Locality.LOCAL if phase.probe(listing) else Locality.REMOTE
             else:
-                arr[phase_id] = Locality.DNE
+                arr[phase_id] = Locality.UNUSED
         return arr
 
     def _get_phase_sizednesses(self) -> NDArray[np.int64]:
@@ -132,10 +132,16 @@ class ShardFile:
         Returns:
             NDArray[np.int64]: Phase sizednesses.
         """
-        is_sized = np.zeros(3, np.int64)
+        states = np.zeros(3, np.int64)
         for phase_idx, phase in enumerate(self.phases):
-            is_sized[phase_idx] = bool(phase) and (phase.expected_size is not None)
-        return is_sized
+            if phase is None:
+                state = Sizedness.UNUSED
+            elif phase.expected_size is None:
+                state = Sizedness.UNUSED
+            else:
+                state = Sizedness.SIZED
+            states[phase_idx] = state
+        return states
 
     def inventory_local(self, listing: Set[str]) -> int:
         """Normalize this file's phases' presence in the local directory to a coherent state.
@@ -158,7 +164,7 @@ class ShardFile:
                 else:
                     phase_loc = Locality.REMOTE
             else:
-                phase_loc = Locality.DNE
+                phase_loc = Locality.UNUSED
             phase_locs.append(phase_loc)
         phase_locs = np.array(phase_locs, np.int64)
 
@@ -209,7 +215,7 @@ class ShardFile:
         if self.can_phase:
             can_loc = Locality.LOCAL if self.can_phase.is_local() else Locality.REMOTE
         else:
-            can_loc = Locality.DNE
+            can_loc = Locality.UNUSED
         phase_locs = np.array([Locality.LOCAL, Locality.LOCAL, can_loc], np.int64)
 
         # Given localities and policy, determine phase evictions.
@@ -245,7 +251,7 @@ class ShardFile:
         if self.zip_phase:
             zip_loc = Locality.LOCAL if self.zip_phase.is_local() else Locality.REMOTE
         else:
-            zip_loc = Locality.DNE
+            zip_loc = Locality.UNUSED
         phase_locs = np.array([zip_loc, Locality.LOCAL, Locality.LOCAL], np.int64)
 
         # Given localities and policy, determine phase evictions.
