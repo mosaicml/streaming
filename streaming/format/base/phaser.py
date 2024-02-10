@@ -5,13 +5,10 @@
 
 from copy import deepcopy
 from enum import IntEnum
-from typing import Union
 
 import numpy as np
 from numpy.typing import NDArray
 from typing_extensions import Self
-
-from streaming.util.auto import Auto
 
 
 class Locality(IntEnum):
@@ -26,52 +23,49 @@ class Phaser:
     """Keep or drop shard file phases, configured by intended use case and/or explicitly.
 
     Args:
-        persistent (bool | Auto): Whether to cache the first phase of the file that its
+        persistent (bool): Whether to cache the first phase of the file that its
             format uses. This is the phase used for persistent persistent and downloading, i.e, the
             phase required in order to serve as a Stream remote. It is ``zip``  if compression was
-            used, or ``raw`` otherwise. If ``Auto``, falls back to ``False``.`Defaults to
-            ``Auto()``.
-        medial (bool | Auto): Whether to cache any phase(s) between the ones used
+            used, or ``raw`` otherwise. Defaults to ``False``.
+        medial (bool): Whether to cache any phase(s) between the ones used
             for ``persistent`` and``checked``, respectively. Currently, this would only
             select a phase in the case of compressed Streaming Parquet shards with a sized
             canonicalized form, but it is possible that phases may become more complex in the
-            future. Useful if you want to keep all phases of a shard file. If ``Auto``, falls
-            back to ``False``. Defaults to ``Auto()``.
-        checked (bool | Auto): Whether to cache the last phase of the file
+            future. Useful if you want to keep all phases of a shard file. Defaults to ``False``.
+        checked (bool): Whether to cache the last phase of the file
             that its format uses that is able to be checked on resumption, by having associated
             size/hash metadata set. For Parquet shards to be converted on the fly, we will not have
             any expected size or hashes for its last (i.e. canonicalized) phase. Useful if you want
-            to not accept any uncheckable shard files you find cached locally upon init. If
-            ``Auto()``, falls back to ``True``. Defaults to ``Auto()``.
-        active (bool | Auto): Whether to cache the very last phase of the file that its
+            to not accept any uncheckable shard files you find cached locally upon init. Defaults to
+            ``True``.
+        active (bool): Whether to cache the very last phase of the file that its
             format uses, without regard to whether it can be checked or not. This phase is the
             final product of shard preparation. Set to ``True`` if you intend to use the shard in
             any way, and to ``False`` for dry runs of shard preparation, clearing a dataset to just
-            the ``persistent`` phase of shards, or other such purpose. If ``Auto``, falls back to
-            ``True``. Defaults to ``Auto()``.
-        zip (None | bool | Auto): Whether to cache the ``zip`` phase of the file, if its
+            the ``persistent`` phase of shards, or other such purpose. Defaults to ``True``.
+        zip (bool): Whether to cache the ``zip`` phase of the file, if its
             format uses it. If ``bool``, it overrides what the intended use cases would do. If
-            ``None``, it takes its value from from the intended use cases would do. If ``Auto``,
-            falls back to ``None``.
-        raw (None | bool | Auto): Whether to cache the ``raw`` phase of the file, if its
+            ``None``, it takes its value from from the intended use cases would do. Defaults to
+            ``False``.
+        raw (bool): Whether to cache the ``raw`` phase of the file, if its
             format uses it. If ``bool``, it overrides what the intended use cases would do. If
-            ``None``, it takes its value from from the intended use cases would do. If ``Auto``,
-            falls back to ``None``.
-        can (None | bool | Auto): Whether to cache the ``can`` phase of the file, if its
+            ``None``, it takes its value from from the intended use cases would do. Defaults to
+            ``False``.
+        can (bool): Whether to cache the ``can`` phase of the file, if its
             format uses it. If ``bool``, it overrides what the intended use cases would do. If
-            ``None``, it takes its value from from the intended use cases would do. If ``Auto``,
-            falls back to ``None``.
+            ``None``, it takes its value from from the intended use cases would do. Defaults to
+            ``False``.
     """
 
     def __init__(
-            self,
-            persistent: Union[bool, Auto] = Auto(),
-            medial: Union[bool, Auto] = Auto(),
-            checked: Union[bool, Auto] = Auto(),
-            active: Union[bool, Auto] = Auto(),
-            zip: Union[None, bool, Auto] = Auto(),
-            raw: Union[None, bool, Auto] = Auto(),
-            can: Union[None, bool, Auto] = Auto(),
+        self,
+        persistent: bool = False,
+        medial: bool = False,
+        checked: bool = True,
+        active: bool = True,
+        zip: bool = False,
+        raw: bool = False,
+        can: bool = False,
     ) -> None:
         self.persistent = persistent
         self.medial = medial
@@ -91,9 +85,12 @@ class Phaser:
         ret.persistent = True
         return ret
 
-    def get_phase_deletions(self, phase_locs: NDArray[np.int64],
-                            phase_chks: NDArray[np.int64]) -> NDArray[np.int64]:
-        """Get phase deletions.
+    def get_phase_deletions(
+        self,
+        phase_locs: NDArray[np.int64],
+        phase_chks: NDArray[np.int64],
+    ) -> NDArray[np.int64]:
+        """Get phases to delete.
 
         Args:
             phase_locs (NDArray[np.int64]): Phase localities.
@@ -163,4 +160,6 @@ class Phaser:
                              f'{self.zip}, raw {self.raw}, can {self.can}.')
 
         keep = by_goal | by_phase
-        return 1 - keep
+        dont_keep = 1 - keep
+        is_local = phase_locs == Locality.LOCAL
+        return dont_keep * is_local
