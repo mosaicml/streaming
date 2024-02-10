@@ -10,7 +10,7 @@ from typing import Dict, Iterator, Optional, Set, Tuple, Type
 
 import brotli
 import snappy
-import zstd
+import zstandard as zstd
 from typing_extensions import Self
 
 __all__ = [
