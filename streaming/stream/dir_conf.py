@@ -5,9 +5,10 @@
 
 import os
 from collections.abc import Sequence as SequenceClass
+from copy import deepcopy
 from hashlib import blake2s
 from tempfile import gettempdir
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 from streaming.format.base.phaser import Phaser
 from streaming.util.auto import Auto
@@ -96,11 +97,29 @@ def _get_hash_algos(arg: Union[None, str, Sequence[str]]) -> List[str]:
         return list(arg)
 
 
-def _get_phaser(arg: Union[None, str, Sequence[str], Dict[str, Optional[bool]], Phaser]) -> Phaser:
+def _get_keep_phases_kwarg(txt: str) -> Tuple[str, bool]:
+    """Parse one ``keep_phases`` kwarg.
+
+    Args:
+        txt (str): Input arg.
+
+    Returns:
+        Tuple[str, bool]: Normalized arg.
+    """
+    if txt.startswith('+'):
+        pair = txt[1:], True
+    elif txt.startswith('-'):
+        pair = txt[1:], False
+    else:
+        pair = txt, True
+    return pair
+
+
+def _get_keep_phases(arg: Union[None, str, Sequence[str], Dict[str, bool], Phaser]) -> Phaser:
     """Normalize a keep phases arg.
 
     Args:
-        arg (None | str | Sequence[str] | Dict[str, Optional[bool]] | Phaser): Input arg.
+        arg (None | str | Sequence[str] | Dict[str, bool] | Phaser): Input arg.
 
     Returns:
         Phaser: Normalized arg.
@@ -108,11 +127,18 @@ def _get_phaser(arg: Union[None, str, Sequence[str], Dict[str, Optional[bool]], 
     if arg is None:
         return Phaser()
     elif isinstance(arg, str):
-        return Phaser(**{arg: True})
+        key, value = _get_keep_phases_kwarg(arg)
+        kwargs = {key: value}
+        return Phaser(**kwargs)
     elif isinstance(arg, dict):
         return Phaser(**arg)
     elif isinstance(arg, SequenceClass):
-        return Phaser(**dict(zip(arg, [True] * len(arg))))
+        pairs = []
+        for txt in arg:
+            pair = _get_keep_phases_kwarg(txt)
+            pairs.append(pair)
+        kwargs = dict(zip(*pairs))
+        return Phaser(**kwargs)
     else:
         return arg
 
@@ -127,6 +153,64 @@ def _get_keep_zip(arg: bool) -> Phaser:
         Phaser: Normalized arg.
     """
     return Phaser(persistent=arg)
+
+
+def _get_phaser(
+    init_keep_phases: Union[None, str, Sequence[str], Dict[str, bool], Phaser, Auto],
+    init_keep_zip: Optional[bool],
+    default_keep_phases: Union[None, str, Sequence[str], Dict[str, bool], Phaser, Auto],
+    default_keep_zip: Optional[bool],
+) -> Phaser:
+    """Given all Phaser-related args, determine the Phaser.
+
+    Args:
+        init_keep_phases (None | str | Sequence[str] | Dict[str, bool] | Phaser | Auto):
+            ``keep_phases`` as provided up front at Stream init time.
+        init_keep_zip (None | bool): ``keep_zip`` as provided up front at Stream init time.
+        default_keep_phases (None | str | Sequence[str] | Dict[str, bool] | Phaser | Auto):
+            ``keep_phases`` as provided later in ``Stream.apply_defaults()`` at StreamingDataset
+            init time.
+        default_keep_zip (None | bool): ``keep_zip`` as provided later in
+            ``Stream.apply_defaults()`` at StreamingDataset init time.
+    """
+    # There is no legitimate reason why you would be mixing old-style and new-style args. Such
+    # cases are bugs. Let's rule them all out first.
+    is_set = lambda arg: (arg is not None) and not isinstance(arg, Auto)
+    set_keep_phases = is_set(init_keep_phases) or is_set(default_keep_phases)
+    set_keep_zip = is_set(init_keep_zip) or is_set(default_keep_zip)
+    if set_keep_phases and set_keep_zip:
+        clean = lambda txt: ' '.join(txt.split())
+        raise ValueError(
+            clean('''
+            The argument `keep_zip` is deprecated.
+
+            Please update your code to use `keep_phases` instead.
+
+            If you wanted to cache the original, potentially compressed, forms of shard files,
+            which is the phase that is stored and streamed, use `keep_phases="persistent"'.
+
+            If you wanted to cache the compressed forms of shard files, which are not required to
+            exist, use `keep_phases="zip"`.
+        '''))
+
+    # First priority is Stream init keep_phases.
+    if init_keep_phases is not None and not isinstance(init_keep_phases, Auto):
+        return _get_keep_phases(init_keep_phases)
+
+    # Second priority is StreamingDataset init (Stream default) keep_phases.
+    if default_keep_phases is not None and not isinstance(default_keep_phases, Auto):
+        return _get_keep_phases(default_keep_phases)
+
+    # Third priority is Stream init keep_zip.
+    if init_keep_zip is not None:
+        return _get_keep_zip(init_keep_zip)
+
+    # Fourth priority is Stream init keep_zip.
+    if default_keep_zip is not None:
+        return _get_keep_zip(default_keep_zip)
+
+    # Default.
+    return Phaser()
 
 
 class StreamDirConf:
@@ -155,7 +239,7 @@ class StreamDirConf:
             before raising an error, if any. Set to ``None`` for no limit. Streaming duration
             shorthand (e.g., ``1m23s``) is also accepted. Numeric values are in seconds. Set to
             ``Auto`` to inherit from StreamingDataset. Defaults to ``Auto()``.
-        download_max_size (None, str | int | Auto): Maximum size of an individual download, if any.
+        download_max_size (None | str | int | Auto): Maximum size of an individual download, if any.
             This is used to prevent over-large shard files from cripping Streaming performance. Set
             to ``None`` for no size limit. Set to ``str`` to specify the limit using Streaming
             bytes shorthand. Set to ``int`` to specify bytes. Set to ``Auto`` to inherit from
@@ -163,11 +247,12 @@ class StreamDirConf:
         validate_hash (None | str | Sequence[str] | Auto): Ranked list of hashing algorithms to
             apply if expected digest is available. Set to ``Auto`` to inherit from
             StreamingDataset. Defaults to ``Auto()``.
-        keep_phases (str | Sequence[str] | Dict[str, Optional[bool]] | Phaser | Auto): Which phases
-            to keep and to drop upon conversion, given either by intended use case or literally.
-            Specified as a single use or phase to keep, a sequence of uses or phases to keep, a
-            mapping of uses or phases to whether to keep or drop, a ``Phaser`` (which performs the
-            same keeping or dropping), or ``Auto`` to inherit from StreamingDataset. Defaults to
+        keep_phases (None | str | Sequence[str] | Dict[str, bool] | Phaser | Auto): After a phase
+            transition of a shard file, do we keep the old form of the file or garbage collect it?
+            Provided as one of: (1) ``None`` for defaults, (2) the single use case or phase to keep,
+            (3) a sequence giving the use cases or phases to keep, (4) Phaser kwargs (a mapping of
+            use case or phase to whether it must be kept, (5) a Phaser object, or ``Auto`` to
+            inherit from StreamingDataset. All code paths result in a ``Phaser``. Defaults to
             ``Auto()``.
         kwargs (Any): Any unsupported (for forward compat) or deprecated args.
     """
@@ -187,8 +272,7 @@ class StreamDirConf:
         download_timeout: Union[None, str, float, Auto] = Auto(),
         download_max_size: Union[None, str, int, Auto] = Auto(),
         validate_hash: Union[None, str, Sequence[str], Auto] = Auto(),
-        keep_phases: Union[None, str, Sequence[str], Dict[str, Optional[bool]], Phaser, Auto] = \
-            Auto(),
+        keep_phases: Union[None, str, Sequence[str], Dict[str, bool], Phaser, Auto] = Auto(),
         **kwargs: Any,
     ) -> None:
         # 1. Maybe set remote, local, and split.
@@ -237,10 +321,10 @@ class StreamDirConf:
             self.check_hashes = _get_hash_algos(validate_hash)
 
         # 7. Maybe override phaser (phase keeper), then cache self.keep_zip in case needed.
-        if not isinstance(keep_phases, Auto):
-            self.keep_phases = _get_phaser(keep_phases)
-            self.safe_keep_phases = self.keep_phases.to_safe()
-        self.keep_zip = kwargs.get('keep_zip')
+        self.init_keep_phases = keep_phases
+        self.init_keep_zip = kwargs.get('keep_zip')
+        self.phaser: Phaser
+        self.safe_phaser: Phaser
 
     def apply_defaults(
         self,
@@ -253,8 +337,7 @@ class StreamDirConf:
         download_timeout: Union[None, str, float, Auto] = Auto(),
         download_max_size: Union[None, str, int, Auto] = Auto(),
         validate_hash: Union[None, str, Sequence[str], Auto] = Auto(),
-        keep_phases: Union[None, str, Sequence[str], Dict[str, Optional[bool]], Phaser, Auto] = \
-            Auto(),
+        keep_phases: Union[None, str, Sequence[str], Dict[str, bool], Phaser] = None,
         **kwargs: Any,
     ) -> None:
         """Inherit from our owning StreamingDataset the values of any arguments left as auto.
@@ -292,12 +375,13 @@ class StreamDirConf:
             validate_hash (None | str | Sequence[str] | Auto): Ranked list of hashing algorithms to
                 apply if expected digest is available. Set to ``Auto`` to not inherit from
                 StreamingDataset. Defaults to ``Auto()``.
-            keep_phases (str | Sequence[str] | Dict[str, Optional[bool]] | Phaser | Auto): Which
-                phases to keep and to drop upon conversion, given either by intended use case or
-                literally. Specified as a single use or phase to keep, a sequence of uses or phases
-                to keep, a mapping of uses or phases to whether to keep or drop, a ``Phaser``
-                (which performs the same keeping or dropping), or ``Auto`` to not inherit from
-                StreamingDataset. Defaults to ``Auto()``.
+            keep_phases (None | str | Sequence[str] | Dict[str, bool] | Phaser | Auto): After a
+                phase transition of a shard file, do we keep the old form of the file or garbage
+                collect it? Provided as one of: (1) ``None`` for defaults, (2) the single use case
+                or phase to keep, (3) a sequence giving the use cases or phases to keep, (4)
+                Phaser kwargs (a mapping of use case or phase to whether it must be kept, (5) a
+                Phaser object, or ``Auto`` to inherit from StreamingDataset. All code paths result
+                in a ``Phaser``. Defaults to ``Auto()``.
             kwargs (Any): Deprecated arguments, if any: ``keep_zip``.
         """
         err_pattern = 'You must set {txt} in `Stream.__init__()` and/or `Stream.apply_defaults()`.'
@@ -374,19 +458,12 @@ class StreamDirConf:
                 raise err_unset_arg('validate_hash')
 
         # 6. Maybe default phaser (phase keeper), then delete self.keep_zip.
-        if not hasattr(self, 'keep_phases'):
-            if not isinstance(keep_phases, Auto):
-                self.keep_phases = _get_phaser(keep_phases)
-            elif isinstance(self.keep_zip, bool):
-                self.keep_phases = _get_keep_zip(self.keep_zip)
-            else:
-                raise err_unset_arg('keep_phases')
+        keep_zip = kwargs.get('keep_zip')
+        self.phaser = _get_phaser(self.init_keep_phases, self.init_keep_zip, keep_phases, keep_zip)
+        del self.init_keep_phases
+        del self.init_keep_zip
 
-        # We delete self.keep_zip because files are maximally three-phase not two-phase now, and
-        # keep_zip might mean the user wants to literally keep zip phases only (but there is known
-        # good reason to want this), or it might mean the user wants to keep the original phases
-        # of files instead, zipped or not (for which the knob is `self.keep_phases.persistent`).
-        del self.keep_zip
-
-        # 7. Derive safe_keep_phases from keep_phases.
-        self.safe_keep_phases = self.keep_phases.to_safe()
+        # 7. Derive `safe_phaser` from phaser.
+        self.safe_phaser = deepcopy(self.phaser)
+        if self.remote in {None, self.local}:
+            self.safe_phaser.persistent = True

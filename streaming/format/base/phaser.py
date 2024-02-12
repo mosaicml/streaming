@@ -3,12 +3,10 @@
 
 """What shard file phases to keep."""
 
-from copy import deepcopy
 from enum import IntEnum
 
 import numpy as np
 from numpy.typing import NDArray
-from typing_extensions import Self
 
 
 class Locality(IntEnum):
@@ -83,17 +81,7 @@ class Phaser:
         self.raw = raw
         self.can = can
 
-    def to_safe(self) -> Self:
-        """Get the safe version of this Phaser, which never deletes the persistent phase.
-
-        Returns:
-            Self: Safe version of this Phaser.
-        """
-        ret = deepcopy(self)
-        ret.persistent = True
-        return ret
-
-    def get_phase_deletions(
+    def get_deletions(
         self,
         phase_locs: NDArray[np.int64],
         phase_chks: NDArray[np.int64],
@@ -156,10 +144,11 @@ class Phaser:
             active_idx = -1
 
         by_goal = np.zeros(3, np.int64)
-        by_goal[persistent_idx] = True
-        if checked_idx != -1:
+        if self.persistent:
+            by_goal[persistent_idx] = True
+        if self.checked and (checked_idx != -1):
             by_goal[checked_idx] = True
-        if active_idx != -1:
+        if self.active and (active_idx != -1):
             by_goal[active_idx] = True
 
         by_phase = np.array([self.zip, self.raw, self.can], np.int64)

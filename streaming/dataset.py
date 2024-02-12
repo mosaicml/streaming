@@ -278,11 +278,12 @@ class StreamingDataset(Array, IterableDataset):
             bytes shorthand. Set to ``int`` to specify bytes. Defaults to ``200mb``.
         validate_hash (str | Sequence[str], optional): Ranked list of hashing algorithms to
             apply if expected digest is available. Defaults to ``None``.
-        keep_phases (str | Sequence[str] | Dict[str, Optional[bool]] | Phaser): Which phases
-            to keep and to drop upon conversion, given either by intended use case or literally.
-            Specified as a single use or phase to keep, a sequence of uses or phases to keep, a
-            mapping of uses or phases to whether to keep or drop, or a ``Phaser`` (which performs
-            the same keeping or dropping). Defaults to ``None``.
+        keep_phases (str | Sequence[str] | Dict[str, bool] | Phaser, optional): After a phase
+            transition of a shard file, do we keep the old form of the file or garbage collect it?
+            Provided as one of: (1) ``None`` for defaults, (2) the single use case or phase to keep,
+            (3) a sequence giving the use cases or phases to keep, (4) Phaser kwargs (a mapping of
+            use case or phase to whether it must be kept, or (5) a Phaser object. All code paths
+            result in a ``Phaser``. Defaults to ``None``.
         index_download_procs (int, optional): Size of the process pool. You may set either this
             arg or ``index_download_procs_per_cpu``, but not both. Defaults to ``None``.
         index_download_procs_per_cpu (float | int, optional): Size of the process pool as the
@@ -355,7 +356,7 @@ class StreamingDataset(Array, IterableDataset):
         download_timeout: Optional[Union[str, float]] = '2m',
         download_max_size: Optional[Union[str, int]] = '200mb',
         validate_hash: Union[None, str, Sequence[str]] = None,
-        keep_phases: Union[None, str, Sequence[str], Dict[str, Optional[bool]], Phaser] = None,
+        keep_phases: Union[None, str, Sequence[str], Dict[str, bool], Phaser] = None,
         index_download_procs: Optional[int] = None,
         index_download_procs_per_cpu: Optional[Union[float, int]] = 4,
         index_download_max_procs: Optional[int] = 64,
@@ -462,7 +463,7 @@ class StreamingDataset(Array, IterableDataset):
                     **kwargs,
                 )
         else:
-            streams = Stream(
+            stream = Stream(
                 remote=remote,
                 local=local,
                 split=split,
@@ -475,7 +476,9 @@ class StreamingDataset(Array, IterableDataset):
                 validate_hash=validate_hash,
                 keep_phases=keep_phases,
                 **kwargs,
-            ),
+            )
+            stream.apply_defaults()
+            streams = stream,
 
         # Validate the stream weighting scheme (relative or absolute) to catch errors before we go
         # to the trouble of loading them.

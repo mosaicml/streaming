@@ -170,7 +170,7 @@ class ShardFile:
 
         # From phase localities, determine phase evictions according to the keep policy.
         phase_chks = self._get_phase_sizednesses()
-        phase_dels = self.stream.safe_keep_phases.get_phase_deletions(phase_locs, phase_chks)
+        phase_dels = self.stream.safe_phaser.get_deletions(phase_locs, phase_chks)
 
         # Apply any evictions.
         cache_usage += self.evict_phases(phase_dels)
@@ -220,7 +220,7 @@ class ShardFile:
 
         # Given localities and policy, determine phase evictions.
         phase_chks = self._get_phase_sizednesses()
-        phase_dels = self.stream.safe_keep_phases.get_phase_deletions(phase_locs, phase_chks)
+        phase_dels = self.stream.safe_phaser.get_deletions(phase_locs, phase_chks)
 
         # Delete phases we don't want.
         return len(raw_data) + self.evict_phases(phase_dels)
@@ -256,7 +256,7 @@ class ShardFile:
 
         # Given localities and policy, determine phase evictions.
         phase_chks = self._get_phase_sizednesses()
-        phase_dels = self.stream.safe_keep_phases.get_phase_deletions(phase_locs, phase_chks)
+        phase_dels = self.stream.safe_phaser.get_deletions(phase_locs, phase_chks)
 
         # Delete phases we don't want.
         return can_size + self.evict_phases(phase_dels)
