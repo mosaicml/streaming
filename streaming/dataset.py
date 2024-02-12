@@ -1144,7 +1144,7 @@ class StreamingDataset(Array, IterableDataset):
 
         # Perform the eviction, updating cache usage to account for the removal.
         shard = self.shards[shard_id]
-        self.cache_usage -= shard.evict()
+        self.cache_usage += shard.evict()
         if self.cache_usage < 0:
             raise RuntimeError(f'Negative cache usage: {self.cache_usage}.')
 
