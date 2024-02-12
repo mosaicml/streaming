@@ -20,8 +20,8 @@ def local_remote_dir() -> Any:
     """Creates a temporary directory and then deletes it when the calling function is done."""
     try:
         mock_dir = tempfile.TemporaryDirectory()
-        mock_local_dir = os.path.join(mock_dir.name, 'local')
-        mock_remote_dir = os.path.join(mock_dir.name, 'remote')
+        mock_local_dir = os.path.join(mock_dir.name, 'path', 'to', 'local')
+        mock_remote_dir = os.path.join(mock_dir.name, 'path', 'to', 'remote')
         yield mock_local_dir, mock_remote_dir
     finally:
         shutil.rmtree(mock_dir.name, ignore_errors=True)  # pyright: ignore
@@ -32,9 +32,9 @@ def compressed_local_remote_dir() -> Any:
     """Creates a temporary directory and then deletes it when the calling function is done."""
     try:
         mock_dir = tempfile.TemporaryDirectory()
-        mock_compressed_dir = os.path.join(mock_dir.name, 'compressed')
-        mock_local_dir = os.path.join(mock_dir.name, 'local')
-        mock_remote_dir = os.path.join(mock_dir.name, 'remote')
+        mock_compressed_dir = os.path.join(mock_dir.name, 'path', 'to', 'compressed')
+        mock_local_dir = os.path.join(mock_dir.name, 'path', 'to', 'local')
+        mock_remote_dir = os.path.join(mock_dir.name, 'path', 'to', 'remote')
         yield mock_compressed_dir, mock_local_dir, mock_remote_dir
     finally:
         shutil.rmtree(mock_dir.name, ignore_errors=True)  # pyright: ignore
