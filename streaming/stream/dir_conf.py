@@ -28,7 +28,7 @@ def _derive_local(remote: str, split: Optional[str]) -> str:
     """
     data = remote.encode('utf-8')
     hex_digest = blake2s(data, digest_size=16).hexdigest()
-    return os.path.join(gettempdir(), 'streaming', 'auto_local', hex_digest, split or '')
+    return os.path.join(gettempdir(), 'streaming', 'local', hex_digest)
 
 
 def _get_bool(arg: bool) -> bool:
