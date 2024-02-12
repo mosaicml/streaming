@@ -22,7 +22,7 @@ __all__ = ['Stream']
 
 
 class Stream(StreamDirConf, StreamWeightConf):
-    """A StreamingDatasdet directory, used alone or together with others.
+    """A StreamingDataset directory, used alone or together with others.
 
     Args:
         kwargs (Dict[str, Any]): Arguments inherted from StreamDirConf and StreamWeightConf.
