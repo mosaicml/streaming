@@ -171,10 +171,18 @@ class _Iterator:
 def download_index(stream: Stream) -> None:
     """A Stream index download process.
 
+    If the file download fails for any reason, writes an empty file to the target location, causing
+    all ranks to raise an error when they attempt to load and parse the index file. Otherwise, they
+    would have to wait for a timeout, unless we switch to ProcessPoolExecutor.
+
     Args:
         stream (Stream): The stream.
     """
-    stream.download_index()
+    try:
+        stream.download_index()
+    except:
+        with open(stream.local_index_path, 'wb') as out:
+            out.write(b'')
 
 
 class StreamingDataset(Array, IterableDataset):
