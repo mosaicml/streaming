@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import random
+import numpy as np
 import shutil
 import tempfile
 import urllib.parse
@@ -258,12 +259,12 @@ def merge_index(*args: Any, **kwargs: Any):
 def _download_url(url_info: Tuple[str, str, int]):
     """Download a file given URL information."""
     from streaming.base.storage.download import download_file
-    src, dest, download_timeout = url_info
+    src, dst, download_timeout = url_info
     try:
-        download_file(src, dest, download_timeout)
+        download_file(src, dst, download_timeout)
     except Exception as ex:
-        return f'Failed to download index.json: {src} to {dest}: {str(ex)}', ex
-    return dest, None
+        return f'Failed to download index.json: {src} to {dst}: {str(ex)}', ex
+    return dst, None
 
 
 def _merge_partition_indices(partition_indices: List[str]):
@@ -286,13 +287,15 @@ def _parallel_merge_partitions(partitions: List[str], n_processes: Optional[int]
     """Divide the list of partitions among multiple processes and merge them in parallel."""
     with Pool(processes=n_processes) as pool:
         # Split the list of partitions into N chunks where N is the number of processes
-        chunk_size = len(partitions) // n_processes + (len(partitions) % n_processes > 0)
+        chunk_size = int(np.ceil(len(partitions)/n_processes))
         partition_chunks = [
             partitions[i:i + chunk_size] for i in range(0, len(partitions), chunk_size)
         ]
 
         # Process each chunk in parallel
-        results = pool.map(_merge_partition_indices, partition_chunks)
+        results = pool.imap_unordered(_merge_partition_indices, partition_chunks)
+        pool.close()
+        pool.join()
 
     # Combine the results from all processes
     final_shards = [shard for result in results for shard in result]
@@ -346,7 +349,7 @@ def _merge_index_from_list(index_file_urls: Sequence[Union[str, Tuple[str, str]]
 
     # Prepare a temp folder to download index.json from remote if necessary. Removed in the end.
     with tempfile.TemporaryDirectory() as temp_root:
-        logging.info(f'A temporary folder {temp_root} is created to store index files')
+        logging.info(f'Created temporary folder {temp_root} to store index files')
 
         # Copy files to a temporary directory. Download if necessary
         download_tasks = []
@@ -362,11 +365,13 @@ def _merge_index_from_list(index_file_urls: Sequence[Union[str, Tuple[str, str]]
                 raise FileNotFoundError(
                     f'Check data availability! local index {url[0]} is not accessible.' +
                     f'remote index {url[1]} does not have a valid url format')
-            dest = os.path.join(temp_root, path.lstrip('/'))
-            download_tasks.append((src, dest, download_timeout))
+            dst = os.path.join(temp_root, path.lstrip('/'))
+            download_tasks.append((src, dst, download_timeout))
 
         with Pool(processes=n_processes) as pool:
-            results = pool.map(_download_url, download_tasks)
+            results = pool.imap_unordered(_download_url, download_tasks)
+            pool.close()
+            pool.join()
 
         partitions = []
         for partition_index, error in results:

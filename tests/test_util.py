@@ -8,6 +8,7 @@ import time
 import urllib.parse
 from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
 from typing import List, Optional, Sequence, Tuple, Union
+import numpy as np
 
 import pytest
 from unittest.mock import MagicMock
@@ -221,7 +222,8 @@ def test_merge_index_from_list_local_cpucount(local_remote_dir: Tuple[str, str],
     def random_string(length: int = 1000):
         """Generate a random string of fixed length."""
         letters = string.ascii_letters + string.digits + string.punctuation + ' '
-        return ''.join(random.choice(letters) for _ in range(length))
+        return ''.join(map(chr, np.random.choice(0x10FFFF - 1, length)))
+        #return ''.join(random.choice(letters) for _ in range(length))
 
     # Generate a DataFrame with 10000 rows of random text
     num_rows = 100
