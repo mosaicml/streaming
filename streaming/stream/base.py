@@ -109,9 +109,9 @@ class Stream(StreamDirConf, StreamWeightConf):
             if os.path.exists(path):
                 with open(path, 'r') as file:
                     text = file.read()
-                    raise ValueError(text)
+                    raise RuntimeError(text)
             else:
-                raise ValueError(f'Index file {self.local_index_path} is empty.')
+                raise RuntimeError(f'Index file {self.local_index_path} is empty.')
 
         try:
             text = data.decode('utf-8')
@@ -123,7 +123,7 @@ class Stream(StreamDirConf, StreamWeightConf):
                 shard.validate()
                 self.shards.append(shard)
         except Exception as err:
-            raise ValueError(f'Index file {self.local_index_path} is corrupted: {err}.')
+            raise RuntimeError(f'Index file {self.local_index_path} is corrupted: {err}.')
 
         return self.shards
 

@@ -283,7 +283,7 @@ def test_invalid_index_json_exception(local_remote_dir: Tuple[str, str]):
     with open(os.path.join(local_dir, filename), 'w') as _:
         pass
 
-    with pytest.raises(json.decoder.JSONDecodeError):
+    with pytest.raises(RuntimeError):
         StreamingDataset(local=local_dir)
 
 
