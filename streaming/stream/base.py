@@ -44,17 +44,32 @@ class Stream(StreamDirConf, StreamWeightConf):
         Notes:
           * This method is called by StreamingDataset init.
           * It is only called in local rank zero processes.
-          * This method is executed in parallel, with one Python thread per Stream, by a
-            ThreadPoolExecutor.
+          * This method is executed in parallel, with one Python process per Stream, by a
+            procees pool.
           * It doesn't redownload if it already exists, but it still checks size/hashes.
         """
-        self.index_size = smart_download_file(
-            remote=self.remote_index_path,
-            local=self.local_index_path,
-            timeout=self.download_timeout,
-            retry=self.download_retry,
-            max_size=self.download_max_size,
-        )
+        try:
+            # Download and/or verify the index file.
+            self.index_size = smart_download_file(
+                remote=self.remote_index_path,
+                local=self.local_index_path,
+                timeout=self.download_timeout,
+                retry=self.download_retry,
+                max_size=self.download_max_size,
+            )
+        except Exception as err:
+            # Write an empty file to signal that we are done downloading to `await_index()` (but it
+            # will crash upon load).
+            with open(self.local_index_path, 'wb') as out:
+                out.write(b'')
+
+            # Write the error that was raised to a shadow index file path. This file will be read
+            # by other processes once they discover this index download failed.
+            with open(self.local_index_path + '.error', 'w') as out:
+                out.write(str(err))
+
+            # Propagate the error within this process.
+            raise err
 
     def await_index(self) -> None:
         """Wait for the index file to become downloaded.
@@ -65,9 +80,10 @@ class Stream(StreamDirConf, StreamWeightConf):
             calling ``await_index()`` and ``load_index()`` on each Stream.
           * This method is on the critical path.
         """
+        # Wait for the index file to exist.
         wait_for_creation(self.local_index_path, self.download_timeout, FILESYSTEM_POLL_INTERVAL)
 
-        # Because download_index() is called in another process, self.index_size is not set.
+        # Because `download_index()` was called in another process, we must set `self.index_size`.
         self.index_size = os.stat(self.local_index_path).st_size
 
     def load_index(self) -> List[Shard]:
@@ -84,16 +100,30 @@ class Stream(StreamDirConf, StreamWeightConf):
         """
         from streaming.format import shard_from_json
 
-        # Read the index file and parse its JSON.
-        with open(self.local_index_path) as file:
-            self.index = json.load(file)
+        # Read the index file.
+        with open(self.local_index_path, 'rb') as file:
+            data = file.read()
 
-        # Create the manager-accessor for each shard according to its shard metadata in the index.
-        self.shards = []
-        for sub in self.index['shards']:
-            shard = shard_from_json(self, sub)
-            shard.validate()
-            self.shards.append(shard)
+        if not data:
+            path = self.local_index_path + '.error'
+            if os.path.exists(path):
+                with open(path, 'r') as file:
+                    text = file.read()
+                    raise ValueError(text)
+            else:
+                raise ValueError(f'Index file {self.local_index_path} is empty.')
+
+        try:
+            text = data.decode('utf-8')
+            self.index = json.loads(text)
+            # Create the manager-accessor for each shard according to its shard metadata in the index.
+            self.shards = []
+            for sub in self.index['shards']:
+                shard = shard_from_json(self, sub)
+                shard.validate()
+                self.shards.append(shard)
+        except Exception as err:
+            raise ValueError(f'Index file {self.local_index_path} is corrupted: {err}.')
 
         return self.shards
 

@@ -168,23 +168,6 @@ class _Iterator:
             self._num_exited += 1
 
 
-def download_index(stream: Stream) -> None:
-    """A Stream index download process.
-
-    If the file download fails for any reason, writes an empty file to the target location, causing
-    all ranks to raise an error when they attempt to load and parse the index file. Otherwise, they
-    would have to wait for a timeout, unless we switch to ProcessPoolExecutor.
-
-    Args:
-        stream (Stream): The stream.
-    """
-    try:
-        stream.download_index()
-    except:
-        with open(stream.local_index_path, 'wb') as out:
-            out.write(b'')
-
-
 class StreamingDataset(Array, IterableDataset):
     """A mid-epoch-resumable streaming/caching pytorch IterableDataset.
 
@@ -490,7 +473,7 @@ class StreamingDataset(Array, IterableDataset):
                 index_download_max_procs,
             )
             pool = Pool(num_procs)
-            pool.imap_unordered(download_index, self.streams)
+            pool.imap_unordered(Stream.download_index, self.streams)
             pool.close()
         else:
             pool = None
