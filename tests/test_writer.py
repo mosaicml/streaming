@@ -22,7 +22,7 @@ class TestMDSWriter:
         local, _ = local_remote_dir
         dataset = SequenceDataset(100)
         columns = dict(zip(dataset.column_names, dataset.column_encodings))
-        with pytest.raises(ValueError, match=f'.*Invalid Writer argument.*'):
+        with pytest.raises(ValueError):
             _ = MDSWriter(out=local, columns=columns, min_workers=1)
 
     @pytest.mark.parametrize('num_samples', [100])

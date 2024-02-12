@@ -45,7 +45,7 @@ class XSVShard(DualRowShard):
         column_names: List[str],
         column_encodings: List[str],
         newline: str,
-        separator: str,
+        separator: Optional[str],
     ) -> None:
         super().__init__(
             conf=conf,
@@ -99,7 +99,7 @@ class XSVShard(DualRowShard):
             column_names=column_names,
             column_encodings=column_encodings,
             newline=obj['newline'],
-            separator=obj['separator'],
+            separator=obj.get('separator'),
         )
 
     def get_sample_data(self, idx: int) -> bytes:

@@ -4,7 +4,7 @@
 """A JSONL shard."""
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import numpy as np
 from typing_extensions import Self
@@ -40,8 +40,7 @@ class JSONLShard(DualRowShard):
         num_samples: int,
         data_file: ShardFile,
         meta_file: ShardFile,
-        column_names: List[str],
-        column_encodings: List[str],
+        columns: Dict[str, str],
         newline: str,
     ) -> None:
         super().__init__(
@@ -51,9 +50,13 @@ class JSONLShard(DualRowShard):
             data_file=data_file,
             meta_file=meta_file,
         )
-        self.column_names = column_names
-        self.column_encodings = column_encodings
-        self.columns = dict(zip(column_names, column_encodings))
+        self.columns = columns
+        self.column_names = []
+        self.column_encodings = []
+        for col_name in sorted(self.columns):
+            self.column_names.append(col_name)
+            col_encoding = columns[col_name]
+            self.column_encodings.append(col_encoding)
         self.newline = newline
 
     @classmethod
@@ -85,16 +88,13 @@ class JSONLShard(DualRowShard):
             )
             files.append(file)
         data_file, meta_file = files
-        col_names = obj['column_names']
-        col_encodings = obj['column_encodings']
         return cls(
             conf=obj,
             stream=stream,
             num_samples=obj['samples'],
             data_file=data_file,
             meta_file=meta_file,
-            column_names=col_names,
-            column_encodings=col_encodings,
+            columns=obj['columns'],
             newline=obj['newline'],
         )
 
