@@ -144,7 +144,7 @@ def test_reader_download_fail(local_remote_dir: Any, missing_file: str, seed: in
         os.remove(os.path.join(remote_dir, 'index.json'))
 
     # Build and iterate over a StreamingDataset
-    with pytest.raises(RuntimeError) as exc_info:
+    with pytest.raises(RuntimeError):
         dataset = StreamingDataset(local=local_dir,
                                    remote=remote_dir,
                                    shuffle=False,

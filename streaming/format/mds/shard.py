@@ -96,11 +96,12 @@ class MDSShard(MonoRowShard):
     def validate(self):
         """Check whether this shard is acceptable to be part of some Stream."""
         super().validate()
-        for column in self.columns:
-            if not is_mds_encoding_safe(column.encoding):
-                raise ValueError(f'Column {column.name} contains an unsafe type: ' +
-                                 f'{column.encoding}. To proceed anyway, set ' +
-                                 f'`allow_unsafe_types` to `True`.')
+        if not self.stream.allow_unsafe_types:
+            for column in self.columns:
+                if not is_mds_encoding_safe(column.encoding):
+                    raise ValueError(f'Column `{column.name}` contains an unsafe type: ' +
+                                     f'`{column.encoding}`. To proceed anyway, set ' +
+                                     f'`allow_unsafe_types` to `True`.')
 
     def _analyze(self, fp: IO[bytes]) -> Dict[str, Any]:
         obj = {
