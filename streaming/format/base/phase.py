@@ -202,15 +202,16 @@ class ShardFilePhase:
         Returns:
             int: Change in cache usage, in bytes.
         """
-        # Verify there is a remote to download from.
-        if self.stream.remote in {None, self.stream.local}:
-            raise ValueError(f'File(s) are missing, but there is nowhere to download them from ' +
-                             f'because we are the authoritative copy.')
-
-        # Do the download, retrying if necessary.
-        remote = self.get_remote_filename()
         local = self.get_local_filename()
 
+        # Verify there is a remote to download from.
+        if self.stream.remote in {None, self.stream.local}:
+            raise ValueError(f'Shard file {local} needs to be downloaded, but as `remote` is ' +
+                             f'{self.stream.remote}, there is nowhere to download it from.')
+
+        remote = self.get_remote_filename()
+
+        # Do the download, retrying if necessary.
         self.size = smart_download_file(
             remote=remote,
             local=local,
