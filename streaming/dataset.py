@@ -448,37 +448,21 @@ class StreamingDataset(Array, IterableDataset):
         destroy_dist = maybe_init_dist()
 
         # Initialize the Stream defaults and normalize to a list of Streams.
-        if streams:
-            for stream in streams:
-                stream.apply_defaults(
-                    split=split,
-                    allow_schema_mismatch=allow_schema_mismatch,
-                    allow_unsafe_types=allow_unsafe_types,
-                    allow_unchecked_resumption=allow_unchecked_resumption,
-                    download_retry=download_retry,
-                    download_timeout=download_timeout,
-                    download_max_size=download_max_size,
-                    validate_hash=validate_hash,
-                    keep_phases=keep_phases,
-                    **kwargs,
-                )
-        else:
-            stream = Stream(
-                remote=remote,
-                local=local,
-                split=split,
-                allow_schema_mismatch=allow_schema_mismatch,
-                allow_unsafe_types=allow_unsafe_types,
-                allow_unchecked_resumption=allow_unchecked_resumption,
-                download_retry=download_retry,
-                download_timeout=download_timeout,
-                download_max_size=download_max_size,
-                validate_hash=validate_hash,
-                keep_phases=keep_phases,
-                **kwargs,
-            )
-            stream.apply_defaults()
-            streams = stream,
+        kwargs.update(
+            split=split,
+            allow_schema_mismatch=allow_schema_mismatch,
+            allow_unsafe_types=allow_unsafe_types,
+            allow_unchecked_resumption=allow_unchecked_resumption,
+            download_retry=download_retry,
+            download_timeout=download_timeout,
+            download_max_size=download_max_size,
+            validate_hash=validate_hash,
+            keep_phases=keep_phases,
+        )
+        if not streams:
+            streams = Stream(remote=remote, local=local, **kwargs),
+        for stream in streams:
+            stream.apply_defaults(**kwargs)
 
         # Validate the stream weighting scheme (relative or absolute) to catch errors before we go
         # to the trouble of loading them.
