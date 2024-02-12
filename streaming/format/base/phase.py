@@ -87,16 +87,18 @@ class ShardFilePhase:
         """
         self.stream = stream
 
-    def validate_for_download(self) -> None:
-        """Validate for download purposes.
+    def validate_for_persistence(self) -> None:
+        """Validate for storage and download purposes.
 
-        The download phase (``zip`` or ``raw``) of a shard file must be sized, and if there is a
+        The persistent phase (``zip`` or ``raw``) of a shard file must be sized, and if there is a
         limit on download size, must fit the limit.
         """
         if self.expected_size is None:
             raise ValueError(
-                f'The first existing phase, i.e. the phase that is stored persistently and ' +
-                f'downloaded, must be of known size.')
+                f'The first phased used by any shard file, that is, the phase which is stored ' +
+                f'persistently and downloaded, must be of known size. Please check your dataset ' +
+                f'for corruption. This may indicate an internal error in the process of writing ' +
+                f'the dataset.')
 
         if self.stream.download_max_size is not None and \
                 self.stream.download_max_size < self.expected_size:

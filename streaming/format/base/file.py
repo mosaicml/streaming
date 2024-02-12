@@ -104,7 +104,7 @@ class ShardFile:
         if self.stream.download_max_size is not None:
             for phase in self.phases:
                 if phase:
-                    phase.validate_for_download()
+                    phase.validate_for_persistence()
                 break
 
     def locate(self, listing: Set[str]) -> NDArray[np.int64]:
