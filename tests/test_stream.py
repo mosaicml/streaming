@@ -5,7 +5,6 @@ import hashlib
 import os
 import shutil
 import tempfile
-from tempfile import gettempdir
 from typing import Any, Optional
 
 import pytest
