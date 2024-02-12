@@ -77,7 +77,7 @@ extra_deps['dev'] = [
     'fastapi==0.109.0',
     'pydantic==2.5.3',
     'uvicorn==0.27.1',
-    'pytest-split==0.8.1',
+    'pytest-split==0.8.2',
 ]
 
 extra_deps['docs'] = [
