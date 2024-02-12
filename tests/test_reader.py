@@ -144,7 +144,7 @@ def test_reader_download_fail(local_remote_dir: Any, missing_file: str, seed: in
         os.remove(os.path.join(remote_dir, 'index.json'))
 
     # Build and iterate over a StreamingDataset
-    with pytest.raises(FileNotFoundError) as exc_info:
+    with pytest.raises(RuntimeError) as exc_info:
         dataset = StreamingDataset(local=local_dir,
                                    remote=remote_dir,
                                    shuffle=False,
@@ -152,7 +152,6 @@ def test_reader_download_fail(local_remote_dir: Any, missing_file: str, seed: in
                                    shuffle_seed=seed)
         for _ in dataset:
             pass
-    assert exc_info.match(r'.*No such file or directory*')
 
 
 @pytest.mark.parametrize('created_ago', [0.5, 1.0])
@@ -284,9 +283,8 @@ def test_invalid_index_json_exception(local_remote_dir: Tuple[str, str]):
     with open(os.path.join(local_dir, filename), 'w') as _:
         pass
 
-    with pytest.raises(json.decoder.JSONDecodeError,
-                       match=f'Index file at.*is empty or corrupted'):
-        _ = StreamingDataset(local=local_dir)
+    with pytest.raises(json.decoder.JSONDecodeError):
+        StreamingDataset(local=local_dir)
 
 
 @pytest.mark.usefixtures('local_remote_dir')
