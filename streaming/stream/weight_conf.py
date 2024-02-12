@@ -17,6 +17,9 @@ __all__ = ['StreamWeightConf']
 class StreamWeightConf:
     """Configures how a Stream is weighted.
 
+    At most one of ``proportion``, ``repeat``, and ``choose`` may be set per Stream. The others are
+    derived at ``StreamingDataset`` init time..
+
     Args:
         proportion (float, optional): The proportion of this StreamingDataset's samples that are
             sampled from this Stream. As this is a relative measure, use ``epoch_size`` to
