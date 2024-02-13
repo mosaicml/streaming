@@ -127,7 +127,8 @@ funcs = [
     shard_eviction_disabled,
     shard_eviction_too_high,
     manual_shard_eviction,
-    # shad_eviction, cache_limit_too_low
+    # shad_eviction,
+    # cache_limit_too_low,
 ]
 
 
