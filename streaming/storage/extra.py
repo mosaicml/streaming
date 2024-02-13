@@ -17,6 +17,9 @@ from streaming.util.shorthand import normalize_bytes, normalize_count, normalize
 
 __all__ = ['walk_prefix', 'walk_dir', 'list_dataset_files', 'smart_download_file', 'file_exists']
 
+TWO_SLASH = re.compile('^[a-zA-Z0-9]+://')
+ONE_SLASH = re.compile('^[a-zA-Z0-9]+:/[^/]?')
+
 
 def _analyze_path(path: str) -> Tuple[str, bool]:
     """Analyze the path, returning URI scheme-normalized form and whether is on the local fs.
@@ -36,10 +39,13 @@ def _analyze_path(path: str) -> Tuple[str, bool]:
     else:
         is_local = False
 
-    path = os.path.normpath(path)
-
-    idx = path.find(':/')
-    if idx == -1:
+    if TWO_SLASH.match(path):
+        path = os.path.normpath(path)
+        idx = path.index(':/')
+        path = path[:idx] + '://' + path[idx + 2:]
+    elif ONE_SLASH.match(path):
+        path = os.path.normpath(path)
+    else:
         path = os.path.abspath(path)
 
     return path, is_local
