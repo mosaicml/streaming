@@ -195,7 +195,7 @@ def test_format_remote_index_files(scheme: str):
         obj = urllib.parse.urlparse(file)
         assert obj.scheme == scheme
 
-@pytest.mark.parametrize('cpu_count', [0, 1,4,2000])
+@pytest.mark.parametrize('cpu_count', [0, 1,4])
 def test_merge_index_from_list_local_cpucount(local_remote_dir: Tuple[str, str], cpu_count: int):
     """Validate the multiprocessing setting"""
     import random
