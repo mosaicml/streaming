@@ -90,5 +90,5 @@ def test_missing_index_json_local(local_remote_dir: Any):
     else:
         raise Exception(f"Missing {os.path.join(remote_dir, 'index.json')}")
     stream = Stream(remote=None, local=remote_dir)
-    with pytest.raises(RuntimeError):
+    with pytest.raises(RuntimeError, match='.*No such file or directory.*'):
         _ = StreamingDataset(streams=[stream])
