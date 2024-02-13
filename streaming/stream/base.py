@@ -84,7 +84,7 @@ class Stream(StreamDirConf, StreamWeightConf):
         try:
             wait_for_creation(self.local_index_path, self.download_timeout,
                               FILESYSTEM_POLL_INTERVAL)
-        except Exception as err:
+        except:
             raise FileNotFoundError(f'Index file was not found: file {self.local_index_path}, ' +
                                     f'timeout {self.download_timeout}.')
 
