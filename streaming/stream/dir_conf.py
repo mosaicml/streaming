@@ -11,6 +11,7 @@ from tempfile import gettempdir
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 from streaming.format.base.phaser import Phaser
+from streaming.storage.extra import normalize_path
 from streaming.util.auto import Auto
 from streaming.util.shorthand import normalize_bytes, normalize_count, normalize_duration
 
@@ -276,9 +277,9 @@ class StreamDirConf:
         **kwargs: Any,
     ) -> None:
         # 1. Maybe set remote, local, and split.
-        self.remote = os.path.abspath(remote) if remote is not None else None
+        self.remote = normalize_path(remote) if remote is not None else None
         if local is not None:
-            self.local = os.path.abspath(local)
+            self.local = normalize_path(local)
         if not split:
             split = None
         if not isinstance(split, Auto):
