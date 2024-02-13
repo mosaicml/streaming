@@ -204,10 +204,6 @@ class StreamingDataset(Array, IterableDataset):
                   * ``validate_hash``
                   * ``keep_phases``
       * How to iterate:
-          * Init:
-              * ``index_download_procs``
-              * ``index_download_procs_per_cpu``
-              * ``index_download_max_procs``
           * Shard lifecycle:
               * ``predownload``
               * ``cache_limit``
