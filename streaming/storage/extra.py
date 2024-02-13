@@ -39,9 +39,7 @@ def _analyze_path(path: str) -> Tuple[str, bool]:
     path = os.path.normpath(path)
 
     idx = path.find(':/')
-    if idx != -1:
-        path = path[:idx] + '://' + path[idx:]
-    else:
+    if idx == -1:
         path = os.path.abspath(path)
 
     return path, is_local
