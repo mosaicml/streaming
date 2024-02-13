@@ -5,6 +5,7 @@
 
 import json
 import logging
+import mmap
 import os
 import sys
 import warnings
@@ -804,12 +805,34 @@ class StreamingDataset(Array, IterableDataset):
         Args:
             obj (Dict[str, Any]): The state.
         """
+        # Set shared memory block to be 1024 characters long. This enables calling
+        # `load_state_dict` multiple times without needing to resize the shared memory block.
+        # Resizing the shared memory block is not possible, and closing the shared memory block
+        # and replacing it with a new one is causing great difficulties.
+
         name = _get_path(self._shm_prefix_int, RESUME)
-        data = json.dumps(obj, sort_keys=True).encode('utf-8')
+        data = json.dumps(obj, sort_keys=True)
+
+        len_needed = len(data)
+        # Note: mmap.PAGESIZE has a minimum size of 4096 bytes across systems. For reference,
+        # see the link below:
+        # https://en.wikipedia.org/wiki/Page_(computer_memory)#Multiple_page_sizes
+        if len_needed > mmap.PAGESIZE:
+            raise ValueError(
+                f'The StreamingDataset state dict for resumption is currently ',
+                f'allocated {mmap.PAGESIZE} bytes, insufficient to store the ',
+                f'state dict that was attempted to load in, which uses {len_needed} ',
+                f'bytes. Please increase the bytes allocated to the state dict by ',
+                f'changing the SharedMemory size parameter, set in this function.',
+                f'The state dict may also be corrupted. The state dict is: {data}.')
         # Some platforms choose to allocate chunks of memory based upon that platform's memory page
         # size, hence the exact size of the shared memory block that was returned may be larger
         # than what was requested.
-        self._resume_shm = SharedMemory(name=name, size=len(data))
+        self._resume_shm = SharedMemory(name=name, size=mmap.PAGESIZE)
+        # Write a null byte at the end of the shared memory block so that we read in the state
+        # dict correctly in `_resume`.
+        data += '\0'
+        data = data.encode('utf-8')
         self._resume_shm.buf[:len(data)] = data
 
     def resample_streams(

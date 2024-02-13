@@ -233,7 +233,7 @@ class NDArray(Encoding):
             parts.append(part)
         else:
             if obj.dtype != self.dtype:
-                raise ValueError('Wrong dtype: expected {self.dtype}, got {obj.dtype.name}.')
+                raise ValueError(f'Wrong dtype: expected {self.dtype}, got {obj.dtype.name}.')
 
         # Encode shape, if not given in header.
         if self.shape is None:
