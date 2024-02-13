@@ -9,7 +9,6 @@ import json
 import logging
 import os
 import random
-import numpy as np
 import shutil
 import tempfile
 import urllib.parse
@@ -18,9 +17,10 @@ from multiprocessing import Pool
 from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
 from pathlib import Path
 from time import sleep, time
-from typing import (Any, Callable, List, Optional, Sequence, Tuple, Type, TypeVar, Union, cast,
-                    overload)
+from typing import Any, Callable, List, Sequence, Tuple, Type, TypeVar, Union, cast, overload
 
+import numpy as np
+import psutil
 import torch.distributed as dist
 
 from streaming.base.constant import SHM_TO_CLEAN
@@ -220,7 +220,7 @@ def get_import_exception_message(package_name: str, extra_deps: str) -> str:
 
 
 def merge_index(*args: Any, **kwargs: Any):
-    r"""Merge index.json from partitions to form a global index.json.
+    r"""Merge index.json from shards to form a global index.json.
 
     This can be called as
 
@@ -228,18 +228,18 @@ def merge_index(*args: Any, **kwargs: Any):
 
         merge_index(out, keep_local, download_timeout)
 
-    The first signature takes in a list of index files URLs of MDS partitions.
-    The second takes the root of a MDS dataset and parse the partition folders from there.
+    The first signature takes in a list of index files URLs of MDS shards.
+    The second takes the root of a MDS dataset and parse the shards folders from there.
 
     Args:
-        index_file_urls (List[Union[str, Tuple[str,str]]]): index.json from all the partitions.
+        index_file_urls (List[Union[str, Tuple[str,str]]]): index.json from all the shards.
             Each element can take the form of a single path string or a tuple string.
 
             1. If ``index_file_urls`` is a List of local URLs, merge locally without download.
             2. If ``index_file_urls`` is a List of tuple (local, remote) URLs, check if local index.json are missing, download before merging.
             3. If ``index_file_urls`` is a List of remote URLs, download all and merge.
 
-        out (Union[str, Tuple[str,str]]): folder that contain MDS partitions and to put the merged index file
+        out (Union[str, Tuple[str,str]]): folder that contain MDS shards and to put the merged index file
 
             1. A local directory, merge index happens locally.
             2. A remote directory, download all the sub-directories index.json, merge locally and upload.
@@ -267,12 +267,12 @@ def _download_url(url_info: Tuple[str, str, int]):
     return dst, None
 
 
-def _merge_partition_indices(partition_indices: List[str]):
-    """Function to be executed by each process to merge a subset of partition indices."""
+def _merge_shard_indices(shard_indices: List[str]):
+    """Function to be executed by each process to merge a subset of shard indices."""
     shards = []
-    for partition_index in partition_indices:
-        p = Path(partition_index)
-        with open(partition_index, 'r') as f:
+    for shard_index in shard_indices:
+        p = Path(shard_index)
+        with open(shard_index, 'r') as f:
             obj = json.load(f)
         for shard in obj['shards']:
             for key in ('raw_data', 'zip_data', 'raw_meta', 'zip_meta'):
@@ -283,17 +283,17 @@ def _merge_partition_indices(partition_indices: List[str]):
     return shards
 
 
-def _parallel_merge_partitions(partitions: List[str], n_processes: Optional[int] = 1):
-    """Divide the list of partitions among multiple processes and merge them in parallel."""
+def _parallel_merge_shards(shards: List[str], n_processes: int = 1):
+    """Divide the list of shards among multiple processes and merge them in parallel."""
     with Pool(processes=n_processes) as pool:
-        # Split the list of partitions into N chunks where N is the number of processes
-        chunk_size = int(np.ceil(len(partitions)/n_processes))
-        partition_chunks = [
-            partitions[i:i + chunk_size] for i in range(0, len(partitions), chunk_size)
+        # Split the list of shards into N chunks where N is the number of processes
+        chunk_size = int(np.ceil(len(shards) / n_processes))
+        shard_chunks = [
+            shards[i:i + chunk_size] for i in range(0, len(shards), chunk_size)
         ]
 
         # Process each chunk in parallel
-        results = pool.imap_unordered(_merge_partition_indices, partition_chunks)
+        results = pool.map(_merge_shard_indices, shard_chunks)
         pool.close()
         pool.join()
 
@@ -310,7 +310,7 @@ def _merge_index_from_list(index_file_urls: Sequence[Union[str, Tuple[str, str]]
     """Merge index.json from a list of index files of MDS directories to create joined index.
 
     Args:
-        index_file_urls (Union[str, Tuple[str,str]]): index.json from all the partitions
+        index_file_urls (Union[str, Tuple[str,str]]): index.json from all the shards
             each element can take the form of a single path string or a tuple string.
 
             The pattern of index_file_urls and corresponding reaction is one of:
@@ -345,7 +345,8 @@ def _merge_index_from_list(index_file_urls: Sequence[Union[str, Tuple[str, str]]
         else:
             urls.append((url[0].rstrip('/').strip(), url[1].rstrip('/').strip()))
 
-    n_processes = n_processes if (n_processes is not None and 1 <= n_processes <= os.cpu_count()) else 1
+    cpu_count = max(psutil.cpu_count() - 2, 1)
+    n_processes = n_processes if (n_processes is not None and 1 <= n_processes <= cpu_count) else 1
 
     # Prepare a temp folder to download index.json from remote if necessary. Removed in the end.
     with tempfile.TemporaryDirectory() as temp_root:
@@ -369,17 +370,17 @@ def _merge_index_from_list(index_file_urls: Sequence[Union[str, Tuple[str, str]]
             download_tasks.append((src, dst, download_timeout))
 
         with Pool(processes=n_processes) as pool:
-            results = pool.imap_unordered(_download_url, download_tasks)
+            results = pool.map(_download_url, download_tasks)
             pool.close()
             pool.join()
 
-        partitions = []
-        for partition_index, error in results:
+        shards = []
+        for shard_index, error in results:
             if error:
-                raise RuntimeError(partition_index)
-            partitions.append(partition_index)
+                raise RuntimeError(shard_index)
+            shards.append(shard_index)
 
-        shards = _parallel_merge_partitions(partitions, n_processes)
+        shards = _parallel_merge_shards(shards, n_processes)
 
         # Save merged index locally
         obj = {
@@ -445,7 +446,7 @@ def _merge_index_from_root(out: Union[str, Tuple[str, str]],
     """Merge index.json given the root of MDS dataset. Write merged index to the root folder.
 
     Args:
-        out (Union[str, Tuple[str,str]]): folder that contain MDS partitions.
+        out (Union[str, Tuple[str,str]]): folder that contain MDS shards.
             :A local directory, merge index happens locally
             :A remote directory, download all the sub-directories index.json in a temporary
                 sub-directories, merge locally, and then upload it to out location
@@ -470,6 +471,8 @@ def _merge_index_from_root(out: Union[str, Tuple[str, str]],
         if file.endswith('.json') and _not_merged_index(file, cu.local):
             local_index_files.append(file)
 
+    cpu_count = max(psutil.cpu_count() - 2, 1)
+
     if cu.remote:
         remote_index_files = _format_remote_index_files(cu.remote, cu.list_objects())
         if len(local_index_files) == len(remote_index_files):
@@ -477,20 +480,20 @@ def _merge_index_from_root(out: Union[str, Tuple[str, str]],
                                    out,
                                    keep_local=keep_local,
                                    download_timeout=download_timeout,
-                                   n_processes = os.cpu_count())
+                                   n_processes=cpu_count)
         else:
             _merge_index_from_list(remote_index_files,
                                    out,
                                    keep_local=keep_local,
                                    download_timeout=download_timeout,
-                                   n_processes = os.cpu_count())
+                                   n_processes=cpu_count)
         return
 
     _merge_index_from_list(local_index_files,
                            out,
                            keep_local=keep_local,
                            download_timeout=download_timeout,
-                           n_processes = os.cpu_count())
+                           n_processes=cpu_count)
 
 
 @overload

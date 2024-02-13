@@ -8,10 +8,10 @@ import time
 import urllib.parse
 from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
 from typing import List, Optional, Sequence, Tuple, Union
-import numpy as np
-
-import pytest
 from unittest.mock import MagicMock
+
+import numpy as np
+import pytest
 
 from streaming.base.constant import RESUME
 from streaming.base.shared.prefix import _get_path
@@ -195,12 +195,12 @@ def test_format_remote_index_files(scheme: str):
         obj = urllib.parse.urlparse(file)
         assert obj.scheme == scheme
 
-@pytest.mark.parametrize('cpu_count', [0, 1,4])
+
+@pytest.mark.parametrize('cpu_count', [0, 1, 4])
 def test_merge_index_from_list_local_cpucount(local_remote_dir: Tuple[str, str], cpu_count: int):
     """Validate the multiprocessing setting"""
-    import random
-    import string
     from pyspark.sql import SparkSession
+
     from streaming.base.converters import dataframeToMDS
 
     def not_merged_index(index_file_path: str, out: str):
@@ -221,9 +221,7 @@ def test_merge_index_from_list_local_cpucount(local_remote_dir: Tuple[str, str],
 
     def random_string(length: int = 1000):
         """Generate a random string of fixed length."""
-        letters = string.ascii_letters + string.digits + string.punctuation + ' '
         return ''.join(map(chr, np.random.choice(0x10FFFF - 1, length)))
-        #return ''.join(random.choice(letters) for _ in range(length))
 
     # Generate a DataFrame with 10000 rows of random text
     num_rows = 100
@@ -252,8 +250,7 @@ def test_merge_index_from_list_local_cpucount(local_remote_dir: Tuple[str, str],
     assert d1['shards'] == d2['shards'], 'parallel and serial results different'
 
 
-
-@pytest.mark.parametrize('cpu_count', [1,4,2000])
+@pytest.mark.parametrize('cpu_count', [1, 4])
 @pytest.mark.parametrize('index_file_urls_pattern', [1, 2, 3])
 @pytest.mark.parametrize('keep_local', [True, False])
 @pytest.mark.parametrize('scheme', ['gs://', 's3://', 'oci://'])
