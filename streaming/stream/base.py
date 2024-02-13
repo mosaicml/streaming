@@ -81,7 +81,12 @@ class Stream(StreamDirConf, StreamWeightConf):
           * This method is on the critical path.
         """
         # Wait for the index file to exist.
-        wait_for_creation(self.local_index_path, self.download_timeout, FILESYSTEM_POLL_INTERVAL)
+        try:
+            wait_for_creation(self.local_index_path, self.download_timeout,
+                              FILESYSTEM_POLL_INTERVAL)
+        except Exception as err:
+            raise FileNotFoundError(f'Index file was not found: file {self.local_index_path}, ' +
+                                    f'timeout {self.download_timeout}.')
 
         # Because `download_index()` was called in another process, we must set `self.index_size`.
         self.index_size = os.stat(self.local_index_path).st_size
