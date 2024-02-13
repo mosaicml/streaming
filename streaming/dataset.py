@@ -267,15 +267,6 @@ class StreamingDataset(Array, IterableDataset):
             (3) a sequence giving the use cases or phases to keep, (4) Phaser kwargs (a mapping of
             use case or phase to whether it must be kept, or (5) a Phaser object. All code paths
             result in a ``Phaser``. Defaults to ``None``.
-        index_download_procs (int, optional): Size of the process pool. You may set either this
-            arg or ``index_download_procs_per_cpu``, but not both. Defaults to ``None``.
-        index_download_procs_per_cpu (float | int, optional): Size of the process pool as the
-            number of processes per CPU. You may set either this arg or ``index_download_procs``,
-            but not both. If its value is negative, it is taken to be the reciprocal of that value
-            as a positive number, e.g. ``-4`` means ``num_cpus // 4``. Defaults to ``None``.
-        index_download_max_procs (int, optional): Optional ceiling on the number of index
-            downlaod processes. Used to not overwhelm remote storage with concurrency connectinos.
-            Defaults to ``None``.
         predownload (int, optional): Target number of samples to download per worker in advance
             of current sample. Workers will attempt to download ahead by this many samples during,
             but not before, training. Recommendation is to provide a value greater than per device
@@ -340,9 +331,6 @@ class StreamingDataset(Array, IterableDataset):
         download_max_size: Optional[Union[str, int]] = '200mb',
         validate_hash: Union[None, str, Sequence[str]] = None,
         keep_phases: Union[None, str, Sequence[str], Dict[str, bool], Phaser] = None,
-        index_download_procs: Optional[int] = None,
-        index_download_procs_per_cpu: Optional[Union[float, int]] = 4,
-        index_download_max_procs: Optional[int] = 64,
         predownload: Optional[int] = None,
         cache_limit: Optional[Union[str, int]] = None,
         shuffle_seed: int = 9176,
@@ -467,12 +455,7 @@ class StreamingDataset(Array, IterableDataset):
         # Parallelism is important because there could be a very large number of Streams, and we
         # expect equal performance as them having been concatenated into one Stream.
         if world.is_local_leader:
-            num_procs = self._get_index_download_procs(
-                index_download_procs,
-                index_download_procs_per_cpu,
-                index_download_max_procs,
-            )
-            pool = Pool(num_procs)
+            pool = Pool()
             pool.imap_unordered(Stream.download_index, self.streams)
             pool.close()
         else:
@@ -705,63 +688,6 @@ class StreamingDataset(Array, IterableDataset):
             int: Dataset length.
         """
         return self.length
-
-    def _get_index_download_procs(
-        self,
-        index_download_procs: Optional[int] = None,
-        index_download_procs_per_cpu: Optional[Union[float, int]] = 4,
-        index_download_max_procs: Optional[int] = 64,
-    ) -> int:
-        """Get the size of the process pool used by index downloading.
-
-        Args:
-            index_download_procs (int, optional): Size of the process pool. You may set either this
-                arg or ``index_download_procs_per_cpu``, but not both. Defaults to ``None``.
-            index_download_procs_per_cpu (float | int, optional): Size of the process pool as the
-                number of processes per CPU. You may set either this arg or
-                ``index_download_procs``, but not both. If its value is negative, it is taken to be
-                the reciprocal of that value as a positive number, e.g. ``-4`` means
-                ``num_cpus // 4``. Defaults to ``4``.
-            index_download_max_procs (int, optional): Optional ceiling on the number of index
-                downlaod processes. Used to not overwhelm remote storage with concurrency
-                connectinos. Defaults to ``64``.
-        """
-        if index_download_procs is not None:
-            if index_download_procs_per_cpu is not None:
-                raise ValueError(
-                    f'You may specify `index_download_procs`, `index_download_procs_per_cpu`, ' +
-                    f'or neither, but got both: {index_download_procs} and ' +
-                    f'{index_download_procs_per_cpu} respectively.')
-            else:
-                num_procs = index_download_procs
-                if num_procs <= 0:
-                    raise ValueError(f'`index_download_procs` must be a positive integer.')
-        else:
-            num_cpus = os.cpu_count() or 1
-            if index_download_procs_per_cpu is not None:
-                procs_per_cpu = index_download_procs_per_cpu
-                if procs_per_cpu < 0:
-                    num_procs = num_cpus / -procs_per_cpu
-                elif not procs_per_cpu:
-                    num_procs = num_cpus
-                else:
-                    num_procs = num_cpus * procs_per_cpu
-                num_procs = int(np.ceil(num_procs))
-                if num_procs <= 0:
-                    raise ValueError(f'`index_download_procs_per_cpu` must result in a positive ' +
-                                     f'number of index download processes after rounding up.')
-            else:
-                num_procs = num_cpus
-
-        max_procs = index_download_max_procs
-        if max_procs is not None:
-            if max_procs <= 0:
-                raise ValueError(f'`index_download_max_procs` must be a positive integer, but ' +
-                                 f'got: {max_procs}.')
-            if max_procs < num_procs:
-                num_procs = max_procs
-
-        return num_procs
 
     def _set_shuffle_block_size(self, world: World) -> None:
         """Set the shuffle block size value."""
