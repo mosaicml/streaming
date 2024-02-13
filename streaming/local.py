@@ -22,8 +22,8 @@ class LocalDataset(Array, Dataset):
     Args:
         local (str): Local dataset directory where shards are cached by split.
         split (str, optional): Which dataset split sub-path to use, if any. Defaults to ``None``.
-        allow_schema_mismatch (bool): If ``True``, continue if schemas mismatch across
-            shards, streams, or the whole dataset. If ``False``, raises if schemas mismatch.
+        allow_schema_mismatch (bool): If ``True``, continue if sample columns mismatch across
+            shards, streams, or the whole dataset. If ``False``, raises if columns mismatch.
             Defaults to ``False``.
         allow_unsafe_types (bool): If ``True``, continue if unsafe type(s) are encountered
             in shard(s). If ``False``, raises if unsafe type(s) encountered. Defaults to ``False``.

@@ -223,9 +223,9 @@ class StreamDirConf:
             deterministically-calculated temp directory if not set. Defaults to ``None``.
         split (str | Auto, optional): Which dataset split sub-path to use, if any. Set to ``Auto``
             to inherit from StreamingDataset. Defaults to ``Auto()``.
-        allow_schema_mismatch (bool | Auto): If ``True``, continue if schemas mismatch across
-            shards, streams, or the whole dataset. If ``False``, raises if schemas mismatch. Set to
-            ``Auto`` to inherit from StreamingDataset. Defaults to ``Auto()``.
+        allow_schema_mismatch (bool | Auto): If ``True``, continue if sample columns mismatch
+            across shards, streams, or the whole dataset. If ``False``, raises if columns mismatch.
+            Set to ``Auto`` to inherit from StreamingDataset. Defaults to ``Auto()``.
         allow_unsafe_types (bool | Auto): If ``True``, continue if unsafe type(s) are encountered
             in shard(s). If ``False``, raises if unsafe type(s) encountered. Set to ``Auto`` to
             inherit from StreamingDataset. Defaults to ``Auto()``.
