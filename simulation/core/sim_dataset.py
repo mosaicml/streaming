@@ -367,11 +367,7 @@ class SimulationDataset(StreamingDataset):
         self.sample_offset_per_shard = self.samples_per_shard.cumsum() - self.samples_per_shard
         self.spanner = SimulationSpanner(self.samples_per_shard)
 
-        # Also keep track of the raw and compressed sizes of each shard, indexed by shard_id.
-        # TODO: replace `get_raw_size()` and `get_zip_size()` with appropriate methods from the
-        # shard/file/phase API. Can assume that we are using MDS files for the simulator.
-
-        # Get shard raw and zip sizes.
+        # Also keep track of the raw and compressed sizes of each shard.
         for shard in self.shards:
             if len(shard.files) > 1:
                 raise ValueError(f'The Streaming Simulator currently only supports datasets ',
