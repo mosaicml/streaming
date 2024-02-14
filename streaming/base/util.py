@@ -288,9 +288,7 @@ def _parallel_merge_shards(shards: List[str], n_processes: int = 1):
     with Pool(processes=n_processes) as pool:
         # Split the list of shards into N chunks where N is the number of processes
         chunk_size = int(np.ceil(len(shards) / n_processes))
-        shard_chunks = [
-            shards[i:i + chunk_size] for i in range(0, len(shards), chunk_size)
-        ]
+        shard_chunks = [shards[i:i + chunk_size] for i in range(0, len(shards), chunk_size)]
 
         # Process each chunk in parallel
         results = pool.map(_merge_shard_indices, shard_chunks)
