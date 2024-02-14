@@ -24,6 +24,7 @@ class Shard(Array):
             get arguments which are shared across all shards like remote/local paths. Avoids an
             import cycle by Stream subclassing StreamDirConf.
         num_samples (int): Number of samples in this shard.
+        files (List[ShardFile]): The list of files which comprise this shard, in all their phases.
     """
 
     def __init__(
