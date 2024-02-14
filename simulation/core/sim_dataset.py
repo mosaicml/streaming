@@ -9,7 +9,8 @@ import shutil
 import time
 import warnings
 from math import ceil
-from typing import Optional, Sequence, Union
+from multiprocessing import Pool
+from typing import Any, Dict, Optional, Sequence, Union
 
 import numpy as np
 from core.sim_spanner import SimulationSpanner
@@ -19,6 +20,7 @@ from numpy.typing import NDArray
 from streaming import Stream, StreamingDataset
 from streaming.batching import generate_work
 from streaming.format import get_index_basename
+from streaming.format.base.phaser import Phaser
 from streaming.spanner import Spanner
 from streaming.util.shorthand import normalize_bytes, normalize_count
 
@@ -44,17 +46,26 @@ class SimulationDataset(StreamingDataset):
             StreamingDataset uses either ``streams`` or ``remote``/``local``. Defaults to ``None``.
         split (str, optional): Which dataset split to use, if any. If provided, we stream from/to
             the ``split`` subdirs of  ``remote`` and ``local``. Defaults to ``None``.
+        allow_schema_mismatch (bool): If ``True``, continue if sample columns mismatch across
+            shards, streams, or the whole dataset. If ``False``, raises if columns mismatch.
+            Defaults to ``False``.
+        allow_unsafe_types (bool): If ``True``, continue if unsafe type(s) are encountered
+            in shard(s). If ``False``, raises if unsafe type(s) encountered. Defaults to ``False``.
+        allow_unchecked_resumption (bool): If ``True``, upon resume, accept and use shard
+            file phases that we are unable to check the size/hash(es) of. If ``False``, upon
+            resume, drop such files, to regenerate on the fly when needed. Defaults to ``True``.
         download_retry (int): Number of download re-attempts before raising an error. Defaults to
             ``2``.
         download_timeout (str | float): Time in seconds to wait for a file download to complete
             before raising an error. Streaming duration shorthand (e.g., ``1m23s``) is also
             accepted. Defaults to ``1m``.
-        hash_algos (str | Sequence[str], optional): Ranked list of hashing algorithms to try.
-            Defaults to ``None``.
         validate_hash (str, optional): Deprecated. See ``hash_algos``. Defaults to ``None``.
-        keep_old_phases (str): Which old phases of shard files to cache (until shard eviction).
-            Must be one of ``nil``, ``src``, or ``all``. Defaults to ``nil``.
-        keep_zip (bool, optional): Deprecated. See ``keep_old_phases``. Defaults to ``None``.
+        keep_phases (str | Sequence[str] | Dict[str, bool] | Phaser, optional): After a phase
+            transition of a shard file, do we keep the old form of the file or garbage collect it?
+            Provided as one of: (1) ``None`` for defaults, (2) the single use case or phase to keep,
+            (3) a sequence giving the use cases or phases to keep, (4) Phaser kwargs (a mapping of
+            use case or phase to whether it must be kept, or (5) a Phaser object. All code paths
+            result in a ``Phaser``. Defaults to ``None``.
         epoch_size (Union[str, int], optional): Number of samples to draw per epoch balanced
             across all streams. If ``None``, takes its value from the total number of underlying
             samples. Provide this field if you are weighting streams relatively to target a larger
@@ -107,35 +118,39 @@ class SimulationDataset(StreamingDataset):
             if ``False``. Defaults to ``False``.
     """
 
-    def __init__(self,
-                 *,
-                 nodes: int,
-                 devices: int,
-                 workers: int,
-                 streams: Optional[Sequence[Stream]] = None,
-                 remote: Optional[str] = None,
-                 local: Optional[str] = None,
-                 split: Optional[str] = None,
-                 download_retry: int = 2,
-                 download_timeout: Union[str, float] = '1m',
-                 hash_algos: Optional[Union[str, Sequence[str]]] = None,
-                 validate_hash: Optional[str] = None,
-                 keep_old_phases: str = 'nil',
-                 keep_zip: Optional[bool] = None,
-                 epoch_size: Optional[Union[str, int]] = None,
-                 predownload: Optional[int] = None,
-                 cache_limit: Optional[Union[str, int]] = None,
-                 sampling_method: str = 'balanced',
-                 sampling_granularity: int = 1,
-                 partition_algo: str = 'relaxed',
-                 num_canonical_nodes: Optional[int] = None,
-                 batch_size: Optional[int] = None,
-                 shuffle: bool = False,
-                 shuffle_algo: str = 'py1e',
-                 shuffle_seed: int = 9176,
-                 shuffle_block_size: Optional[int] = None,
-                 batching_method: str = 'random',
-                 allow_unsafe_types: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        nodes: int,
+        devices: int,
+        workers: int,
+        streams: Optional[Sequence[Stream]] = None,
+        remote: Optional[str] = None,
+        local: Optional[str] = None,
+        split: Optional[str] = None,
+        allow_schema_mismatch: bool = False,
+        allow_unsafe_types: bool = False,
+        allow_unchecked_resumption: bool = True,
+        download_retry: int = 2,
+        download_timeout: Union[str, float] = '2m',
+        download_max_size: Optional[Union[str, int]] = '200mb',
+        validate_hash: Optional[str] = None,
+        keep_phases: Union[None, str, Sequence[str], Dict[str, bool], Phaser] = None,
+        epoch_size: Optional[Union[str, int]] = None,
+        predownload: Optional[int] = None,
+        cache_limit: Optional[Union[str, int]] = None,
+        sampling_method: str = 'balanced',
+        sampling_granularity: int = 1,
+        partition_algo: str = 'relaxed',
+        num_canonical_nodes: Optional[int] = None,
+        batch_size: Optional[int] = None,
+        shuffle: bool = False,
+        shuffle_algo: str = 'py1e',
+        shuffle_seed: int = 9176,
+        shuffle_block_size: Optional[int] = None,
+        batching_method: str = 'random',
+        **kwargs: Any,
+    ) -> None:
         # Time how long it takes for StreamingDataset instantiation
         t0 = time.time()
 
@@ -202,25 +217,22 @@ class SimulationDataset(StreamingDataset):
         epoch_size_value = normalize_count(epoch_size) if epoch_size else None
 
         # Initialize the Stream defaults and normalize to a list of Streams.
+        kwargs.update(
+            split=split,
+            allow_schema_mismatch=allow_schema_mismatch,
+            allow_unsafe_types=allow_unsafe_types,
+            allow_unchecked_resumption=allow_unchecked_resumption,
+            download_retry=download_retry,
+            download_timeout=download_timeout,
+            download_max_size=download_max_size,
+            validate_hash=validate_hash,
+            keep_phases=keep_phases,
+        )
         if streams:
             for stream in streams:
-                stream.apply_defaults(split=split,
-                                      download_retry=download_retry,
-                                      download_timeout=download_timeout,
-                                      hash_algos=hash_algos,
-                                      validate_hash=validate_hash,
-                                      keep_old_phases=keep_old_phases,
-                                      keep_zip=keep_zip)
+                stream.apply_defaults(**kwargs)
         else:
-            streams = Stream(remote=remote,
-                             local=local,
-                             split=split,
-                             download_retry=download_retry,
-                             download_timeout=download_timeout,
-                             hash_algos=hash_algos,
-                             validate_hash=validate_hash,
-                             keep_old_phases=keep_old_phases,
-                             keep_zip=keep_zip),
+            streams = Stream(remote=remote, local=local, **kwargs),
 
         # Validate the stream weighting scheme (relative or absolute) to catch errors before we go
         # to the trouble of loading them.
@@ -257,7 +269,19 @@ class SimulationDataset(StreamingDataset):
         # Initialize the SimulationWorld, which tells us about nodes/devices/workers
         self.world = SimulationWorld(self.nodes, self.devices, self.workers)
 
-        # Download each stream's index, load their shards, and map streams <-> shards.
+        # Download each Stream's index in parallel from local rank 0.
+        #
+        # Parallelism is important because there could be a very large number of Streams, and we
+        # expect equal performance as them having been concatenated into one Stream.
+        if self.world.is_local_leader:
+            pool = Pool()
+            pool.imap_unordered(Stream.download_index, self.streams)
+            pool.close()
+        else:
+            pool = None
+
+        # All ranks then walk all Streams, for which they (1) wait for its index to become
+        # downloaded, (2) load its shards, and (3) map streams <-> shards <-> samples.
         self.num_samples = 0
         self.shards = []
         stream_per_shard = []
@@ -269,13 +293,14 @@ class SimulationDataset(StreamingDataset):
         local_foldernames = []
         for stream_id, stream in enumerate(self.streams):
             logger.info(f' Processing index file for stream {stream_id + 1}')
-            stream_shards = stream.get_shards(self.world, self.allow_unsafe_types)
+            stream.await_index()
+            stream_shards = stream.load_index()
             num_stream_samples = sum(map(len, stream_shards))
             index_filename = os.path.join(stream.local, stream.split or '', get_index_basename())
             index_filenames.append(index_filename)
             local_foldernames.append(stream.local)
             if not num_stream_samples:
-                raise RuntimeError(f'Stream contains no samples: {index_filename}.')
+                raise RuntimeError(f'Stream contains no samples: {stream.local_index_path}.')
             stream_per_shard += [stream_id] * len(stream_shards)
             self.shard_offset_per_stream[stream_id] = len(self.shards)
             self.shards_per_stream[stream_id] = len(stream_shards)
@@ -283,18 +308,42 @@ class SimulationDataset(StreamingDataset):
             self.samples_per_stream[stream_id] = num_stream_samples
             self.shards += stream_shards
             self.num_samples += num_stream_samples
-
         self.stream_per_shard = np.array(stream_per_shard, np.int64)
         self.num_shards = len(self.shards)
+
+        # Wait for the pool workers (stream index download processes) to finish.
+        if pool is not None:
+            pool.join()
 
         # Check that cache limit is possible.
         if cache_limit:
             self.cache_limit = normalize_bytes(cache_limit)
-            min_cache_usage = sum((stream.get_index_size() for stream in streams))
+            min_cache_usage = sum((stream.index_size for stream in streams))
             if self.cache_limit <= min_cache_usage:
                 raise ValueError(f'Minimum cache usage ({min_cache_usage} bytes) is larger than ' +
                                  f'the cache limit ({self.cache_limit} bytes). Please raise ' +
-                                 f'`cache_limit`.')
+                                 f'`cache_limit`. Recommendation is to provide a `cache_limit` ' +
+                                 f'as high as possible to avoid thrashing.')
+
+            max_phase_size = 0
+            for stream in self.streams:
+                for shard in stream.shards:
+                    for file in shard.files:
+                        for phase in file.phases:
+                            if not phase:
+                                continue
+                            if not phase.expected_size:
+                                continue
+                            if max_phase_size < phase.expected_size:
+                                max_phase_size = phase.expected_size
+
+            if self.cache_limit < 4 * max_phase_size:
+                raise ValueError(f'Cache limit ({self.cache_limit} bytes) is too low. ' +
+                                 f'Increase the `cache_limit` to at-least four times the ' +
+                                 f'largest shard size ({max_phase_size} ' +
+                                 f'bytes) which includes raw (decompressed) and zip ' +
+                                 f'(compressed) file size. Recommendation is to provide a ' +
+                                 f'`cache_limit` as high as possible to avoid thrashing.')
         else:
             self.cache_limit = None
 
@@ -318,9 +367,18 @@ class SimulationDataset(StreamingDataset):
         self.sample_offset_per_shard = self.samples_per_shard.cumsum() - self.samples_per_shard
         self.spanner = SimulationSpanner(self.samples_per_shard)
 
-        # Also keep track of the raw and compressed sizes of each shard, indexed by shard_id.
-        self.raw_shard_sizes = np.array([shard.get_raw_size() for shard in self.shards], np.int64)
-        self.zip_shard_sizes = np.array([shard.get_zip_size() or 0 for shard in self.shards],
+        # Also keep track of the raw and compressed sizes of each shard.
+        for shard in self.shards:
+            if len(shard.files) > 1:
+                raise ValueError(f'The Streaming Simulator currently only supports datasets ',
+                                 f'in MDS format. Please make sure your datasets are in MDS.')
+        self.raw_shard_sizes = np.array([shard.files[0].raw_phase.expected_size \
+                                         for shard in self.shards],
+                                        np.int64)
+        self.zip_shard_sizes = np.array([shard.files[0].zip_phase.expected_size or 0 \
+                                         if shard.files[0].zip_phase is not None \
+                                         else 0 \
+                                         for shard in self.shards],
                                         np.int64)
 
         logger.info(f' Total number of shards: {self.num_shards}')

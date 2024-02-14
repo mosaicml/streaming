@@ -90,7 +90,7 @@ class StreamingOutsideDTWebVid(StreamingDataset):
     """Streaming WebVid dataset.
 
     Videos are stored "outside" the shards, as a file per video. The extra download happens in
-    _download_thread ("DT"), when the download thread prefetches the sample.
+    _fetch_thread ("DT"), when the download thread prefetches the sample.
 
     Args:
         extra_local (str, optional): Base destination of extra local sample downloads.
@@ -133,7 +133,7 @@ class StreamingOutsideDTWebVid(StreamingDataset):
 
         return obj
 
-    def _download_thread(self, it: _Iterator) -> None:
+    def _fetch_thread(self, it: _Iterator) -> None:
         """Download the relevant shards in the background while we are being iterated.
 
         This thread is started at the beginning of each epoch, and exits either when out of samples
@@ -154,26 +154,26 @@ class StreamingOutsideDTWebVid(StreamingDataset):
                 break
 
             # If we're out of samples this epoch, exit this thread because we are done downloading.
-            if it.prepare_index == it.total:
+            if it.fetch_index == it.total:
                 break
 
             # If we are requested to only pre-download so many samples, if we have as many or more
             # downloaded already, we wait and check again later.
             if self.predownload is not None:
-                samples_ahead = it.prepare_index - it.yield_index
+                samples_ahead = it.fetch_index - it.yield_index
                 if self.predownload <= samples_ahead:
                     sleep(TICK)
                     continue
 
             # If we hit -1, we skip.
-            sample_id = it.sample_ids[it.prepare_index]
+            sample_id = it.sample_ids[it.fetch_index]
             if sample_id == -1:
-                it.prepare_index += 1
+                it.fetch_index += 1
                 continue
 
             # Download and decompress the shard for this sample, if not already done.
             shard_id, _ = self.spanner[sample_id]
-            self.prepare_shard(shard_id, False)
+            self.fetch_shard(shard_id, False)
 
             # Predownload the sample's extra data.
             obj = super().get_item(sample_id)
@@ -185,7 +185,7 @@ class StreamingOutsideDTWebVid(StreamingDataset):
                     download_file(remote, local, self.download_timeout)
 
             # Step forward one sample.
-            it.prepare_index += 1
+            it.fetch_index += 1
 
         # Note that we exited.
         it.on_exit()

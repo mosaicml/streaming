@@ -1,92 +1,102 @@
 # Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Streaming JSONL shard reading."""
+"""A JSONL shard."""
 
 import json
-import os
-from copy import deepcopy
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Optional
 
 import numpy as np
 from typing_extensions import Self
 
-from streaming.format.shard import DualShard, FileInfo
+from streaming.format.base.file import ShardFile
+from streaming.format.base.phase import ShardFilePhase
+from streaming.format.base.shard.dual_row import DualRowShard
+from streaming.stream.dir_conf import StreamDirConf
 
 __all__ = ['JSONLShard']
 
 
-class JSONLShard(DualShard):
-    """Provides random access to the samples of a JSONL shard.
+class JSONLShard(DualRowShard):
+    """A JSONL shard.
 
     Args:
-        dirname (str): Local dataset directory.
-        split (str, optional): Which dataset split to use, if any.
-        column_encodings (List[str]): Column encodings.
-        column_names (List[str]): Column names.
-        compression (str, optional): Optional compression or compression:level.
-        hashes (List[str]): Optional list of hash algorithms to apply to shard files.
-        newline (str): Newline character(s).
-        raw_data (FileInfo): Uncompressed data file info.
-        raw_meta (FileInfo): Uncompressed meta file info.
-        samples (int): Number of samples in this shard.
-        size_limit (int, optional): Optional shard size limit, after which point to start a new
-            shard. If None, puts everything in one shard. Can specify bytes
-            human-readable format as well, for example ``"100kb"`` for 100 kilobyte
-            (100*1024) and so on.
-        zip_data (FileInfo, optional): Compressed data file info.
-        zip_meta (FileInfo, optional): Compressed meta file info.
+        conf (Any, optional): JSONL shard config. Defaults to ``None``.
+        stream (StreamDirConf): Link back up to the Stream that owns this shard, from which we
+            get arguments which are shared across all shards like remote/local paths. Avoids an
+            import cycle by Stream subclassing StreamDirConf.
+        num_samples (int): Number of samples in this shard.
+        data_file (ShardFile): The file containing shard data.
+        meta_file (ShardFile): The file containing shard metadata.
+        columns (Dict[str, str]): Column metadata.
+        newline (str): Newline separator.
     """
 
     def __init__(
         self,
-        dirname: str,
-        split: Optional[str],
+        *,
+        conf: Optional[Any] = None,
+        stream: StreamDirConf,
+        num_samples: int,
+        data_file: ShardFile,
+        meta_file: ShardFile,
         columns: Dict[str, str],
-        compression: Optional[str],
-        hashes: List[str],
         newline: str,
-        raw_data: FileInfo,
-        raw_meta: FileInfo,
-        samples: int,
-        size_limit: Optional[Union[int, str]],
-        zip_data: Optional[FileInfo],
-        zip_meta: Optional[FileInfo],
     ) -> None:
-        super().__init__(dirname, split, compression, hashes, raw_data, raw_meta, samples,
-                         size_limit, zip_data, zip_meta)
+        super().__init__(
+            conf=conf,
+            stream=stream,
+            num_samples=num_samples,
+            data_file=data_file,
+            meta_file=meta_file,
+        )
         self.columns = columns
+        self.column_names = []
+        self.column_encodings = []
+        for col_name in sorted(self.columns):
+            self.column_names.append(col_name)
+            col_encoding = columns[col_name]
+            self.column_encodings.append(col_encoding)
         self.newline = newline
 
     @classmethod
-    def from_json(cls, dirname: str, split: Optional[str], obj: Dict[str, Any]) -> Self:
+    def from_json(cls, stream: StreamDirConf, obj: Dict[str, Any]) -> Self:
         """Initialize from JSON object.
 
         Args:
-            dirname (str): Local directory containing shards.
-            split (str, optional): Which dataset split to use, if any.
-            obj (Dict[str, Any]): JSON object to load.
+            stream (StreamDirConf): Reference to the owning Stream.
+            obj (Dict[str, Any]): JSONL shard JSON metadata.
 
         Returns:
-            Self: Loaded JSONLShard.
+            Self: The loaded JSONL shard object.
         """
-        args = deepcopy(obj)
-        # Version check.
-        if args['version'] != 2:
-            raise ValueError(f'Unsupported streaming data version: {args["version"]}. ' +
-                             f'Expected version 2.')
-        del args['version']
-        # Check format.
-        if args['format'] not in {'json', 'jsonl'}:
-            raise ValueError(f'Unsupported data format: got {args["format"]}, but expected ' +
-                             f'"jsonl" (or "json").')
-        del args['format']
-        args['dirname'] = dirname
-        args['split'] = split
-        for key in ['raw_data', 'raw_meta', 'zip_data', 'zip_meta']:
-            arg = args[key]
-            args[key] = FileInfo(**arg) if arg else None
-        return cls(**args)
+        zip_algo = obj.get('compression')
+        key_pairs = [
+            ('raw_data', 'zip_data'),
+            ('raw_meta', 'zip_meta'),
+        ]
+        files = []
+        for raw_key, zip_key in key_pairs:
+            zip_obj = obj.get(zip_key)
+            zip_phase = ShardFilePhase.from_json(stream, zip_obj) if zip_obj else None
+            raw_phase = ShardFilePhase.from_json(stream, obj[raw_key])
+            file = ShardFile(
+                stream=stream,
+                zip_phase=zip_phase,
+                zip_algo=zip_algo,
+                raw_phase=raw_phase,
+            )
+            files.append(file)
+        data_file, meta_file = files
+        return cls(
+            conf=obj,
+            stream=stream,
+            num_samples=obj['samples'],
+            data_file=data_file,
+            meta_file=meta_file,
+            columns=obj['columns'],
+            newline=obj['newline'],
+        )
 
     def get_sample_data(self, idx: int) -> bytes:
         """Get the raw sample data at the index.
@@ -97,13 +107,13 @@ class JSONLShard(DualShard):
         Returns:
             bytes: Sample data.
         """
-        meta_filename = os.path.join(self.dirname, self.split, self.raw_meta.basename)
+        meta_filename = self.meta_file.raw_phase.get_local_filename()
         offset = (1 + idx) * 4
         with open(meta_filename, 'rb', 0) as fp:
             fp.seek(offset)
             pair = fp.read(8)
             begin, end = np.frombuffer(pair, np.uint32)
-        data_filename = os.path.join(self.dirname, self.split, self.raw_data.basename)
+        data_filename = self.data_file.raw_phase.get_local_filename()
         with open(data_filename, 'rb', 0) as fp:
             fp.seek(begin)
             data = fp.read(end - begin)

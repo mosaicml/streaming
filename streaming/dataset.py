@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor, wait
 from concurrent.futures._base import Future
 from enum import IntEnum
 from math import ceil
+from multiprocessing import Pool
 from tempfile import gettempdir
 from threading import Event, Lock
 from time import sleep, time_ns
@@ -29,12 +30,12 @@ from streaming.constant import (BARRIER, BARRIER_FILELOCK, CACHE_FILELOCK, CACHE
                                 EPOCH_SHAPE, NEXT_EPOCH, RESUME, SHARD_ACCESS_TIMES, SHARD_STATES,
                                 TICK)
 from streaming.distributed import maybe_init_dist
-from streaming.format import get_index_basename
+from streaming.format.base.phaser import Phaser
 from streaming.sampling import get_sampling
 from streaming.shared import (SharedArray, SharedBarrier, SharedMemory, SharedScalar, _get_path,
                               get_shm_prefix)
 from streaming.spanner import Spanner
-from streaming.stream import Stream
+from streaming.stream.base import Stream
 from streaming.util.shorthand import normalize_bytes, normalize_count
 from streaming.world import World
 
@@ -49,11 +50,11 @@ class _ShardState(IntEnum):
 
     Restrictions:
     - The initial state of INVALID must be zero.
-    - State transitions: REMOTE -> PREPARING -> LOCAL -> REMOTE.
+    - State transitions: REMOTE -> FETCHING -> LOCAL -> REMOTE.
     """
     INVALID = 0  # The state is allocated (e.g., in an array), but not initialized yet.
     REMOTE = 1  # The shard exists only at the remote source.
-    PREPARING = 2  # The shard is currently being worked on: (a) downloading from remote to local,
+    FETCHING = 2  # The shard is currently being worked on: (a) downloading from remote to local,
     # (b) decompressing zip-only, etc.
     LOCAL = 3  # Some form of the shard (raw or zip) exists locally (as well as remotely).
 
@@ -96,10 +97,9 @@ class _Iterator:
         self.sample_ids = sample_ids
 
         self.total = len(sample_ids)
-        self.prepare_index = 0
+        self.fetch_index = 0
         self.ready_index = 0
         self.yield_index = 0
-        self.eviction_index = 0
 
         self._lock = Lock()
         self._state = 0
@@ -174,98 +174,95 @@ class StreamingDataset(Array, IterableDataset):
     Features elastically deterministic shuffling, which enables fast mid-epoch resumption.
 
     Checkpoints are represented in JSON as follows:
+    >>> from typing import TypedDict
+    >>>
+    >>> class StateDict(TypedDict):
+    >>>     epoch: int
+    >>>     sample_in_epoch: int
+    >>>     shuffle_seed: int
+    >>>     num_canonical_nodes: int
+    >>>     num_physical_nodes: int
 
-    .. code-block:: json
-
-        {
-            "epoch" :"int",
-            "sample_in_epoch": "int",
-            "shuffle_seed": "int",
-            "num_canonical_nodes": "int"
-        }
-
-    StreamingDataset init takes two kinds of arguments:
-
-    * What to iterate:
-
-      * One or more streams (you must provide either ``streams`` or ``remote``/``local``):
-
-        * ``streams``
-        * ``remote``
-        * ``local``
-
-      * Knobs to control streaming behavior, which, if multiple streams are provided,
-        become defaults applied to each of them:
-
-        * ``split``
-        * ``download_retry``
-        * ``download_timeout``
-        * ``validate_hash``
-        * ``keep_zip``
-
-      * Absolute dataset size, if streams were weighted relatively:
-
-        * ``epoch_size``
-
-    * How to iterate:
-
-      * Shard lifecycle:
-
-        * ``predownload``
-        * ``cache_limit``
-
-      * Sampling:
-
-        * ``sampling_method``
-        * ``sampling_granularity``
-
-      * Determinism:
-
-        * ``partition_algo``
-        * ``num_canonical_nodes``
-        * ``batch_size``
-
-      * Shuffling:
-
-        * ``shuffle``
-        * ``shuffle_algo``
-        * ``shuffle_seed``
-        * ``shuffle_block_size``
-
-      * Batching:
-
-        * ``batching_method``
-
+    Organization of arguments:
+      * What to iterate:
+          * The streams (either provide streams, or remote and/or local for an implicit stream):
+              * ``epoch_size``
+              * ``streams``
+              * ``remote``
+              * ``local``
+          * Stream arguments (used as defaults if explicit streams, or as args if implicit stream):
+              * Filesystem:
+                  * ``split``
+              * Schema:
+                  * ``allow_schema_mismatch``
+                  * ``allow_unsafe_types``
+                  * ``allow_unchecked_resumption``
+              * Downloads:
+                  * ``download_retry``
+                  * ``download_timeout``
+                  * ``download_max_size``
+                  * ``validate_hash``
+                  * ``keep_phases``
+      * How to iterate:
+          * Shard lifecycle:
+              * ``predownload``
+              * ``cache_limit``
+          * Reproducibility:
+              * ``shuffle_seed``
+          * Sampling:
+              * ``sampling_method``
+              * ``sampling_granularity``
+          * Partitioning:
+              * ``partition_algo``
+              * ``num_canonical_nodes``
+              * ``batch_size``
+          * Shuffling:
+              * ``shuffle``
+              * ``shuffle_algo``
+              * ``shuffle_seed``
+              * ``shuffle_block_size``
+          * Batching:
+              * ``batching_method``
 
     Args:
-        streams (Sequence[Stream], optional): One or more streams to stream/cache samples from,
-            which may be upsampled or downsampled. StreamingDataset uses either ``streams`` or
-            ``remote``/``local``. Defaults to ``None``.
-        remote (str, optional): Remote path or directory to download the dataset from. If ``None``,
-            its data must exist locally. StreamingDataset uses either ``streams`` or
-            ``remote``/``local``. Defaults to ``None``.
-        local (str, optional): Local working directory to download shards to. This is where shards
-            are cached while they are being used. Uses a temp directory if not set.
-            StreamingDataset uses either ``streams`` or ``remote``/``local``. Defaults to ``None``.
-        split (str, optional): Which dataset split to use, if any. If provided, we stream from/to
-            the ``split`` subdirs of  ``remote`` and ``local``. Defaults to ``None``.
-        download_retry (int): Number of download re-attempts before raising an error. Defaults to
-            ``2``.
-        download_timeout (str | float): Time in seconds to wait for a file download to complete
-            before raising an error. Streaming duration shorthand (e.g., ``1m23s``) is also
-            accepted. Defaults to ``1m``.
-        hash_algos (str | Sequence[str], optional): Ranked list of hashing algorithms to try.
-            Defaults to ``None``.
-        validate_hash (str, optional): Deprecated. See ``hash_algos``. Defaults to ``None``.
-        keep_old_phases (str, optional): Which old phases of shard files to cache (until shard
-            eviction). If set, must be one of ``nil``, ``src``, or ``all``. Defaults to ``None``,
-            which uses ``keep_zip``, falling back to ``nil``.
-        keep_zip (bool, optional): Deprecated. See ``keep_old_phases``. Defaults to ``None``.
         epoch_size (Union[str, int], optional): Number of samples to draw per epoch balanced
             across all streams. If ``None``, takes its value from the total number of underlying
             samples. Provide this field if you are weighting streams relatively to target a larger
             or smaller epoch size. Defaults to ``None``. Can also take in human-readable number
             abbreviations (e.g., ``"100k"``, ``"64M"``, ``"77b"``, etc). Defaults to ``None``.
+        streams (Sequence[Stream], optional): One or more streams to stream/cache samples from,
+            which may be upsampled or downsampled. StreamingDataset uses either ``streams`` or
+            ``remote``/``local``. Defaults to ``None``.
+        remote (str, optional): Remote path to stream the dataset from. If ``None``, dataset must
+            be complete locally. Defaults to ``None``.
+        local (str, optional): Local working directory to stream the dataset to. Uses a
+            deterministically-calculated temp directory if not set. Defaults to ``None``.
+        split (str, optional): Which dataset split sub-path to use, if any. Defaults to ``None``.
+        allow_schema_mismatch (bool): If ``True``, continue if sample columns mismatch across
+            shards, streams, or the whole dataset. If ``False``, raises if columns mismatch.
+            Defaults to ``False``.
+        allow_unsafe_types (bool): If ``True``, continue if unsafe type(s) are encountered
+            in shard(s). If ``False``, raises if unsafe type(s) encountered. Defaults to ``False``.
+        allow_unchecked_resumption (bool): If ``True``, upon resume, accept and use shard
+            file phases that we are unable to check the size/hash(es) of. If ``False``, upon
+            resume, drop such files, to regenerate on the fly when needed. Defaults to ``True``.
+        download_retry (str | int): Number of download re-attempts before raising an error.
+            Defaults to ``2``.
+        download_timeout (str | float, optional): Time to wait for a file download to complete
+            before raising an error, if any. Set to ``None`` for no limit. Streaming duration
+            shorthand (e.g., ``1m23s``) is also accepted. Defaults to ``2m``.
+        download_max_size (str | int, optional): Maximum size of an individual download, if any.
+            This is used to prevent over-large shard files from cripping Streaming performance. Set
+            to ``None`` for no size limit. Set to ``str`` to specify the limit using Streaming
+            bytes shorthand. Set to ``int`` to specify bytes. Defaults to ``200mb``.
+        validate_hash (str | Sequence[str], optional): Ranked list of hashing algorithms to
+            apply if expected digest is available. Defaults to ``None``.
+        keep_phases (str | Sequence[str] | Dict[str, bool] | Phaser, optional): After a phase
+            transition of a shard file, do we keep the old form of the file or garbage collect it?
+            Provided as one of: (1) ``None`` for defaults, (2) the single use case or phase to keep,
+            (3) a sequence giving the use cases or phases to keep, (4) Phaser kwargs (a mapping of
+            use case or phase to whether it must be kept, or (5) a Phaser object. All code paths
+            result in a ``Phaser``. Defaults to ``None``.
         predownload (int, optional): Target number of samples to download per worker in advance
             of current sample. Workers will attempt to download ahead by this many samples during,
             but not before, training. Recommendation is to provide a value greater than per device
@@ -277,6 +274,7 @@ class StreamingDataset(Array, IterableDataset):
             Set to ``None`` to disable shard eviction. Supports integer bytes as well as string
             human-readable bytes (e.g., ``100b``, ``64kb``, ``77mb``, and so on). Defaults to
             ``None``.
+        shuffle_seed (int): Seed for deterministic data shuffling. Defaults to ``9176``.
         sampling_method (str): Which sampling method to use, either ``balanced`` or ``fixed``.
             Defaults to ``balanced``.
         sampling_granularity (int): When picking samples for a stream's final partial repeat,
@@ -301,46 +299,48 @@ class StreamingDataset(Array, IterableDataset):
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
             ``False``.
         shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1e``.
-        shuffle_seed (int): Seed for deterministic data shuffling. Defaults to ``9176``.
         shuffle_block_size (int, optional): Unit of shuffle. A canonical node's samples are split
             into blocks of this size, and samples within each block are shuffled. If ``None``, its
             value is calculated as ``max(4_000_000 // num_canonical_nodes), 1 << 18)``. Defaults to
             ``None``.
         batching_method (str): Which batching method to use, either ``random``, ``stratified``, or
             ``per_stream``. Defaults to ``random``.
-        allow_unsafe_types (bool): If a shard contains Pickle, which allows arbitrary code
-            execution during deserialization, whether to keep going if ``True`` or raise an error
-            if ``False``. Defaults to ``False``.
+        kwargs (Any): Any unsupported (for forward compat) or deprecated args.
     """
 
-    def __init__(self,
-                 *,
-                 streams: Optional[Sequence[Stream]] = None,
-                 remote: Optional[str] = None,
-                 local: Optional[str] = None,
-                 split: Optional[str] = None,
-                 download_retry: int = 2,
-                 download_timeout: Union[str, float] = '1m',
-                 hash_algos: Optional[Union[str, Sequence[str]]] = None,
-                 validate_hash: Optional[str] = None,
-                 keep_old_phases: Optional[str] = None,
-                 keep_zip: Optional[bool] = None,
-                 epoch_size: Optional[Union[str, int]] = None,
-                 predownload: Optional[int] = None,
-                 cache_limit: Optional[Union[str, int]] = None,
-                 sampling_method: str = 'balanced',
-                 sampling_granularity: int = 1,
-                 partition_algo: str = 'relaxed',
-                 num_canonical_nodes: Optional[int] = None,
-                 batch_size: Optional[int] = None,
-                 shuffle: bool = False,
-                 shuffle_algo: str = 'py1e',
-                 shuffle_seed: int = 9176,
-                 shuffle_block_size: Optional[int] = None,
-                 batching_method: str = 'random',
-                 allow_unsafe_types: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        epoch_size: Optional[Union[str, int]] = None,
+        streams: Optional[Sequence[Stream]] = None,
+        remote: Optional[str] = None,
+        local: Optional[str] = None,
+        split: Optional[str] = None,
+        allow_schema_mismatch: bool = False,
+        allow_unsafe_types: bool = False,
+        allow_unchecked_resumption: bool = True,
+        download_retry: Union[str, int] = 2,
+        download_timeout: Optional[Union[str, float]] = '2m',
+        download_max_size: Optional[Union[str, int]] = '200mb',
+        validate_hash: Union[None, str, Sequence[str]] = None,
+        keep_phases: Union[None, str, Sequence[str], Dict[str, bool], Phaser] = None,
+        predownload: Optional[int] = None,
+        cache_limit: Optional[Union[str, int]] = None,
+        shuffle_seed: int = 9176,
+        sampling_method: str = 'balanced',
+        sampling_granularity: int = 1,
+        partition_algo: str = 'relaxed',
+        num_canonical_nodes: Optional[int] = None,
+        batch_size: Optional[int] = None,
+        shuffle: bool = False,
+        shuffle_algo: str = 'py1e',
+        shuffle_block_size: Optional[int] = None,
+        batching_method: str = 'random',
+        **kwargs: Any,
+    ) -> None:
         # Global arguments (which do not live in Streams).
         self.predownload = predownload
+        self.shuffle_seed = shuffle_seed
         self.sampling_method = sampling_method
         self.sampling_granularity = sampling_granularity
         self.partition_algo = partition_algo
@@ -348,7 +348,6 @@ class StreamingDataset(Array, IterableDataset):
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.shuffle_algo = shuffle_algo
-        self.shuffle_seed = shuffle_seed
         self.shuffle_block_size = shuffle_block_size
         self.batching_method = batching_method
         self.allow_unsafe_types = allow_unsafe_types
@@ -413,27 +412,21 @@ class StreamingDataset(Array, IterableDataset):
         destroy_dist = maybe_init_dist()
 
         # Initialize the Stream defaults and normalize to a list of Streams.
-        if streams:
-            for stream in streams:
-                stream.apply_defaults(split=split,
-                                      download_retry=download_retry,
-                                      download_timeout=download_timeout,
-                                      hash_algos=hash_algos,
-                                      validate_hash=validate_hash,
-                                      keep_old_phases=keep_old_phases,
-                                      keep_zip=keep_zip)
-        else:
-            stream = Stream(remote=remote,
-                            local=local,
-                            split=split,
-                            download_retry=download_retry,
-                            download_timeout=download_timeout,
-                            hash_algos=hash_algos,
-                            validate_hash=validate_hash,
-                            keep_old_phases=keep_old_phases,
-                            keep_zip=keep_zip)
-            stream.apply_defaults()
-            streams = stream,
+        kwargs.update(
+            split=split,
+            allow_schema_mismatch=allow_schema_mismatch,
+            allow_unsafe_types=allow_unsafe_types,
+            allow_unchecked_resumption=allow_unchecked_resumption,
+            download_retry=download_retry,
+            download_timeout=download_timeout,
+            download_max_size=download_max_size,
+            validate_hash=validate_hash,
+            keep_phases=keep_phases,
+        )
+        if not streams:
+            streams = Stream(remote=remote, local=local, **kwargs),
+        for stream in streams:
+            stream.apply_defaults(**kwargs)
 
         # Validate the stream weighting scheme (relative or absolute) to catch errors before we go
         # to the trouble of loading them.
@@ -450,7 +443,19 @@ class StreamingDataset(Array, IterableDataset):
         # instantiate a World inside the StreamingDataset destructor.
         self._rank_world = world = World()
 
-        # Download each stream's index, load their shards, and map streams <-> shards.
+        # Download each Stream's index in parallel from local rank 0.
+        #
+        # Parallelism is important because there could be a very large number of Streams, and we
+        # expect equal performance as them having been concatenated into one Stream.
+        if world.is_local_leader:
+            pool = Pool()
+            pool.imap_unordered(Stream.download_index, self.streams)
+            pool.close()
+        else:
+            pool = None
+
+        # All ranks then walk all Streams, for which they (1) wait for its index to become
+        # downloaded, (2) load its shards, and (3) map streams <-> shards <-> samples.
         self.num_samples = 0
         self.shards = []
         stream_per_shard = []
@@ -459,12 +464,11 @@ class StreamingDataset(Array, IterableDataset):
         self.sample_offset_per_stream = np.zeros(self.num_streams, np.int64)
         self.samples_per_stream = np.zeros(self.num_streams, np.int64)
         for stream_id, stream in enumerate(self.streams):
-            stream_shards = stream.get_shards(world, self.allow_unsafe_types)
+            stream.await_index()
+            stream_shards = stream.load_index()
             num_stream_samples = sum(map(len, stream_shards))
             if not num_stream_samples:
-                index_filename = os.path.join(stream.local, stream.split or '',
-                                              get_index_basename())
-                raise RuntimeError(f'Stream contains no samples: {index_filename}.')
+                raise RuntimeError(f'Stream contains no samples: {stream.local_index_path}.')
             stream_per_shard += [stream_id] * len(stream_shards)
             self.shard_offset_per_stream[stream_id] = len(self.shards)
             self.shards_per_stream[stream_id] = len(stream_shards)
@@ -475,21 +479,36 @@ class StreamingDataset(Array, IterableDataset):
         self.stream_per_shard = np.array(stream_per_shard, np.int64)
         self.num_shards = len(self.shards)
 
+        # Wait for the pool workers (stream index download processes) to finish.
+        if pool is not None:
+            pool.join()
+
         # Check that cache limit is possible.
         if cache_limit:
             self.cache_limit = normalize_bytes(cache_limit)
-            min_cache_usage = sum((stream.get_index_size() for stream in streams))
+            min_cache_usage = sum((stream.index_size for stream in streams))
             if self.cache_limit <= min_cache_usage:
                 raise ValueError(f'Minimum cache usage ({min_cache_usage} bytes) is larger than ' +
                                  f'the cache limit ({self.cache_limit} bytes). Please raise ' +
                                  f'`cache_limit`. Recommendation is to provide a `cache_limit` ' +
                                  f'as high as possible to avoid thrashing.')
-            self.max_shard_size_across_all_streams = max(
-                np.array([shard.get_max_size() for shard in self.shards]))
-            if self.cache_limit < 4 * self.max_shard_size_across_all_streams:
+
+            max_phase_size = 0
+            for stream in self.streams:
+                for shard in stream.shards:
+                    for file in shard.files:
+                        for phase in file.phases:
+                            if not phase:
+                                continue
+                            if not phase.expected_size:
+                                continue
+                            if max_phase_size < phase.expected_size:
+                                max_phase_size = phase.expected_size
+
+            if self.cache_limit < 4 * max_phase_size:
                 raise ValueError(f'Cache limit ({self.cache_limit} bytes) is too low. ' +
                                  f'Increase the `cache_limit` to at-least four times the ' +
-                                 f'largest shard size ({self.max_shard_size_across_all_streams} ' +
+                                 f'largest shard size ({max_phase_size} ' +
                                  f'bytes) which includes raw (decompressed) and zip ' +
                                  f'(compressed) file size. Recommendation is to provide a ' +
                                  f'`cache_limit` as high as possible to avoid thrashing.')
@@ -567,14 +586,14 @@ class StreamingDataset(Array, IterableDataset):
             # Get cache usage due to streams.
             self.cache_usage = 0
             for stream in self.streams:
-                self.cache_usage += stream.get_index_size()
+                self.cache_usage += stream.index_size
 
             # Get cache usage due to shards.
             cache_usage_per_shard = np.zeros(self.num_shards, np.int64)
             for stream_id, stream in enumerate(self.streams):
                 begin = self.shard_offset_per_stream[stream_id]
                 end = begin + self.shards_per_stream[stream_id]
-                stream.set_up_local(self.shards[begin:end], cache_usage_per_shard[begin:end])
+                stream.inventory_local(cache_usage_per_shard[begin:end])
             self.cache_usage += cache_usage_per_shard.sum()
 
             # If either raw or zip are present after local dir setup, the shard is considered
@@ -663,7 +682,7 @@ class StreamingDataset(Array, IterableDataset):
         """
         return self.length
 
-    def _set_shuffle_block_size(self, world: World):
+    def _set_shuffle_block_size(self, world: World) -> None:
         """Set the shuffle block size value."""
         if self.shuffle_block_size is None:
             if not world.worker_of_rank:
@@ -826,9 +845,10 @@ class StreamingDataset(Array, IterableDataset):
         self._resume_shm.buf[:len(data)] = data
 
     def resample_streams(
-            self,
-            epoch: int,
-            stream_id: Optional[int] = None) -> Tuple[NDArray[np.int64], NDArray[np.int64]]:
+        self,
+        epoch: int,
+        stream_id: Optional[int] = None,
+    ) -> Tuple[NDArray[np.int64], NDArray[np.int64]]:
         """Perform the up/down-sampling needed to generate the weighted epoch.
 
         Args:
@@ -999,7 +1019,7 @@ class StreamingDataset(Array, IterableDataset):
         Assumes you hold ``_cache_filelock``, preventing anyone else from modifying the cache. We
         expect that shard deletions are very fast.
 
-        This method is called internally by ``prepare_shard`` to clear space for more downloads.
+        This method is called internally by ``fetch_shard`` to clear space for more downloads.
 
         Args:
             shard_id (int): Shard to evict.
@@ -1013,17 +1033,17 @@ class StreamingDataset(Array, IterableDataset):
 
         # Perform the eviction, updating cache usage to account for the removal.
         shard = self.shards[shard_id]
-        self.cache_usage -= shard.evict()
+        self.cache_usage += shard.evict()
         if self.cache_usage < 0:
             raise RuntimeError(f'Negative cache usage: {self.cache_usage}.')
 
     def _evict_coldest_shard(self) -> None:
         """Evict the coldeset (i.e., least recently accessed) shard.
 
-        Assumes you hold ``__cache_filelock``, preventing anyone else from modifying the cache. We
+        Assumes you hold ``_cache_filelock``, preventing anyone else from modifying the cache. We
         expect that shard deletions are very fast.
 
-        This method is called internally by ``prepare_shard`` to clear space for more downloads.
+        This method is called internally by ``fetch_shard`` to clear space for more downloads.
         """
         while True:
             # Find the shard with the oldest last access time.
@@ -1032,7 +1052,7 @@ class StreamingDataset(Array, IterableDataset):
             # Check the shard's last access time. If it is NEVER, there are no downloaded shards to
             # evict. If any shards are currently being downloaded, wait, else raise an error.
             if self._shard_access_times[shard_id] == NEVER:
-                if (self._shard_states.numpy() == _ShardState.PREPARING).any():
+                if (self._shard_states.numpy() == _ShardState.FETCHING).any():
                     sleep(TICK)
                     continue
                 else:
@@ -1082,7 +1102,7 @@ class StreamingDataset(Array, IterableDataset):
         with self._cache_filelock:
             self._evict_coldest_shard()
 
-    def prepare_shard(self, shard_id: int, blocking: bool = True) -> None:
+    def fetch_shard(self, shard_id: int, blocking: bool = True) -> None:
         """Download a shard, either waiting or skipping if in progress by another worker.
 
         This method is multithread/multiprocess-safe.
@@ -1093,7 +1113,7 @@ class StreamingDataset(Array, IterableDataset):
         Args:
             shard_id (int): Shard to download.
             blocking (bool): Whether to wait or skip if the shard is currently being downloaded by
-                someone else.
+                someone else. Defaults to ``True``.
         """
         # Lock the cache. FileLocks contain threading Locks, which are not pickleable, which is
         # incompatible with spawn, so must be created lazily.
@@ -1106,68 +1126,46 @@ class StreamingDataset(Array, IterableDataset):
         state = self._shard_states[shard_id]
 
         # Which state is it in?
-        if state == _ShardState.REMOTE:
+        if state == _ShardState.REMOTE or state == _ShardState.LOCAL:
             # If missing, transition state to preparing.
-            self._shard_states[shard_id] = _ShardState.PREPARING
+            self._shard_states[shard_id] = _ShardState.FETCHING
 
-            # Get the stream and shard.
-            stream_id = self.stream_per_shard[shard_id]
-            stream = self.streams[stream_id]
+            # Get the shard.
             shard = self.shards[shard_id]
-
-            # If cache_limit is enabled, we first may have to make space for the new shard.
-            if self.cache_limit:
-                # Evict one shard at a time until our download will stay under the cache limit.
-                # This means both the raw and zip forms of the shard due to decompressing.
-                shard_max_cache_usage = shard.get_max_size()
-                while self.cache_limit < self.cache_usage + shard_max_cache_usage:
-                    self._evict_coldest_shard()
 
             # With the above preamble done, we can release the cache lock.
             lock.release()
 
-            # Perform the download (shard will not be modified by others in PREPARING state).
-            delta = stream.prepare_shard(shard)
+            # Perform the download (shard will not be modified by others in FETCHING state).
+            self.cache_usage += shard.fetch()
 
-            # Download completed, so note the time and transition shard state to LOCAL.
             lock.acquire()
-            self.cache_usage += delta
+
+            # If cache_limit is enabled, we first may have to make space for the new shard.
+            if self.cache_limit:
+                # Evict one shard at a time until our download stays under the cache limit.
+                # This means all phases of the shard due to decompression, canonicalization, etc.
+                while self.cache_limit < self.cache_usage:
+                    self._evict_coldest_shard()
+
+            # Download accounting complete, note the time and transition shard state to LOCAL.
             self._shard_access_times[shard_id] = time_ns()
             self._shard_states[shard_id] = _ShardState.LOCAL
             lock.release()
-        elif state == _ShardState.PREPARING:
+        elif state == _ShardState.FETCHING:
             # Someone else is currently downloading the shard. Release the lock for others to make
             # progress.
             lock.release()
 
             # Do we wait on them?
             if blocking:
-                # Wait for the shard to transition out of PREPARING state (to LOCAL, although
+                # Wait for the shard to transition out of FETCHING state (to LOCAL, although
                 # it would be possible for it to become evicted again before a TICK has elapsed).
-                while self._shard_states[shard_id] == _ShardState.PREPARING:
+                while self._shard_states[shard_id] == _ShardState.FETCHING:
                     sleep(TICK)
 
             # There is no need to update the last access time, because that will be set by the
             # process that downloaded the shard.
-        elif state == _ShardState.LOCAL:
-            # Get the stream and shard.
-            stream_id = self.stream_per_shard[shard_id]
-            stream = self.streams[stream_id]
-            shard = self.shards[shard_id]
-
-            # We may need to decompress the shard (if local dir just contains zips).
-            raw_info, _ = shard.file_pairs[0]  # Each file pair is present in the same way.
-            raw_filename = os.path.join(stream.local, stream.split or '',
-                                        raw_info.basename)  # Find raw.
-            if not os.path.isfile(raw_filename):  # Is raw missing?
-                self._shard_states[shard_id] = _ShardState.PREPARING  # Lock the shard.
-                lock.release()  # Unblock other workers.
-                delta = stream.prepare_shard(shard)  # Decompress and remove zip.
-                lock.acquire()  # Briefly take the lock back.
-                self._shard_states[shard_id] = _ShardState.LOCAL  # Restore shard state.
-                self.cache_usage += delta  # Update accounting.
-            self._shard_access_times[shard_id] = time_ns()  # Touch the shard.
-            lock.release()
         else:
             # Unknown state.
             lock.release()
@@ -1201,7 +1199,7 @@ class StreamingDataset(Array, IterableDataset):
                 sample = shard[shard_sample_id]
 
                 # Manually update the last access time afterward. This also happens at the end of
-                # prepare_shard().
+                # shard.fetch().
                 #
                 # Note: for performance reasons, we have not taken the lock here. This results in
                 # an edge case where a shard has a last access time but is actually not LOCAL.
@@ -1215,7 +1213,7 @@ class StreamingDataset(Array, IterableDataset):
                 # ensure the shard file is downloaded, then try to access the sample again.
                 # Loops because it may become evicted in the meantime.
                 errors.append(str(e))
-                self.prepare_shard(shard_id)
+                self.fetch_shard(shard_id)
         else:
             # Main process failed. Let the threads know to terminate.
             if hasattr(self, '_event'):
@@ -1249,7 +1247,7 @@ class StreamingDataset(Array, IterableDataset):
             # Re-raise the exception.
             raise exception
 
-    def _prepare_thread(self, it: _Iterator) -> None:
+    def _fetch_thread(self, it: _Iterator) -> None:
         """Download the relevant shards in the background while we are being iterated.
 
         This thread is started at the beginning of each epoch, and exits either when out of samples
@@ -1270,7 +1268,7 @@ class StreamingDataset(Array, IterableDataset):
                 break
 
             # If we're out of samples this epoch, exit this thread because we are done downloading.
-            if it.prepare_index == it.total:
+            if it.fetch_index == it.total:
                 break
 
             # Background thread or a main process crashed, terminate this thread.
@@ -1280,23 +1278,23 @@ class StreamingDataset(Array, IterableDataset):
             # If we are requested to only pre-download so many samples, if we have as many or more
             # downloaded already, we wait and check again later.
             if self.predownload is not None:
-                samples_ahead = it.prepare_index - it.yield_index
+                samples_ahead = it.fetch_index - it.yield_index
                 if self.predownload < samples_ahead:
                     sleep(TICK)
                     continue
 
             # If we hit -1, we skip.
-            sample_id = it.sample_ids[it.prepare_index]
+            sample_id = it.sample_ids[it.fetch_index]
             if sample_id == -1:
-                it.prepare_index += 1
+                it.fetch_index += 1
                 continue
 
             # Download and decompress the shard for this sample, if not already done.
             shard_id, _ = self.spanner[sample_id]
-            self.prepare_shard(shard_id, False)
+            self.fetch_shard(shard_id, False)
 
             # Step forward one sample.
-            it.prepare_index += 1
+            it.fetch_index += 1
 
         # Note that we exited.
         it.on_exit()
@@ -1348,7 +1346,7 @@ class StreamingDataset(Array, IterableDataset):
             # During cold shard eviction, shard state might go in the reverse direction. If a shard
             # is missing while fetching a sample, download it.
             if self._shard_states[shard_id] == _ShardState.REMOTE:
-                self.prepare_shard(shard_id, False)
+                self.fetch_shard(shard_id, False)
             # Wait for a shard file to download completely.
             while self._shard_states[shard_id] != _ShardState.LOCAL:
                 # Background thread or a main process crashed, terminate this thread.
@@ -1438,10 +1436,10 @@ class StreamingDataset(Array, IterableDataset):
 
         # Iterate over the samples while downloading ahead.
         self._iterator = it = _Iterator(sample_ids)
-        prepare_future = self._executor.submit(self._prepare_thread, it)
-        prepare_future.add_done_callback(self.on_exception)
+        fetch_future = self._executor.submit(self._fetch_thread, it)
+        fetch_future.add_done_callback(self.on_exception)
         ready_future = self._executor.submit(self._ready_thread, it)
         ready_future.add_done_callback(self.on_exception)
         yield from map(self.__getitem__, self._each_sample_id(it))
-        wait([prepare_future, ready_future], return_when='FIRST_EXCEPTION')
+        wait([fetch_future, ready_future], return_when='FIRST_EXCEPTION')
         it.exit()

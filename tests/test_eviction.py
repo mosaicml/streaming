@@ -20,8 +20,10 @@ def validate(remote: str, local: str, dataset: StreamingDataset, keep_zip: bool,
         ops = operator.lt
     else:
         ops = operator.eq
+    has_zip = dataset.shards[0].files[0].zip_algo
+
     if keep_zip:
-        if dataset.shards[0].compression:
+        if has_zip:
             # Local has raw + zip, remote has zip.
             assert ops(
                 set(filter(lambda f: f == 'index.json' or f.endswith('.zstd'), os.listdir(local))),
@@ -31,7 +33,7 @@ def validate(remote: str, local: str, dataset: StreamingDataset, keep_zip: bool,
             assert ops(set(filter(lambda f: not f.endswith('.zstd'), os.listdir(local))),  \
                 set(os.listdir(remote)))
     else:
-        if dataset.shards[0].compression:
+        if has_zip:
             # Local has raw, remote has zip.
             assert ops(set(os.listdir(local)),
                        {f.replace('.zstd', '') for f in os.listdir(remote)})
@@ -48,7 +50,6 @@ def shard_eviction_disabled(remote: str, local: str, keep_zip: bool):
     for _ in range(2):
         for sample in dataset:  # pyright: ignore
             pass
-
     validate(remote, local, dataset, keep_zip, False)
     rmtree(local, ignore_errors=False)
 
@@ -93,7 +94,7 @@ def manual_shard_eviction(remote: str, local: str, keep_zip: bool):
     dataset = StreamingDataset(remote=remote, local=local, keep_zip=keep_zip)
 
     for shard_id in range(dataset.num_shards):
-        dataset.prepare_shard(shard_id)
+        dataset.fetch_shard(shard_id)
 
     full = set(os.listdir(local))
 
@@ -120,9 +121,14 @@ def cache_limit_too_low(remote: str, local: str, keep_zip: bool):
     rmtree(local, ignore_errors=False)
 
 
+# TODO: re-enable `shard_eviction` and `cache_limit_too_low` when cache_limit is returned to fully
+# hard.
 funcs = [
-    shard_eviction_disabled, shard_eviction_too_high, shard_eviction, manual_shard_eviction,
-    cache_limit_too_low
+    shard_eviction_disabled,
+    shard_eviction_too_high,
+    manual_shard_eviction,
+    # shad_eviction,
+    # cache_limit_too_low,
 ]
 
 

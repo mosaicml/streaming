@@ -8,13 +8,13 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
-from streaming.format.writer import DualWriter
+from streaming.format.base.writer.dual_row import DualRowWriter
 from streaming.format.xsv.encodings import is_xsv_encoding, xsv_encode
 
 __all__ = ['XSVWriter', 'CSVWriter', 'TSVWriter']
 
 
-class XSVWriter(DualWriter):
+class XSVWriter(DualRowWriter):
     r"""Writes a streaming XSV dataset.
 
     Args:

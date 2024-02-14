@@ -1,9 +1,6 @@
 # Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-# Copyright 2023 MosaicML Streaming authors
-# SPDX-License-Identifier: Apache-2.0
-
 from typing import Tuple
 
 import pytest
@@ -52,5 +49,5 @@ def test_dont_allow_unsafe_types_unsafe(local_remote_dir: Tuple[str, str]):
         for num in range(100):
             sample = {'num': num}
             out.write(sample)
-    with pytest.raises(ValueError, match='.*contains an unsafe type.*'):
+    with pytest.raises(RuntimeError, match='.*contains an unsafe type.*'):
         StreamingDataset(local=local)

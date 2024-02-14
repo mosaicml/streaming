@@ -9,7 +9,7 @@ It is one of the most widely used datasets for machine learning research. Please
 
 from typing import Any, Dict
 
-from streaming.vision import StreamingVisionDataset
+from streaming.modality.vision import StreamingVisionDataset
 
 __all__ = ['StreamingCIFAR10']
 

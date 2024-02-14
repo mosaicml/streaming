@@ -9,7 +9,7 @@ The most widely used dataset for Image Classification algorithms. Please refer t
 
 from typing import Any, Dict
 
-from streaming.vision import StreamingVisionDataset
+from streaming.modality.vision import StreamingVisionDataset
 
 __all__ = ['StreamingImageNet']
 

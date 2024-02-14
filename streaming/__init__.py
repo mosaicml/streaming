@@ -8,7 +8,7 @@ from streaming.dataloader import StreamingDataLoader
 from streaming.dataset import StreamingDataset
 from streaming.format import CSVWriter, JSONLWriter, MDSWriter, TSVWriter, XSVWriter
 from streaming.local import LocalDataset
-from streaming.stream import Stream
+from streaming.stream.base import Stream
 from streaming.util import clean_stale_shared_memory
 
 __all__ = [

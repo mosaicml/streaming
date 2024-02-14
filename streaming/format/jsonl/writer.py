@@ -8,13 +8,13 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
+from streaming.format.base.writer.dual_row import DualRowWriter
 from streaming.format.jsonl.encodings import is_jsonl_encoded, is_jsonl_encoding
-from streaming.format.writer import DualWriter
 
 __all__ = ['JSONLWriter']
 
 
-class JSONLWriter(DualWriter):
+class JSONLWriter(DualRowWriter):
     r"""Writes a streaming JSONL dataset.
 
     Args:

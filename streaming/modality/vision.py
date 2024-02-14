@@ -1,9 +1,6 @@
 # Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-# Copyright 2023 MosaicML Streaming authors
-# SPDX-License-Identifier: Apache-2.0
-
 """Base classes for computer vision :class:`StreamingDataset`s."""
 
 import os
@@ -18,7 +15,7 @@ from tqdm import tqdm
 from streaming import MDSWriter
 from streaming.dataset import StreamingDataset
 
-__all__ = ['StreamingVisionDataset']
+__all__ = ['StreamingVisionDataset', 'convert_image_class_dataset']
 
 
 class StandardTransform:

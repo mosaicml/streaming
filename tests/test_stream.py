@@ -18,16 +18,23 @@ from tests.common.utils import convert_to_mds
 @pytest.mark.world_size(2)
 def test_local_is_none_with_no_split() -> None:
     remote = 'remote_dir'
-    remote_hash = hashlib.blake2s(remote.encode('utf-8'), digest_size=16).hexdigest()
-    local = os.path.join(tempfile.gettempdir(), remote_hash) + '/'
+    data = os.path.abspath(remote).encode('utf-8')
+    remote_hash = hashlib.blake2s(data, digest_size=16).hexdigest()
+    local = os.path.join(tempfile.gettempdir(), 'streaming', 'local', remote_hash)
     shutil.rmtree(local, ignore_errors=True)
     barrier()
     stream = Stream(remote=remote, local=None)
-    stream.apply_defaults(split=None,
-                          download_retry=2,
-                          download_timeout='1m',
-                          hash_algos=None,
-                          keep_old_phases=None)
+    stream.apply_defaults(
+        split=None,
+        allow_schema_mismatch=False,
+        allow_unsafe_types=False,
+        allow_unchecked_resumption=False,
+        download_retry=2,
+        download_timeout='1m',
+        download_max_size=None,
+        validate_hash=None,
+        keep_phases=None,
+    )
     assert local == stream.local
     shutil.rmtree(local, ignore_errors=True)
 
@@ -35,15 +42,22 @@ def test_local_is_none_with_no_split() -> None:
 @pytest.mark.world_size(2)
 def test_local_is_none_with_split() -> None:
     remote = 'remote_dir'
-    remote_hash = hashlib.blake2s(remote.encode('utf-8'), digest_size=16).hexdigest()
-    local = os.path.join(tempfile.gettempdir(), remote_hash, 'train')
+    data = os.path.abspath(remote).encode('utf-8')
+    remote_hash = hashlib.blake2s(data, digest_size=16).hexdigest()
+    local = os.path.join(tempfile.gettempdir(), 'streaming', 'local', remote_hash)
     shutil.rmtree(local, ignore_errors=True)
     barrier()
     stream = Stream(remote=remote, local=None, split='train')
-    stream.apply_defaults(download_retry=2,
-                          download_timeout='1m',
-                          hash_algos=None,
-                          keep_old_phases=None)
+    stream.apply_defaults(
+        allow_schema_mismatch=False,
+        allow_unsafe_types=False,
+        allow_unchecked_resumption=False,
+        download_retry=2,
+        download_timeout='1m',
+        download_max_size=None,
+        validate_hash=None,
+        keep_phases=None,
+    )
     assert local == stream.local
     shutil.rmtree(local, ignore_errors=True)
 
@@ -76,5 +90,5 @@ def test_missing_index_json_local(local_remote_dir: Any):
     else:
         raise Exception(f"Missing {os.path.join(remote_dir, 'index.json')}")
     stream = Stream(remote=None, local=remote_dir)
-    with pytest.raises(RuntimeError, match='No `remote` provided, but local file.*'):
+    with pytest.raises(RuntimeError, match='.*No such file or directory.*'):
         _ = StreamingDataset(streams=[stream])
