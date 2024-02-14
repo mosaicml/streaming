@@ -199,11 +199,11 @@ def main(args: Namespace) -> int:
     max_vis_len = max(vis_lens)
     vocab = 0x2571, 0x2572
     for vis_len, out_line in pairs:
-        if args.pad:
+        if args.fancy:
             count = max_vis_len - vis_len + 1
             ords = np.random.choice(vocab, count)
-            pad = ''.join(map(chr, ords))
-            print(f'{out_line[:-1]}{chr(0x2523)}{pad}')
+            padding = ''.join(map(chr, ords))
+            print(f'{out_line[:-1]}{chr(0x2523)}{padding}')
         else:
             print(out_line[:-1])
 
