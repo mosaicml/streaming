@@ -64,6 +64,9 @@ class Writer(ABC):
                 file to a remote location. Default to ``min(32, (os.cpu_count() or 1) + 4)``.
             retry (int): Number of times to retry uploading a file to a remote location.
                 Default to ``2``.
+            exist_ok (bool): If the local directory exists and is not empty, whether to overwrite
+                the content or raise an error. `False` raises an error. `True` deletes the
+                content and starts fresh. Defaults to `False`.
     """
 
     format: str = ''  # Name of the format (like "mds", "csv", "json", etc).
@@ -100,7 +103,8 @@ class Writer(ABC):
 
         # Validate keyword arguments
         invalid_kwargs = [
-            arg for arg in kwargs.keys() if arg not in ('progress_bar', 'max_workers', 'retry')
+            arg for arg in kwargs.keys()
+            if arg not in ('progress_bar', 'max_workers', 'retry', 'exist_ok')
         ]
         if invalid_kwargs:
             raise ValueError(f'Invalid Writer argument(s): {invalid_kwargs} ')
@@ -116,6 +120,13 @@ class Writer(ABC):
 
         self.shards = []
 
+        # Remove local directory if requested prior to creating writer
+        local = out if isinstance(out, str) else out[0]
+        if os.path.exists(local) and kwargs.get('exist_ok', False):
+            logger.warning(
+                f'Directory {local} exists and is not empty; exist_ok is set to True so will remove contents.'
+            )
+            shutil.rmtree(local)
         self.cloud_writer = CloudUploader.get(out, keep_local, kwargs.get('progress_bar', False),
                                               kwargs.get('retry', 2))
         self.local = self.cloud_writer.local
