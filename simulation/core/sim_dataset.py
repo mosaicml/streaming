@@ -370,8 +370,19 @@ class SimulationDataset(StreamingDataset):
         # Also keep track of the raw and compressed sizes of each shard, indexed by shard_id.
         # TODO: replace `get_raw_size()` and `get_zip_size()` with appropriate methods from the
         # shard/file/phase API. Can assume that we are using MDS files for the simulator.
-        self.raw_shard_sizes = np.array([shard.get_raw_size() for shard in self.shards], np.int64)
-        self.zip_shard_sizes = np.array([shard.get_zip_size() or 0 for shard in self.shards],
+
+        # Get shard raw and zip sizes.
+        for shard in self.shards:
+            if len(shard.files) > 1:
+                raise ValueError(f'The Streaming Simulator currently only supports datasets ',
+                                 f'in MDS format. Please make sure your datasets are in MDS.')
+        self.raw_shard_sizes = np.array([shard.files[0].raw_phase.expected_size \
+                                         for shard in self.shards],
+                                        np.int64)
+        self.zip_shard_sizes = np.array([shard.files[0].zip_phase.expected_size or 0 \
+                                         if shard.files[0].zip_phase is not None \
+                                         else 0 \
+                                         for shard in self.shards],
                                         np.int64)
 
         logger.info(f' Total number of shards: {self.num_shards}')

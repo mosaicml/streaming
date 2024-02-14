@@ -111,6 +111,7 @@ class Stream(StreamDirConf, StreamWeightConf):
 
         if not data:
             path = self.local_index_path + '.error'
+            print('PATH IS:', path)
             if os.path.exists(path):
                 with open(path, 'r') as file:
                     text = file.read()
