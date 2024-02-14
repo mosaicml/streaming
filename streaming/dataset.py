@@ -305,9 +305,6 @@ class StreamingDataset(Array, IterableDataset):
             ``None``.
         batching_method (str): Which batching method to use, either ``random``, ``stratified``, or
             ``per_stream``. Defaults to ``random``.
-        allow_unsafe_types (bool): If a shard contains Pickle, which allows arbitrary code
-            execution during deserialization, whether to keep going if ``True`` or raise an error
-            if ``False``. Defaults to ``False``.
         kwargs (Any): Any unsupported (for forward compat) or deprecated args.
     """
 
