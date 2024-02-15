@@ -365,6 +365,7 @@ def _modules_to_rst() -> List[types.ModuleType]:
     document_modules: List[types.Module] = [
         streaming,
         streaming.base.compression,
+        streaming.base.coord,
         streaming.base.format,
         streaming.base.hashing,
         streaming.base.partition,

@@ -13,9 +13,10 @@ from concurrent.futures import ThreadPoolExecutor, wait
 from concurrent.futures._base import Future
 from enum import IntEnum
 from math import ceil
+from multiprocessing import Process
 from tempfile import gettempdir
 from threading import Event, Lock
-from time import sleep, time_ns
+from time import sleep, time, time_ns
 from typing import Any, Dict, Iterator, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -29,6 +30,8 @@ from streaming.base.batching import generate_work
 from streaming.base.constant import (BARRIER, BARRIER_FILELOCK, CACHE_FILELOCK, CACHE_USAGE,
                                      EPOCH_DATA, EPOCH_SHAPE, NEXT_EPOCH, RESUME,
                                      SHARD_ACCESS_TIMES, SHARD_STATES, TICK)
+from streaming.base.coord.job.dir import JobDir
+from streaming.base.coord.job.registry import JobRegistry
 from streaming.base.distributed import maybe_init_dist
 from streaming.base.format import get_index_basename
 from streaming.base.sampling import get_sampling
@@ -189,8 +192,13 @@ class StreamingDataset(Array, IterableDataset):
 
     * What to iterate:
 
+      * Dataset/job registry:
+
+        * ``config_root``
+
       * One or more streams (you must provide either ``streams`` or ``remote``/``local``):
 
+        * ``epoch_size``
         * ``streams``
         * ``remote``
         * ``local``
@@ -204,11 +212,16 @@ class StreamingDataset(Array, IterableDataset):
         * ``validate_hash``
         * ``keep_zip``
 
-      * Absolute dataset size, if streams were weighted relatively:
-
-        * ``epoch_size``
-
     * How to iterate:
+
+      * Epoch pre-generation:
+
+        * ``init_pregen_epoch``
+        * ``inti_pregen_sample``
+        * ``pregen_next_epoch``
+        * ``pregen_epoch_timeout``
+        * ``pregen_epoch_tick``
+        * ``num_workers``
 
       * Shard lifecycle:
 
@@ -239,6 +252,14 @@ class StreamingDataset(Array, IterableDataset):
 
 
     Args:
+        config_root (str, optional): Streaming configuration root directory, used for collision
+            detection, filelock paths, etc. If ``None``, uses a ``/streaming/`` subdir under your
+            system's temp root. Defaults to ``None``.
+        epoch_size (int | str, optional): Number of samples to draw per epoch balanced
+            across all streams. If ``None``, takes its value from the total number of underlying
+            samples. Provide this field if you are weighting streams relatively to target a larger
+            or smaller epoch size. Defaults to ``None``. Can also take in human-readable number
+            abbreviations (e.g., ``"100k"``, ``"64M"``, ``"77b"``, etc). Defaults to ``None``.
         streams (Sequence[Stream], optional): One or more streams to stream/cache samples from,
             which may be upsampled or downsampled. StreamingDataset uses either ``streams`` or
             ``remote``/``local``. Defaults to ``None``.
@@ -258,17 +279,28 @@ class StreamingDataset(Array, IterableDataset):
         keep_zip (bool): Whether to keep or delete the compressed form when decompressing
             downloaded shards. If ``False``, keep iff remote is local or no remote. Defaults to
             ``False``.
-        epoch_size (Union[int, str], optional): Number of samples to draw per epoch balanced
-            across all streams. If ``None``, takes its value from the total number of underlying
-            samples. Provide this field if you are weighting streams relatively to target a larger
-            or smaller epoch size. Defaults to ``None``. Can also take in human-readable number
-            abbreviations (e.g., ``"100k"``, ``"64M"``, ``"77b"``, etc). Defaults to ``None``.
+        init_pregen_epoch (int, optional): What epoch to pre-generate in the background at init
+            time, if any. This is useful if you do a lot of work between instantiating your
+            StreamingDataset and iterating it. Defaults to ``None``.
+        init_pregen_sample (int, optional): What sample offset into the epoch to pre-generate with
+            in the background at init time. If ``init_pregen_epoch`` is not set, must not be set
+            either. Defaults to ``None``.
+        pregen_next_epoch (bool): Whether to pre-generate the next epoch in the background at the
+            start of iter after generating or loading the current about-to-be-iterated epoch.
+            Defaults to ``True``.
+        pregen_epoch_timeout (float, optional): Timeout when waiting on this epoch to be
+            pre-generated. Defaults to ``float(np.arange(1, 7).prod())``, i.e. 12 minutes.
+        pregen_epoch_tick (float): Polling interval when waiting on this epoch to be pre-generated.
+            Defaults to ``0xCAFE / 1337 / 42``, i.e. about 925ms.
+        num_workers (int, optional): Number of workers per rank, same as PyTorch DataLoader
+            ``num_workers``. Required iff you are pre-generating an epoch at init time, otherwise
+            this information is determined automatically elsewhere. Defaults to ``None``.
         predownload (int, optional): Target number of samples to download per worker in advance
             of current sample. Workers will attempt to download ahead by this many samples during,
             but not before, training. Recommendation is to provide a value greater than per device
             batch size to ensure at-least per device batch size number of samples cached locally.
             If ``None``, its value is set to ``8 * batch_size``. Defaults to ``None``.
-        cache_limit (Union[int, str], optional): Maximum size in bytes of this StreamingDataset's
+        cache_limit (int | str, optional): Maximum size in bytes of this StreamingDataset's
             shard cache. Before downloading a shard, the least recently used resident shard(s)
             may be evicted (deleted from the local cache) in order to stay under the limit.
             Set to ``None`` to disable shard eviction. Supports integer bytes as well as string
@@ -310,8 +342,13 @@ class StreamingDataset(Array, IterableDataset):
             if ``False``. Defaults to ``False``.
     """
 
+    pregen_todos_lock_path = 'pregen_todos.lock'
+    pregen_todos_path = 'pregen_todos.npy'
+
     def __init__(self,
                  *,
+                 config_root: Optional[str] = None,
+                 epoch_size: Optional[Union[int, str]] = None,
                  streams: Optional[Sequence[Stream]] = None,
                  remote: Optional[str] = None,
                  local: Optional[str] = None,
@@ -320,7 +357,12 @@ class StreamingDataset(Array, IterableDataset):
                  download_timeout: float = 60,
                  validate_hash: Optional[str] = None,
                  keep_zip: bool = False,
-                 epoch_size: Optional[Union[int, str]] = None,
+                 init_pregen_epoch: Optional[int] = None,
+                 init_pregen_sample: Optional[int] = None,
+                 pregen_next_epoch: bool = True,
+                 pregen_epoch_timeout: Optional[float] = float(np.arange(1, 7).prod()),
+                 pregen_epoch_tick: float = 0xCAFE / 1337 / 42,
+                 num_workers: Optional[int] = None,
                  predownload: Optional[int] = None,
                  cache_limit: Optional[Union[int, str]] = None,
                  sampling_method: str = 'balanced',
@@ -507,7 +549,55 @@ class StreamingDataset(Array, IterableDataset):
         # Length (__len__) is the resampled epoch size divided over the number of devices.
         self.length = ceil(self.epoch_size / world.num_ranks)
 
-        # Register/lookup our shared memory prefix and filelock root directory.
+        # Args about pre-generating epochs.
+        if init_pregen_epoch is not None:
+            if init_pregen_epoch < 0:
+                raise ValueError(f'Init pregen epoch must be non-negative, but got: ' +
+                                 f'{init_pregen_epoch}.')
+        self.init_pregen_epoch = init_pregen_epoch
+
+        if init_pregen_sample is not None:
+            if not (0 <= init_pregen_sample <= self.num_samples):
+                raise ValueError(f'Init pregen sample must be from 0 to {self.num_samples}, but ' +
+                                 f'got: {init_pregen_sample}.')
+        if init_pregen_epoch is not None:
+            self.init_pregen_sample = init_pregen_sample or 0
+        else:
+            if init_pregen_sample is not None:
+                raise ValueError(f'Init pregen epoch is not set, but init pregen sample is: ' +
+                                 f'epoch {init_pregen_epoch}, sample {init_pregen_sample}.')
+            self.init_pregen_sample = init_pregen_sample
+
+        self.pregen_next_epoch = pregen_next_epoch
+
+        if pregen_epoch_timeout is not None and pregen_epoch_timeout < 0:
+            raise ValueError(f'Pregen epoch timeout must be non-negative if set, but got: ' +
+                             f'{pregen_epoch_timeout}.')
+        self.pregen_epoch_timeout = pregen_epoch_timeout
+
+        if pregen_epoch_tick <= 0:
+            raise ValueError(f'Pregen epoch tick must be positive seconds, but got: ' +
+                             f'{pregen_epoch_tick}.')
+        self.pregen_epoch_tick = pregen_epoch_tick
+
+        self.num_workers = num_workers
+
+        # Init registry, then register/lookup this Streaming job (new style).
+        self.config_root = self._get_config_root(config_root)
+        self._test_config_root(self.config_root)
+        self.registry = JobRegistry(self.config_root, 42, 0.007)
+        self.job = JobDir(self.registry, streams, world)
+
+        # Maybe note some epoch to pre-generate (like epoch 0, sample offset 0)?
+        if self.init_pregen_epoch is not None:
+            self._request_pregen_epoch(self.init_pregen_epoch, self.init_pregen_sample or 0)
+
+        # Start the epoch pre-generation loop as a daemon process.
+        if init_pregen_epoch is not None or pregen_next_epoch:
+            self.process = Process(target=self._pregen_epoch_loop, daemon=True)
+            self.process.run()
+
+        # Register/lookup our shared memory prefix and filelock root directory (old style).
         streams_local = [os.path.abspath(os.path.join(x.local, x.split)) for x in streams]
         streams_remote = [
             os.path.join(x.remote, x.split) if x.remote is not None else None for x in streams
@@ -590,13 +680,51 @@ class StreamingDataset(Array, IterableDataset):
 
         del self._shared_barrier.lock  # Remote the lock that makes it unpickleable.
 
+        self._dummy = None
+
     def __del__(self) -> None:
-        """Destructor, which releases its local working directories."""
+        """Destructor,kill which releases its local working directories."""
         if hasattr(self, '_locals_shm'):
             try:
                 self._locals_shm.buf[:4] = np.int32(0).tobytes()
             except:
                 pass
+        self.job.manual_unregister()
+
+    @classmethod
+    def _test_config_root(cls, config_root: str) -> None:
+        """Validate that the provided config root is usable.
+
+        If you are unable to get root or 777 perms, you may encounter problems in registering your
+        Streaming jobs for collision detection, getting unique interprocess filelock paths, etc.
+        You can sort of get around this by changing config root to a directory you control, but
+        this may negatively impact collision detection.
+
+        Args:
+            config_root (str): Streaming configuration root directory.
+        """
+        os.makedirs(config_root, exist_ok=True)
+        filename = os.path.join(config_root, 'test.txt')
+        try:
+            with open(filename, 'wb') as out:
+                out.write(b'')
+        except:
+            raise ValueError('Please provide a `config_root` dir that is writeable and readable.')
+        os.remove(filename)
+
+    @classmethod
+    def _get_config_root(cls, config_root: Optional[str] = None) -> str:
+        """Get the Streaming configuration root directory.
+
+        Args:
+            config_root (str, optional): Config root, if explicitly provided. Defaults to ``None``.
+
+        Returns:
+            str: Streaming configuration root directory.
+        """
+        if config_root is None:
+            config_root = os.path.join(gettempdir(), 'streaming')
+        return config_root
 
     @property
     def size(self) -> int:
@@ -965,7 +1093,198 @@ class StreamingDataset(Array, IterableDataset):
 
         return sample_ids, shape_shm, data_shm
 
-    def _get_work(self, world: World, epoch: int, sample_in_epoch: int) -> NDArray[np.int64]:
+    def _locate_epoch_work(self, epoch: int, sample: int) -> str:
+        """Get the filename for generated epoch work given its epoch and sample offset.
+
+        Args:
+            epoch (int): Which epoch.
+            sample (int): What sample offset.
+
+        Returns:
+            str: Filename of serialized epoch work.
+        """
+        return self.job.get_filename(f'epoch.{epoch:06}.{sample:012}.npy')
+
+    def _serialize_epoch_work(self, work: NDArray[np.int64]) -> bytes:
+        """Serialize a 5-dimensional sample ID arrangement tensor to bytes.
+
+        Args:
+            work (NDArray[np.int64]): Sample IDs tensor.
+
+        Returns:
+            bytes: The serialized data.
+        """
+        # Serialize to bytes prefixed with shape (we use int64 for alignment reasons).
+        return b''.join([
+            np.int64(work.ndim).tobytes(),
+            np.array(work.shape, np.int64).tobytes(),
+            work.tobytes(),
+        ])
+
+    def _deserialize_epoch_work(self, data: bytes) -> NDArray[np.int64]:
+        """Deserialize a 5-dimensional sample ID arrangement tensor from bytes.
+
+        Args:
+            data (bytes): The serialized data.
+
+        Returns:
+            NDArray[np.int64]: Sample IDs tensor.
+        """
+        arr = np.ndarray(shape=-1, dtype=np.int64, buffer=data)
+        ndim = arr[0]
+        shape = tuple(arr[1:1 + ndim].tolist())
+        offset = (1 + ndim) * np.int64().nbytes
+        return np.ndarray(shape, np.int64, arr, offset)
+
+    def _pregen_epoch(self, epoch: int, sample: int) -> None:
+        """Pre-generate the sample ID arrangement for some epoch.
+
+        This is typically run in the background in a daemon process.
+
+        Args:
+            epoch (int): Which epoch.
+            sample (int): What sample offset.
+        """
+        if self.num_workers is None:
+            raise ValueError(f'You must provide DataLoader num_workers to StreamingDataset in ' +
+                             f'order for it to be able to pre-generate the epoch at init time.')
+
+        # Locate epoch data, e.g. "epoch.000000007.000000001000.npy".
+        filename = self._locate_epoch_work(epoch, sample)
+
+        # If there is already a file there, either someone has pre-generated it already (non-empty)
+        # or they are in the process of pre-generating it (empty) and we are done. If no file,
+        # create one to claim it ourself.
+        try:
+            with open(filename, 'xb'):
+                pass
+        except:
+            return
+
+        # Create the world a worker will see.
+        world = World()
+        if 1 < self.num_workers:
+            world.workers_per_rank = self.num_workers
+            world.num_workers = world.num_ranks * world.workers_per_rank
+            world.workers_per_node = world.ranks_per_node * world.workers_per_rank
+
+        # Do the epoch generation (heavy).
+        work = generate_work(self.batching_method, self, world, epoch, sample)
+
+        # Serialize to bytes.
+        data = self._serialize_epoch_work(work)
+
+        # Write those bytes, to be picked up by the main process/thread.
+        tmp_filename = filename + '.tmp'
+        with open(tmp_filename, 'wb') as out:
+            out.write(data)
+        os.rename(tmp_filename, filename)
+
+    def _push_back_pregen_epoch_todo(self, todo_filename: str, epoch: int, sample: int) -> None:
+        now = time_ns()
+        todo = np.array([epoch, sample, now], np.int64)
+        todo = np.expand_dims(todo, 0)
+        if os.path.exists(todo_filename):
+            old = np.fromfile(todo_filename, np.int64)
+            old = old.reshape(-1, 3)
+            new = np.concatenate([old, todo], 0)
+        else:
+            new = todo
+        new.tofile(todo_filename)
+
+    def _pop_front_pregen_epoch_todo(self, todo_filename: str) -> Tuple[int, int, int]:
+        old = np.fromfile(todo_filename, np.int64)
+        old = old.reshape(-1, 3)
+        todo = old[0]
+        new = old[1:]
+        if len(new):
+            new.tofile(todo_filename)
+        else:
+            os.remove(todo_filename)
+        return tuple(todo.tolist())
+
+    def _request_pregen_epoch(self, epoch: int, sample: int) -> None:
+        lock_filename = self.job.get_filename(self.pregen_todos_lock_path)
+        todo_filename = self.job.get_filename(self.pregen_todos_path)
+        with FileLock(lock_filename):
+            self._push_back_pregen_epoch_todo(todo_filename, epoch, sample)
+
+    def _each_pregen_epoch_todo(self) -> Iterator[Tuple[int, int]]:
+        lock_filename = self.job.get_filename(self.pregen_todos_lock_path)
+        todo_filename = self.job.get_filename(self.pregen_todos_path)
+        dirname = os.path.dirname(lock_filename)
+        os.makedirs(dirname, exist_ok=True)
+        lock = FileLock(lock_filename)
+        while True:
+            with lock:
+                if os.path.exists(todo_filename):
+                    epoch, sample, _ = self._pop_front_pregen_epoch_todo(todo_filename)
+                    yield epoch, sample
+            if not hasattr(self, '_dummy'):
+                break
+            sleep(0.1337)
+
+    def _pregen_epoch_loop(self) -> None:
+        for epoch, sample in self._each_pregen_epoch_todo():
+            self._pregen_epoch(epoch, sample)
+
+    def _gen_epoch(self, world: World, epoch: int, sample: int) -> NDArray[np.int64]:
+        """Generate (or load pre-generated) the sample ID arrangement for some epoch.
+
+        Args:
+            world (World): The world dimensions to generate it for.
+            epoch (int): Which epoch.
+            sample (int): What sample offset.
+
+        Returns:
+            NDArray[np.int64]: 5-dim sample IDs tensor.
+        """
+        # Get where our pre-generated epoch data would be found, if it exists.
+        filename = self._locate_epoch_work(epoch, sample)
+
+        # If the file is taken, it either is populated or will be soon. If not, we have to generate
+        # the epoch ourself.
+        if os.path.exists(filename):
+            # Wait for the file to become populated.
+            then = time()
+            while True:
+                # If it's populated, break out.
+                stat = os.stat(filename)
+                if stat.st_size:
+                    break
+
+                # If it's not yet populated, you then check how much time we've taken.
+                now = time()
+                elapsed = now - then
+                if self.pregen_epoch_timeout is not None and self.pregen_epoch_timeout < elapsed:
+                    raise ValueError(f'Timed out while waiting on epoch pre-generation: epoch ' +
+                                     f'{epoch}, sample {sample}, timeout ' +
+                                     f'{self.pregen_epoch_timeout}, elapsed {elapsed}.')
+
+                # If we're still waiting, sleep a bit.
+                sleep(self.pregen_epoch_tick)
+
+            # Deserialize the populated file.
+            data = open(filename, 'rb').read()
+            work = self._deserialize_epoch_work(data)
+        else:
+            # Claim the epoch generation work, preventing the epoch pregen process from doing it.
+            try:
+                with open(filename, 'xb'):
+                    pass
+            except:
+                pass
+
+            # Generate the epoch ourself.
+            work = generate_work(self.batching_method, self, world, epoch, sample)
+
+        # Maybe pre-generate the next epoch in the background.
+        if self.pregen_next_epoch:
+            self._request_pregen_epoch(epoch + 1, 0)
+
+        return work
+
+    def _get_epoch(self, world: World, epoch: int, sample_in_epoch: int) -> NDArray[np.int64]:
         """Get this worker's partition of this epoch's sample space.
 
         Args:
@@ -983,8 +1302,7 @@ class StreamingDataset(Array, IterableDataset):
 
         # Do expensive work that may use a lot of cores/memory just once, in the local leader.
         if world.is_local_leader:
-            epoch_sample_ids = generate_work(self.batching_method, self, world, epoch,
-                                             sample_in_epoch)
+            epoch_sample_ids = self._gen_epoch(world, epoch, sample_in_epoch)
             shape_shm, data_shm = self._share_work(epoch_sample_ids)
             self._shared_barrier(world.workers_per_node)
         else:
@@ -1441,7 +1759,7 @@ class StreamingDataset(Array, IterableDataset):
         epoch, sample_in_epoch = self._resume_incr_epoch(world)
 
         # Get this worker's partition of samples to process.
-        sample_ids = self._get_work(world, epoch, sample_in_epoch)
+        sample_ids = self._get_epoch(world, epoch, sample_in_epoch)
         if not len(sample_ids):  # Resumed at end of epoch, out of samples.
             return
 

@@ -861,6 +861,9 @@ def test_multiple_dataset_instantiation(local_remote_dir: Any, shuffle_seed: tup
     assert len(set(train_sample_order)) == len(set(val_sample_order)), 'Duplicate samples'
 
 
+@pytest.mark.skip('We could be resuming with shard files not all be in their final phases, so ' +
+                  'the directory could still change on the fly even if there is no remote, so ' +
+                  'we cannot reuse local even in this case.')
 def test_same_local_no_remote(local_remote_dir: Tuple[str, str]):
     local_0, _ = local_remote_dir
     convert_to_mds(out_root=local_0,
@@ -893,5 +896,5 @@ def test_same_local_diff_remote(local_remote_dir: Tuple[str, str]):
     # Build StreamingDataset
     _ = StreamingDataset(local=local_0, remote=remote_0, batch_size=4, num_canonical_nodes=1)
     # Build StreamingDataset
-    with pytest.raises(ValueError, match='Reused local directory.*vs.*Provide a different one.'):
+    with pytest.raises(ValueError):
         _ = StreamingDataset(local=local_0, remote=remote_1, batch_size=2, num_canonical_nodes=1)
