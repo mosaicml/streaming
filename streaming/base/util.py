@@ -291,7 +291,7 @@ def _parallel_merge_shards(shards: List[str], n_processes: int = 1):
         shard_chunks = [shards[i:i + chunk_size] for i in range(0, len(shards), chunk_size)]
 
         # Process each chunk in parallel
-        results = pool.map(_merge_shard_indices, shard_chunks)
+        results = pool.imap_unordered(_merge_shard_indices, shard_chunks)
         pool.close()
         pool.join()
 
@@ -368,7 +368,7 @@ def _merge_index_from_list(index_file_urls: Sequence[Union[str, Tuple[str, str]]
             download_tasks.append((src, dst, download_timeout))
 
         with Pool(processes=n_processes) as pool:
-            results = pool.map(_download_url, download_tasks)
+            results = pool.imap_unordered(_download_url, download_tasks)
             pool.close()
             pool.join()
 
