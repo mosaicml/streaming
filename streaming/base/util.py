@@ -346,6 +346,8 @@ def _merge_index_from_list(index_file_urls: Sequence[Union[str, Tuple[str, str]]
     cpu_count = max(psutil.cpu_count() - 2, 1)
     n_processes = n_processes if (n_processes is not None and 1 <= n_processes <= cpu_count) else 1
 
+    logger.warning(f'Got n_processes = {n_processes}. download and merge index in parallel')
+
     # Prepare a temp folder to download index.json from remote if necessary. Removed in the end.
     with tempfile.TemporaryDirectory() as temp_root:
         logging.info(f'Created temporary folder {temp_root} to store index files')
