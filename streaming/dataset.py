@@ -516,7 +516,7 @@ class StreamingDataset(Array, IterableDataset):
             self.cache_limit = None
 
         # Build the shard index (for partitioning and mapping samples to shards).
-        self.samples_per_shard = np.array([shard.samples for shard in self.shards], np.int64)
+        self.samples_per_shard = np.array([shard.num_samples for shard in self.shards], np.int64)
         self.sample_offset_per_shard = self.samples_per_shard.cumsum() - self.samples_per_shard
         self.spanner = Spanner(self.samples_per_shard)
 
