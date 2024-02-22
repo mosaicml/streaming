@@ -352,6 +352,7 @@ class StreamingDataset(Array, IterableDataset):
         self.shuffle_block_size = shuffle_block_size
         self.batching_method = batching_method
         self.allow_unsafe_types = allow_unsafe_types
+        self.replication = replication
 
         # Initialize the World context.
         #   * This information is for the per-rank or per-worker process.
@@ -372,7 +373,7 @@ class StreamingDataset(Array, IterableDataset):
         self._parallel_worker_world: World
 
         # Initialize initial_physical_nodes to None. If we are resuming, then we will set it to the
-        # number of physical nodes of the initial run in the _resume function, or the number of 
+        # number of physical nodes of the initial run in the _resume function, or the number of
         # nodes specified in the `_parallel_rank_world` if using `replication`.
         self.initial_physical_nodes = None
 
@@ -1000,6 +1001,13 @@ class StreamingDataset(Array, IterableDataset):
 
         # Do expensive work that may use a lot of cores/memory just once, in the local leader.
         if u_world.is_local_leader:
+            # Check if we are using `repetition`. If we are, then we need to adjust the
+            # `sample_in_epoch` to reflect the fact that sample ids are shared across
+            # `repetition` consecutive devices. For example, if `repetition` is 2, then the
+            # sample id partition will be half as large, since every pair of devices shares
+            # sample ids. So the `sample_in_epoch` offset for the partition is also halved.
+            if self.replication is not None:
+                sample_in_epoch = sample_in_epoch // self.replication
             epoch_sample_ids = generate_work(self.batching_method, self, p_world, epoch,
                                              sample_in_epoch)
             shape_shm, data_shm = self._share_work(epoch_sample_ids)
