@@ -8,13 +8,35 @@ import pickle
 from abc import ABC, abstractmethod
 from decimal import Decimal
 from io import BytesIO
-from typing import Any, Optional, Set, Tuple
+from typing import Any, Callable, Optional, Set, Tuple
 
 import numpy as np
 from numpy import typing as npt
 from PIL import Image
 from PIL.JpegImagePlugin import JpegImageFile
 from typing_extensions import Self
+
+from streaming.format.base.type import JSON as LogicalJSON
+from streaming.format.base.type import Bytes as LogicalBytes
+from streaming.format.base.type import Decimal as LogicalDecimal
+from streaming.format.base.type import Float as LogicalFloat
+from streaming.format.base.type import Float16 as LogicalFloat16
+from streaming.format.base.type import Float32 as LogicalFloat32
+from streaming.format.base.type import Float64 as LogicalFloat64
+from streaming.format.base.type import Image as LogicalImage
+from streaming.format.base.type import Int as LogicalInt
+from streaming.format.base.type import Int8 as LogicalInt8
+from streaming.format.base.type import Int16 as LogicalInt16
+from streaming.format.base.type import Int32 as LogicalInt32
+from streaming.format.base.type import Int64 as LogicalInt64
+from streaming.format.base.type import NDArray as LogicalNDArray
+from streaming.format.base.type import Pickle as LogicalPickle
+from streaming.format.base.type import Str as LogicalStr
+from streaming.format.base.type import Type as LogicalType
+from streaming.format.base.type import UInt8 as LogicalUInt8
+from streaming.format.base.type import UInt16 as LogicalUInt16
+from streaming.format.base.type import UInt32 as LogicalUInt32
+from streaming.format.base.type import UInt64 as LogicalUInt64
 
 __all__ = [
     'get_mds_encoded_size',
@@ -23,6 +45,7 @@ __all__ = [
     'mds_decode',
     'mds_encode',
     'is_mds_encoding_safe',
+    'mds_encoding_to_logical_type',
 ]
 
 
@@ -30,6 +53,18 @@ class Encoding(ABC):
     """Encodes and decodes between objects of a certain type and raw bytes."""
 
     size: Optional[int] = None  # Fixed size in bytes of encoded data (None if variable size).
+
+    def __init__(self) -> None:
+        self.get_logical_type: Callable[[], LogicalType]  # Logical type of this MDS type.
+
+    @property
+    def logical_type(self) -> LogicalType:
+        """Access the logical type corresponding to this MDS type.
+
+        Returns:
+            LogicalType: Its logical type.
+        """
+        return self.get_logical_type()
 
     @abstractmethod
     def encode(self, obj: Any) -> bytes:
@@ -65,6 +100,8 @@ class Encoding(ABC):
 class Bytes(Encoding):
     """Store bytes (no-op encoding)."""
 
+    get_logical_type = LogicalBytes
+
     def encode(self, obj: bytes) -> bytes:
         self._validate(obj, bytes)
         return obj
@@ -76,6 +113,8 @@ class Bytes(Encoding):
 class Str(Encoding):
     """Store UTF-8."""
 
+    get_logical_type = LogicalStr
+
     def encode(self, obj: str) -> bytes:
         self._validate(obj, str)
         return obj.encode('utf-8')
@@ -86,6 +125,8 @@ class Str(Encoding):
 
 class Int(Encoding):
     """Store int64."""
+
+    get_logical_type = LogicalInt
 
     size = 8
 
@@ -172,6 +213,7 @@ class NDArray(Encoding):
         self.dtype = dtype
         self.shape = shape
         self.size = self._get_static_size(dtype, shape)
+        self.get_logical_type = lambda: LogicalNDArray(shape, dtype)
 
     @classmethod
     def from_str(cls, text: str) -> Self:
@@ -317,12 +359,16 @@ class Scalar(Encoding):
 class UInt8(Scalar):
     """Store uint8."""
 
+    get_logical_type = LogicalUInt8
+
     def __init__(self):
         super().__init__(np.uint8)
 
 
 class UInt16(Scalar):
     """Store uint16."""
+
+    get_logical_type = LogicalUInt16
 
     def __init__(self):
         super().__init__(np.uint16)
@@ -331,12 +377,16 @@ class UInt16(Scalar):
 class UInt32(Scalar):
     """Store uint32."""
 
+    get_logical_type = LogicalUInt32
+
     def __init__(self):
         super().__init__(np.uint32)
 
 
 class UInt64(Scalar):
     """Store uint64."""
+
+    get_logical_type = LogicalUInt64
 
     def __init__(self):
         super().__init__(np.uint64)
@@ -345,12 +395,16 @@ class UInt64(Scalar):
 class Int8(Scalar):
     """Store int8."""
 
+    get_logical_type = LogicalInt8
+
     def __init__(self):
         super().__init__(np.int8)
 
 
 class Int16(Scalar):
     """Store int16."""
+
+    get_logical_type = LogicalInt16
 
     def __init__(self):
         super().__init__(np.int16)
@@ -359,12 +413,16 @@ class Int16(Scalar):
 class Int32(Scalar):
     """Store int32."""
 
+    get_logical_type = LogicalInt32
+
     def __init__(self):
         super().__init__(np.int32)
 
 
 class Int64(Scalar):
     """Store int64."""
+
+    get_logical_type = LogicalInt64
 
     def __init__(self):
         super().__init__(np.int64)
@@ -373,6 +431,8 @@ class Int64(Scalar):
 class Float16(Scalar):
     """Store float16."""
 
+    get_logical_type = LogicalFloat16
+
     def __init__(self):
         super().__init__(np.float16)
 
@@ -380,12 +440,16 @@ class Float16(Scalar):
 class Float32(Scalar):
     """Store float32."""
 
+    get_logical_type = LogicalFloat32
+
     def __init__(self):
         super().__init__(np.float32)
 
 
 class Float64(Scalar):
     """Store float64."""
+
+    get_logical_type = LogicalFloat64
 
     def __init__(self):
         super().__init__(np.float64)
@@ -405,6 +469,8 @@ class StrEncoding(Encoding):
 class StrInt(StrEncoding):
     """Store int as variable-length digits str."""
 
+    get_logical_type = LogicalInt
+
     def encode(self, obj: int) -> bytes:
         self._validate(obj, int)
         return str(obj).encode('utf-8')
@@ -416,6 +482,8 @@ class StrInt(StrEncoding):
 class StrFloat(Encoding):
     """Store float as variable-length digits str."""
 
+    get_logical_type = LogicalFloat
+
     def encode(self, obj: float) -> bytes:
         self._validate(obj, float)
         return str(obj).encode('utf-8')
@@ -426,6 +494,8 @@ class StrFloat(Encoding):
 
 class StrDecimal(Encoding):
     """Store decimal as variable-length digits str."""
+
+    get_logical_type = LogicalDecimal
 
     def encode(self, obj: Decimal) -> bytes:
         self._validate(obj, Decimal)
@@ -440,6 +510,8 @@ class PIL(Encoding):
 
     Format: [width: 4] [height: 4] [mode size: 4] [mode] [raw image].
     """
+
+    get_logical_type = LogicalImage
 
     def encode(self, obj: Image.Image) -> bytes:
         self._validate(obj, Image.Image)
@@ -462,6 +534,8 @@ class PIL(Encoding):
 class JPEG(Encoding):
     """Store PIL image as JPEG."""
 
+    get_logical_type = LogicalImage
+
     def encode(self, obj: Image.Image) -> bytes:
         self._validate(obj, Image.Image)
         if isinstance(obj, JpegImageFile) and hasattr(obj, 'filename'):
@@ -481,6 +555,8 @@ class JPEG(Encoding):
 class PNG(Encoding):
     """Store PIL image as PNG."""
 
+    get_logical_type = LogicalImage
+
     def encode(self, obj: Image.Image) -> bytes:
         self._validate(obj, Image.Image)
         out = BytesIO()
@@ -495,6 +571,8 @@ class PNG(Encoding):
 class Pickle(Encoding):
     """Store arbitrary data as pickle."""
 
+    get_logical_type = LogicalPickle
+
     def encode(self, obj: Any) -> bytes:
         return pickle.dumps(obj)
 
@@ -504,6 +582,8 @@ class Pickle(Encoding):
 
 class JSON(Encoding):
     """Store arbitrary data as JSON."""
+
+    get_logical_type = LogicalJSON
 
     def encode(self, obj: Any) -> bytes:
         data = json.dumps(obj)
@@ -652,3 +732,18 @@ def get_mds_encoded_size(encoding: str) -> Optional[int]:
     if coder is None:
         raise ValueError(f'Unsupported encoding: {encoding}.')
     return coder.size
+
+
+def mds_encoding_to_logical_type(encoding: str) -> LogicalType:
+    """Get the logical type for the given MDS encoding.
+
+    Args:
+        encoding (str): Encoding.
+
+    Returns:
+        LogicalType: Its logical type.
+    """
+    coder = _get_coder(encoding)
+    if coder is None:
+        raise ValueError(f'Unsupported encoding: {encoding}.')
+    return coder.get_logical_type()

@@ -14,7 +14,8 @@ from typing_extensions import Self
 from streaming.format.base.file import ShardFile
 from streaming.format.base.phase import ShardFilePhase
 from streaming.format.base.shard.mono_row import MonoRowShard
-from streaming.format.mds.encodings import is_mds_encoding_safe, mds_decode
+from streaming.format.mds.encodings import (is_mds_encoding_safe, mds_decode,
+                                            mds_encoding_to_logical_type)
 from streaming.stream.dir_conf import StreamDirConf
 
 __all__ = ['MDSShard']
@@ -51,10 +52,14 @@ class MDSShard(MonoRowShard):
         file: ShardFile,
         columns: List[MDSColumn],
     ) -> None:
+        col_names = [col.name for col in columns]
+        col_logical_types = [mds_encoding_to_logical_type(col.encoding) for col in columns]
+        logical_columns = dict(zip(col_names, col_logical_types))
         super().__init__(
             conf=conf,
             stream=stream,
             num_samples=num_samples,
+            logical_columns=logical_columns,
             file=file,
         )
         self.columns = columns

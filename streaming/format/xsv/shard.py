@@ -11,7 +11,7 @@ from typing_extensions import Self
 from streaming.format.base.file import ShardFile
 from streaming.format.base.phase import ShardFilePhase
 from streaming.format.base.shard.dual_row import DualRowShard
-from streaming.format.xsv.encodings import xsv_decode
+from streaming.format.xsv.encodings import xsv_decode, xsv_encoding_to_logical_type
 from streaming.stream.dir_conf import StreamDirConf
 
 __all__ = ['XSVShard']
@@ -47,15 +47,19 @@ class XSVShard(DualRowShard):
         newline: str,
         separator: Optional[str],
     ) -> None:
+        column_logical_types = list(map(xsv_encoding_to_logical_type, column_encodings))
+        logical_columns = dict(zip(column_names, column_logical_types))
         super().__init__(
             conf=conf,
             stream=stream,
             num_samples=num_samples,
+            logical_columns=logical_columns,
             data_file=data_file,
             meta_file=meta_file,
         )
         self.column_names = column_names
         self.column_encodings = column_encodings
+        self.column_logical_types = column_logical_types
         self.newline = newline
         self.separator = separator
 

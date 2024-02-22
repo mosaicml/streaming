@@ -6,7 +6,12 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-__all__ = ['is_jsonl_encoded', 'is_jsonl_encoding']
+from streaming.format.base.type import Float as LogicalFloat
+from streaming.format.base.type import Int as LogicalInt
+from streaming.format.base.type import Str as LogicalStr
+from streaming.format.base.type import Type as LogicalType
+
+__all__ = ['is_jsonl_encoded', 'is_jsonl_encoding', 'jsonl_encoding_to_logical_type']
 
 
 class Encoding(ABC):
@@ -36,6 +41,8 @@ class Encoding(ABC):
 class Str(Encoding):
     """Store str."""
 
+    logical_type = LogicalStr
+
     @classmethod
     def is_encoded(cls, obj: Any) -> bool:
         return cls._validate(obj, str)
@@ -43,6 +50,8 @@ class Str(Encoding):
 
 class Int(Encoding):
     """Store int."""
+
+    logical_type = LogicalInt
 
     @classmethod
     def is_encoded(cls, obj: Any) -> bool:
@@ -52,12 +61,18 @@ class Int(Encoding):
 class Float(Encoding):
     """Store float."""
 
+    logical_type = LogicalFloat
+
     @classmethod
     def is_encoded(cls, obj: Any) -> bool:
         return cls._validate(obj, float)
 
 
-_encodings = {'str': Str, 'int': Int, 'float': Float}
+_encodings = {
+    'str': Str,
+    'int': Int,
+    'float': Float,
+}
 
 
 def is_jsonl_encoded(encoding: str, value: Any) -> bool:
@@ -84,3 +99,16 @@ def is_jsonl_encoding(encoding: str) -> bool:
         bool: Whether encoding is supported.
     """
     return encoding in _encodings
+
+
+def jsonl_encoding_to_logical_type(encoding: str) -> LogicalType:
+    """Get the logical type of the given encoding.
+
+    Args:
+        encoding (str): Encoding.
+
+    Returns:
+        LogicalType: Its logical type.
+    """
+    cls = _encodings[encoding]
+    return cls.logical_type()
