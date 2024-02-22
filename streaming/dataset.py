@@ -8,6 +8,7 @@ import logging
 import os
 import sys
 import warnings
+from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor, wait
 from concurrent.futures._base import Future
 from enum import IntEnum
@@ -478,6 +479,22 @@ class StreamingDataset(Array, IterableDataset):
             self.num_samples += num_stream_samples
         self.stream_per_shard = np.array(stream_per_shard, np.int64)
         self.num_shards = len(self.shards)
+
+        # Maybe check all schemas match.
+        if not allow_schema_mismatch:
+            sigs = [shard.get_logical_type_signature() for shard in self.shards]
+            sig2count = Counter(sigs)
+            if len(sig2count) != 1:
+                count2sigs = defaultdict(list)
+                for sig, count in sorted(sig2count.items()):
+                    count2sigs[count].append(sig)
+                parts = []
+                for count, sigs in sorted(count2sigs.items()):
+                    for sig in sorted(sigs):
+                        part = f'{count} {sig}'
+                        parts.append(part)
+                text = ', '.join(parts)
+                raise ValueError(f'Expected the columns of every shard to match, but got: {text}.')
 
         # Wait for the pool workers (stream index download processes) to finish.
         if pool is not None:

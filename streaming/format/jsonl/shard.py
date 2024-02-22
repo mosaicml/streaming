@@ -12,6 +12,7 @@ from typing_extensions import Self
 from streaming.format.base.file import ShardFile
 from streaming.format.base.phase import ShardFilePhase
 from streaming.format.base.shard.dual_row import DualRowShard
+from streaming.format.jsonl.encodings import jsonl_encoding_to_logical_type
 from streaming.stream.dir_conf import StreamDirConf
 
 __all__ = ['JSONLShard']
@@ -43,20 +44,29 @@ class JSONLShard(DualRowShard):
         columns: Dict[str, str],
         newline: str,
     ) -> None:
+        col_names = []
+        col_encodings = []
+        col_logical_types = []
+        for col_name, col_encoding in sorted(columns.items()):
+            col_names.append(col_name)
+            col_encodings.append(col_encoding)
+            col_logical_type = jsonl_encoding_to_logical_type(col_encoding)
+            col_logical_types.append(col_logical_type)
+        logical_columns = dict(zip(col_names, col_logical_types))
+
         super().__init__(
             conf=conf,
             stream=stream,
             num_samples=num_samples,
+            logical_columns=logical_columns,
             data_file=data_file,
             meta_file=meta_file,
         )
+
         self.columns = columns
-        self.column_names = []
-        self.column_encodings = []
-        for col_name in sorted(self.columns):
-            self.column_names.append(col_name)
-            col_encoding = columns[col_name]
-            self.column_encodings.append(col_encoding)
+        self.column_names = col_names
+        self.column_encodings = col_encodings
+        self.column_logical_types = col_logical_types
         self.newline = newline
 
     @classmethod

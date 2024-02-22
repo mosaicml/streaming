@@ -10,6 +10,7 @@ from typing_extensions import Self
 
 from streaming.array import Array
 from streaming.format.base.file import ShardFile
+from streaming.format.base.type import Type as LogicalType
 from streaming.stream.dir_conf import StreamDirConf
 
 __all__ = ['Shard']
@@ -33,11 +34,13 @@ class Shard(Array):
         conf: Optional[Any] = None,
         stream: StreamDirConf,
         num_samples: int,
+        logical_columns: Dict[str, LogicalType],
         files: List[ShardFile],
     ) -> None:
         self.conf = conf
         self.stream = stream
         self.num_samples = num_samples
+        self.logical_columns = logical_columns
         self.files = files
 
     @classmethod
@@ -76,6 +79,18 @@ class Shard(Array):
         self.stream = stream
         for file in self.files:
             file.set_stream(stream)
+
+    def get_logical_type_signature(self) -> str:
+        """Get a string encoding our logical column info.
+
+        Returns:
+            str: Logical type signature.
+        """
+        parts = []
+        for name, logical_type in sorted(self.logical_columns.items()):
+            sig = logical_type.get_signature()
+            parts += f'{name}:{sig}',
+        return ','.join(parts)
 
     def inventory_local(self, listing: Set[str]) -> Optional[int]:
         """Normalize what files/phases of files are present to a coherent state.

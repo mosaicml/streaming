@@ -3,10 +3,11 @@
 
 """Streaming shard abstract base classes."""
 
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 from streaming.format.base.file import ShardFile
 from streaming.format.base.shard.row import RowShard
+from streaming.format.base.type import Type as LogicalType
 from streaming.stream.dir_conf import StreamDirConf
 
 __all__ = ['MonoRowShard']
@@ -30,12 +31,14 @@ class MonoRowShard(RowShard):
         conf: Optional[Any] = None,
         stream: StreamDirConf,
         num_samples: int,
+        logical_columns: Dict[str, LogicalType],
         file: ShardFile,
     ) -> None:
         super().__init__(
             conf=conf,
             stream=stream,
             num_samples=num_samples,
+            logical_columns=logical_columns,
             files=[file],
         )
         self.file = file
