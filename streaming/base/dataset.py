@@ -308,10 +308,9 @@ class StreamingDataset(Array, IterableDataset):
         allow_unsafe_types (bool): If a shard contains Pickle, which allows arbitrary code
             execution during deserialization, whether to keep going if ``True`` or raise an error
             if ``False``. Defaults to ``False``.
-        world (World, optional): Override the world state (otherwise it is detected from standard
-            env vars). Defaults to ``None``.
-        tensor_parallelism (int, optional): Tensor parallelism to apply to the given or detected
-            world state. Defaults to ``None``.
+        replication (int, optional): Determines how many consecutive devices will receive the same
+            samples. Useful for training with tensor or sequence parallelism, where multiple
+            devices need to see the same partition of the dataset. Defaults to ``None``.
     """
 
     def __init__(self,
@@ -338,8 +337,7 @@ class StreamingDataset(Array, IterableDataset):
                  shuffle_block_size: Optional[int] = None,
                  batching_method: str = 'random',
                  allow_unsafe_types: bool = False,
-                 world: Optional[World] = None,
-                 tensor_parallelism: Optional[int] = None) -> None:
+                 replication: Optional[int] = None) -> None:
         # Global arguments (which do not live in Streams).
         self.predownload = predownload
         self.cache_limit = cache_limit
@@ -362,18 +360,20 @@ class StreamingDataset(Array, IterableDataset):
         #     destructor.
         #   * `unique_` is who are for coordination purposes, where every process must be unique.
         #   * `parallel_` is who we think we are for iterating purposes, where groups of process
-        #     must act the same if tensor parallelism is applied.
-        world = world or World.detect()
+        #     must act the same if `replication` is specified.
+        #     This can enable tensor or sequence parallelism.
+        world = World.detect()
         self._unique_rank_world = world
-        if tensor_parallelism is not None:
-            self._parallel_rank_world = world.tensor_parallel(tensor_parallelism)
+        if replication is not None:
+            self._parallel_rank_world = world.replicate(replication)
         else:
             self._parallel_rank_world = world.copy()
         self._unique_worker_world: World
         self._parallel_worker_world: World
 
         # Initialize initial_physical_nodes to None. If we are resuming, then we will set it to the
-        # number of physical nodes of the initial run in the _resume function.
+        # number of physical nodes of the initial run in the _resume function, or the number of 
+        # nodes specified in the `_parallel_rank_world` if using `replication`.
         self.initial_physical_nodes = None
 
         # Check streams vs remote/local.

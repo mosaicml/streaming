@@ -114,23 +114,24 @@ class World:
             worker=self.worker,
         )
 
-    def tensor_parallel(self, ratio: int) -> Self:
-        """Get a copy of this world state with the given tensor paralellism.
+    def replicate(self, replication: int) -> Self:
+        """Get a copy of this world state with the given replication factor.
 
         Args:
-            ratio (int): Ratio of tensor parallelism.
+            replication (int): Replication factor -- how many consecutive devices that should see
+                the same samples..
 
         Returns:
-            Self: A new tensor-parallel version of this World state object.
+            Self: A new sample replication version of this World state object.
         """
-        if ratio <= 0:
-            raise ValueError(f'Tensor parallelism ratio must be postiive.')
+        if replication <= 0:
+            raise ValueError(f'Replication factor must be positive.')
 
-        if self.num_ranks % ratio:
-            raise ValueError(f'World size must be divisible by your tensor parallelism ratio.')
+        if self.num_ranks % replication:
+            raise ValueError(f'World size must be divisible by your replication factor.')
 
-        rank = self.rank // ratio  # Evenly divide ranks.
-        num_ranks = self.num_ranks // ratio  # Floor divide our rank.
+        rank = self.rank // replication  # Evenly divide ranks.
+        num_ranks = self.num_ranks // replication  # Floor divide our rank.
         worker = rank * self.workers_per_rank + self.worker_of_rank  # Derive worker.
         num_nodes = (num_ranks + self.ranks_per_node - 1) // self.ranks_per_node  # Ceil divide.
         ranks_per_node = num_ranks // num_nodes  # Evenly divide ranks per node.
