@@ -71,7 +71,7 @@ class StreamingDataLoader(DataLoader):
             Optional[Dict[str, Any]]: The state, if a streaming dataset.
         """
         if isinstance(self.dataset, StreamingDataset):
-            world = World()
+            world = World.detect()
             num_samples = self.num_samples_yielded * world.num_ranks
             return self.dataset.state_dict(num_samples, False)
         return None
