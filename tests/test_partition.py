@@ -226,11 +226,11 @@ def test_partition_nodrop_norepeat(physical_nodes: int, canonical_nodes: int, ra
 
 
 @pytest.mark.parametrize('physical_nodes', [1, 4])
-@pytest.mark.parametrize('canonical_nodes', [12, 4])
+@pytest.mark.parametrize('canonical_nodes', [12, 4, 64])
 @pytest.mark.parametrize('ranks_per_node', [8])
 @pytest.mark.parametrize('workers_per_rank', [1, 8])
-@pytest.mark.parametrize('batch_size', [2])
-@pytest.mark.parametrize('num_samples', [1024])
+@pytest.mark.parametrize('batch_size', [2, 8])
+@pytest.mark.parametrize('num_samples', [1024, 16384])
 @pytest.mark.parametrize('sample_in_epoch', [0, 256])
 @pytest.mark.parametrize('replication', [2, 4])
 def test_replication_samples(physical_nodes: int, canonical_nodes: int, ranks_per_node: int,
