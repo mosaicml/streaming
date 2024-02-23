@@ -154,7 +154,7 @@ def test_state_dict_too_large(local_remote_dir: Tuple[str, str]):
 @pytest.mark.parametrize('dtype', [np.int32, np.int64, np.float32, np.float64])
 @patch('streaming.base.shared.array.SharedMemory')
 def test_shared_array_size_is_integer(mock_shared_memory, dtype):
-    SharedArray(3, np.int32, name='test_shared_array')
+    SharedArray(3, dtype=dtype, name='test_shared_array')
     mock_shared_memory.assert_called_once()
     size_arg = mock_shared_memory.call_args[1]['size']
     assert isinstance(size_arg, int), 'Size passed to SharedMemory is not an integer'
