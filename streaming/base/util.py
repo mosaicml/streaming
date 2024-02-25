@@ -468,7 +468,9 @@ def _merge_index_from_root(out: Union[str, Tuple[str, str]],
     local_index_files = []
     cl = CloudUploader.get(cu.local, exist_ok=True, keep_local=True)
 
-    logger.warning(f"We will be listing objects from {out}, which may take a long time if the number of stream folders is large. Consider provide the list of path/to/index.json directly.")
+    logger.warning(
+        f'We will be listing objects from {out}, which may take a long time if the number of stream folders is large. Consider provide the list of path/to/index.json directly.'
+    )
 
     for file in cl.list_objects():
         if file.endswith('.json') and _not_merged_index(file, cu.local):
