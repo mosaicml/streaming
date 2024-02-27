@@ -1,7 +1,7 @@
 # Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Tuple
+from typing import Tuple, Type
 from unittest.mock import patch
 
 import numpy as np
@@ -153,7 +153,7 @@ def test_state_dict_too_large(local_remote_dir: Tuple[str, str]):
 
 @pytest.mark.parametrize('dtype', [np.int32, np.int64, np.float32, np.float64])
 @patch('streaming.base.shared.array.SharedMemory')
-def test_shared_array_size_is_integer(mock_shared_memory, dtype):
+def test_shared_array_size_is_integer(mock_shared_memory: Type, dtype: Type[np.dtype]):
     SharedArray(3, dtype=dtype, name='test_shared_array')
     mock_shared_memory.assert_called_once()
     size_arg = mock_shared_memory.call_args[1]['size']
