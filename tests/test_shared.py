@@ -1,12 +1,14 @@
 # Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Tuple
+from typing import Tuple, Type
+from unittest.mock import patch
 
+import numpy as np
 import pytest
 
 from streaming.base import StreamingDataset
-from streaming.base.shared import get_shm_prefix
+from streaming.base.shared import SharedArray, get_shm_prefix
 from streaming.base.world import World
 from tests.common.utils import convert_to_mds
 
@@ -147,3 +149,12 @@ def test_state_dict_too_large(local_remote_dir: Tuple[str, str]):
 
     with pytest.raises(ValueError, match='The StreamingDataset state dict*'):
         dataset.load_state_dict(big_state_dict)
+
+
+@pytest.mark.parametrize('dtype', [np.int32, np.int64, np.float32, np.float64])
+@patch('streaming.base.shared.array.SharedMemory')
+def test_shared_array_size_is_integer(mock_shared_memory: Type, dtype: Type[np.dtype]):
+    SharedArray(3, dtype=dtype, name='test_shared_array')
+    mock_shared_memory.assert_called_once()
+    size_arg = mock_shared_memory.call_args[1]['size']
+    assert isinstance(size_arg, int), 'Size passed to SharedMemory is not an integer'
