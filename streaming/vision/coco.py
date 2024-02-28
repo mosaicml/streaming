@@ -68,6 +68,9 @@ class StreamingCOCO(StreamingDataset):
         shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1s``.
         shuffle_seed (int): Seed for Deterministic data shuffling. Defaults to ``9176``.
         shuffle_block_size (int): Unit of shuffle. Defaults to ``1 << 18``.
+        allow_unsafe_types (bool): If a shard contains Pickle, which allows arbitrary code
+            execution during deserialization, whether to keep going if ``True`` or raise an error
+            if ``False``. Defaults to ``False``.
         transform (callable, optional): A function/transform that takes in an image and bboxes and
             returns a transformed version. Defaults to ``None``.
     """
@@ -91,6 +94,7 @@ class StreamingCOCO(StreamingDataset):
                  shuffle_algo: str = 'py1s',
                  shuffle_seed: int = 9176,
                  shuffle_block_size: int = 1 << 18,
+                 allow_unsafe_types: bool = False,
                  transform: Optional[Callable] = None) -> None:
         super().__init__(remote=remote,
                          local=local,
@@ -108,7 +112,8 @@ class StreamingCOCO(StreamingDataset):
                          shuffle=shuffle,
                          shuffle_algo=shuffle_algo,
                          shuffle_seed=shuffle_seed,
-                         shuffle_block_size=shuffle_block_size)
+                         shuffle_block_size=shuffle_block_size,
+                         allow_unsafe_types=allow_unsafe_types)
         self.transform = transform
 
     def get_item(self, idx: int) -> Any:
