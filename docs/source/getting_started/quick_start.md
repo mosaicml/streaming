@@ -1,8 +1,8 @@
 # 🚀 Quick Start
 
-Start training your model with the Streaming dataset in a few steps!
+Start training your model with Streaming in just a few steps!
 
-1. Convert your raw dataset into one of our supported streaming formats, for example, `mds` (Mosaic Data Shard) format.
+1. Convert your raw dataset into one of our supported file formats. Here, we convert an image dataset to MDS (Mosaic Data Shard) format.
 
     ```python
     import numpy as np
@@ -12,9 +12,8 @@ Start training your model with the Streaming dataset in a few steps!
     from streaming import MDSWriter
 
     # Local or remote directory path to store the output compressed files.
-    # For remote directory, the output files are automatically upload to a remote cloud storage
-    # location.
-    out_root = 'dirname'
+    # Here, we use a remote S3 path.
+    out_root = 's3://path/to/dataset'
 
     # A dictionary of input fields to an Encoder/Decoder type
     columns = {
@@ -26,10 +25,7 @@ Start training your model with the Streaming dataset in a few steps!
     # Compression algorithm name
     compression = 'zstd'
 
-    # Hash algorithm name
-    hashes = 'sha1', 'xxh64'
-
-    # Generates random images and classes for input sample
+    # Generate random images and classes
     samples = [
         {
             'uuid': str(uuid4()),
@@ -39,32 +35,29 @@ Start training your model with the Streaming dataset in a few steps!
         for _ in range(1000)
     ]
 
-    # Call `MDSWriter` to iterate through the input data and write into a shard `mds` file
-    with MDSWriter(out=out_root, columns=columns, compression=compression, hashes=hashes) as out:
+    # Use `MDSWriter` to iterate through the input data and write to a collection of `.mds` files.
+    with MDSWriter(out=out_root, columns=columns, compression=compression) as out:
         for sample in samples:
             out.write(sample)
-
-    # Clean up
-    rmtree(out_root)
     ```
 
-2. Replace the original {class}`torch.utils.data.IterableDataset` with your new {class}`streaming.StreamingDataset`.
+2. Replace the original {class}`torch.utils.data.IterableDataset` with your new {class}`streaming.StreamingDataset`. Point it to the dataset written out above.
     <!--pytest.mark.skip-->
     ```python
     from torch.utils.data import DataLoader
     from streaming import StreamingDataset
 
-    # Remote directory (S3 or local filesystem) where dataset is stored
-    remote_dir = 's3://datapath'
+    # Remote directory where dataset is stored, from above
+    remote_dir = 's3://path/to/dataset'
 
-    # Local directory where dataset is cached during operation
-    local_dir = 'local_dir'
+    # Local directory where dataset is cached during training
+    local_dir = '/local/cache/path'
     dataset = StreamingDataset(local=local_dir, remote=remote_dir, split=None, shuffle=True)
 
     # Create PyTorch DataLoader
     dataloader = DataLoader(dataset)
     ```
 
-That's it! For additional details on using {mod}`streaming`, please check out our [User Guide](user_guide.md) and [Examples](../examples/cifar10.ipynb).
+That's it! For additional details on using Streaming, check out the [Main Concepts](main_concepts.md) page and [How-to Guides](../how_to_guides/llm_dataset_conversion.md).
 
 Happy training!
