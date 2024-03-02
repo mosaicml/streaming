@@ -9,9 +9,9 @@ Let's cover the key concepts in this process.
 
 ## Dataset conversion
 Raw data samples need to be processed into a **stream**, or set of **shard** files, that allow for fast random access during training. Streaming supports the following file formats:
-* MDS (most performant), through {class}`streaming.MDSWriter` 
-* XSV, through {class}`streaming.XSVWriter`
-* JSON, through {class}`streaming.JSONWriter`
+* MDS (most performant) 
+* XSV
+* JSONL
 
 A **shard** is a file, compatible with Streaming, that contains samples that are ready for training.
 

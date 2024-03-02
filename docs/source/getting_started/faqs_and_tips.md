@@ -3,7 +3,7 @@
 ## ❓ FAQs
 
 ### Can I write datasets in parallel? How does this work?
-Yes, you can! Please see the [parallel dataset conversion](../preparing_datasets/parallel_dataset_conversion.md) page for instructions. If you're using Spark, follow the [Spark dataframe to MDS](../preparing_datasets/spark_dataframe_to_mds.md) example.
+Yes, you can! Please see the [parallel dataset conversion](../preparing_datasets/parallel_dataset_conversion.ipynb) page for instructions. If you're using Spark, follow the [Spark dataframe to MDS](../preparing_datasets/spark_dataframe_to_mds.md) example.
 
 ### How can I calculate ingress and egress costs?
 Ingress costs will depend on your GPU provider, but egress costs from cloud storage are equal to the egress costs for a single epoch of training. Streaming is smart about how samples are partitioned, and minimizes duplicate shard downloads between nodes. The egress cost is calculated as:
