@@ -1001,13 +1001,12 @@ class StreamingDataset(Array, IterableDataset):
 
         # Do expensive work that may use a lot of cores/memory just once, in the local leader.
         if u_world.is_local_leader:
-            # Check if we are using `repetition`. If we are, then we need to adjust the
-            # `sample_in_epoch` to reflect the fact that sample ids are shared across
-            # `repetition` consecutive devices. For example, if `repetition` is 2, then the
-            # sample id partition will be half as large, since every pair of devices shares
-            # sample ids. So the `sample_in_epoch` offset for the partition is also halved.
-            # if self.replication is not None:
-            #     sample_in_epoch = sample_in_epoch // self.replication
+            if self.replication is not None and not u_world.worker_of_rank:
+                logger.warning(f'The `replication` has been set and training is resuming ',
+                               f'from sample {sample_in_epoch}. Make sure you are accounting ',
+                               f"for sample replication when using StreamingDataset's ",
+                               f'`state_dict` method for deterministic resumption. Otherwise, ',
+                               f'you will resume training from the wrong sample.')
             epoch_sample_ids = generate_work(self.batching_method, self, p_world, epoch,
                                              sample_in_epoch)
             shape_shm, data_shm = self._share_work(epoch_sample_ids)
