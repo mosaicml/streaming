@@ -1,7 +1,7 @@
 # Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""MosaicML Streaming Datasets for cloud-native model training."""
+"""MosaicML Streaming Datasets for cloud-native model training some change."""
 
 import streaming.multimodal as multimodal
 import streaming.text as text
