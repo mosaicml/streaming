@@ -1006,8 +1006,8 @@ class StreamingDataset(Array, IterableDataset):
             # `repetition` consecutive devices. For example, if `repetition` is 2, then the
             # sample id partition will be half as large, since every pair of devices shares
             # sample ids. So the `sample_in_epoch` offset for the partition is also halved.
-            if self.replication is not None:
-                sample_in_epoch = sample_in_epoch // self.replication
+            # if self.replication is not None:
+            #     sample_in_epoch = sample_in_epoch // self.replication
             epoch_sample_ids = generate_work(self.batching_method, self, p_world, epoch,
                                              sample_in_epoch)
             shape_shm, data_shm = self._share_work(epoch_sample_ids)
