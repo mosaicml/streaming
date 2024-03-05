@@ -113,6 +113,10 @@ extra_deps['databricks'] = [
     'databricks-sdk==0.14.0',
 ]
 
+extra_deps['testing'] = [
+    'mosaicml-cli>=0.5.25,<0.7',
+]
+
 extra_deps['all'] = sorted({dep for deps in extra_deps.values() for dep in deps})
 
 package_name = os.environ.get('MOSAIC_PACKAGE_NAME', 'mosaicml-streaming')
