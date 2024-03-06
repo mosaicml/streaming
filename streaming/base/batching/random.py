@@ -48,12 +48,15 @@ def generate_work_random_batching(dataset: StreamingDataset, world: World, epoch
     # sample ID to its underlying "small" sample ID.
     shuffle_units, small_per_big = dataset.resample_streams(epoch)
 
+    batch_size = dataset.batch_size
+    assert isinstance(batch_size, int), f'Batch size must be an integer. Got {type(batch_size)}.'
+
     # Partition the global sample space (of resampled "big" sample IDs) into a tensor of shape
     # (num physical nodes, ranks per node, workers per rank, batches per worker, samples per
     # batch) such that we have an elastically deterministic sample order.
     big_ids = get_partitions(dataset.partition_algo, dataset.epoch_size,
                              dataset.num_canonical_nodes, world.num_nodes, world.ranks_per_node,
-                             world.workers_per_rank, dataset.batch_size, sample_in_epoch,
+                             world.workers_per_rank, batch_size, sample_in_epoch,
                              dataset.initial_physical_nodes)
 
     # If we need to shuffle, shuffle in a node-aware and *underlying* shard-aware way.

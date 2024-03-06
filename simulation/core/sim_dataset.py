@@ -81,8 +81,9 @@ class SimulationDataset(StreamingDataset):
 
                 For sequential sample ordering, set ``shuffle`` to ``False`` and
                 ``num_canonical_nodes`` to the number of physical nodes of the initial run.
-        batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
-            partitioned over the workers. Defaults to ``None``.
+        batch_size (int, optional): Per-device batch size, the same as what is passed to the
+            DataLoader. This affects how the dataset is partitioned over the workers and is
+            necessary for deterministic resumption and optimal performance. Defaults to ``None``.
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
             ``False``.
         shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1e``.
@@ -191,7 +192,7 @@ class SimulationDataset(StreamingDataset):
         elif self.predownload is None:
             self.predownload = 8 * self.batch_size if self.batch_size is not None else 64
 
-        self.batch_size = batch_size or 1
+        self.batch_size = batch_size
 
         # Convert epoch size from string to int, if needed. Cannot be negative.
         epoch_size_value = None
