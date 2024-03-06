@@ -26,7 +26,7 @@ def test_new_defaults_warning(local_remote_dir: Tuple[str, str], caplog: Callabl
                    size_limit=1 << 8)
 
     # Build a StreamingDataset with new defaults. Should warn about the new defaults changes.
-    dataset = StreamingDataset(local=local, remote=remote, shuffle=True)
+    dataset = StreamingDataset(local=local, remote=remote, shuffle=True, batch_size=4)
     dataloader = StreamingDataLoader(dataset=dataset, batch_size=4)
     for _ in dataloader:
         pass
@@ -515,7 +515,7 @@ def test_dataloader_mid_epoch_exit(local_remote_dir: Tuple[str, str], num_sample
 
     def run_one_iter(local: str, remote: str, seed: int) -> None:
         # Build a StreamingDataset
-        dataset = StreamingDataset(local=local, remote=remote, shuffle_seed=seed)
+        dataset = StreamingDataset(local=local, remote=remote, shuffle_seed=seed, batch_size=1)
 
         # Do one iteration
         it = iter(dataset)

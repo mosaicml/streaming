@@ -44,7 +44,7 @@ def shard_eviction_disabled(remote: str, local: str, keep_zip: bool):
     """
     With shard eviction disabled.
     """
-    dataset = StreamingDataset(remote=remote, local=local, keep_zip=keep_zip)
+    dataset = StreamingDataset(remote=remote, local=local, keep_zip=keep_zip, batch_size=1)
     for _ in range(2):
         for sample in dataset:  # pyright: ignore
             pass
@@ -60,7 +60,8 @@ def shard_eviction_too_high(remote: str, local: str, keep_zip: bool):
     dataset = StreamingDataset(remote=remote,
                                local=local,
                                keep_zip=keep_zip,
-                               cache_limit=1_000_000)
+                               cache_limit=1_000_000,
+                               batch_size=1)
     dataloader = DataLoader(dataset=dataset, num_workers=8)
     for _ in range(2):
         for _ in dataloader:
@@ -77,7 +78,8 @@ def shard_eviction(remote: str, local: str, keep_zip: bool):
     dataset = StreamingDataset(remote=remote,
                                local=local,
                                keep_zip=keep_zip,
-                               cache_limit=cache_limit)
+                               cache_limit=cache_limit,
+                               batch_size=1)
     dataloader = DataLoader(dataset=dataset, num_workers=8)
     for _ in range(2):
         for _ in dataloader:
@@ -90,7 +92,7 @@ def manual_shard_eviction(remote: str, local: str, keep_zip: bool):
     """
     Manually downloading and evicting shards.
     """
-    dataset = StreamingDataset(remote=remote, local=local, keep_zip=keep_zip)
+    dataset = StreamingDataset(remote=remote, local=local, keep_zip=keep_zip, batch_size=1)
 
     for shard_id in range(dataset.num_shards):
         dataset.prepare_shard(shard_id)
@@ -114,7 +116,7 @@ def cache_limit_too_low(remote: str, local: str, keep_zip: bool):
     With impossible shard eviction settings because cache_limit is set too low.
     """
     with pytest.raises(ValueError):
-        dataset = StreamingDataset(remote=remote, local=local, cache_limit='1kb')
+        dataset = StreamingDataset(remote=remote, local=local, cache_limit='1kb', batch_size=1)
         for _ in dataset:
             pass
     rmtree(local, ignore_errors=False)

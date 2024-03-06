@@ -90,7 +90,7 @@ class StreamingADE20K(StreamingDataset):
                  partition_algo: str = 'orig',
                  cache_limit: Optional[int] = None,
                  num_canonical_nodes: Optional[int] = None,
-                 batch_size: Optional[int] = None,
+                 batch_size: int,
                  shuffle: bool = False,
                  shuffle_algo: str = 'py1s',
                  shuffle_seed: int = 9176,

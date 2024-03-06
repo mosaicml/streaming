@@ -286,8 +286,9 @@ class StreamingDataset(Array, IterableDataset):
 
                 For sequential sample ordering, set ``shuffle`` to ``False`` and
                 ``num_canonical_nodes`` to the number of physical nodes of the initial run.
-        batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
-            partitioned over the workers. Defaults to ``None``.
+        batch_size (int): Per-device batch size, the same as what is passed to the DataLoader.
+            This affects how the dataset is partitioned over the workers and is necessary for
+            deterministic resumption and optimal performance.
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
             ``False``.
         shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1e``.
@@ -323,7 +324,7 @@ class StreamingDataset(Array, IterableDataset):
                  sampling_granularity: int = 1,
                  partition_algo: str = 'relaxed',
                  num_canonical_nodes: Optional[int] = None,
-                 batch_size: Optional[int] = None,
+                 batch_size: int,
                  shuffle: bool = False,
                  shuffle_algo: str = 'py1e',
                  shuffle_seed: int = 9176,
@@ -338,7 +339,6 @@ class StreamingDataset(Array, IterableDataset):
         self.sampling_granularity = sampling_granularity
         self.partition_algo = partition_algo
         self.num_canonical_nodes = num_canonical_nodes
-        self.batch_size = batch_size
         self.shuffle = shuffle
         self.shuffle_algo = shuffle_algo
         self.shuffle_seed = shuffle_seed
@@ -346,6 +346,15 @@ class StreamingDataset(Array, IterableDataset):
         self.batching_method = batching_method
         self.allow_unsafe_types = allow_unsafe_types
         self.replication = replication
+
+        # Ensure that batch_size is passed in, and is an integer. This is necessary for
+        # deterministic resumption and optimal performance.
+        if not isinstance(batch_size, int):  # pyright: ignore
+            raise ValueError(f'Please pass `batch_size` to StreamingDataset. It should be set ' +
+                             f'the same as the DataLoader, and is the number of samples per ' +
+                             f'batch, for each device. It is necessary for deterministic ' +
+                             f'resumption and optimal performance.')
+        self.batch_size = batch_size
 
         # Initialize the World context.
         #   * This information is for the per-rank or per-worker process.
