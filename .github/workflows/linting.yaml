@@ -21,11 +21,11 @@ jobs:
     strategy:
       matrix:
         python_version:
-          - "3.9"
-          - "3.10"
-          - "3.11"
+        - "3.9"
+        - "3.10"
+        - "3.11"
         install_version:
-          - "[dev,testing]"
+        - "[dev,testing]"
     steps:
     - uses: actions/checkout@v3
     - name: Get composite run steps repository
