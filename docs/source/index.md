@@ -60,8 +60,8 @@ If you have any questions, please feel free to reach out to us on [Twitter](htt
 
    preparing_datasets/dataset_format.md
    preparing_datasets/basic_dataset_conversion.md
-   preparing_datasets/parallel_dataset_conversion.md
-   preparing_datasets/spark_dataframe_to_mds.md
+   preparing_datasets/parallel_dataset_conversion.ipynb
+   preparing_datasets/spark_dataframe_to_mds.ipynb
 
 .. toctree::
    :hidden:

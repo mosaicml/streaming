@@ -187,10 +187,10 @@ def each(samples):
     """Generator over raw dataset samples.
 
     Args:
-        samples (list): List of samples of (feature, label).
+        samples: Raw samples as tuples of (feature, label).
 
     Yields:
-        Sample dicts.
+        Each sample, as a dict.
     """
     for x, y in samples:
         yield {
@@ -225,4 +225,80 @@ dirname
 ├── index.json
 ├── shard.00000.mds.zstd
 └── shard.00001.mds.zstd
+```
+
+## Example: Writing `ndarray`s to MDS format
+
+Here, we show how to write `ndarray`s to MDS format in three ways:
+1. dynamic shape and dtype
+2. dynamic shape but fixed dtype
+3. fixed shape and dtype
+
+Serializing ndarrays with fixed dtype and shape is more efficient than fixed dtype and dynamic shape, which is in turn more efficient than dynamic dtype and shape.
+
+### Dynamic shape, dynamic dtype
+
+The streaming encoding type, as the value in the `columns` dict, should simply be `ndarray`.
+
+```python
+# Write to MDS
+with MDSWriter(out='my_dataset1/',
+               columns={'my_array': 'ndarray'}) as out:
+    for i in range(42):
+        # Dimension can change
+        ndim = np.random.randint(1, 5)
+        shape = np.random.randint(1, 5, ndim)
+        shape = tuple(shape.tolist())
+        my_array = np.random.normal(0, 1, shape)
+        out.write({'my_array': my_array})
+
+# Inspect dataset
+dataset = StreamingDataset(local='my_dataset1/')
+for i in range(dataset.num_samples):
+    print(dataset[i])
+```
+
+
+### Dynamic shape, fixed dtype
+
+The streaming encoding type, as the value in the `columns` dict, should be `ndarray:dtype`. So in this example, it is `ndarray:int16`.
+
+```python
+# Write to MDS
+with MDSWriter(out='my_dataset2/',
+               columns={'my_array': 'ndarray:int16'}) as out:
+    for i in range(42):
+        # Dimension can change
+        ndim = np.random.randint(1, 5)
+        shape = np.random.randint(1, 5, ndim)
+        shape = tuple(shape.tolist())
+        # Datatype is fixed
+        my_array = np.random.normal(0, 100, shape).astype(np.int16)
+        out.write({'my_array': my_array})
+
+# Inspect dataset
+dataset = StreamingDataset(local='my_dataset2/')
+for i in range(dataset.num_samples):
+    print(dataset[i])
+```
+
+### Fixed shape, fixed dtype
+
+The streaming encoding type, as the value in the `columns` dict, should be `ndarray:dtype:shape`. So in this example, it is `ndarray:int16:3,4,5`.
+
+```python
+# Write to MDS
+with MDSWriter(out='my_dataset3/',
+               columns={'my_array': 'ndarray:int16:3,4,5'}) as out:
+    for i in range(42):
+        # Shape is fixed
+        shape = 3, 4, 5
+        # Datatype is fixed
+        my_array = np.random.normal(0, 100, shape).astype(np.int16)
+        out.write({'my_array': my_array})
+
+# Inspect dataset
+dataset = StreamingDataset(local='my_dataset3/')
+for i in range(dataset.num_samples):
+    print(dataset[i])
 ```
