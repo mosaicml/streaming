@@ -4,6 +4,6 @@
 """Utility function for converting spark dataframe to MDS dataset."""
 
 from streaming.base.converters.dataframe_to_mds import (MAPPING_SPARK_TO_MDS, dataframe_to_mds,
-                                                        dataframeToMDS)
+                                                        dataframeToMDS, infer_dataframe_schema)
 
-__all__ = ['dataframeToMDS', 'dataframe_to_mds', 'MAPPING_SPARK_TO_MDS']
+__all__ = ['dataframeToMDS', 'dataframe_to_mds', 'MAPPING_SPARK_TO_MDS', 'infer_dataframe_schema']

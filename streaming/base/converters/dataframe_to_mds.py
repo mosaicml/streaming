@@ -19,8 +19,8 @@ try:
     from pyspark.sql.dataframe import DataFrame
     from pyspark.sql.types import (ArrayType, BinaryType, BooleanType, ByteType, DateType,
                                    DayTimeIntervalType, DecimalType, DoubleType, FloatType,
-                                   IntegerType, LongType, MapType, ShortType, StringType,
-                                   StructField, StructType, TimestampNTZType, TimestampType)
+                                   IntegerType, LongType, ShortType, StringType, StructField,
+                                   StructType, TimestampNTZType, TimestampType)
 except ImportError as e:
     e.msg = get_import_exception_message(e.name, extra_deps='spark')  # pyright: ignore
     raise e
@@ -33,41 +33,42 @@ from streaming.base.storage.upload import CloudUploader
 logger = logging.getLogger(__name__)
 
 MAPPING_SPARK_TO_MDS = {
-    ByteType: 'uint8',
-    ShortType: 'uint16',
-    IntegerType: 'int',
-    LongType: 'int64',
-    FloatType: 'float32',
-    DoubleType: 'float64',
-    DecimalType: 'str_decimal',
-    StringType: 'str',
-    BinaryType: 'bytes',
-    BooleanType: None,
-    TimestampType: None,
-    TimestampNTZType: None,
-    DateType: None,
-    DayTimeIntervalType: None,
-    ArrayType: None,
-    MapType: None,
-    StructType: None,
-    StructField: None
+    ByteType(): 'uint8',
+    ShortType(): 'uint16',
+    IntegerType(): 'int',
+    LongType(): 'int64',
+    FloatType(): 'float32',
+    DoubleType(): 'float64',
+    DecimalType(): 'str_decimal',
+    StringType(): 'str',
+    BinaryType(): 'bytes',
+    BooleanType(): None,
+    TimestampType(): None,
+    TimestampNTZType(): None,
+    DateType(): None,
+    DayTimeIntervalType(): None,
+    ArrayType(IntegerType()): 'ndarray',
+    ArrayType(ShortType()): 'ndarray',
+    ArrayType(LongType()): 'ndarray',
+    ArrayType(FloatType()): 'ndarray',
+    ArrayType(DoubleType()): 'ndarray',
 }
 
 
 def infer_dataframe_schema(dataframe: DataFrame,
                            user_defined_cols: Optional[Dict[str, Any]] = None) -> Optional[Dict]:
-    """Retrieve schema to construct a dictionary or do sanity check for MDSWriter.
+    """Retrieve schema to construct a dictionary or do sanity check for dataframe_to_mds.
 
     Args:
         dataframe (spark dataframe): dataframe to inspect schema
-        user_defined_cols (Optional[Dict[str, Any]]): user specified schema for MDSWriter
+        user_defined_cols (Optional[Dict[str, Any]]): user specified schema for dataframe_to_mds
 
     Returns:
         If user_defined_cols is None, return schema_dict (dict): column name and dtypes that are
         supported by MDSWriter, else None
 
     Raises:
-        ValueError if any of the datatypes are unsupported by MDSWriter.
+        ValueError if any of the datatypes are unsupported by dataframe_to_mds.
     """
 
     def map_spark_dtype(spark_data_type: Any) -> str:
@@ -82,9 +83,13 @@ def infer_dataframe_schema(dataframe: DataFrame,
         Raises:
             raise ValueError if no mds datatype is found for input type
         """
-        mds_type = MAPPING_SPARK_TO_MDS.get(type(spark_data_type), None)
+        if issubclass(type(spark_data_type), DecimalType):
+            mds_type = MAPPING_SPARK_TO_MDS.get(DecimalType(), None)
+        else:
+            mds_type = MAPPING_SPARK_TO_MDS.get(spark_data_type, None)
+
         if mds_type is None:
-            raise ValueError(f'{spark_data_type} is not supported by MDSWriter')
+            raise ValueError(f'{spark_data_type} is not supported by dataframe_to_mds')
         return mds_type
 
     # user has provided schema, we just check if mds supports the dtype
@@ -97,7 +102,7 @@ def infer_dataframe_schema(dataframe: DataFrame,
                 raise ValueError(
                     f'{col_name} is not a column of input dataframe: {dataframe.columns}')
             if user_dtype not in mds_supported_dtypes:
-                raise ValueError(f'{user_dtype} is not supported by MDSWriter')
+                raise ValueError(f'{user_dtype} is not supported by dataframe_to_mds')
 
             actual_spark_dtype = dataframe.schema[col_name].dataType
             mapped_mds_dtype = map_spark_dtype(actual_spark_dtype)
@@ -115,7 +120,7 @@ def infer_dataframe_schema(dataframe: DataFrame,
         if dtype in _encodings:
             schema_dict[field.name] = dtype
         else:
-            raise ValueError(f'{dtype} is not supported by MDSWriter')
+            raise ValueError(f'{dtype} is not supported by dataframe_to_mds')
     return schema_dict
 
 
