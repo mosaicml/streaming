@@ -24,7 +24,7 @@ jobs:
         - "3.9"
         - "3.10"
         - "3.11"
-        install_version:
+        pip_deps:
         - "[dev,testing]"
     steps:
     - uses: actions/checkout@v3
