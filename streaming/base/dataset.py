@@ -7,7 +7,6 @@ import json
 import logging
 import mmap
 import os
-import sys
 import warnings
 from concurrent.futures import ThreadPoolExecutor, wait
 from concurrent.futures._base import Future
@@ -111,14 +110,8 @@ class _Iterator:
         # at shutdown to prevent a deadlock.
         # In python version >=3.9 this can be accomplished via
         # threading._register_atexit but not with the atexit module.
-        # In older python versions, the atexit module can be used, and
-        # threading._register_atexit does not exist.
-        if sys.version_info[1] <= 8:  # check if python version <=3.8
-            import atexit
-            atexit.register(self.non_blocking_exit)
-        else:
-            from threading import _register_atexit  # pyright: ignore
-            _register_atexit(self.non_blocking_exit)
+        from threading import _register_atexit  # pyright: ignore
+        _register_atexit(self.non_blocking_exit)
 
     def non_blocking_exit(self) -> None:
         """Signal threads to exit without blocking.

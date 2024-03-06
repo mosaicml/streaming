@@ -36,9 +36,9 @@ while True:
 
 classifiers = [
     'Programming Language :: Python :: 3',
-    'Programming Language :: Python :: 3.8',
     'Programming Language :: Python :: 3.9',
     'Programming Language :: Python :: 3.10',
+    'Programming Language :: Python :: 3.11',
 ]
 
 install_requires = [
@@ -145,5 +145,5 @@ setup(
     classifiers=classifiers,
     install_requires=install_requires,
     extras_require=extra_deps,
-    python_requires='>=3.8',
+    python_requires='>=3.9',
 )

@@ -22,6 +22,8 @@ jobs:
       matrix:
         python_version:
         - "3.9"
+        - "3.10"
+        - "3.11"
         pip_deps:
         - "[dev,testing]"
     steps:
