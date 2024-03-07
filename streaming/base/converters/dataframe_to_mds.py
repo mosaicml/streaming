@@ -117,7 +117,7 @@ def infer_dataframe_schema(dataframe: DataFrame,
 
     for field in schema:
         dtype = map_spark_dtype(field.dataType)
-        if dtype in _encodings:
+        if dtype.split(':')[0] in _encodings:
             schema_dict[field.name] = dtype
         else:
             raise ValueError(f'{dtype} is not supported by dataframe_to_mds')

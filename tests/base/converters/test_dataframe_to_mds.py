@@ -231,7 +231,7 @@ class TestDataFrameToMDS:
             'decimal_col': 'str_decimal',
             'string_col': 'str',
             'binary_col': 'bytes',
-            'array_int_col': 'ndarray',
+            'array_int_col': 'ndarray:int',
         }
         assert infer_dataframe_schema(test_df) == expected_mappings
 
