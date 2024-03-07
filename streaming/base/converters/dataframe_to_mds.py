@@ -47,11 +47,11 @@ MAPPING_SPARK_TO_MDS = {
     TimestampNTZType(): None,
     DateType(): None,
     DayTimeIntervalType(): None,
-    ArrayType(IntegerType()): 'ndarray',
-    ArrayType(ShortType()): 'ndarray',
-    ArrayType(LongType()): 'ndarray',
-    ArrayType(FloatType()): 'ndarray',
-    ArrayType(DoubleType()): 'ndarray',
+    ArrayType(IntegerType()): 'ndarray:int',
+    ArrayType(ShortType()): 'ndarray:int16',
+    ArrayType(LongType()): 'ndarray:int64',
+    ArrayType(FloatType()): 'ndarray:float32',
+    ArrayType(DoubleType()): 'ndarray:float64',
 }
 
 
