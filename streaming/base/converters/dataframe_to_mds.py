@@ -101,11 +101,15 @@ def infer_dataframe_schema(dataframe: DataFrame,
             if col_name not in dataframe.columns:
                 raise ValueError(
                     f'{col_name} is not a column of input dataframe: {dataframe.columns}')
+            if user_dtype.startswith('ndarray'):
+                user_dtype = ':'.join(user_dtype.split(':')[:-1])
+
             if user_dtype not in mds_supported_dtypes:
                 raise ValueError(f'{user_dtype} is not supported by dataframe_to_mds')
 
             actual_spark_dtype = dataframe.schema[col_name].dataType
             mapped_mds_dtype = map_spark_dtype(actual_spark_dtype)
+
             if user_dtype != mapped_mds_dtype:
                 raise ValueError(
                     f'Mismatched types: column name `{col_name}` is `{mapped_mds_dtype}` in ' +
