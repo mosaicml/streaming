@@ -4,9 +4,10 @@
 """Helper methods to get the distributed attributes."""
 
 import os
-from typing import List, TypeVar, cast
+from typing import List, Optional, TypeVar, cast
 
 import torch.distributed as dist
+from torch.distributed.distributed_c10d import ProcessGroup
 
 TObj = TypeVar('TObj')
 
@@ -20,22 +21,34 @@ __all__ = [
 ]
 
 
-def get_rank() -> int:
+def get_rank(process_group: Optional[ProcessGroup] = None) -> int:
     """Returns the rank of the current process, which is on ``[0; WORLD_SIZE - 1]``.
+
+    Args:
+        process_group (ProcessGroup, optional): the process group used to determine rank
 
     Returns:
         int: The rank.
     """
-    return int(os.environ.get('RANK', 0))
+    rank = int(os.environ.get('RANK', 0))
+    if process_group is not None:
+        rank = dist.get_rank(process_group)
+    return rank
 
 
-def get_world_size() -> int:
+def get_world_size(process_group: Optional[ProcessGroup] = None) -> int:
     """Returns the world size, which is the number of processes participating in this training run.
+
+    Args:
+        process_group (ProcessGroup, optional): the process group used to determine world size
 
     Returns:
         int: The world size.
     """
-    return int(os.environ.get('WORLD_SIZE', 1))
+    world_size = int(os.environ.get('WORLD_SIZE', 1))
+    if process_group is not None:
+        world_size = dist.get_world_size(process_group)
+    return world_size
 
 
 def get_local_rank() -> int:
@@ -47,18 +60,32 @@ def get_local_rank() -> int:
     return int(os.environ.get('LOCAL_RANK', 0))
 
 
-def get_local_world_size() -> int:
+def get_local_world_size(process_group: Optional[ProcessGroup] = None) -> int:
     """Returns the local world size, which is the number of processes for the current node.
+
+    Args:
+        process_group (ProcessGroup, optional): the process group used to determine local world size
 
     Returns:
         int: The local world size.
     """
-    return int(os.environ.get('LOCAL_WORLD_SIZE', 1))
+    local_world_size = int(os.environ.get('LOCAL_WORLD_SIZE', 1))
+    if process_group is not None:
+        group_ranks = dist.get_process_group_ranks(process_group)
+        max_local_rank = torch.cuda.device_count() - 1
+        local_world_size = len([rank for rank in group_ranks if rank < max_local_rank])
+    return local_world_size
 
 
-def barrier() -> None:
-    """Synchronizes all processes."""
-    if dist.is_available() and dist.is_initialized():
+def barrier(process_group: Optional[ProcessGroup] = None) -> None:
+    """Synchronizes all processes.
+
+    Args:
+        process_group (ProcessGroup, optional): the process group to synchronize
+    """
+    if process_group:
+        dist.barrier(process_group)
+    elif dist.is_available() and dist.is_initialized():
         dist.barrier()
 
 
@@ -113,13 +140,17 @@ def all_gather_object(obj: TObj) -> List[TObj]:
     ]))
 
 
-def maybe_init_dist() -> bool:
+def maybe_init_dist(process_group: Optional[ProcessGroup] = None) -> bool:
     """Initialize torch.distributed ourselves, if necessary.
+
+    Args:
+        process_group (ProcessGroup, optional): the process group in use
 
     Returns:
         bool: Whether we initialized dist ourselves.
     """
-    if get_world_size() == 1 or not dist.is_available() or dist.is_initialized():
+    if get_world_size() == 1 or not dist.is_available() or dist.is_initialized(
+    ) or process_group is not None:
         return False
     if torch.cuda.is_available() and dist.is_nccl_available():
         backend = 'nccl'

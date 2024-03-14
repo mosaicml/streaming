@@ -21,6 +21,7 @@ import numpy as np
 from filelock import FileLock
 from numpy.typing import NDArray
 from torch import distributed as dist
+from torch.distributed.distributed_c10d import ProcessGroup
 from torch.utils.data import IterableDataset
 
 from streaming.base.array import Array
@@ -304,6 +305,8 @@ class StreamingDataset(Array, IterableDataset):
         replication (int, optional): Determines how many consecutive devices will receive the same
             samples. Useful for training with tensor or sequence parallelism, where multiple
             devices need to see the same partition of the dataset. Defaults to ``None``.
+        process_group (ProcessGroup, optional): the process group to use for determining the
+            state of the world and synchronizing steps across workers (e.g., via dist.barrier).
     """
 
     def __init__(self,
@@ -330,7 +333,8 @@ class StreamingDataset(Array, IterableDataset):
                  shuffle_block_size: Optional[int] = None,
                  batching_method: str = 'random',
                  allow_unsafe_types: bool = False,
-                 replication: Optional[int] = None) -> None:
+                 replication: Optional[int] = None,
+                 process_group: Optional[ProcessGroup] = None) -> None:
         # Global arguments (which do not live in Streams).
         self.predownload = predownload
         self.cache_limit = cache_limit
@@ -346,6 +350,7 @@ class StreamingDataset(Array, IterableDataset):
         self.batching_method = batching_method
         self.allow_unsafe_types = allow_unsafe_types
         self.replication = replication
+        self.process_group = process_group
 
         # Initialize the World context.
         #   * This information is for the per-rank or per-worker process.
@@ -356,7 +361,8 @@ class StreamingDataset(Array, IterableDataset):
         #   * `parallel_` is who we think we are for iterating purposes, where groups of process
         #     must act the same if `replication` is specified.
         #     This can enable tensor or sequence parallelism.
-        world = World.detect()
+
+        world = World.detect(self.process_group)
         self._unique_rank_world = world
         if replication is not None:
             self._parallel_rank_world = world.replicate(replication)
@@ -427,7 +433,7 @@ class StreamingDataset(Array, IterableDataset):
                 raise ValueError(f'Epoch size cannot be negative. Received {epoch_size_value}.')
 
         # Initialize torch dist ourselves, if necessary.
-        destroy_dist = maybe_init_dist()
+        destroy_dist = maybe_init_dist(process_group)
 
         # Initialize the Stream defaults and normalize to a list of Streams.
         if streams:
@@ -522,8 +528,10 @@ class StreamingDataset(Array, IterableDataset):
         streams_remote = [
             os.path.join(x.remote, x.split) if x.remote is not None else None for x in streams
         ]
-        self._shm_prefix_int, self._locals_shm = get_shm_prefix(streams_local, streams_remote,
-                                                                self._unique_rank_world)
+        self._shm_prefix_int, self._locals_shm = get_shm_prefix(streams_local,
+                                                                streams_remote,
+                                                                self._unique_rank_world,
+                                                                process_group=self.process_group)
         self._filelock_root = os.path.join(gettempdir(), 'streaming')
         os.makedirs(self._filelock_root, exist_ok=True)
 
@@ -582,7 +590,7 @@ class StreamingDataset(Array, IterableDataset):
                 self._shard_access_times[shard_id] = time_ns()
 
         if dist.is_available() and dist.is_initialized():
-            dist.barrier()
+            dist.barrier(self.process_group)
 
         if destroy_dist:
             dist.destroy_process_group()

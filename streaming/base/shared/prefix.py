@@ -9,10 +9,11 @@ prevent shared resources like shared memory from colliding.
 
 from collections import Counter
 from time import sleep
-from typing import Iterator, List, Tuple, Union
+from typing import Iterator, List, Optional, Tuple, Union
 
 import numpy as np
 from torch import distributed as dist
+from torch.distributed.distributed_c10d import ProcessGroup
 
 from streaming.base.constant import LOCALS, TICK
 from streaming.base.shared import SharedMemory
@@ -165,7 +166,8 @@ def _check_and_find_retrying(streams_local: List[str], streams_remote: List[Unio
 def get_shm_prefix(streams_local: List[str],
                    streams_remote: List[Union[str, None]],
                    world: World,
-                   retry: int = 100) -> Tuple[int, SharedMemory]:
+                   retry: int = 100,
+                   process_group: Optional[ProcessGroup] = None) -> Tuple[int, SharedMemory]:
     """Register or lookup our shared memory prefix.
 
     Args:
@@ -193,7 +195,7 @@ def get_shm_prefix(streams_local: List[str],
         shm.buf[:len(data)] = data
 
     if dist.is_available() and dist.is_initialized():
-        dist.barrier()
+        dist.barrier(process_group)
 
     # Non-local leaders go next, searching for match.
     if not world.is_local_leader:

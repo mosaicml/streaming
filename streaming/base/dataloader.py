@@ -71,7 +71,7 @@ class StreamingDataLoader(DataLoader):
             Optional[Dict[str, Any]]: The state, if a streaming dataset.
         """
         if isinstance(self.dataset, StreamingDataset):
-            world = World.detect()
+            world = World.detect(self.dataset.process_group)
             num_samples = self.num_samples_yielded * world.num_ranks
             if self.dataset.replication is not None:
                 # Check if we are using `replication`. If we are, then we need to adjust the
