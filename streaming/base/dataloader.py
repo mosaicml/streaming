@@ -71,8 +71,15 @@ class StreamingDataLoader(DataLoader):
             Optional[Dict[str, Any]]: The state, if a streaming dataset.
         """
         if isinstance(self.dataset, StreamingDataset):
-            world = World()
+            world = World.detect()
             num_samples = self.num_samples_yielded * world.num_ranks
+            if self.dataset.replication is not None:
+                # Check if we are using `replication`. If we are, then we need to adjust the
+                # `num_samples_yielded` to reflect the fact that sample ids are shared across
+                # `replication` consecutive devices. For example, if `replication` is 2, then the
+                # number of samples seen is half the number of samples yielded, since every pair
+                # of devices shares sample ids. So the index into the sample partition is halved.
+                num_samples = num_samples // self.dataset.replication
             return self.dataset.state_dict(num_samples, False)
         return None
 

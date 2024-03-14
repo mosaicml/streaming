@@ -36,9 +36,9 @@ while True:
 
 classifiers = [
     'Programming Language :: Python :: 3',
-    'Programming Language :: Python :: 3.8',
     'Programming Language :: Python :: 3.9',
     'Programming Language :: Python :: 3.10',
+    'Programming Language :: Python :: 3.11',
 ]
 
 install_requires = [
@@ -73,12 +73,12 @@ extra_deps['dev'] = [
     'pytest_codeblocks==0.17.0',
     'pytest-cov>=4,<5',
     'toml==0.10.2',
-    'yamllint==1.33.0',
+    'yamllint==1.35.1',
     'moto>=4.0,<5',
-    'fastapi==0.109.0',
+    'fastapi==0.110.0',
     'pydantic==2.5.3',
-    'uvicorn==0.26.0',
-    'pytest-split==0.8.1',
+    'uvicorn==0.27.1',
+    'pytest-split==0.8.2',
 ]
 
 extra_deps['docs'] = [
@@ -114,6 +114,10 @@ extra_deps['databricks'] = [
     'databricks-sdk==0.14.0',
 ]
 
+extra_deps['testing'] = [
+    'mosaicml-cli>=0.5.25,<0.7',
+]
+
 extra_deps['all'] = sorted({dep for deps in extra_deps.values() for dep in deps})
 
 package_name = os.environ.get('MOSAIC_PACKAGE_NAME', 'mosaicml-streaming')
@@ -142,5 +146,5 @@ setup(
     classifiers=classifiers,
     install_requires=install_requires,
     extras_require=extra_deps,
-    python_requires='>=3.8',
+    python_requires='>=3.9',
 )

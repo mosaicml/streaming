@@ -1,43 +1,52 @@
 name: streaming-regression-test-iterate-data
 compute:
-  gpus: 8 # Number of GPUs to use
-  # cluster: TODO # Name of the cluster to use for this run
+  gpus: 8  # Number of GPUs to use
+  # cluster: TODO  # Name of the cluster to use for this run
 command: |-
   pip uninstall -y mosaicml-streaming
   cd streaming
   pip install -e '.[dev]'
-  python regression/synthetic_dataset.py --create --name numberandsaydataset --out /tmp/streaming_dataset/ --num_samples 10_000 --size_limit 10240
+  python regression/synthetic_dataset.py --create --name numberandsaydataset --out /tmp/streaming_dataset/ \
+    --num_samples 10_000 --size_limit 10240
   composer -n 2 regression/iterate_data.py --remote /tmp/streaming_dataset/ --batch_size 16
   composer -n 2 regression/iterate_data.py --remote /tmp/streaming_dataset/ --local /tmp/local_dataset/ --batch_size 32
   composer -n 4 regression/iterate_data.py --local /tmp/streaming_dataset/
   python regression/synthetic_dataset.py --delete --out /tmp/streaming_dataset/
   rm -rf /tmp/local_dataset/
 
-  python regression/synthetic_dataset.py --create --name numberandsaydataset --out /tmp/streaming_dataset_gz/ --hashes sha1,xxh128 --compression gz --num_samples 10_000 --size_limit 10240
+  python regression/synthetic_dataset.py --create --name numberandsaydataset --out /tmp/streaming_dataset_gz/ --hashes \
+    sha1,xxh128 --compression gz --num_samples 10_000 --size_limit 10240
   composer -n 2 regression/iterate_data.py --remote /tmp/streaming_dataset_gz/ --batch_size 4
-  composer -n 2 regression/iterate_data.py --remote /tmp/streaming_dataset_gz/ --local /tmp/local_dataset/ --batch_size 1
+  composer -n 2 regression/iterate_data.py --remote /tmp/streaming_dataset_gz/ --local /tmp/local_dataset/ \
+    --batch_size 1
   composer -n 4 regression/iterate_data.py --local /tmp/streaming_dataset_gz/
   rm -rf /tmp/local_dataset/
 
-  composer -n 8 regression/iterate_data.py --remote /tmp/streaming_dataset_gz/ --local /tmp/local_dataset/ --download_retry 4
+  composer -n 8 regression/iterate_data.py --remote /tmp/streaming_dataset_gz/ --local /tmp/local_dataset/ \
+    --download_retry 4
   rm -rf /tmp/local_dataset/
 
-  composer -n 8 regression/iterate_data.py --remote /tmp/streaming_dataset_gz/ --local /tmp/local_dataset/ --download_timeout 120
+  composer -n 8 regression/iterate_data.py --remote /tmp/streaming_dataset_gz/ --local /tmp/local_dataset/ \
+    --download_timeout 120
   rm -rf /tmp/local_dataset/
 
-  composer -n 8 regression/iterate_data.py --remote /tmp/streaming_dataset_gz/ --local /tmp/local_dataset/ --validate_hash sha1
+  composer -n 8 regression/iterate_data.py --remote /tmp/streaming_dataset_gz/ --local /tmp/local_dataset/ \
+    --validate_hash sha1
   rm -rf /tmp/local_dataset/
 
   composer -n 8 regression/iterate_data.py --remote /tmp/streaming_dataset_gz/ --local /tmp/local_dataset/ --keep_zip
   rm -rf /tmp/local_dataset/
 
-  composer -n 8 regression/iterate_data.py --remote /tmp/streaming_dataset_gz/ --local /tmp/local_dataset/ --predownload 1000
+  composer -n 8 regression/iterate_data.py --remote /tmp/streaming_dataset_gz/ --local /tmp/local_dataset/ \
+    --predownload 1000
   rm -rf /tmp/local_dataset/
 
-  composer -n 8 regression/iterate_data.py --remote /tmp/streaming_dataset_gz/ --local /tmp/local_dataset/ --num_canonical_nodes 16
+  composer -n 8 regression/iterate_data.py --remote /tmp/streaming_dataset_gz/ --local /tmp/local_dataset/ \
+    --num_canonical_nodes 16
   rm -rf /tmp/local_dataset/
 
-  composer -n 8 regression/iterate_data.py --remote /tmp/streaming_dataset_gz/ --local /tmp/local_dataset/ --shuffle_algo py1b --shuffle_seed 12 --shuffle_block_size 10000
+  composer -n 8 regression/iterate_data.py --remote /tmp/streaming_dataset_gz/ --local /tmp/local_dataset/ \
+    --shuffle_algo py1b --shuffle_seed 12 --shuffle_block_size 10000
   rm -rf /tmp/local_dataset/
 
 image: mosaicml/composer:latest
@@ -45,7 +54,7 @@ scheduling:
   resumable: true
   priority: medium
 integrations:
-  - integration_type: git_repo
-    git_repo: mosaicml/streaming
-    git_branch: main
-    ssh_clone: false
+- integration_type: git_repo
+  git_repo: mosaicml/streaming
+  git_branch: main
+  ssh_clone: false

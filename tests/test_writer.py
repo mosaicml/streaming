@@ -121,6 +121,34 @@ class TestMDSWriter:
         for before, after in zip(dataset, mds_dataset):
             assert before == after
 
+    def test_exist_ok(self, local_remote_dir: Tuple[str, str]) -> None:
+        num_samples = 1000
+        size_limit = 4096
+        local, _ = local_remote_dir
+        dataset = SequenceDataset(num_samples)
+        columns = dict(zip(dataset.column_names, dataset.column_encodings))
+
+        # Write entire dataset initially
+        with MDSWriter(out=local, columns=columns, size_limit=size_limit) as out:
+            for sample in dataset:
+                out.write(sample)
+        num_orig_files = len(os.listdir(local))
+
+        # Write single sample with exist_ok set to True
+        with MDSWriter(out=local, columns=columns, size_limit=size_limit, exist_ok=True) as out:
+            out.write(dataset[0])
+        num_files = len(os.listdir(local))
+
+        # Two files for single sample (index.json and one shard)
+        assert num_files == 2
+        # Should be more files generated for the entire dataset, which are then deleted as exist_ok is True
+        assert num_orig_files > num_files
+
+        # Check exception is raised when exist_ok is False and local already exists
+        with pytest.raises(FileExistsError, match='Directory is not empty'):
+            with MDSWriter(out=local, columns=columns, size_limit=size_limit) as out:
+                out.write(dataset[0])
+
 
 class TestJSONWriter:
 
@@ -176,6 +204,34 @@ class TestJSONWriter:
         # Ensure sample iterator is deterministic
         for before, after in zip(dataset, mds_dataset):
             assert before == after
+
+    def test_exist_ok(self, local_remote_dir: Tuple[str, str]) -> None:
+        num_samples = 1000
+        size_limit = 4096
+        local, _ = local_remote_dir
+        dataset = SequenceDataset(num_samples)
+        columns = dict(zip(dataset.column_names, dataset.column_encodings))
+
+        # Write entire dataset initially
+        with JSONWriter(out=local, columns=columns, size_limit=size_limit) as out:
+            for sample in dataset:
+                out.write(sample)
+        num_orig_files = len(os.listdir(local))
+
+        # Write single sample with exist_ok set to True
+        with JSONWriter(out=local, columns=columns, size_limit=size_limit, exist_ok=True) as out:
+            out.write(dataset[0])
+        num_files = len(os.listdir(local))
+
+        # Three files for single sample (index.json, one shard, and one shard metadata)
+        assert num_files == 3
+        # Should be more files generated for the entire dataset, which are then deleted as exist_ok is True
+        assert num_orig_files > num_files
+
+        # Check exception is raised when exist_ok is False and local already exists
+        with pytest.raises(FileExistsError, match='Directory is not empty'):
+            with JSONWriter(out=local, columns=columns, size_limit=size_limit) as out:
+                out.write(dataset[0])
 
 
 class TestXSVWriter:
@@ -256,3 +312,50 @@ class TestXSVWriter:
         # Ensure sample iterator is deterministic
         for before, after in zip(dataset, mds_dataset):
             assert before == after
+
+    @pytest.mark.parametrize('writer', [XSVWriter, TSVWriter, CSVWriter])
+    def test_exist_ok(self, local_remote_dir: Tuple[str, str], writer: Any) -> None:
+        num_samples = 1000
+        size_limit = 4096
+        local, _ = local_remote_dir
+        dataset = SequenceDataset(num_samples)
+        columns = dict(zip(dataset.column_names, dataset.column_encodings))
+
+        # Write entire dataset initially
+        if writer.__name__ == XSVWriter.__name__:
+            with writer(out=local, columns=columns, size_limit=size_limit, separator=',') as out:
+                for sample in dataset:
+                    out.write(sample)
+        else:
+            with writer(out=local, columns=columns, size_limit=size_limit) as out:
+                for sample in dataset:
+                    out.write(sample)
+        num_orig_files = len(os.listdir(local))
+
+        # Write single sample with exist_ok set to True
+        if writer.__name__ == XSVWriter.__name__:
+            with writer(out=local,
+                        columns=columns,
+                        size_limit=size_limit,
+                        separator=',',
+                        exist_ok=True) as out:
+                out.write(dataset[0])
+        else:
+            with writer(out=local, columns=columns, size_limit=size_limit, exist_ok=True) as out:
+                out.write(dataset[0])
+        num_files = len(os.listdir(local))
+
+        # Three files for single sample (index.json, one shard, and one shard metadata)
+        assert num_files == 3
+        # Should be more files generated for the entire dataset, which are then deleted as exist_ok is True
+        assert num_orig_files > num_files
+
+        # Check exception is raised when exist_ok is False and local already exists
+        with pytest.raises(FileExistsError, match='Directory is not empty'):
+            if writer.__name__ == XSVWriter.__name__:
+                with writer(out=local, columns=columns, size_limit=size_limit,
+                            separator=',') as out:
+                    out.write(dataset[0])
+            else:
+                with writer(out=local, columns=columns, size_limit=size_limit) as out:
+                    out.write(dataset[0])

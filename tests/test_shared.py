@@ -1,12 +1,14 @@
 # Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Tuple
+from typing import Tuple, Type
+from unittest.mock import patch
 
+import numpy as np
 import pytest
 
 from streaming.base import StreamingDataset
-from streaming.base.shared import get_shm_prefix
+from streaming.base.shared import SharedArray, get_shm_prefix
 from streaming.base.world import World
 from tests.common.utils import convert_to_mds
 
@@ -15,7 +17,7 @@ from tests.common.utils import convert_to_mds
 def test_get_shm_prefix(local_remote_dir: Tuple[str, str]):
     local, remote = local_remote_dir
 
-    _, _ = get_shm_prefix(streams_local=[local], streams_remote=[remote], world=World())
+    _, _ = get_shm_prefix(streams_local=[local], streams_remote=[remote], world=World.detect())
 
 
 @pytest.mark.usefixtures('local_remote_dir')
@@ -24,7 +26,7 @@ def test_get_shm_prefix_same_local_dir(local_remote_dir: Tuple[str, str]):
     with pytest.raises(ValueError, match='Reused local directory.*Provide a different one.'):
         _, _ = get_shm_prefix(streams_local=[local, local],
                               streams_remote=[remote, remote],
-                              world=World())
+                              world=World.detect())
 
 
 @pytest.mark.usefixtures('local_remote_dir')
@@ -32,17 +34,17 @@ def test_get_shm_prefix_same_split_dir(local_remote_dir: Tuple[str, str]):
     local, remote = local_remote_dir
     _, _ = get_shm_prefix(streams_local=[local, remote],
                           streams_remote=[local, remote],
-                          world=World())
+                          world=World.detect())
     with pytest.raises(ValueError, match='Reused local directory.*vs.*Provide a different one.'):
         _, _ = get_shm_prefix(streams_local=[local, remote],
                               streams_remote=[local, remote],
-                              world=World())
+                              world=World.detect())
 
 
 def test_same_local_remote_none(local_remote_dir: Tuple[str, str]):
     local, _ = local_remote_dir
-    _, _ = get_shm_prefix(streams_local=[local], streams_remote=[None], world=World())
-    _, _ = get_shm_prefix(streams_local=[local], streams_remote=[None], world=World())
+    _, _ = get_shm_prefix(streams_local=[local], streams_remote=[None], world=World.detect())
+    _, _ = get_shm_prefix(streams_local=[local], streams_remote=[None], world=World.detect())
 
 
 @pytest.mark.parametrize('from_beginning', [True, False])
@@ -147,3 +149,12 @@ def test_state_dict_too_large(local_remote_dir: Tuple[str, str]):
 
     with pytest.raises(ValueError, match='The StreamingDataset state dict*'):
         dataset.load_state_dict(big_state_dict)
+
+
+@pytest.mark.parametrize('dtype', [np.int32, np.int64, np.float32, np.float64])
+@patch('streaming.base.shared.array.SharedMemory')
+def test_shared_array_size_is_integer(mock_shared_memory: Type, dtype: Type[np.dtype]):
+    SharedArray(3, dtype=dtype, name='test_shared_array')
+    mock_shared_memory.assert_called_once()
+    size_arg = mock_shared_memory.call_args[1]['size']
+    assert isinstance(size_arg, int), 'Size passed to SharedMemory is not an integer'

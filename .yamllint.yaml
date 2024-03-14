@@ -1,7 +1,10 @@
 yaml-files:
-  - "*.yaml"
-  - "*.yml"
-  - .yamllint
+- "*.yaml"
+- "*.yml"
+- .yamllint
+
+ignore: |
+  wandb
 
 rules:
   braces:
@@ -10,8 +13,7 @@ rules:
     forbid: false
   colons: enable
   commas: enable
-  comments:
-    level: warning
+  comments: enable
   comments-indentation: enable
   document-end:
     present: false
@@ -22,12 +24,12 @@ rules:
   hyphens: enable
   indentation:
     spaces: 2
-    indent-sequences: true
+    indent-sequences: false
     check-multi-line-strings: false
   key-duplicates: enable
   key-ordering: disable
   line-length:
-    max: 200
+    max: 120
     allow-non-breakable-words: true
     allow-non-breakable-inline-mappings: true
   new-line-at-end-of-file: enable
