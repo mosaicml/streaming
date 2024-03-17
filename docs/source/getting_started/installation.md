@@ -1,5 +1,5 @@
 # 💾 Installation
-StreamingDataset installs via pip. Installing StreamingDataset in a virtual environment is recommended to avoid any dependency conflicts. StreamingDataset has been tested on Python 3.8, 3.9, and 3.10.
+StreamingDataset installs via pip. Installing StreamingDataset in a virtual environment is recommended to avoid any dependency conflicts. StreamingDataset has been tested on Python 3.9, 3.10, and 3.11.
 
 ## Create a virtual environment
 1. Create and navigate to your project directory:

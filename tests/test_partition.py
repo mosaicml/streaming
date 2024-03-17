@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 
 from streaming.base.partition import get_partitions
+from streaming.base.world import World
 
 
 @pytest.mark.parametrize('partition_algo', ['orig', 'relaxed'])
@@ -222,3 +223,82 @@ def test_partition_nodrop_norepeat(physical_nodes: int, canonical_nodes: int, ra
 
     assert len(samples_seen) == num_samples
     assert samples_seen_set == set(range(num_samples))
+
+
+@pytest.mark.parametrize('physical_nodes', [1, 4])
+@pytest.mark.parametrize('canonical_nodes', [12, 4, 64])
+@pytest.mark.parametrize('ranks_per_node', [8])
+@pytest.mark.parametrize('workers_per_rank', [1, 8])
+@pytest.mark.parametrize('batch_size', [2, 8])
+@pytest.mark.parametrize('num_samples', [1024, 16384])
+@pytest.mark.parametrize('sample_in_epoch', [0, 256])
+@pytest.mark.parametrize('replication', [2, 4])
+def test_replication_samples(physical_nodes: int, canonical_nodes: int, ranks_per_node: int,
+                             workers_per_rank: int, batch_size: int, num_samples: int,
+                             sample_in_epoch: int, replication: int):
+
+    # Create a World object reflecting the hardware -- the actual nodes and rank
+    actual_world = World(physical_nodes, ranks_per_node, workers_per_rank, 0)
+
+    # Create the World object with the given replication factor
+    replication_world = actual_world.replicate(replication)
+
+    # Get the sample partition using attributes from the replication World object
+    sample_ids = get_partitions('relaxed', num_samples, canonical_nodes,
+                                replication_world.num_nodes, replication_world.ranks_per_node,
+                                replication_world.workers_per_rank, batch_size, sample_in_epoch,
+                                replication_world.num_nodes)
+
+    # Loop over all of the actual nodes/workers/ranks and check that the samples are replicated
+    # according to the `replication` factor.
+    # Use World objects to correctly index into the sample_ids partition.
+    # This is what happens during actual training.
+    for n in range(physical_nodes):
+        for w in range(workers_per_rank):
+            for r in range(0, ranks_per_node, replication):
+                # Get the actual and replication World objects for this node/rank/worker.
+                # This ensures we have the right rank and worker indices in the World objects.
+                baseline_worker_id = (n * ranks_per_node + r) * workers_per_rank + w
+                baseline_actual_world = World(physical_nodes, ranks_per_node, workers_per_rank,
+                                              baseline_worker_id)
+                baseline_replication_world = baseline_actual_world.replicate(replication)
+                # Check that the sample ids are all the same for this replication group
+                baseline_sample_ids = sample_ids[baseline_replication_world.node,
+                                                 baseline_replication_world.rank_of_node,
+                                                 baseline_replication_world.worker_of_rank]
+                # Loop over the replication group and make sure the sample ids are all the same.
+                for i in range(1, replication):
+                    repeated_worker_id = (n * ranks_per_node + r + i) * workers_per_rank + w
+                    repeated_actual_world = World(physical_nodes, ranks_per_node, workers_per_rank,
+                                                  repeated_worker_id)
+                    repeated_replication_world = repeated_actual_world.replicate(replication)
+                    repeated_sample_ids = sample_ids[repeated_replication_world.node,
+                                                     repeated_replication_world.rank_of_node,
+                                                     repeated_replication_world.worker_of_rank]
+                    assert np.array_equal(baseline_sample_ids, repeated_sample_ids)
+
+
+@pytest.mark.parametrize('num_nodes', [4])
+@pytest.mark.parametrize('ranks_per_node', [8])
+@pytest.mark.parametrize('workers_per_rank', [2])
+@pytest.mark.parametrize('replication', [-10, 0])
+def test_replication_negative(num_nodes: int, ranks_per_node: int, workers_per_rank: int,
+                              replication: int):
+
+    orig_world = World(num_nodes, ranks_per_node, workers_per_rank, 0)
+
+    with pytest.raises(ValueError, match=f'Replication factor must be positive.*'):
+        orig_world.replicate(replication)
+
+
+@pytest.mark.parametrize('num_nodes', [4, 8])
+@pytest.mark.parametrize('ranks_per_node', [8])
+@pytest.mark.parametrize('workers_per_rank', [2])
+@pytest.mark.parametrize('replication', [7, 11])
+def test_replication_divides_world_size(num_nodes: int, ranks_per_node: int, workers_per_rank: int,
+                                        replication: int):
+
+    orig_world = World(num_nodes, ranks_per_node, workers_per_rank, 0)
+
+    with pytest.raises(ValueError, match=f'World size must be divisible by*'):
+        orig_world.replicate(replication)

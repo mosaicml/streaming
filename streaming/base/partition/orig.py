@@ -81,7 +81,12 @@ def get_partitions_orig(num_samples: int,
             padding = node_ratio - overflow
     padded_samples_per_canonical_node = samples_per_canonical_node + padding
 
-    if num_samples > num_canonical_nodes:
+    # For samples to be properly split across canonical nodes, there must be more samples than nodes.
+    # The edge case is when the number of samples is equal to the number of canonical nodes, but this only works when
+    #  there is an equal or greater number of canonical nodes than physical nodes.
+    # If these conditions are not met, an alternative sampling approach is used that leads to many repeats.
+    if num_samples > num_canonical_nodes or (num_samples == num_canonical_nodes and
+                                             num_canonical_nodes >= num_physical_nodes):
         # Create the initial sample ID matrix.
         #
         # ids: (canonical nodes, padded samples per canonical node).

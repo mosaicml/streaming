@@ -58,18 +58,19 @@ def get_line_chart(data: pd.DataFrame,
     points = lines.transform_filter(hover).mark_circle(size=65)
 
     # Draw a rule at the location of the selection
-    tooltips = (alt.Chart(data).mark_rule().encode(
-        x='step',
-        y='throughput (batches/s)' if throughput else 'cumulative network usage (bytes)',
-        opacity=alt.condition(hover, alt.value(0.3), alt.value(0)),
-        tooltip=[
-            alt.Tooltip('step', title='Step'),
-            alt.Tooltip(
-                'throughput (batches/s)' if throughput else 'cumulative network usage (bytes)',
-                title='Throughput' if throughput else 'Network Usage'),
-        ],
-    ).add_params(hover))
-    return (lines + points + tooltips).interactive()
+    tooltips = (
+        alt.Chart(data).mark_rule().encode(
+            x='step',
+            y='throughput (batches/s)' if throughput else 'cumulative network usage (bytes)',
+            opacity=alt.condition(hover, alt.value(0.3), alt.value(0)),  # pyright: ignore
+            tooltip=[
+                alt.Tooltip('step', title='Step'),
+                alt.Tooltip(
+                    'throughput (batches/s)' if throughput else 'cumulative network usage (bytes)',
+                    title='Throughput' if throughput else 'Network Usage'),
+            ],
+        ).add_params(hover))
+    return (lines + points + tooltips).interactive()  # pyright: ignore
 
 
 def stream_entry(component: DeltaGenerator,

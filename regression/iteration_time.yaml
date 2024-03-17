@@ -1,6 +1,6 @@
 name: streaming-regression-test-iteration-time
 compute:
-  gpus: 8 # Number of GPUs to use
+  gpus: 8  # Number of GPUs to use
   # cluster: TODO # Name of the cluster to use for this run
 command: |-
   pip uninstall -y mosaicml-streaming
@@ -16,7 +16,7 @@ scheduling:
   resumable: true
   priority: medium
 integrations:
-  - integration_type: git_repo
-    git_repo: mosaicml/streaming
-    git_branch: main
-    ssh_clone: false
+- integration_type: git_repo
+  git_repo: mosaicml/streaming
+  git_branch: main
+  ssh_clone: false

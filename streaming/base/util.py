@@ -429,7 +429,7 @@ def _merge_index_from_root(out: Union[str, Tuple[str, str]],
             local_index_files.append(file)
 
     if cu.remote:
-        remote_index_files = _format_remote_index_files(cu.list_objects(), cu.remote)
+        remote_index_files = _format_remote_index_files(cu.remote, cu.list_objects())
         if len(local_index_files) == len(remote_index_files):
             _merge_index_from_list(list(zip(local_index_files, remote_index_files)),
                                    out,
