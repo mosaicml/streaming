@@ -17,6 +17,28 @@ from tests.common.utils import convert_to_mds
 
 
 @pytest.mark.usefixtures('local_remote_dir')
+def test_no_batch_size_exception(local_remote_dir: Tuple[str, str]):
+
+    remote_dir, local_dir = local_remote_dir
+    convert_to_mds(out_root=remote_dir,
+                   dataset_name='sequencedataset',
+                   num_samples=200,
+                   size_limit=1 << 8)
+
+    # Build StreamingDataset
+    dataset = StreamingDataset(local=local_dir, remote=remote_dir)
+    # Build DataLoader
+    dataloader = StreamingDataLoader(dataset=dataset, batch_size=2, num_workers=2, drop_last=True)
+
+    with pytest.raises(ValueError, match=f'Please pass `batch_size` to StreamingDataset*'):
+        # When we iterate through the dataloader, we should throw an error because
+        # we have not passed in batch size to the StreamingDataset. Instantiation of
+        # StreamingDataset is still fine though.
+        for _ in dataloader:
+            pass
+
+
+@pytest.mark.usefixtures('local_remote_dir')
 def test_new_defaults_warning(local_remote_dir: Tuple[str, str], caplog: Callable):
     caplog.set_level(logging.WARNING)
     local, remote = local_remote_dir
