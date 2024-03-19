@@ -286,8 +286,9 @@ class StreamingDataset(Array, IterableDataset):
 
                 For sequential sample ordering, set ``shuffle`` to ``False`` and
                 ``num_canonical_nodes`` to the number of physical nodes of the initial run.
-        batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
-            partitioned over the workers. Defaults to ``None``.
+        batch_size (int, optional): Per-device batch size, the same as what is passed to the
+            DataLoader. This affects how the dataset is partitioned over the workers and is
+            necessary for deterministic resumption and optimal performance. Defaults to ``None``.
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
             ``False``.
         shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1e``.
@@ -1000,6 +1001,13 @@ class StreamingDataset(Array, IterableDataset):
                                f"for sample replication when using StreamingDataset's " +
                                f'`state_dict` method for deterministic resumption. Otherwise, ' +
                                f'you will resume training from the wrong sample.')
+            # Ensure that batch_size is passed in, and is an integer. This is necessary for
+            # deterministic resumption and optimal performance.
+            if not isinstance(self.batch_size, int):
+                raise ValueError(f'Please pass `batch_size` to StreamingDataset. It should be ' +
+                                 f'set the same as the DataLoader, and is the number of samples ' +
+                                 f'per batch, for each device. It is necessary for ' +
+                                 f'deterministic resumption and optimal performance.')
             epoch_sample_ids = generate_work(self.batching_method, self, p_world, epoch,
                                              sample_in_epoch)
             shape_shm, data_shm = self._share_work(epoch_sample_ids)

@@ -274,7 +274,7 @@ def test_dataset_compression(compressed_local_remote_dir: Tuple[str, str, str],
                       size_limit=size_limit,
                       compression=None)
 
-    dataset = StreamingDataset(local=local, remote=compressed, shuffle=shuffle)
+    dataset = StreamingDataset(local=local, remote=compressed, shuffle=shuffle, batch_size=1)
 
     for _ in dataset:
         pass  # download sample
