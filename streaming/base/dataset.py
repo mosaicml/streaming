@@ -285,7 +285,7 @@ class StreamingDataset(Array, IterableDataset):
             .. note::
 
                 For sequential sample ordering, set ``shuffle`` to ``False`` and
-                ``num_canonical_nodes`` to the number of physical nodes of the initial run.
+                ``num_canonical_nodes`` to 1.
         batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
             partitioned over the workers. Defaults to ``None``.
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
