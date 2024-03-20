@@ -33,7 +33,7 @@ python -c "import streaming; print(streaming.__version__)"
 - **High throughput**: Our MDS format cuts extraneous work to the bone, resulting in ultra-low sample retrieval latency and higher throughput compared to alternatives.
 - **Effective Shuffling**: Model convergence using StreamingDataset is just as good as using local disk, thanks to our [specialized shuffling algorithms](dataset_configuration/shuffling.md#shuffling-algorithms). StreamingDataset's shuffling reduces egress costs, preserves shuffle quality, and runs efficiently, whereas alternative solutions force tradeoffs between these factors.
 - **Random access**: Access samples right when you need them -- simply call `dataset[i]` to get sample `i`. You can also fetch data on the fly by providing NumPy style indexing to `StreamingDataset`.
-- **Flexible data mixing**: During streaming, different data sources are shuffled and mixed seamlessly just-in-time. Control how datasets are combined using our [batching](dataset_configuration/mixing_datasets.md/#batching-methods) and [sampling](dataset_configuration/replication_and_sampling.md#inter-epoch-sampling) methods.
+- **Flexible data mixing**: During streaming, different data sources are shuffled and mixed seamlessly just-in-time. Control how datasets are combined using our [batching](dataset_configuration/mixing_data_sources.md#batching-methods) and [sampling](dataset_configuration/replication_and_sampling.md#inter-epoch-sampling) methods.
 - **Disk usage limits**: Dynamically delete least recently used shards in order to keep disk usage under a specified limit.
 
 ## Community
@@ -79,7 +79,7 @@ If you have any questions, please feel free to reach out to us on [Twitter](htt
    :caption: Distributed Training
 
    distributed_training/requirements.md
-   distributed_training/with_launchers.md
+   distributed_training/using_launchers.md
    distributed_training/elastic_determinism.md
    distributed_training/fast_resumption.md
    distributed_training/performance_tuning.md
@@ -90,8 +90,8 @@ If you have any questions, please feel free to reach out to us on [Twitter](htt
    :caption: How-to Guides
 
    how_to_guides/configure_cloud_storage_credentials.md
-   how_to_guides/llm_dataset_conversion.md
-   how_to_guides/image_dataset_conversion.md
+   how_to_guides/cifar10.ipynb
+   how_to_guides/synthetic_nlp.ipynb
 
 .. toctree::
    :hidden:

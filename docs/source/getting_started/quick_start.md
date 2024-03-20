@@ -58,6 +58,6 @@ Start training your model with Streaming in just a few steps!
     dataloader = DataLoader(dataset)
     ```
 
-That's it! For additional details on using Streaming, check out the [Main Concepts](main_concepts.md) page and [How-to Guides](../how_to_guides/llm_dataset_conversion.md).
+That's it! For additional details on using Streaming, check out the [Main Concepts](main_concepts.md) page and [How-to Guides](../how_to_guides/cifar10.ipynb).
 
 Happy training!

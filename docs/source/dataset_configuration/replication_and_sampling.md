@@ -11,6 +11,14 @@ Let's see when and how to use these features.
 
 Training with Tensor Parallelism (TP) or Sequence Parallelism (SP) requires multiple devices to see the same sample of data. The `replication` parameter of {class}`streaming.StreamingDataset`, controls how many consecutive devices will see the same samples in each batch. For example, if `replication` is set to 4 for a training job with 16 GPUs, devices 0 through 3 will see the same samples, devices 4 through 7 will see the same samples, and so on.
 
+```python
+dataset = StreamingDataset(
+    ...
+    replication = 4,    # Every 4 GPUs will see the same samples.
+    ...
+)
+```
+
 Be aware that samples are only replicated across consecutive GPUs, as denoted by their rank from [PyTorch's distributed module](https://pytorch.org/docs/stable/distributed.html).
 
 ## Inter-epoch sampling
