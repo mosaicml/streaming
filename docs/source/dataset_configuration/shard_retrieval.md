@@ -1,6 +1,6 @@
 # Shard Retrieval
 
-Shards are downloaded on the fly during training and samples are retrieved from them. You can configure {class}`streaming.StreamingDataset`'s shard retrieval to meet your training job's needs. For more information about shard retrieval during distributed model training, refer to the [main concepts](../getting_started/main_concepts.md#Distributed-model-training) page.
+Shards are downloaded on the fly during training and samples are retrieved from them. You can configure {class}`streaming.StreamingDataset`'s shard retrieval to meet your training job's needs. For more information about shard retrieval during distributed model training, refer to the [main concepts page](../getting_started/main_concepts.md#distributed-model-training).
 
 ## Loading datasets
 
@@ -89,7 +89,7 @@ cache_limit = '10mb'    # also a cache limit of 10mb
 
 ### Keeping compressed shards
 
-If your dataset shards are compressed (see [here](../preparing_datasets/basic_dataset_conversion.md#Configuring-dataset-writing)), StreamingDataset will uncompress them upon download for use in training. To control whether the compressed versions of shards are kept locally, use the `keep_zip` flag. This defaults to `False`, meaning that StreamingDataset will default to deleting compressed shards and only keeping uncompressed shards.
+If your dataset shards are compressed (see [here](../preparing_datasets/basic_dataset_conversion.md#Configuring-dataset-writing)), StreamingDataset will decompress them upon download for use in training. To control whether the compressed versions of shards are kept locally, use the `keep_zip` flag. This defaults to `False`, meaning that StreamingDataset will default to deleting compressed shards and only keeping the decompressed shards.
 
 ```python
 dataset = StreamingDataset(

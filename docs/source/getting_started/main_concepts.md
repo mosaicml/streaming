@@ -85,7 +85,7 @@ Dataset samples are partitioned among nodes, GPUs, and workers. This partitionin
 In the diagram above, we have 2 nodes, 8 GPUs per node, and 2 dataloader workers per GPU. These values can vary depending on the training configuration. The number of nodes and ranks is detected through PyTorch, and the number of workers is passed in through the DataLoader. Zooming into the sample partition for just one GPU, the samples are split up between dataloader workers (2 per GPU above) and grouped together by GPU batch size (4 above).
 
 #### Dataset shuffling
-You can shuffle the samples within each node using one of our specialized [shuffling algorithms](../dataset_configuration/sampling_and_shuffling.md#Shuffling). Having a shuffled dataset is highly important for ML model training. We shuffle samples within each node to ensure that overall download demand is minimized.
+You can shuffle the samples within each node using one of our specialized [shuffling algorithms](../dataset_configuration/shuffling.md#shuffling-algorithms). Having a shuffled dataset is highly important for ML model training. We shuffle samples within each node to ensure that overall download demand is minimized.
 
 <img src="../_static/images/shuffling_example.png" alt="Shuffling Example" width="800"/>
 
