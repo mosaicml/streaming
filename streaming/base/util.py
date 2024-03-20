@@ -304,7 +304,7 @@ def _merge_index_from_list(index_file_urls: Sequence[Union[str, Tuple[str, str]]
                            out: Union[str, Tuple[str, str]],
                            keep_local: bool = True,
                            download_timeout: int = 60,
-                           n_processes: int = 8) -> None:
+                           n_processes: int = 1) -> None:
     """Merge index.json from a list of index files of MDS directories to create joined index.
 
     Args:
