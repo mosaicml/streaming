@@ -61,8 +61,9 @@ class StreamingADE20K(StreamingDataset):
 
                 For sequential sample ordering, set ``shuffle`` to ``False`` and
                 ``num_canonical_nodes`` to the number of physical nodes of the initial run.
-        batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
-            partitioned over the workers. Defaults to ``None``.
+        batch_size (int, optional): Per-device batch size, the same as what is passed to the
+            DataLoader. This affects how the dataset is partitioned over the workers and is
+            necessary for deterministic resumption and optimal performance. Defaults to ``None``.
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
             ``False``.
         shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1s``.

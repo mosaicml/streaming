@@ -73,21 +73,21 @@ extra_deps['dev'] = [
     'pytest-cov>=4,<5',
     'toml==0.10.2',
     'yamllint==1.35.1',
-    'moto>=4.0,<5',
+    'moto>=4.0,<6',
     'fastapi==0.110.0',
     'pydantic==2.5.3',
-    'uvicorn==0.27.1',
+    'uvicorn==0.28.0',
     'pytest-split==0.8.2',
 ]
 
 extra_deps['docs'] = [
     'GitPython==3.1.41',
     'docutils==0.18.1',
-    'furo==2023.7.26',
+    'furo==2024.1.29',
     'myst-parser==2.0.0',
     'nbsphinx==0.9.2',
     'pandoc==2.3',
-    'pypandoc==1.12',
+    'pypandoc==1.13',
     'sphinx-argparse==0.4.0',
     'sphinx-copybutton==0.5.2',
     'sphinx==6.2.1',
@@ -110,7 +110,7 @@ extra_deps['spark'] = [
 ]
 
 extra_deps['databricks'] = [
-    'databricks-sdk==0.14.0',
+    'databricks-sdk==0.22.0',
 ]
 
 extra_deps['testing'] = [

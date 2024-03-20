@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import boto3
 import pytest
-from moto import mock_s3
+from moto import mock_aws
 
 from tests.common.utils import compressed_local_remote_dir  # pyright: ignore
 from tests.common.utils import get_free_tcp_port  # pyright: ignore
@@ -53,7 +53,7 @@ def aws_credentials():
 
 @pytest.fixture()
 def s3_client(aws_credentials: Any):
-    with mock_s3():
+    with mock_aws():
         conn = boto3.client('s3', region_name='us-east-1')
         yield conn
 
@@ -108,7 +108,7 @@ def gcs_hmac_client(gcs_hmac_credentials: Any):
     # Have to inline this, as the URL-param is not available as a context decorator
     with patch.dict(os.environ, {'MOTO_S3_CUSTOM_ENDPOINTS': GCS_URL}):
         # Mock needs to be started after the environment variable is patched in
-        with mock_s3():
+        with mock_aws():
             conn = boto3.client(
                 's3',
                 region_name='us-east-1',
@@ -152,7 +152,7 @@ def r2_client(r2_credentials: Any):
     # Have to inline this, as the URL-param is not available as a context decorator
     with patch.dict(os.environ, {'MOTO_S3_CUSTOM_ENDPOINTS': R2_URL}):
         # Mock needs to be started after the environment variable is patched in
-        with mock_s3():
+        with mock_aws():
             conn = boto3.client('s3', region_name='us-east-1', endpoint_url=R2_URL)
             yield conn
 
