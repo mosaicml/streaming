@@ -7,7 +7,7 @@ Shuffling is important for model convergence during training, but can be computa
 | `shuffle` | `bool` | `False` | turn shuffling on or off |
 | `shuffle_algo` | `str` | `'py1e'` | which shuffling algorithm to use |
 | `shuffle_seed` | `int` | `9176` | all randomness in StreamingDataset is derived from this seed |
-| `shuffle_block_size` | `int` | `max(4000000/num_canonical_nodes, 1<<18)` | Number of samples to shuffle at a time. Used by py1b, py1br, and py1e algorithms |
+| `shuffle_block_size` | `int` | `max(4000000/num_canonical_nodes, 1<<18)` | Number of samples to shuffle at a time, only used by py1b, py1br, and py1e algorithms |
 | `num_canonical_nodes` | `int` | # of physical nodes | Number of sample buckets. Controls shuffling in py1s and py2s algorithms |
 
 ## How Shuffling Works

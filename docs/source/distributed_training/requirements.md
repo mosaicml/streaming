@@ -16,7 +16,7 @@ More info about using different distributed training launchers with Streaming ca
 
 Streaming supports a variety of distributed training parallelism strategies, including Distributed Data Parallelism ([DDP](https://pytorch.org/tutorials/intermediate/ddp_tutorial.html)), Fully Sharded Data Parallelism ([FSDP](https://pytorch.org/tutorials/intermediate/FSDP_tutorial.html), akin to [ZeRO](https://www.microsoft.com/en-us/research/blog/zero-deepspeed-new-system-optimizations-enable-training-models-with-over-100-billion-parameters/)), Hybrid Sharded Data Parallelism ([HSDP](https://pytorch.org/tutorials/recipes/distributed_device_mesh.html)), Tensor Parallelism ([TP](https://docs.aws.amazon.com/sagemaker/latest/dg/model-parallel-extended-features-pytorch-tensor-parallelism.html)), and Sequence Parallelism ([SP](https://arxiv.org/pdf/2105.13120.pdf)).
 
-### Data-Parallel strategies
+### Data Parallel strategies
 
 Parallelism strategies like DDP, FSDP, and HSDP are all data-parallel strategies, where each device needs to see a unique part of the global training batch. StreamingDataset supports this out-of-the-box without any configuration changes.
 
