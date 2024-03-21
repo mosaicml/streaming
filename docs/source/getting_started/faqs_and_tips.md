@@ -51,7 +51,36 @@ The `epoch_size` attribute of StreamingDataset is the number of samples per epoc
 If your dataset is locally accessible from your GPUs, you only need to specify the `local` argument to StreamingDataset as the path to those shard files. You should leave the `remote` field as `None`.
 
 ### Access specific shards and samples
-You can use the `get_item` method of StreamingDataset to access particular samples -- StreamingDataset supports NumPy-style indexing. To further access information at the shard and sample level, use 
+You can use the `get_item` method of StreamingDataset to access particular samples -- StreamingDataset supports NumPy-style indexing. To further access information at the shard and sample level, the StreamingDataset attributes below are useful:
+
+- `dataset.stream_per_shard`: contains the stream index for each shard.
+- `dataset.shards_per_stream`: contains the number of shards per stream
+- `dataset.samples_per_shard`: contains the number of samples per shard
+- `dataset.samples_per_stream`: contains the number of samples per stream
+- `dataset.spanner`: maps global sample index to the corresponding shard index and relative sample index
+- `dataset.shard_offset_per_stream`: contains the offset of the shard indices for a stream. Can be used to get the shard index in a certain stream from the global shard index.
+
+You can use these in a variety of ways to inspect your dataset. For example, to retrieve the stream index, relative shard index in that stream, and sample index in that shard, for every sample in your dataset, you could do:
+
+```python
+# Instantiate a StreamingDataset however you would like
+dataset = StreamingDataset(    
+    ...
+)
+# Retrieves the number of unique samples -- no up or down sampling applied
+num_dataset_samples = dataset.size()   
+# Will contain tuples of (stream id, shard id, sample id)
+stream_shard_sample_ids = []
+for global_sample_idx in range(num_dataset_samples):
+    # Go from global sample index -> global shard index and relative sample index (in the shard)
+    global_shard_idx, relative_sample_idx = dataset.spanner[global_sample_idx]
+    # Get the stream index of that shard
+    stream_idx = dataset.stream_per_shard[global_shard_idx]
+    # Get the relative shard index (in the stream) by subtracting the offset
+    relative_shard_idx = global_shard_idx - dataset.shard_offset_per_stream[stream_idx]
+    
+    stream_shard_sample_ids = (stream_idx, relative_shard_idx, relative_sample_idx)
+```
 
 ### Don't make your shard file size too large or small
 You can control the maximum file size of your shards with the `size_limit` argument to the `Writer` objects -- for example, in {class}`streaming.MDSWriter`. The default shard size is 67MB, and we see that 50-100MB shards work well across modalities and workloads. If shards are too small, then you will get too many download requests, and if shards are too large, then shard downloads become more expensive and harder to balance.
