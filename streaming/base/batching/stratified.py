@@ -49,7 +49,9 @@ def generate_work_stratified_batching(dataset: StreamingDataset, world: World, e
     # Then, we also partition each stream's samples over nodes/devices/workers.
     # We handle sample_in_epoch (for resumption) at the end.
 
-    batch_size = dataset.batch_size or 1
+    batch_size = dataset.batch_size
+    assert isinstance(batch_size, int), f'Batch size must be an integer. Got {type(batch_size)}.'
+
     global_batch_size = batch_size * world.ranks_per_node * world.num_nodes
     partition_per_stream = []
     batch_portion_per_stream = []

@@ -113,7 +113,7 @@ class TestMDSWriter:
         # Apply the seed again for numpy determinism
         dataset.seed = seed
 
-        mds_dataset = StreamingDataset(local=local, shuffle=False)
+        mds_dataset = StreamingDataset(local=local, shuffle=False, batch_size=1)
         # Ensure length of dataset is equal
         assert len(dataset) == len(mds_dataset) == num_samples
 
@@ -197,7 +197,7 @@ class TestJSONWriter:
         # Apply the seed again for numpy determinism
         dataset.seed = seed
 
-        mds_dataset = StreamingDataset(local=local, shuffle=False)
+        mds_dataset = StreamingDataset(local=local, shuffle=False, batch_size=1)
         # Ensure length of dataset is equal
         assert len(dataset) == len(mds_dataset) == num_samples
 
@@ -305,7 +305,7 @@ class TestXSVWriter:
         # Apply the seed again for numpy determinism
         dataset.seed = seed
 
-        mds_dataset = StreamingDataset(local=local, shuffle=False)
+        mds_dataset = StreamingDataset(local=local, shuffle=False, batch_size=1)
         # Ensure length of dataset is equal
         assert len(dataset) == len(mds_dataset) == num_samples
 

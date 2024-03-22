@@ -90,6 +90,8 @@ def get_streaming_dataset_params(kwargs: dict[str, str]) -> dict[str, Any]:
         dataset_params['num_canonical_nodes'] = int(kwargs['num_canonical_nodes'])
     if 'batch_size' in kwargs:
         dataset_params['batch_size'] = int(kwargs['batch_size'])
+    else:
+        dataset_params['batch_size'] = 1
     if 'shuffle' in kwargs:
         dataset_params['shuffle'] = kwargs['shuffle'].lower().capitalize() == 'True'
     if 'shuffle_algo' in kwargs:

@@ -7,7 +7,6 @@ import json
 import logging
 import mmap
 import os
-import sys
 import warnings
 from concurrent.futures import ThreadPoolExecutor, wait
 from concurrent.futures._base import Future
@@ -111,14 +110,8 @@ class _Iterator:
         # at shutdown to prevent a deadlock.
         # In python version >=3.9 this can be accomplished via
         # threading._register_atexit but not with the atexit module.
-        # In older python versions, the atexit module can be used, and
-        # threading._register_atexit does not exist.
-        if sys.version_info[1] <= 8:  # check if python version <=3.8
-            import atexit
-            atexit.register(self.non_blocking_exit)
-        else:
-            from threading import _register_atexit  # pyright: ignore
-            _register_atexit(self.non_blocking_exit)
+        from threading import _register_atexit  # pyright: ignore
+        _register_atexit(self.non_blocking_exit)
 
     def non_blocking_exit(self) -> None:
         """Signal threads to exit without blocking.
@@ -293,8 +286,9 @@ class StreamingDataset(Array, IterableDataset):
 
                 For sequential sample ordering, set ``shuffle`` to ``False`` and
                 ``num_canonical_nodes`` to the number of physical nodes of the initial run.
-        batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
-            partitioned over the workers. Defaults to ``None``.
+        batch_size (int, optional): Per-device batch size, the same as what is passed to the
+            DataLoader. This affects how the dataset is partitioned over the workers and is
+            necessary for deterministic resumption and optimal performance. Defaults to ``None``.
         shuffle (bool): Whether to iterate over the samples in randomized order. Defaults to
             ``False``.
         shuffle_algo (str): Which shuffling algorithm to use. Defaults to ``py1e``.
@@ -1001,13 +995,19 @@ class StreamingDataset(Array, IterableDataset):
 
         # Do expensive work that may use a lot of cores/memory just once, in the local leader.
         if u_world.is_local_leader:
-            # Check if we are using `repetition`. If we are, then we need to adjust the
-            # `sample_in_epoch` to reflect the fact that sample ids are shared across
-            # `repetition` consecutive devices. For example, if `repetition` is 2, then the
-            # sample id partition will be half as large, since every pair of devices shares
-            # sample ids. So the `sample_in_epoch` offset for the partition is also halved.
-            if self.replication is not None:
-                sample_in_epoch = sample_in_epoch // self.replication
+            if self.replication is not None and not u_world.worker_of_rank:
+                logger.warning(f'The `replication` arg has been set and training is resuming ' +
+                               f'from sample {sample_in_epoch}. Make sure you are accounting ' +
+                               f"for sample replication when using StreamingDataset's " +
+                               f'`state_dict` method for deterministic resumption. Otherwise, ' +
+                               f'you will resume training from the wrong sample.')
+            # Ensure that batch_size is passed in, and is an integer. This is necessary for
+            # deterministic resumption and optimal performance.
+            if not isinstance(self.batch_size, int):
+                raise ValueError(f'Please pass `batch_size` to StreamingDataset. It should be ' +
+                                 f'set the same as the DataLoader, and is the number of samples ' +
+                                 f'per batch, for each device. It is necessary for ' +
+                                 f'deterministic resumption and optimal performance.')
             epoch_sample_ids = generate_work(self.batching_method, self, p_world, epoch,
                                              sample_in_epoch)
             shape_shm, data_shm = self._share_work(epoch_sample_ids)

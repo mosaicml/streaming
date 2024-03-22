@@ -74,7 +74,7 @@ def main(args: Namespace) -> None:
         args (Namespace): Command-line arguments.
     """
     hashes = args.hashes.split(',') if args.hashes else []
-    dataset = StreamingDataset(local=getattr(args, 'in'))
+    dataset = StreamingDataset(local=getattr(args, 'in'), batch_size=1)
     with MDSWriter(out=args.out_mds,
                    columns=out_columns,
                    compression=args.compression,
