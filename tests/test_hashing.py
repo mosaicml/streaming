@@ -66,7 +66,10 @@ def test_validate_checksum(local_remote_dir: Any, hashes: Optional[List[str]], c
 
     # Build StreamingDataset
     hash = hashes[0] if hashes is not None else None
-    dataset = StreamingDataset(local=local_dir, remote=remote_dir, validate_hash=hash)
+    dataset = StreamingDataset(local=local_dir,
+                               remote=remote_dir,
+                               validate_hash=hash,
+                               batch_size=1)
 
     # Append sample ID
     sample_order = []

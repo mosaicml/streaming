@@ -141,8 +141,8 @@ To load the same dataset files that were created in the above steps, create a `C
 from streaming import StreamingDataset
 
 class CustomDataset(StreamingDataset):
-    def __init__(self, local, remote):
-        super().__init__(local=local, remote=remote)
+    def __init__(self, local, remote, batch_size):
+        super().__init__(local=local, remote=remote, batch_size=batch_size)
 
     def __getitem__(self, idx: int) -> Any:
         obj = super().__getitem__(idx)

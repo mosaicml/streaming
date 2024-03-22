@@ -19,7 +19,7 @@ def get_partitions_relaxed(num_samples: int,
                            num_physical_nodes: int,
                            ranks_per_node: int,
                            workers_per_rank: int,
-                           batch_size: Optional[int] = None,
+                           batch_size: int,
                            drop_first: int = 0,
                            initial_physical_nodes: Optional[int] = None) -> NDArray[np.int64]:
     """Partition the given number of samples to nodes, ranks, and workers.
@@ -39,8 +39,8 @@ def get_partitions_relaxed(num_samples: int,
         num_physical_nodes (int): Number of physical nodes.
         ranks_per_node (int): Number of ranks per node.
         workers_per_rank (int): Number of worker partitions per rank.
-        batch_size (int, optional): Batch size of its DataLoader, which affects how the dataset is
-            partitioned over the workers. Defaults to ``None``.
+        batch_size (int): Batch size of DataLoader and dataset, which affects how the dataset is
+            partitioned over the workers.
         drop_first (int): Number of samples seen already, which are dropped. Defaults to ``0``.
         initial_physical_nodes (int, optional): Number of physical nodes at the start of training.
             Defaults to ``None``.
@@ -65,7 +65,6 @@ def get_partitions_relaxed(num_samples: int,
         return get_partitions_orig(num_samples, num_canonical_nodes, num_physical_nodes,
                                    ranks_per_node, workers_per_rank, batch_size, drop_first)
     else:
-        batch_size = batch_size or 1
         # First, make a partition over the initial number of physical nodes and device batch size.
         # We assume that ranks_per_node and workers_per_rank stay constant during resumptions.
         global_batch_size = num_physical_nodes * ranks_per_node * batch_size

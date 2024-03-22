@@ -55,7 +55,7 @@ def test_load_get_state_dict_once(local_remote_dir: Tuple[str, str], from_beginn
                    dataset_name='sequencedataset',
                    num_samples=117,
                    size_limit=1 << 8)
-    dataset = StreamingDataset(local=local, remote=remote)
+    dataset = StreamingDataset(local=local, remote=remote, batch_size=1)
 
     # Get the current dataset state dict
     old_state_dict = dataset.state_dict(0, from_beginning)
@@ -99,7 +99,7 @@ def test_load_get_state_dict_multiple(local_remote_dir: Tuple[str, str], iterati
                    dataset_name='sequencedataset',
                    num_samples=117,
                    size_limit=1 << 8)
-    dataset = StreamingDataset(local=local, remote=remote)
+    dataset = StreamingDataset(local=local, remote=remote, batch_size=1)
 
     # Get the current dataset state dict
     old_state_dict = dataset.state_dict(0, False)
@@ -140,7 +140,7 @@ def test_state_dict_too_large(local_remote_dir: Tuple[str, str]):
                    dataset_name='sequencedataset',
                    num_samples=117,
                    size_limit=1 << 8)
-    dataset = StreamingDataset(local=local, remote=remote)
+    dataset = StreamingDataset(local=local, remote=remote, batch_size=1)
 
     # Make a state dict that is too large to fit in the allocated shared memory.
     import mmap
