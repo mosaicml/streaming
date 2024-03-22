@@ -17,7 +17,7 @@ Let's look at some examples of dataset mixing in action.
 ### Using `proportion` for relative weighting
 
 As an example, let's say we have Stream A with 100 samples and Stream B with 200 samples. The `epoch_size`, if not set, will default to the total number of unique samples -- in this case, 300. To configure our training dataset to be 25% from Stream A and 75% from Stream B, we simply set `proportion` to those values:
-
+<!--pytest.mark.skip-->
 ```python
 stream_A = Stream(
     remote = 's3://stream_A_remote',
@@ -37,7 +37,7 @@ dataset = StreamingDataset(
 Since `epoch_size` has not been specified, the epoch will be 300 samples long, of which 75 samples will come from Stream A, and 225 from Stream B. Equivalently, we could have also set `proportion` to 2 for Stream A and 6 for Stream B for the same weighting -- StreamingDataset will normalize the proportion weights.
 
 If `epoch_size` is explicitly set, then proportions will apply to that value instead. For example, if `epoch_size` was passed as 400 to StreamingDataset, as below, and proportions stayed the same, then in each epoch, 100 samples would be from Stream A and 300 would be from Stream B.
-
+<!--pytest.mark.skip-->
 ```python
 dataset = StreamingDataset(
     epoch_size = 400,
@@ -48,7 +48,7 @@ dataset = StreamingDataset(
 ### Using `repeat` for absolute weighting
 
 It can be useful to specify how many times to upsample or downsample a Stream -- the `repeat` argument fulfills this use case. For example, to see every sample from Stream A 3 times per epoch, simply set `repeat` to 3:
-
+<!--pytest.mark.skip-->
 ```python
 stream_A = Stream(
     remote = 's3://stream_A_remote',
@@ -62,7 +62,7 @@ To downsample a stream, meaning that only a fraction of the total samples from t
 ### Using `choose` for absolute weighting
 
 Specifying the absolute number of samples to choose from a Stream can also be useful when mixing datasets. Use the `choose` argument to indicate the number of samples to take from a stream per epoch. For example, to see exactly 250 samples from Stream A per epoch, set `choose` to 250:
-
+<!--pytest.mark.skip-->
 ```python
 stream_A = Stream(
     remote = 's3://stream_A_remote',

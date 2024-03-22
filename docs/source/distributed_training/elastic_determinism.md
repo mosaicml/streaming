@@ -13,7 +13,7 @@ For elastic determinism, Streaming merely requires that your global batch size s
 Streaming uses the `num_canonical_nodes` parameter, which controls the number of buckets into which samples are partitioned, to ensure that the global sample order remains elastically deterministic. To retain determinism between runs, set `num_canonical_nodes` to the same value. The `num_canonical_nodes` defaults to the number of physical nodes of the first run.
 
 For example, if Run 1 was trained on 32 GPUs, where each physical node had 8 GPUs, then the total number of physical nodes is 4, and `num_canonical_nodes` defaults to 4. If Run 2 is required to have the same loss curve as Run 1, explicitly set `num_canonical_nodes` to 4, and remember to set `batch_size` accordingly:
-
+<!--pytest.mark.skip-->
 ```python
 # Dataset for Run 1 does not specify `num_canonical_nodes`. Assuming that each physical node has 8 GPUs,
 # and Run 1 is launched on 32 GPUs, `num_canonical_nodes` is set to the number of physical nodes, 4.

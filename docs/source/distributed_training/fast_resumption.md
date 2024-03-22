@@ -7,7 +7,7 @@ Being resistant to timeouts, hardware failures, or other errors is crucial to ef
 To get fast, deterministic mid-epoch resumption, **make sure to use the {class}`streaming.StreamingDataLoader` object**. StreamingDataLoader works in conjunction with StreamingDataset to save and load dataset state. It works exactly like a normal PyTorch DataLoader.
 
 When checkpointing, simply call the `state_dict` method of `StreamingDataLoader` and save it along with your checkpoint. Then, when resuming, call `load_state_dict` with the saved state, and you'll be running in no time. Here's an example:
-
+<!--pytest.mark.skip-->
 ```python
 from streaming import StreamingDataset
 from streaming import StreamingDataLoader
@@ -27,6 +27,7 @@ for i, batch in enumerate(dataloader):
 ```
 
 Now, we've completed 4 batches and seen 6, when training has "stopped". This is akin to a training job failing some time after a checkpointing interval. Now, we resume from where we left off:
+<!--pytest.mark.skip-->
 ```python
 # Create a new dataset
 dataset_2 = StreamingDataset(local="cache", remote="path", batch_size=1)

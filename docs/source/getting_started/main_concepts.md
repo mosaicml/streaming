@@ -26,6 +26,7 @@ The diagram below shows how raw data samples are converted to MDS shards using {
 As shown above, an `index.json` file is also created for the set of shard files, or stream, containing information such as the number of shards, number of samples per shard, shard sizes, etc.
 
 Below, we use `MDSWriter` to write out a stream to a remote location that contains integer columns `'x'` and `'y'` in each sample:
+<!--pytest.mark.skip-->
 ```python
 columns = {'x': 'int', 'y': 'int'}
 output_dir = 's3://path/for/mds/dataset'
@@ -56,6 +57,7 @@ The `index.json` files and shards for multiple streams are stored in the cloud. 
 <img src="../_static/images/remote_streams.png" alt="Remote Streams" width="800"/>
 
 Below, we pass in a list of {class}`streaming.Stream` objects to a {class}`streaming.StreamingDataset`, and also specify the proportion of the overall dataset we want to take from each stream.
+<!--pytest.mark.skip-->
 ```python
 # Stream 1 uses its own set of shard files and will be 1/4 of the training dataset.
 stream_1 = Stream(
@@ -75,7 +77,7 @@ dataset = StreamingDataset(streams=[stream_1, stream_2])
 ```
 
 If using a single stream, we could just specify the `remote` and `local` locations directly instead:
-
+<!--pytest.mark.skip-->
 ```python
 dataset = StreamingDataset(remote='s3://some/path', local='/local/path')
 ```
@@ -93,6 +95,7 @@ You can shuffle the samples within each node using one of our specialized [shuff
 <img src="../_static/images/shuffling_example.png" alt="Shuffling Example" width="800"/>
 
 Enabling shuffling is as simple as setting `shuffle` to `True` in `StreamingDataset`.
+<!--pytest.mark.skip-->
 ```python
 dataset = StreamingDataset(
     remote='s3://remote/dataset/path',

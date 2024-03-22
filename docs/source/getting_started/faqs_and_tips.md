@@ -35,6 +35,7 @@ To enable elastic determinism and resumption, you should be using the {class}`st
 
 ### I'm seeing a shared memory error. How can I fix this?
 Streaming uses shared memory to communicate between workers. These errors are indicative of stale shared memory, likely from a previous training run. To fix this, call `python` in your terminal and run the commands below:
+<!--pytest.mark.skip-->
 ```
 >>> import streaming.base.util as util
 >>> util.clean_stale_shared_memory()
@@ -63,7 +64,7 @@ You can use the `get_item` method of StreamingDataset to access particular sampl
 - `dataset.shard_offset_per_stream`: contains the offset of the shard indices for a stream. Can be used to get the shard index in a certain stream from the global shard index.
 
 You can use these in a variety of ways to inspect your dataset. For example, to retrieve the stream index, relative shard index in that stream, and sample index in that shard, for every sample in your dataset, you could do:
-
+<!--pytest.mark.skip-->
 ```python
 # Instantiate a StreamingDataset however you would like
 dataset = StreamingDataset(

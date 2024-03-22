@@ -61,6 +61,8 @@ _encodings['int32'] = Int32
 ```
 
 4. An optional shard `size_limit`, in bytes, for each *uncompressed* shard file. This defaults to 67 MB. Specify this as a number of bytes, either directly as an `int`, or a human-readable suffix:
+
+<!--pytest.mark.skip-->
 ```python
 size_limit = 1024 # 1kB limit, as an int
 size_limit = "1kb" # 1kB limit, as a human-readable string
@@ -80,6 +82,8 @@ Supported compression algorithms:
 | [Zstandard](https://github.com/facebook/zstd) | zstd   | 1         | 3             | 22        |
 
 The compression algorithm to use, if any, is specified by passing `code` or `code:level` as a string. For example:
+
+<!--pytest.mark.skip-->
 ```python
 compression = 'zstd' # zstd, defaults to level 3.
 compression = 'zstd:9' # zstd, specifying level 9.
@@ -116,6 +120,8 @@ Available non-cryptographic hash functions:
 | 'xxh3_128' | 16           |
 
 As an example:
+
+<!--pytest.mark.skip-->
 ```python
 hashes = ['sha256', 'xxh64']
 ```
@@ -240,6 +246,7 @@ Serializing ndarrays with fixed dtype and shape is more efficient than fixed dty
 
 The streaming encoding type, as the value in the `columns` dict, should simply be `ndarray`.
 
+<!--pytest.mark.skip-->
 ```python
 # Write to MDS
 with MDSWriter(out='my_dataset1/',
@@ -263,6 +270,7 @@ for i in range(dataset.num_samples):
 
 The streaming encoding type, as the value in the `columns` dict, should be `ndarray:dtype`. So in this example, it is `ndarray:int16`.
 
+<!--pytest.mark.skip-->
 ```python
 # Write to MDS
 with MDSWriter(out='my_dataset2/',
@@ -286,6 +294,7 @@ for i in range(dataset.num_samples):
 
 The streaming encoding type, as the value in the `columns` dict, should be `ndarray:dtype:shape`. So in this example, it is `ndarray:int16:3,4,5`.
 
+<!--pytest.mark.skip-->
 ```python
 # Write to MDS
 with MDSWriter(out='my_dataset3/',
