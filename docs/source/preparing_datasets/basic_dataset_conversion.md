@@ -8,7 +8,7 @@ Use {class}`streaming.MDSWriter` to convert raw data to MDS format. MDSWriter is
 
 1. An `out` parameter is an output directory to save shard files. The `out` directory can be specified in three ways:
  * **Local path**: Shard files are stored locally.
- * **Remote path**: A local temporary directory is created to cache the shard files, and when shard creation is complete, they are uploaded to the remote location. 
+ * **Remote path**: A local temporary directory is created to cache the shard files, and when shard creation is complete, they are uploaded to the remote location.
  * **`(local_dir, remote_dir)` tuple**: Shard files are saved in the specified `local_dir` and uploaded to `remote_dir`.
 
 <!--pytest.mark.skip-->
@@ -65,7 +65,7 @@ _encodings['int32'] = Int32
 size_limit = 1024 # 1kB limit, as an int
 size_limit = "1kb" # 1kB limit, as a human-readable string
 ```
-Shard file size depends on the dataset size, but generally, too small of a shard size creates a ton of shard files and heavy network overheads, and too large of a shard size creates fewer shard files, but downloads are less balanced. A shard size of between 50-100MB works well in practice. 
+Shard file size depends on the dataset size, but generally, too small of a shard size creates a ton of shard files and heavy network overheads, and too large of a shard size creates fewer shard files, but downloads are less balanced. A shard size of between 50-100MB works well in practice.
 
 5. An optional `compression` algorithm name (and level) if you would like to compress the shard files. This can reduce egress costs during training. StreamingDataset will uncompress shard files upon download during training. You can control whether to keep compressed shard files locally during training with the `keep_zip` flag -- more information [here](../dataset_configuration/shard_retrieval.md#Keeping-compressed-shards).
 

@@ -42,4 +42,3 @@ for i, batch in enumerate(dataloader_2):
 ## Resumption with Composer
 
 When training with [Composer](https://docs.mosaicml.com/projects/composer/en/stable/), our open-soure deep learning training library built on top of PyTorch, fast resumption is handled automatically. Composer and Streaming work seamlessly together to provide efficient, scalable neural network training.
-

@@ -10,7 +10,7 @@ When combining elastic determinism with elastically sharded checkpoints, as our 
 
 For elastic determinism, Streaming merely requires that your global batch size stays constant over the course of the training job, and is also divisible by all the numbers of GPUs you wish to run on. For example, with a global batch size of 18, you can train deterministically on 1, 2, 3, 6, 9, or 18 GPUs, but not on 7, since 18 samples cannot be evenly split among GPUs.
 
-Streaming uses the `num_canonical_nodes` parameter, which controls the number of buckets into which samples are partitioned, to ensure that the global sample order remains elastically deterministic. To retain determinism between runs, set `num_canonical_nodes` to the same value. The `num_canonical_nodes` defaults to the number of physical nodes of the first run.  
+Streaming uses the `num_canonical_nodes` parameter, which controls the number of buckets into which samples are partitioned, to ensure that the global sample order remains elastically deterministic. To retain determinism between runs, set `num_canonical_nodes` to the same value. The `num_canonical_nodes` defaults to the number of physical nodes of the first run.
 
 For example, if Run 1 was trained on 32 GPUs, where each physical node had 8 GPUs, then the total number of physical nodes is 4, and `num_canonical_nodes` defaults to 4. If Run 2 is required to have the same loss curve as Run 1, explicitly set `num_canonical_nodes` to 4, and remember to set `batch_size` accordingly:
 

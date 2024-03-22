@@ -74,7 +74,4 @@ Samples within each shard are shuffled both before and after shards are split am
 
 Globally shuffles all samples. This is useful for single-node training on small data, where you want the most random shuffle possible, but is the least download-efficient of all shuffle algorithms. Training throughput is often much lower when using the `naive` shuffling algorithm.
 
-If you are having trouble with throughput and shuffle quality, please refer to the [perfomance tuning page](../distributed_training/performance_tuning.md).
-
-
-
+If you are having trouble with throughput, network downloads, or shuffle quality, please refer to the [perfomance tuning page](../distributed_training/performance_tuning.md).

@@ -11,7 +11,7 @@ StreamingDataset is compatible with any data type, including **images, text, vid
 from torch.utils.data import DataLoader
 from streaming import StreamingDataset
 
-dataloader = DataLoader(dataset=StreamingDataset(remote='s3://...'))
+dataloader = DataLoader(dataset=StreamingDataset(remote='s3://...', batch_size=1))
 ```
 
 ## **💾** Installation
@@ -28,19 +28,19 @@ python -c "import streaming; print(streaming.__version__)"
 
 ## **🔑** Key Features
 
-- **Elastic Determinism**: Samples are in the same order regardless of the number of GPUs, nodes, or CPU workers. This makes it simple to reproduce and debug training runs and loss spikes. You can load a checkpoint trained on 64 GPUs and debug on 8 GPUs with complete reproducibility.
-- **Instant Mid-Epoch Resumption**: Resume training in seconds, not hours, in the middle of a long training run. Minimizing resumption latency saves thousands of dollars in egress fees and idle GPU compute time compared to existing solutions.
+- **Elastic Determinism**: Samples are in the same order regardless of the number of GPUs, nodes, or CPU workers. This makes it simple to reproduce and debug training runs and loss spikes. You can load a checkpoint trained on 64 GPUs and debug on 8 GPUs with complete reproducibility. Read more [here](distributed_training/elastic_determinism.md).
+- **Instant Mid-Epoch Resumption**: Resume training in seconds, not hours, in the middle of a long training run. Minimizing resumption latency saves thousands of dollars in egress fees and idle GPU compute time compared to existing solutions. Read more [here](distributed_training/fast_resumption.md)
 - **High throughput**: Our MDS format cuts extraneous work to the bone, resulting in ultra-low sample retrieval latency and higher throughput compared to alternatives.
 - **Effective Shuffling**: Model convergence using StreamingDataset is just as good as using local disk, thanks to our [specialized shuffling algorithms](dataset_configuration/shuffling.md#shuffling-algorithms). StreamingDataset's shuffling reduces egress costs, preserves shuffle quality, and runs efficiently, whereas alternative solutions force tradeoffs between these factors.
 - **Random access**: Access samples right when you need them -- simply call `dataset[i]` to get sample `i`. You can also fetch data on the fly by providing NumPy style indexing to `StreamingDataset`.
 - **Flexible data mixing**: During streaming, different data sources are shuffled and mixed seamlessly just-in-time. Control how datasets are combined using our [batching](dataset_configuration/mixing_data_sources.md#batching-methods) and [sampling](dataset_configuration/replication_and_sampling.md#inter-epoch-sampling) methods.
-- **Disk usage limits**: Dynamically delete least recently used shards in order to keep disk usage under a specified limit.
+- **Disk usage limits**: Dynamically delete least recently used shards in order to keep disk usage under a specified limit. Read more [here](dataset_configuration/shard_retrieval.md#configure-shard-storage)
 
 ## Community
 
 Streaming is part of the broader ML/AI community, and we welcome any contributions, pull requests, and issues.
 
-If you have any questions, please feel free to reach out to us on [Twitter](https://twitter.com/mosaicml), 
+If you have any questions, please feel free to reach out to us on [Twitter](https://twitter.com/DbrxMosaicAI), 
 [Email](mailto:community%40mosaicml.com), or [Slack](https://mosaicml.me/slack)!
 
 ```{eval-rst}

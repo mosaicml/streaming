@@ -21,7 +21,9 @@ Mixing data sources is easy, flexible, and can even be controlled at the batch l
 StreamingDataset is a subclass of PyTorch's IterableDataset, so applying transforms works the exact same way. See [here](https://pytorch.org/tutorials/beginner/data_loading_tutorial.html) for an example on how to use transforms with PyTorch. Our [CIFAR-10 guide](../how_to_guides/cifar10.ipynb) also has an example of using transforms with StreamingDataset.
 
 ### I'm seeing loss spikes and divergence on my training runs. How do I fix this?
-Loss spikes and divergence issues can, at times, be related to your samples. First, make sure that `shuffle` is set to `True` in your dataset. If you're already shuffling, make your shuffle stronger by increasing the dataset's `shuffle_block_size` parameter, or change the `batching_method` parameter to `stratified` to ensure that your model always sees the same proportion of samples from different data sources. More information on shuffling can be found [here](../dataset_configuration/shuffling.md#shuffling), and on batching methods [here](../dataset_configuration/mixing_data_sources.md#batching-methods).
+Training loss may suffer from loss spikes or divergence for a variety of reasons. Higher quality shuffling and dataset mixing can help mitigate loss variance, divergence, and spikes. First, make sure that `shuffle` is set to `True` in your dataset. If you're already shuffling, you should make your shuffle strength higher. If using a shuffle-block-based shuffling algorithm like [`'py1e'`](../dataset_configuration/shuffling.md#py1e-default), [`'py1br'`](../dataset_configuration/shuffling.md#py1br), or [`'py1b'`](../dataset_configuration/shuffling.md#py1b), increase the `shuffle_block_size` parameter. If using an intra-shard shuffle such as [`'py1s'`](../dataset_configuration/shuffling.md#py1s) or [`'py2s'`](../dataset_configuration/shuffling.md#py2s), increase the `num_canonical_nodes` parameter. Read more about shuffling [here](../dataset_configuration/shuffling.md).
+
+Changing how datasets are mixed can also help with training stability. Specifically, setting `batching_method` to `stratified` when mixing datasets provides consistent dataset mixing in every batch. Read more about dataset mixing [here](../dataset_configuration/mixing_data_sources.md).
 
 ### When training for multiple epochs, training takes a long time between epochs. How can I address this?
 Training is likely taking longer between epochs due to DataLoader workers not persisting. Make sure to set `persistent_workers=True` in your DataLoader, which will keep `StreamingDataset` instances alive between epochs. More information can be found [here](https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader).
@@ -45,7 +47,7 @@ The `epoch_size` attribute of StreamingDataset is the number of samples per epoc
 `StreamingDataset` is the dataset class. It can take in multiple streams, which are just data sources. It combines these streams into a single dataset. `StreamingDataset` does not *stream* data, as continuous bytes; instead, it downloads shard files to enable a continuous flow of samples into the training job. `StreamingDataset` is an `IterableDataset` as opposed to a map-style dataset -- samples are retrieved as needed.
 
 
-## Helpful Tips
+## 🤓 Helpful Tips
 
 ### Using locally available datasets
 If your dataset is locally accessible from your GPUs, you only need to specify the `local` argument to StreamingDataset as the path to those shard files. You should leave the `remote` field as `None`.
@@ -64,11 +66,11 @@ You can use these in a variety of ways to inspect your dataset. For example, to 
 
 ```python
 # Instantiate a StreamingDataset however you would like
-dataset = StreamingDataset(    
+dataset = StreamingDataset(
     ...
 )
 # Retrieves the number of unique samples -- no up or down sampling applied
-num_dataset_samples = dataset.size()   
+num_dataset_samples = dataset.size()
 # Will contain tuples of (stream id, shard id, sample id)
 stream_shard_sample_ids = []
 for global_sample_idx in range(num_dataset_samples):
@@ -78,7 +80,7 @@ for global_sample_idx in range(num_dataset_samples):
     stream_idx = dataset.stream_per_shard[global_shard_idx]
     # Get the relative shard index (in the stream) by subtracting the offset
     relative_shard_idx = global_shard_idx - dataset.shard_offset_per_stream[stream_idx]
-    
+
     stream_shard_sample_ids = (stream_idx, relative_shard_idx, relative_sample_idx)
 ```
 

@@ -1,9 +1,6 @@
 # Performance Tuning
 
-Getting the best performance from your training jobs is of utmost importance -- GPUs are expensive! Streaming's default parameters give great performance out-of-the-box for most model configurations. Performance with Streaming covers three main areas:
-- Downloading shards
-- Storing shards
-- Training loss convergence
+Getting the best performance from your training jobs is of utmost importance -- GPUs are expensive! Streaming's default parameters give great performance out-of-the-box for most model configurations. Performance with Streaming mainly deals with downloading and storing shards optimally.
 
 Great performance with Streaming means that dataloading is never a bottleneck during model training. Streaming also provides the [Streaming Simulator tool](#streaming-simulator) to help with performance optimization. Let's dive in!
 
@@ -30,14 +27,6 @@ If using a shuffle-block-based algorithm such as [`'py1e'`](../dataset_configura
 $$L = k \cdot S \lceil \frac{B}{Q} \rceil \cdot \lceil\frac{C}{P}\rceil $$
 
 Where $L$ is the required minimum cache limit per node, in MB, $k$ is a constant that depends on the shuffle algorithm used, $S$ is the average shard size, in MB, $B$ is the shuffle block size (see [here](../dataset_configuration/shuffling.md#shuffle-block-based-algorithms)) as a number of samples, $K$ is the average number of samples per shard, $C$ is the number of canonical nodes (sample buckets), and $P$ is the number of physical nodes. This is because each shuffle block consists of $\lceil \frac{B}{Q}\rceil$ shards, and the subsequent shuffle block's shards may have to be predownloaded. The constant $k$ is $1$ for the [`'py1e'`](../dataset_configuration/shuffling.md#py1e-default) algorithm, whereas it is $2$ for both [`'py1br'`](../dataset_configuration/shuffling.md#py1br) and [`'py1b'`](../dataset_configuration/shuffling.md#py1b), meaning that `'py1e'` gives better cache limit performance, while retaining shuffle quality.
-
-## Training loss convergence
-
-Training loss may suffer from loss spikes or divergence for a variety of factors. Higher quality shuffling and dataset mixing can help mitigate loss variance, divergence, and spikes.
-
-For a higher quality shuffle, if using a shuffle-block-based shuffling algorithm like [`'py1e'`](../dataset_configuration/shuffling.md#py1e-default), [`'py1br'`](../dataset_configuration/shuffling.md#py1br), or [`'py1b'`](../dataset_configuration/shuffling.md#py1b), increase the `shuffle_block_size` parameter. If using an intra-shard shuffle such as [`'py1s'`](../dataset_configuration/shuffling.md#py1s) or [`'py2s'`](../dataset_configuration/shuffling.md#py2s), increase the `num_canonical_nodes` parameter. Read more about shuffling [here](../dataset_configuration/shuffling.md).
-
-Changing how datasets are mixed can also help with training stability. Specifically, setting `batching_method` to `stratified` when mixing datasets provides consistent dataset mixing in every batch. Read more about dataset mixing [here](../dataset_configuration/mixing_data_sources.md).
 
 # Streaming Simulator
 

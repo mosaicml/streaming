@@ -1,7 +1,7 @@
 # 🧠 Main Concepts
 
 ## Overview
-Training a model with Streaming generally happens in 2 main steps:
+Training a model with Streaming happens in 2 main steps:
 1. Convert your data to a StreamingDataset-compatible format
 2. Distributed model training with StreamingDataset
 
@@ -9,7 +9,7 @@ Let's cover the key concepts in this process.
 
 ## Dataset conversion
 Raw data samples need to be processed into a **stream**, or set of **shard** files, that allow for fast random access during training. Streaming supports the following file formats:
-* MDS (most performant) 
+* MDS (most performant)
 * XSV
 * JSONL
 
@@ -26,7 +26,7 @@ The diagram below shows how raw data samples are converted to MDS shards using {
 As shown above, an `index.json` file is also created for the set of shard files, or stream, containing information such as the number of shards, number of samples per shard, shard sizes, etc.
 
 Below, we use `MDSWriter` to write out a stream to a remote location that contains integer columns `'x'` and `'y'` in each sample:
-```
+```python
 columns = {'x': 'int', 'y': 'int'}
 output_dir = 's3://path/for/mds/dataset'
 with MDSWriter(out=output_dir, columns=columns, compression=compression, hashes=hashes, size_limit=limit) as out:
@@ -56,25 +56,28 @@ The `index.json` files and shards for multiple streams are stored in the cloud. 
 <img src="../_static/images/remote_streams.png" alt="Remote Streams" width="800"/>
 
 Below, we pass in a list of {class}`streaming.Stream` objects to a {class}`streaming.StreamingDataset`, and also specify the proportion of the overall dataset we want to take from each stream.
-```
+```python
 # Stream 1 uses its own set of shard files and will be 1/4 of the training dataset.
 stream_1 = Stream(
-    remote='s3://stream_1/directory
+    remote='s3://stream_1/directory',
     local='/local/cache/stream_1',
     proportion=0.25
 )
 # Stream 2 is similar to above, but will be 3/4 of the training dataset.
 stream_2 = Stream(
-    remote='s3://stream_2/directory
+    remote='s3://stream_2/directory',
     local='/local/cache/stream_2',
     proportion=0.75
 )
 
 # This dataset uses multiple streams.
 dataset = StreamingDataset(streams=[stream_1, stream_2])
-# If using a single stream, we could just specify
-# the `remote` and `local` args directly instead:
-# dataset = StreamingDataset(remote='s3://some/path', local='/local/path')
+```
+
+If using a single stream, we could just specify the `remote` and `local` locations directly instead:
+
+```python
+dataset = StreamingDataset(remote='s3://some/path', local='/local/path')
 ```
 
 #### Sample partitioning
@@ -90,7 +93,7 @@ You can shuffle the samples within each node using one of our specialized [shuff
 <img src="../_static/images/shuffling_example.png" alt="Shuffling Example" width="800"/>
 
 Enabling shuffling is as simple as setting `shuffle` to `True` in `StreamingDataset`.
-```
+```python
 dataset = StreamingDataset(
     remote='s3://remote/dataset/path',
     local='/local/cache/path',
@@ -103,13 +106,12 @@ StreamingDataset retrieves shards and reads samples from them on the fly during 
 
 <img src="../_static/images/sample_retrieval.png" alt="Sample Retrieval" width="800"/>
 
-Shards are progressively downloaded from the specified `remote` locations as needed for training. Dataloader workers in each node’s CPU each access the StreamingDataset sample partition, which tells them the order of samples they need to retrieve, and which shards contain those samples. Workers make samples available for training using the steps below.
+Shards are progressively downloaded from the specified `remote` location(s) as needed for training. Dataloader workers in each node’s CPU each access the StreamingDataset sample partition, which tells them the order of samples they need to retrieve, and which shards contain those samples. Workers make samples available for training using the steps below.
 
 1. **Worker sample retrieval:** Each Dataloader worker is responsible for just a part of the entire dataset’s samples. The samples per worker are specified in the StreamingDataset’s partition. The worker checks whether the samples that model training will soon require are present. For a particular sample, the worker checks if the shard containing that sample is present on the node’s disk. If it is not present, the worker proceeds to step 2. If it is present, the worker jumps to step 3.
 2. **Shard download:** Since the shard with the required sample is not present in disk, the worker downloads the shard from remote cloud storage.
 3. **Load to GPU:** The sample is present on disk. The worker loads the sample to GPU for training when required.
 
-For more information on how to control StreamingDataset's shard fetching and storage behavior, see the [shard retrieval](../dataset_configuration/shard_retrieval.md) page. 
-
+For more information on how to control StreamingDataset's shard fetching and storage behavior, see the [shard retrieval](../dataset_configuration/shard_retrieval.md) page.
 
 And that's all! Please look at the API reference for more information on specific objects and parameters.
