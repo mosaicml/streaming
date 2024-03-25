@@ -111,6 +111,9 @@ def test_number_abbrev_to_int_Exception():
 
 
 def test_clean_stale_shared_memory():
+    # Clean up the stale shared memory
+    clean_stale_shared_memory()
+
     # Create a leaked shared memory
     name = _get_path(0, RESUME)
     _ = BuiltinSharedMemory(name, True, 64)
