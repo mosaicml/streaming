@@ -7,8 +7,10 @@ import tempfile
 import time
 import urllib.parse
 from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Union
+from unittest.mock import MagicMock
 
+import numpy as np
 import pytest
 
 from streaming.base.constant import RESUME
@@ -197,11 +199,66 @@ def test_format_remote_index_files(scheme: str):
         assert obj.scheme == scheme
 
 
+@pytest.mark.parametrize('cpu_count', [0, 1, 4])
+def test_merge_index_from_list_local_cpucount(local_remote_dir: Tuple[str, str], cpu_count: int):
+    """Validate the multiprocessing setting"""
+    from pyspark.sql import SparkSession
+
+    from streaming.base.converters import dataframeToMDS
+
+    def not_merged_index(index_file_path: str, out: str):
+        """Check if index_file_path is the merged index at folder out."""
+        prefix = str(urllib.parse.urlparse(out).path)
+        return os.path.dirname(index_file_path).strip('/') != prefix.strip('/')
+
+    keep_local = True
+
+    local, _ = local_remote_dir
+
+    mds_out = out = local
+
+    os.cpu_count = MagicMock()
+    os.cpu_count.return_value = cpu_count
+
+    spark = SparkSession.builder.getOrCreate()  # pyright: ignore
+
+    def random_string(length: int = 1000):
+        """Generate a random string of fixed length."""
+        return ''.join(map(chr, np.random.choice(0x10FFFF - 1, length)))
+
+    # Generate a DataFrame with 10000 rows of random text
+    num_rows = 100
+    data = [(i, random_string(), random_string()) for i in range(num_rows)]
+    df = spark.createDataFrame(data, ['id', 'name', 'amount'])
+
+    mds_kwargs = {'out': mds_out, 'columns': {'id': 'int64', 'name': 'str'}, 'keep_local': True}
+    dataframeToMDS(df, merge_index=False, mds_kwargs=mds_kwargs)
+
+    local_cu = CloudUploader.get(local, exist_ok=True, keep_local=True)
+    local_index_files = [
+        o for o in local_cu.list_objects() if o.endswith('.json') and not_merged_index(o, local)
+    ]
+
+    merge_index(local_index_files, out, keep_local=keep_local)
+
+    d1 = json.load(open(os.path.join(out, 'index.json')))
+
+    _merge_index_from_list_serial(local_index_files, out, keep_local=keep_local)
+    d2 = json.load(open(os.path.join(out, 'index.json')))
+
+    print('d1 = ', d1)
+    print('d2 = ', d2)
+
+    assert len(d1['shards']) == len(d2['shards']), 'parallel and serial results different'
+    assert d1['shards'] == d2['shards'], 'parallel and serial results different'
+
+
+@pytest.mark.parametrize('cpu_count', [1, 4])
 @pytest.mark.parametrize('index_file_urls_pattern', [1, 2, 3])
 @pytest.mark.parametrize('keep_local', [True, False])
 @pytest.mark.parametrize('scheme', ['gs://', 's3://', 'oci://'])
 def test_merge_index_from_list_local(local_remote_dir: Tuple[str, str], keep_local: bool,
-                                     index_file_urls_pattern: int, scheme: str):
+                                     index_file_urls_pattern: int, scheme: str, cpu_count: int):
     """Validate the final merge index json for following patterns of index_file_urls:
     1. All URLs are str (local). All URLs are accessible locally -> no download
     2. All URLs are str (local). At least one url is unaccessible locally -> Error
@@ -209,10 +266,10 @@ def test_merge_index_from_list_local(local_remote_dir: Tuple[str, str], keep_loc
     4. All URLs are tuple (local, remote). At least one url is not accessible locally -> download all
     5. All URLs are str (remote) -> download all
     """
-    from decimal import Decimal
+    import random
+    import string
 
     from pyspark.sql import SparkSession
-    from pyspark.sql.types import DecimalType, IntegerType, StringType, StructField, StructType
 
     from streaming.base.converters import dataframeToMDS
 
@@ -226,15 +283,18 @@ def test_merge_index_from_list_local(local_remote_dir: Tuple[str, str], keep_loc
     mds_out = out = local
 
     spark = SparkSession.builder.getOrCreate()  # pyright: ignore
-    schema = StructType([
-        StructField('id', IntegerType(), nullable=False),
-        StructField('name', StringType(), nullable=False),
-        StructField('amount', DecimalType(10, 2), nullable=False)
-    ])
-    data = [(1, 'Alice', Decimal('123.45')), (2, 'Bob', Decimal('67.89')),
-            (3, 'Charlie', Decimal('987.65'))]
-    df = spark.createDataFrame(data=data, schema=schema).repartition(3)
-    mds_kwargs = {'out': mds_out, 'columns': {'id': 'int', 'name': 'str'}, 'keep_local': True}
+
+    def random_string(length: int = 1000):
+        """Generate a random string of fixed length."""
+        letters = string.ascii_letters + string.digits + string.punctuation + ' '
+        return ''.join(random.choice(letters) for _ in range(length))
+
+    # Generate a DataFrame with 10000 rows of random text
+    num_rows = 100
+    data = [(i, random_string(), random_string()) for i in range(num_rows)]
+    df = spark.createDataFrame(data, ['id', 'name', 'amount'])
+
+    mds_kwargs = {'out': mds_out, 'columns': {'id': 'int64', 'name': 'str'}, 'keep_local': True}
     dataframeToMDS(df, merge_index=False, mds_kwargs=mds_kwargs)
 
     local_cu = CloudUploader.get(local, exist_ok=True, keep_local=True)
@@ -244,6 +304,18 @@ def test_merge_index_from_list_local(local_remote_dir: Tuple[str, str], keep_loc
 
     if index_file_urls_pattern == 1:
         merge_index(local_index_files, out, keep_local=keep_local)
+
+        if keep_local:
+            d1 = json.load(open(os.path.join(out, 'index.json')))
+
+            _merge_index_from_list_serial(local_index_files, out, keep_local=keep_local)
+            d2 = json.load(open(os.path.join(out, 'index.json')))
+
+            print('d1 = ', d1)
+            print('d2 = ', d2)
+
+            assert len(d1['shards']) == len(d2['shards']), 'parallel and serial results different'
+            assert d1['shards'] == d2['shards'], 'parallel and serial results different'
 
     if index_file_urls_pattern == 2:
         with tempfile.TemporaryDirectory() as a_temporary_folder:
@@ -326,3 +398,98 @@ def test_retry(with_args: bool):
         return "Third time's a charm"
 
     assert flaky_function() == "Third time's a charm"
+
+
+def _merge_index_from_list_serial(index_file_urls: Sequence[Union[str, Tuple[str, str]]],
+                                  out: Union[str, Tuple[str, str]],
+                                  keep_local: bool = True,
+                                  download_timeout: int = 60) -> None:
+    import logging
+    import shutil
+    import urllib.parse
+    from collections import OrderedDict
+    from pathlib import Path
+
+    from streaming.base.format.index import get_index_basename
+    from streaming.base.storage.download import download_file
+    from streaming.base.storage.upload import CloudUploader
+
+    if not index_file_urls or not out:
+        return
+
+    # This is the index json file name, e.g., it is index.json as of 0.6.0
+    index_basename = get_index_basename()
+
+    cu = CloudUploader.get(out, keep_local=True, exist_ok=True)
+
+    # Remove duplicates, and strip '/' from right if any
+    index_file_urls = list(OrderedDict.fromkeys(index_file_urls))
+    urls = []
+    for url in index_file_urls:
+        if isinstance(url, str):
+            urls.append(url.rstrip('/').strip())
+        else:
+            urls.append((url[0].rstrip('/').strip(), url[1].rstrip('/').strip()))
+
+    # Prepare a temp folder to download index.json from remote if necessary. Removed in the end.
+    with tempfile.TemporaryDirectory() as temp_root:
+        logging.warning(f'A temporary folder {temp_root} is created to store index files')
+
+        # Copy files to a temporary directory. Download if necessary
+        partitions = []
+        for url in urls:
+            if isinstance(url, tuple):
+                src = url[0] if os.path.exists(url[0]) else url[1]
+            else:
+                src = url
+
+            obj = urllib.parse.urlparse(src)
+            scheme, bucket, path = obj.scheme, obj.netloc, obj.path
+            if scheme == '' and bucket == '' and path == '':
+                raise FileNotFoundError(
+                    f'Check data availability! local index {url[0]} is not accessible.' +
+                    f'remote index {url[1]} does not have a valid url format')
+            dest = os.path.join(temp_root, path.lstrip('/'))
+
+            try:
+                download_file(src, dest, download_timeout)
+            except Exception as ex:
+                raise RuntimeError(f'Failed to download index.json: {src} to {dest}') from ex
+
+            if not os.path.exists(dest):
+                raise FileNotFoundError(f'Index file {dest} does not exist or not accessible.')
+
+            partitions.append(dest)
+
+        # merge shards from all index files
+        shards = []
+        for partition_index in partitions:
+            p = Path(partition_index)
+            obj = json.load(open(partition_index))
+            for i in range(len(obj['shards'])):
+                shard = obj['shards'][i]
+                for key in ('raw_data', 'zip_data', 'raw_meta', 'zip_meta'):
+                    if shard.get(key):
+                        basename = shard[key]['basename']
+                        obj['shards'][i][key]['basename'] = os.path.join(
+                            os.path.basename(p.parent), basename)
+            shards += obj['shards']
+
+        # Save merged index locally
+        obj = {
+            'version': 2,
+            'shards': shards,
+        }
+        merged_index_path = os.path.join(temp_root, index_basename)
+        with open(merged_index_path, 'w') as outfile:
+            json.dump(obj, outfile)
+
+        # Move merged index from temp path to local part in out
+        # Upload merged index to remote if out has remote part
+        shutil.move(merged_index_path, os.path.join(cu.local, index_basename))
+        if cu.remote is not None:
+            cu.upload_file(index_basename)
+
+        # Clean up
+        if not keep_local:
+            shutil.rmtree(cu.local, ignore_errors=True)
