@@ -235,6 +235,10 @@ class StreamingDataset(Array, IterableDataset):
         streams (Sequence[Stream], optional): One or more streams to stream/cache samples from,
             which may be upsampled or downsampled. StreamingDataset uses either ``streams`` or
             ``remote``/``local``. Defaults to ``None``.
+
+            .. note::
+
+                a^2 + b^2 = c^2
         remote (str, optional): Remote path or directory to download the dataset from. If ``None``,
             its data must exist locally. StreamingDataset uses either ``streams`` or
             ``remote``/``local``. Defaults to ``None``.

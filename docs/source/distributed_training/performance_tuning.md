@@ -12,9 +12,12 @@ Streaming downloads dataset shards on the fly to make sure that the samples they
 
 ## Storing shards
 
-Once shards are downloaded, they are stored on each node's disk, and are available to that node's GPUs. Refer to this [section](../dataset_configuration/shard_retrieval.md#controlling-shard-downloads) for information on controlling how shards are stored. The main issue that can crop up here is when the node's available disk space is less than the cache size required to store dataset shards. If `cache_limit` is not set, each node's cache size for shards is given by:
+Once shards are downloaded, they are stored on each node's disk, and are available to that node's GPUs. Refer to this [section](../dataset_configuration/shard_retrieval.md#controlling-shard-downloads) for information on controlling how shards are stored. The main issue that can crop up here is when the node's available disk space is less than the cache size required to store dataset shards. Testing -- :math:`a^2 + b^2 = c^2`, but then maybe $a^2 + b^2 = c^2$. If `cache_limit` is not set, each node's cache size for shards is given by:
 
-$$L = \frac{S \cdot N}{P}$$
+.. math::
+
+    L = \frac{S \cdot N}{P}
+
 
 Where $L$ is the required cache limit per node, in MB, $S$ is the average shard size, in MB, $P$ is the number of physical nodes,  and $N$ is the total number of shard files. However, for optimal performance, the *minimum* required `cache_limit` can be much lower, since each node only needs to store shards that have samples that are actively being used for training. If `shuffle` is `False`, or if using the [`'py1s'`](../dataset_configuration/shuffling.md#py1s) or [`'py2s'`](../dataset_configuration/shuffling.md#py2s) shuffling algorithms, the required cache limit will be approximately:
 

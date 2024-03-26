@@ -85,8 +85,23 @@ extensions = [
     'sphinx.ext.doctest',
     'nbsphinx',
     'sphinx_tabs.tabs',
+    'nbsphinx',
+    'sphinx.ext.imgmath',
 ]
 
+mathjax_config = {
+    'tex2jax': {
+        'inlineMath': [ ["\\(","\\)"] ],
+        'displayMath': [["\\[","\\]"] ],
+    },
+}
+
+mathjax3_config = {
+  "tex": {
+    "inlineMath": [['\\(', '\\)']],
+    "displayMath": [["\\[", "\\]"]],
+  }
+}
 
 def _get_commit_sha() -> str:
     """Determines the commit sha.
