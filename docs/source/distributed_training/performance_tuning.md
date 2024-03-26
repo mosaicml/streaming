@@ -12,7 +12,7 @@ Streaming downloads dataset shards on the fly to make sure that the samples they
 
 ## Storing shards
 
-Once shards are downloaded, they are stored on each node's disk, and are available to that node's GPUs. Refer to this [section](../dataset_configuration/shard_retrieval.md#controlling-shard-downloads) for information on controlling how shards are stored. The main issue that can crop up here is when the node's available disk space is less than the cache size required to store dataset shards. Testing -- :math:`a^2 + b^2 = c^2`, but then maybe $a^2 + b^2 = c^2$. If `cache_limit` is not set, each node's cache size for shards is given by:
+Once shards are downloaded, they are stored on each node's disk, and are available to that node's GPUs. Refer to this [section](../dataset_configuration/shard_retrieval.md#controlling-shard-downloads) for information on controlling how shards are stored. The main issue that can crop up here is when the node's available disk space is less than the cache size required to store dataset shards. Testing that :math:`a^2 + b^2 = c^2`, but then maybe $a^2 + b^2 = c^2$. If `cache_limit` is not set, each node's cache size for shards is given by:
 
 .. math::
 
