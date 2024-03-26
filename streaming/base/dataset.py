@@ -238,10 +238,15 @@ class StreamingDataset(Array, IterableDataset):
 
             .. note::
 
-                a^2 + b^2 = c^2
+                For sequential sample ordering, set ``shuffle`` to ``False`` and
+                ``num_canonical_nodes`` to the number of physical nodes of the initial run.
         remote (str, optional): Remote path or directory to download the dataset from. If ``None``,
             its data must exist locally. StreamingDataset uses either ``streams`` or
             ``remote``/``local``. Defaults to ``None``.
+            
+            .. math::
+
+                a^2 + b^2 = c^2
         local (str, optional): Local working directory to download shards to. This is where shards
             are cached while they are being used. Uses a temp directory if not set.
             StreamingDataset uses either ``streams`` or ``remote``/``local``. Defaults to ``None``.
