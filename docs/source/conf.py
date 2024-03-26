@@ -77,15 +77,15 @@ extensions = [
     'sphinx.ext.extlinks',
     'sphinx.ext.coverage',
     'sphinx.ext.napoleon',
+    'sphinxcontrib.katex',
     'sphinx.ext.viewcode',
     'sphinx.ext.intersphinx',
-    'sphinx.ext.mathjax',
     'sphinx_copybutton',
     'myst_parser',
     'sphinxarg.ext',
     'sphinx.ext.doctest',
-    'nbsphinx',
     'sphinx_tabs.tabs',
+    'nbsphinx',
 ]
 
 
