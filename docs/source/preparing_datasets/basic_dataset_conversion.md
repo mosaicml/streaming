@@ -145,7 +145,7 @@ class RandomClassificationDataset:
     def __init__(self, shape=(10,), size=10000, num_classes=2):
         self.size = size
         self.x = np.random.randn(size, *shape)
-        self.y = np.random.randint(0, num_classes, size=(size,))
+        self.y = np.random.randint(0, num_classes, size=(size,)).tolist()
 
     def __len__(self):
         return self.size
@@ -163,7 +163,7 @@ output_dir = 'test_output_dir'
 Specify the column encoding types for each sample and label:
 <!--pytest-codeblocks:cont-->
 ```python
-columns = {'x': 'pkl', 'y': 'np.int64'}
+columns = {'x': 'pkl', 'y': 'int'}
 ```
 
 Optionally, specify a compression algorithm and level:
