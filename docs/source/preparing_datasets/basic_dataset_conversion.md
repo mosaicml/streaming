@@ -163,7 +163,7 @@ output_dir = 'test_output_dir'
 Specify the column encoding types for each sample and label:
 <!--pytest-codeblocks:cont-->
 ```python
-columns = {'x': 'pkl', 'y': 'int'}
+columns = {'x': 'pkl', 'y': 'np.int64'}
 ```
 
 Optionally, specify a compression algorithm and level:
