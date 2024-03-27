@@ -35,6 +35,8 @@ with MDSWriter(out=output_dir, columns=columns, compression=compression, hashes=
         out.write(sample)
 ```
 
+Read more about dataset formats [here](../preparing_datasets/dataset_format.md), and about dataset conversion [here](../preparing_datasets/basic_dataset_conversion.md).
+
 ## Distributed model training
 StreamingDataset splits up samples between nodes, ranks, and dataloader workers. Shards are downloaded, and samples retrieved from them, during distributed model training.
 

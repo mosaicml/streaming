@@ -4,7 +4,7 @@
 
 StreamingDataset makes training on large datasets from cloud storage as fast, cheap, and scalable as possible. It’s specially designed for multi-node, distributed training of large models—maximizing correctness guarantees, performance, flexibility, and ease of use. Now, you can efficiently train anywhere, independent of where your dataset lives. Just train on the data you need, right when you need it.
 
-StreamingDataset is compatible with any data type, including **images, text, video, and multimodal data**. With support for major cloud storage providers ([AWS](https://aws.amazon.com/s3/), [OCI](https://www.oracle.com/cloud/storage/object-storage/), [GCS](https://cloud.google.com/storage), [Azure](https://azure.microsoft.com/en-us/products/storage/blobs), and any S3 compatible object store such as [Cloudflare R2](https://www.cloudflare.com/products/r2/), [Coreweave](https://docs.coreweave.com/storage/object-storage), [Backblaze b2](https://www.backblaze.com/b2/cloud-storage.html), etc. ) and designed as a drop-in replacement for your PyTorch [IterableDataset](https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset) class, StreamingDataset seamlessly integrates into your existing training workflows.
+StreamingDataset is compatible with any data type, including **images, text, video, and multimodal data**. With support for major cloud storage providers ([AWS](https://aws.amazon.com/s3/), [OCI](https://www.oracle.com/cloud/storage/object-storage/), [GCS](https://cloud.google.com/storage), [Azure](https://azure.microsoft.com/en-us/products/storage/blobs), [Databricks UC Volume](https://docs.databricks.com/en/sql/language-manual/sql-ref-volumes.html), and any S3 compatible object store such as [Cloudflare R2](https://www.cloudflare.com/products/r2/), [Coreweave](https://docs.coreweave.com/storage/object-storage), [Backblaze b2](https://www.backblaze.com/b2/cloud-storage.html), etc.) and designed as a drop-in replacement for your PyTorch [IterableDataset](https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset) class, StreamingDataset seamlessly integrates into your existing training workflows.
 
 <!--pytest.mark.skip-->
 ```python
@@ -35,6 +35,7 @@ python -c "import streaming; print(streaming.__version__)"
 - **Random access**: Access samples right when you need them -- simply call `dataset[i]` to get sample `i`. You can also fetch data on the fly by providing NumPy style indexing to `StreamingDataset`.
 - **Flexible data mixing**: During streaming, different data sources are shuffled and mixed seamlessly just-in-time. Control how datasets are combined using our [batching](dataset_configuration/mixing_data_sources.md#batching-methods) and [sampling](dataset_configuration/replication_and_sampling.md#inter-epoch-sampling) methods.
 - **Disk usage limits**: Dynamically delete least recently used shards in order to keep disk usage under a specified limit. Read more [here](dataset_configuration/shard_retrieval.md#configure-shard-storage)
+- **Parallelism-aware**: Easily train with data parallelism, sequence parallelism, or tensor parallelism -- the right samples end up in the right GPUs, using sample [replication](dataset_configuration/replication_and_sampling.md#replication).
 
 ## Community
 

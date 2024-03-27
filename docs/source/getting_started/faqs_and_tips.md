@@ -62,6 +62,8 @@ You can use the `get_item` method of StreamingDataset to access particular sampl
 - `dataset.samples_per_stream`: contains the number of samples per stream
 - `dataset.spanner`: maps global sample index to the corresponding shard index and relative sample index
 - `dataset.shard_offset_per_stream`: contains the offset of the shard indices for a stream. Can be used to get the shard index in a certain stream from the global shard index.
+- `dataset.prepare_shard(shard_id)`: downloads and extracts samples from shard with `shard_id`
+- `dataset[sample_id]`: retrieves sample with `sample_id`, implicitly downloading the relevant shard.
 
 You can use these in a variety of ways to inspect your dataset. For example, to retrieve the stream index, relative shard index in that stream, and sample index in that shard, for every sample in your dataset, you could do:
 <!--pytest.mark.skip-->

@@ -8,7 +8,10 @@ StreamingDataset is compatible with any data type, including **images**, **text*
  * MDS (Mosaic Data Shard, most performant), through {class}`streaming.MDSWriter`
  * XSV, through {class}`streaming.XSVWriter`
  * JSONL, through {class}`streaming.JSONWriter`
-These formats can encode and decode most Python objects. For a high-level explanation of how dataset writing works, check out the [main concepts](../getting_started/main_concepts.md#Dataset-conversion) page. The [Dataset Conversion Guide](basic_dataset_conversion_guide.md) shows how to use the {class}`streaming.MDSWriter` to convert your raw data to supported file formats. For large datasets, use the [Parallel Dataset Conversion](parallel_dataset_conversion.ipynb) guide.
+
+These formats can encode and decode most Python objects.
+
+For a high-level explanation of how dataset writing works, check out the [main concepts](../getting_started/main_concepts.md#Dataset-conversion) page. The [Dataset Conversion Guide](basic_dataset_conversion_guide.md) shows how to use the {class}`streaming.MDSWriter` to convert your raw data to supported file formats. For large datasets, use the [Parallel Dataset Conversion](parallel_dataset_conversion.ipynb) guide.
 
 
 ## Formats
