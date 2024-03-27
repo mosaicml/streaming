@@ -157,7 +157,7 @@ class RandomClassificationDataset:
 Here, we write shards to a local directory. You can specify a remote path as well.
 <!--pytest-codeblocks:cont-->
 ```python
-output_dir = '/datasets/my_data'
+output_dir = 'test_output_dir'
 ```
 
 Specify the column encoding types for each sample and label:

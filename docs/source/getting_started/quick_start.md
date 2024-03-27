@@ -3,7 +3,7 @@
 Start training your model with Streaming in just a few steps!
 
 1. Convert your raw dataset into one of our supported file formats. Here, we convert an image dataset to MDS (Mosaic Data Shard) format.
-
+    <!--pytest.mark.skip-->
     ```python
     import numpy as np
     from PIL import Image
@@ -12,8 +12,7 @@ Start training your model with Streaming in just a few steps!
     from streaming import MDSWriter
 
     # Local or remote directory path to store the output compressed files.
-    # Here, we use a remote S3 path.
-    out_root = 's3://path/to/dataset'
+    out_root = 'dirname'
 
     # A dictionary of input fields to an Encoder/Decoder type
     columns = {
