@@ -215,7 +215,7 @@ def main(args: Namespace) -> None:
         dirname = os.path.join(args.mds_root, name)
         stream = Stream(local=dirname, proportion=1 / len(subsets_present))
         streams.append(stream)
-    dataset = StreamingDataset(streams=streams, epoch_size=50)
+    dataset = StreamingDataset(streams=streams, epoch_size=50, batch_size=1)
 
     # Print the size of each sub-dataset.
     for name, num_samples in zip(sorted(subsets_present), dataset.samples_per_stream):

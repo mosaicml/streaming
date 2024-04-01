@@ -9,6 +9,48 @@ multi_line_output = 0
 line_length = 99
 skip = [ "env", "wandb", "runs", "build", "node_modules" ]
 
+# ruff
+[tool.ruff.lint]
+select = [
+    "C4",
+    "D", # pydocstyle
+    "LOG",
+    "PERF",
+    "PLE",
+]
+ignore = [
+    "C408",
+    "D102",
+    "D105",
+    "D107",
+    "D203", # default ignore
+    "D212", # default ignore
+    "D213", # default ignore
+    "D401",
+    "D404", # default ignore
+    "D417", # ruff only rulecode
+    "E501",
+    "E722",
+    "E741",
+    "PERF2",
+    "PERF4",
+]
+
+[tool.ruff]
+exclude = [
+    "build/**",
+    "docs/**",
+    "node_modules/**",
+]
+
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D"]
+"streaming/text/convert/enwiki/*" = ["D"]
+
 # Pyright
 [tool.pyright]
 include = [
@@ -484,39 +526,6 @@ split_penalty_logical_operator = 300
 
 # Use the Tab character for indentation.
 use_tabs = false
-
-[tool.ruff]
-select = [
-    "C4",
-    "D", # pydocstyle
-    "PERF",
-]
-
-ignore = [
-    "C408",
-    "D102",
-    "D105",
-    "D107",
-    "D203", # default ignore
-    "D212", # default ignore
-    "D213", # default ignore
-    "D401",
-    "D404", # default ignore
-    "D417", # ruff only rulecode
-    "PERF2",
-    "PERF4",
-]
-exclude = [
-    "build/**",
-    "docs/**",
-    "node_modules/**",
-]
-
-[tool.ruff.lint.pydocstyle]
-convention = "google"
-
-[tool.ruff.lint.per-file-ignores]
-"tests/*" = ["D"]
 
 # Ignore directories
 [tool.yapfignore]
