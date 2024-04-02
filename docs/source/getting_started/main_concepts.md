@@ -63,17 +63,17 @@ Below, we pass in a list of {class}`streaming.Stream` objects to a {class}`strea
 ```python
 # Stream 1 uses its own set of shard files and will be 1/4 of the training dataset.
 stream_1 = Stream(
-    remote='s3://stream_1/directory',
-    local='/local/cache/stream_1',
-    batch_size=4,
-    proportion=0.25
+    remote = 's3://stream_1/directory',
+    local = '/local/cache/stream_1',
+    batch_size = 4,
+    proportion = 0.25
 )
 # Stream 2 is similar to above, but will be 3/4 of the training dataset.
 stream_2 = Stream(
-    remote='s3://stream_2/directory',
-    local='/local/cache/stream_2',
-    batch_size=4,
-    proportion=0.75
+    remote = 's3://stream_2/directory',
+    local = '/local/cache/stream_2',
+    batch_size = 4,
+    proportion = 0.75
 )
 
 # This dataset uses multiple streams.
@@ -103,7 +103,7 @@ Enabling shuffling is as simple as setting `shuffle` to `True` in `StreamingData
 ```python
 dataset = StreamingDataset(
     ...
-    shuffle=True
+    shuffle = True
     ...
 )
 ```
