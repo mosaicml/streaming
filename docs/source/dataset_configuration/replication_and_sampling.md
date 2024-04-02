@@ -21,6 +21,18 @@ dataset = StreamingDataset(
 
 Be aware that samples are only replicated across consecutive GPUs, as denoted by their rank from [PyTorch's distributed module](https://pytorch.org/docs/stable/distributed.html).
 
+## Epoch size
+
+You can specify the size of each epoch of training with the `epoch_size` argument:
+<!--pytest.mark.skip-->
+```python
+dataset = StreamingDataset(
+    ...
+    epoch_size = 10000,    # Each epoch will be 10k samples.
+    ...
+)
+```
+
 ## Inter-epoch sampling
 
 You can choose how sampling from your dataset(s) occurs between epochs by specifying the `sampling_method` when instantiating `StreamingDataset`. This can be one of two values:

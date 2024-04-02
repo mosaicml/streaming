@@ -65,23 +65,25 @@ Below, we pass in a list of {class}`streaming.Stream` objects to a {class}`strea
 stream_1 = Stream(
     remote='s3://stream_1/directory',
     local='/local/cache/stream_1',
+    batch_size=4,
     proportion=0.25
 )
 # Stream 2 is similar to above, but will be 3/4 of the training dataset.
 stream_2 = Stream(
     remote='s3://stream_2/directory',
     local='/local/cache/stream_2',
+    batch_size=4,
     proportion=0.75
 )
 
 # This dataset uses multiple streams.
-dataset = StreamingDataset(streams=[stream_1, stream_2])
+dataset = StreamingDataset(streams=[stream_1, stream_2], batch_size=4)
 ```
 
 If using a single stream, we could just specify the `remote` and `local` locations directly instead:
 <!--pytest.mark.skip-->
 ```python
-dataset = StreamingDataset(remote='s3://some/path', local='/local/path')
+dataset = StreamingDataset(remote='s3://some/path', local='/local/path', batch_size=4)
 ```
 
 #### Sample partitioning
@@ -100,10 +102,10 @@ Enabling shuffling is as simple as setting `shuffle` to `True` in `StreamingData
 <!--pytest.mark.skip-->
 ```python
 dataset = StreamingDataset(
-    remote='s3://remote/dataset/path',
-    local='/local/cache/path',
+    ...
     shuffle=True
-    )
+    ...
+)
 ```
 
 ### Sample retrieval during training

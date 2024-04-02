@@ -6,6 +6,8 @@ Training a model often requires combining data from multiple different sources. 
 
 A stream is a data source, as a collection of shard files.Streams are represented by the {class}`streaming.Stream` object. Similar to {class}`streaming.StreamingDataset` itself, a `Stream` object can take in `remote` and `local` paths -- see [here](../getting_started/main_concepts.md#remote-data-streams) for an example.
 
+It is possible, though not recommended, for streams to have different schemas.
+
 ## Configuring the data mix
 The `proportion`, `repeat`, or `choose` arguments to `Stream` are used to configure different dataset mixing schemes. Only one of them may be set at a time, and all streams must use the same mixing scheme (e.g., Stream A with `proportion` and Stream B with `choose` are incompatible).
 - **`proportion`**: Specifies how to sample this Stream relative to other Streams.
@@ -44,6 +46,8 @@ dataset = StreamingDataset(
     streams = [stream_A, stream_B]    # With proportions A: 0.25 and B: 0.75.
 )
 ```
+
+For multi-epoch training, to control how samples are chosen between epochs, see the [inter-epoch sampling](replication_and_sampling.md#inter-epoch-sampling) section.
 
 ### Using `repeat` for absolute weighting
 

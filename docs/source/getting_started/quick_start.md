@@ -40,7 +40,7 @@ Start training your model with Streaming in just a few steps!
             out.write(sample)
     ```
 
-2. Replace the original {class}`torch.utils.data.IterableDataset` with your new {class}`streaming.StreamingDataset`. Point it to the dataset written out above.
+2. Replace the original {class}`torch.utils.data.IterableDataset` with your new {class}`streaming.StreamingDataset`. Point it to the dataset written out above, and specify the `batch_size` to StreamingDataset and the DataLoader.
     <!--pytest.mark.skip-->
     ```python
     from torch.utils.data import DataLoader
@@ -54,7 +54,7 @@ Start training your model with Streaming in just a few steps!
     dataset = StreamingDataset(local=local_dir, remote=remote_dir, batch_size=1, split=None, shuffle=True)
 
     # Create PyTorch DataLoader
-    dataloader = DataLoader(dataset)
+    dataloader = DataLoader(dataset, batch_size=1)
     ```
 
 That's it! For additional details on using Streaming, check out the [Main Concepts](main_concepts.md) page and [How-to Guides](../how_to_guides/cifar10.ipynb).

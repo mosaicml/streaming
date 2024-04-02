@@ -5,6 +5,9 @@
 ### Can I write datasets in parallel? How does this work?
 Yes, you can! Please see the [parallel dataset conversion](../preparing_datasets/parallel_dataset_conversion.ipynb) page for instructions. If you're using Spark, follow the [Spark dataframe to MDS](../preparing_datasets/spark_dataframe_to_mds.ipynb) example.
 
+### Is StreamingDataset's `batch_size` the global or device batch size?
+The `batch_size` argument to StreamingDataset is the *device* batch size. It should be set the same as the DataLoader `batch_size` argument. For optimal performance and deterministic resumption, you must pass `batch_size` to StreamingDataset.
+
 ### How can I calculate ingress and egress costs?
 Ingress costs will depend on your GPU provider, but egress costs from cloud storage are equal to the egress costs for a single epoch of training. Streaming is smart about how samples are partitioned, and minimizes duplicate shard downloads between nodes. The egress cost is calculated as:
 
@@ -14,11 +17,18 @@ Where $C$ is the egress cost, $R$ is the egress cost per MB, $S$ is the average 
 
 For multi-epoch training, if your nodes have persistent storage or if your training job does not experience hardware failures, the egress cost will be the same as a single epoch of training. Otherwise, with ephemeral storage and training failures, you will likely have to redownload shards.
 
-### How can I mix different data sources?
+### How can I mix and weight different data sources?
 Mixing data sources is easy, flexible, and can even be controlled at the batch level. The [mixing data sources](../dataset_configuration/mixing_data_sources.md) page shows how you can do this.
+
+### Can I use only a subset of a data source when training for multiple epochs?
+Yes, you can! For example, if your dataset is 1000 samples, but you want to train only on 400 samples per epoch, simply set
+`epoch` size to 400. For more control over how these 400 samples are chosen in each epoch, see the [inter-epoch sampling](../dataset_configuration/replication_and_sampling.md#inter-epoch-sampling) section.
 
 ### How can I apply a transformation to each sample?
 StreamingDataset is a subclass of PyTorch's IterableDataset, so applying transforms works the exact same way. See [here](https://pytorch.org/tutorials/beginner/data_loading_tutorial.html) for an example on how to use transforms with PyTorch. Our [CIFAR-10 guide](../how_to_guides/cifar10.ipynb) also has an example of using transforms with StreamingDataset.
+
+### If my dataset is larger than disk, how can I train?
+You can set the per-node cache limit using StreamingDataset's `cache_limit` argument, detailed [here](../dataset_configuration/shard_retrieval.md#cache-limit). When shard usage hits the `cache_limit` Streaming will begin evicting shards.
 
 ### I'm seeing loss spikes and divergence on my training runs. How do I fix this?
 Training loss may suffer from loss spikes or divergence for a variety of reasons. Higher quality shuffling and dataset mixing can help mitigate loss variance, divergence, and spikes. First, make sure that `shuffle` is set to `True` in your dataset. If you're already shuffling, you should make your shuffle strength higher. If using a shuffle-block-based shuffling algorithm like [`'py1e'`](../dataset_configuration/shuffling.md#py1e-default), [`'py1br'`](../dataset_configuration/shuffling.md#py1br), or [`'py1b'`](../dataset_configuration/shuffling.md#py1b), increase the `shuffle_block_size` parameter. If using an intra-shard shuffle such as [`'py1s'`](../dataset_configuration/shuffling.md#py1s) or [`'py2s'`](../dataset_configuration/shuffling.md#py2s), increase the `num_canonical_nodes` parameter. Read more about shuffling [here](../dataset_configuration/shuffling.md).
@@ -32,6 +42,9 @@ If this still does not address the issue, refer to the [performance tuning page]
 
 ### I'm not seeing deterministic resumption on my training runs. How can I enable this?
 To enable elastic determinism and resumption, you should be using the {class}`streaming.StreamingDataLoader` instead of the generic PyTorch DataLoader. You should also make sure you're passing in `batch_size` to StreamingDataset in addition to your DataLoader. Certain launchers, such as [Composer](https://github.com/mosaicml/composer), support deterministic resumption with StreamingDataset automatically. See the [resumption](../distributed_training/fast_resumption.md) page for more information.
+
+### Is it possible for each global batch to consist only of samples from one Stream?
+Yes -- use the `per_stream` batching method as detailed in the [batching methods](../dataset_configuration/mixing_data_sources.md#batching-methods) section.
 
 ### I'm seeing a shared memory error. How can I fix this?
 Streaming uses shared memory to communicate between workers. These errors are indicative of stale shared memory, likely from a previous training run. To fix this, call `python` in your terminal and run the commands below:
