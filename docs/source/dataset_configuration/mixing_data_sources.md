@@ -32,7 +32,7 @@ stream_B = Stream(
     proportion = 0.75,
 )
 dataset = StreamingDataset(
-    streams = [stream_A, stream_B]
+    streams = [stream_A, stream_B],
 )
 ```
 
@@ -43,7 +43,7 @@ If `epoch_size` is explicitly set, then proportions will apply to that value ins
 ```python
 dataset = StreamingDataset(
     epoch_size = 400,
-    streams = [stream_A, stream_B]    # With proportions A: 0.25 and B: 0.75.
+    streams = [stream_A, stream_B],    # With proportions A: 0.25 and B: 0.75.
 )
 ```
 

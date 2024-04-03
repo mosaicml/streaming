@@ -100,14 +100,14 @@ stream_1 = Stream(
     remote = 's3://stream_1/directory',
     local = '/local/cache/stream_1',
     batch_size = 4,
-    proportion = 0.25
+    proportion = 0.25,
 )
 # Stream 2 is similar to above, but will be 3/4 of the training dataset.
 stream_2 = Stream(
     remote = 's3://stream_2/directory',
     local = '/local/cache/stream_2',
     batch_size = 4,
-    proportion = 0.75
+    proportion = 0.75,
 )
 
 # This dataset uses multiple streams.
@@ -128,7 +128,7 @@ Dataset samples are partitioned among nodes, GPUs, and workers. This partitionin
 In the diagram above, we have 2 nodes, 8 GPUs per node, and 2 dataloader workers per GPU. These values can vary depending on the training configuration. The number of nodes and ranks is detected through PyTorch, and the number of workers is passed in through the DataLoader. Zooming into the sample partition for just one GPU, the samples are split up between dataloader workers (2 per GPU above) and grouped together by GPU batch size (4 above).
 
 #### Dataset shuffling
-You can shuffle the samples within each node using one of our specialized [shuffling algorithms](../dataset_configuration/shuffling.md#shuffling-algorithms). Having a shuffled dataset is highly important for ML model training. We shuffle samples within each node to ensure that overall download demand is minimized.
+You can shuffle the samples within each node using one of our specialized [shuffling algorithms](../dataset_configuration/shuffling.md#shuffling-algorithms). Having a shuffled dataset is highly important for ML model training. By partitioning samples among nodes and only shuffling samples intra-node, overall download demand is controlled, since duplicate shard downloads between nodes are minimized.
 
 <img src="../_static/images/shuffling_example.png" alt="Shuffling Example" width="800"/>
 
@@ -137,7 +137,7 @@ Enabling shuffling is as simple as setting `shuffle` to `True` in `StreamingData
 ```python
 dataset = StreamingDataset(
     ...
-    shuffle = True
+    shuffle = True,
     ...
 )
 ```

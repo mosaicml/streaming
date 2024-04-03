@@ -53,11 +53,11 @@ Here's an example where the field `x` is an image, and `y` is a class label, as 
 ```python
 column = {
     'x': 'jpeg',
-    'y': 'int8'
+    'y': 'int8',
 }
 ```
 
-If the data type you need is not listed in the above table, then you can write your own data type class with `encode` and `decode` methods in it and patch it inside streaming. For example, let's say, you wanted to add an `int32` data type:
+If the data type you need is not listed in the above table, then you can write your own data type class with `encode` and `decode` methods in it and patch it inside streaming. For example, let's say, you wanted to add a `complex128` data type (64 bits each for real and imaginary parts):
 
 <!--pytest.mark.skip-->
 ```python
@@ -66,14 +66,15 @@ from typing import Any
 
 from streaming.base.format.mds.encodings import Encoding, _encodings
 
-class Int32(Encoding):
+class Complex128(Encoding):
+
     def encode(self, obj: Any) -> bytes:
-        return obj.tobytes()
+        return np.complex128(obj).tobytes()
 
     def decode(self, data: bytes) -> Any:
-        return np.frombuffer(data, np.int32)
+        return np.frombuffer(data, np.complex128)[0]
 
-_encodings['int32'] = Int32
+_encodings['complex128'] = Complex128
 ```
 
 4. An optional shard `size_limit`, in bytes, for each *uncompressed* shard file. This defaults to 67 MB. Specify this as a number of bytes, either directly as an `int`, or a human-readable suffix:
