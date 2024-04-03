@@ -32,7 +32,7 @@ from streaming.base.storage.upload import CloudUploader
 
 logger = logging.getLogger(__name__)
 
-MAPPING_SPARK_TO_MDS = {
+SPARK_TO_MDS = {
     ByteType(): 'uint8',
     ShortType(): 'uint16',
     IntegerType(): 'int',
@@ -84,9 +84,9 @@ def infer_dataframe_schema(dataframe: DataFrame,
             raise ValueError if no mds datatype is found for input type
         """
         if issubclass(type(spark_data_type), DecimalType):
-            mds_type = MAPPING_SPARK_TO_MDS.get(DecimalType(), None)
+            mds_type = SPARK_TO_MDS.get(DecimalType(), None)
         else:
-            mds_type = MAPPING_SPARK_TO_MDS.get(spark_data_type, None)
+            mds_type = SPARK_TO_MDS.get(spark_data_type, None)
 
         if mds_type is None:
             raise ValueError(f'{spark_data_type} is not supported by dataframe_to_mds')
@@ -95,7 +95,7 @@ def infer_dataframe_schema(dataframe: DataFrame,
     # user has provided schema, we just check if mds supports the dtype
     if user_defined_cols is not None:
         mds_supported_dtypes = {
-            mds_type for mds_type in MAPPING_SPARK_TO_MDS.values() if mds_type is not None
+            mds_type for mds_type in SPARK_TO_MDS.values() if mds_type is not None
         }
         for col_name, user_dtype in user_defined_cols.items():
             if col_name not in dataframe.columns:
