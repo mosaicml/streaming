@@ -18,7 +18,7 @@ from tests.common.utils import convert_to_mds, copy_all_files
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.parametrize('batch_size', [None, 1, 2])
+@pytest.mark.parametrize('batch_size', [1, 2])
 @pytest.mark.parametrize('remote_arg', ['empty', 'same', 'different', 'local'])
 @pytest.mark.parametrize('shuffle', [False, True])
 @pytest.mark.parametrize('seed', [5151])
@@ -83,7 +83,7 @@ def test_dataset_sample_order(local_remote_dir: Any, batch_size: int, remote_arg
     ) == num_samples, f'Got dataset length={len(dataset)} samples, expected {num_samples}'
 
 
-@pytest.mark.parametrize('batch_size', [None, 1, 2])
+@pytest.mark.parametrize('batch_size', [1, 2])
 @pytest.mark.parametrize('seed', [8988])
 @pytest.mark.parametrize('shuffle', [False, True])
 @pytest.mark.parametrize('compression', [None, 'gz:3'])
@@ -149,7 +149,8 @@ def test_reader_download_fail(local_remote_dir: Any, missing_file: str, seed: in
                                    remote=remote_dir,
                                    shuffle=False,
                                    download_timeout=1,
-                                   shuffle_seed=seed)
+                                   shuffle_seed=seed,
+                                   batch_size=1)
         for _ in dataset:
             pass
     assert exc_info.match(r'.*No such file or directory*')
@@ -180,7 +181,8 @@ def test_reader_after_crash(local_remote_dir: Any, created_ago: float, download_
                                remote=remote_dir,
                                shuffle=False,
                                download_timeout=download_timeout,
-                               shuffle_seed=seed)
+                               shuffle_seed=seed,
+                               batch_size=1)
 
     # Iterate over dataset and make sure there are no TimeoutErrors
     for _ in dataset:
@@ -245,7 +247,8 @@ def test_reader_getitem(local_remote_dir: Any, share_remote_local: bool,
     dataset = StreamingDataset(local=local_dir,
                                remote=remote_dir,
                                shuffle=False,
-                               shuffle_seed=seed)
+                               shuffle_seed=seed,
+                               batch_size=1)
 
     # Test retrieving random sample
     sample = dataset[index]
@@ -266,7 +269,7 @@ def test_dataset_split_instantiation(local_remote_dir: Any):
     for split in splits:
         remote_split_dir = os.path.join(remote_dir, split)
         copy_all_files(remote_dir, remote_split_dir)
-        _ = StreamingDataset(local=local_dir, remote=remote_dir, split=split)
+        _ = StreamingDataset(local=local_dir, remote=remote_dir, split=split, batch_size=1)
 
 
 @pytest.mark.usefixtures('local_remote_dir')
@@ -286,7 +289,7 @@ def test_invalid_index_json_exception(local_remote_dir: Tuple[str, str]):
 
     with pytest.raises(json.decoder.JSONDecodeError,
                        match=f'Index file at.*is empty or corrupted'):
-        _ = StreamingDataset(local=local_dir)
+        _ = StreamingDataset(local=local_dir, batch_size=1)
 
 
 @pytest.mark.usefixtures('local_remote_dir')
@@ -307,7 +310,7 @@ def test_empty_shards_index_json_exception(local_remote_dir: Tuple[str, str]):
         json.dump(content, outfile)
 
     with pytest.raises(RuntimeError, match=f'Stream contains no samples: .*'):
-        _ = StreamingDataset(local=local_dir)
+        _ = StreamingDataset(local=local_dir, batch_size=1)
 
 
 @pytest.mark.usefixtures('local_remote_dir')
@@ -319,7 +322,7 @@ def test_accidental_shard_delete(local_remote_dir: Any):
                    size_limit=1 << 8)
     basename = 'shard.00000.mds'
     filename = os.path.join(local_dir, basename)
-    dataset = StreamingDataset(local=local_dir, remote=remote_dir)
+    dataset = StreamingDataset(local=local_dir, remote=remote_dir, batch_size=1)
     is_removed = False
     for _ in dataset:
         if os.path.exists(filename) and not is_removed:

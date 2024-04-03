@@ -40,7 +40,7 @@ def test_mix_none(root: str):
         subroot = os.path.join(root, str(i))
         stream = Stream(local=subroot)
         streams.append(stream)
-    dataset = StreamingDataset(streams=streams, num_canonical_nodes=1)
+    dataset = StreamingDataset(streams=streams, num_canonical_nodes=1, batch_size=1)
     assert dataset.num_samples == 8
     assert walk(dataset) == list(range(8))
     for stream in streams:
@@ -55,7 +55,7 @@ def test_mix_choose_same(root: str):
         subroot = os.path.join(root, str(i))
         stream = Stream(local=subroot, choose=2)
         streams.append(stream)
-    dataset = StreamingDataset(streams=streams, num_canonical_nodes=1)
+    dataset = StreamingDataset(streams=streams, num_canonical_nodes=1, batch_size=1)
     assert dataset.num_samples == 8
     assert walk(dataset) == list(range(8))
     for stream in streams:
@@ -70,7 +70,7 @@ def test_mix_choose_mul(root: str):
         subroot = os.path.join(root, str(i))
         stream = Stream(local=subroot, choose=4)
         streams.append(stream)
-    dataset = StreamingDataset(streams=streams, num_canonical_nodes=1)
+    dataset = StreamingDataset(streams=streams, num_canonical_nodes=1, batch_size=1)
     assert dataset.num_samples == 8
     assert walk(dataset) == [0, 1, 0, 1, 2, 3, 2, 3, 4, 5, 4, 5, 6, 7, 6, 7]
     for stream in streams:
@@ -86,7 +86,7 @@ def test_mix_choose_range(root: str):
         subroot = os.path.join(root, str(i))
         stream = Stream(local=subroot, choose=choices[i])
         streams.append(stream)
-    dataset = StreamingDataset(streams=streams, num_canonical_nodes=1)
+    dataset = StreamingDataset(streams=streams, num_canonical_nodes=1, batch_size=1)
     assert dataset.num_samples == 8
     assert walk(dataset) == [2, 3, 4, 5, 4, 5, 6, 7, 6, 7, 6, 7]
     for i, stream in enumerate(streams):
@@ -102,7 +102,7 @@ def test_mix_repeat(root: str):
         subroot = os.path.join(root, str(i))
         stream = Stream(local=subroot, repeat=repeat[i])
         streams.append(stream)
-    dataset = StreamingDataset(streams=streams, num_canonical_nodes=1)
+    dataset = StreamingDataset(streams=streams, num_canonical_nodes=1, batch_size=1)
     assert dataset.num_samples == 8
     assert walk(dataset) == [2, 3, 4, 5, 4, 5, 6, 7, 6, 7, 6, 7]
     for i, stream in enumerate(streams):
@@ -124,7 +124,7 @@ def test_mix_repeat_and_choose(root: str):
         repeat, choose = weights[i]
         stream = Stream(local=subroot, repeat=repeat, choose=choose)
         streams.append(stream)
-    dataset = StreamingDataset(streams=streams, num_canonical_nodes=1)
+    dataset = StreamingDataset(streams=streams, num_canonical_nodes=1, batch_size=1)
     assert dataset.num_samples == 8
     assert walk(dataset) == [2, 3, 4, 5, 4, 5, 6, 7, 6, 7, 6, 7]
     for i, stream in enumerate(streams):
@@ -146,7 +146,7 @@ def test_mix_repeat_choose_none(root: str):
         repeat, choose = weights[i]
         stream = Stream(local=subroot, repeat=repeat, choose=choose)
         streams.append(stream)
-    dataset = StreamingDataset(streams=streams, num_canonical_nodes=1)
+    dataset = StreamingDataset(streams=streams, num_canonical_nodes=1, batch_size=1)
     assert dataset.num_samples == 8
     assert walk(dataset) == [2, 3, 4, 5, 4, 5, 6, 7, 6, 7, 6, 7]
     for i, stream in enumerate(streams):
@@ -162,7 +162,7 @@ def test_mix_proportion_equal(root: str):
         subroot = os.path.join(root, str(i))
         stream = Stream(local=subroot, proportion=proportion[i])
         streams.append(stream)
-    dataset = StreamingDataset(streams=streams, num_canonical_nodes=1)
+    dataset = StreamingDataset(streams=streams, num_canonical_nodes=1, batch_size=1)
     assert dataset.num_samples == 8
     assert walk(dataset) == [0, 1, 2, 3, 4, 5, 6, 7]
     for i, stream in enumerate(streams):
@@ -178,7 +178,7 @@ def test_mix_proportion_range(root: str):
         subroot = os.path.join(root, str(i))
         stream = Stream(local=subroot, proportion=proportion[i])
         streams.append(stream)
-    dataset = StreamingDataset(streams=streams, epoch_size=12, num_canonical_nodes=1)
+    dataset = StreamingDataset(streams=streams, epoch_size=12, num_canonical_nodes=1, batch_size=1)
     assert dataset.num_samples == 8
     assert walk(dataset) == [2, 3, 4, 5, 4, 5, 6, 7, 6, 7, 6, 7]
     for i, stream in enumerate(streams):
@@ -193,7 +193,7 @@ def test_mix_balance(root: str):
         subroot = os.path.join(root, str(i))
         stream = Stream(local=subroot, choose=3)
         streams.append(stream)
-    dataset = StreamingDataset(streams=streams, num_canonical_nodes=1)
+    dataset = StreamingDataset(streams=streams, num_canonical_nodes=1, batch_size=1)
     counts = np.zeros(8, np.int64)
     for _ in range(1000):
         for value in walk(dataset):
