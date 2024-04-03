@@ -17,7 +17,7 @@ Once shards are downloaded, they are stored on each node's disk, and are availab
 $$L = \frac{S \cdot N}{P}$$
 
 
-Where $L$ is the required cache limit per node, in MB, $S$ is the average shard size, in MB, $P$ is the number of physical nodes,  and $N$ is the total number of shard files. However, for optimal performance, the *minimum* required `cache_limit` can be much lower, since each node only needs to store shards that have samples that are actively being used for training. If `shuffle` is `False`, or if using the [`'py1s'`](../dataset_configuration/shuffling.md#py1s) or [`'py2s'`](../dataset_configuration/shuffling.md#py2s) shuffling algorithms, the required cache limit will be approximately:
+Where $L$ is the required cache limit per node, in MB, $S$ is the average shard size, in MB, $N$ is the total number of shard files, and $P$ is the number of physical nodes. However, for optimal performance, the *minimum* required `cache_limit` can be much lower, since each node only needs to store shards that have samples that are actively being used for training. If `shuffle` is `False`, or if using the [`'py1s'`](../dataset_configuration/shuffling.md#py1s) or [`'py2s'`](../dataset_configuration/shuffling.md#py2s) shuffling algorithms, the required cache limit will be approximately:
 
 $$L = 2 \cdot S \cdot \lceil\frac{C}{P}\rceil $$
 
@@ -27,7 +27,7 @@ If using a shuffle-block-based algorithm such as [`'py1e'`](../dataset_configura
 
 $$L = k \cdot S \lceil \frac{B}{Q} \rceil \cdot \lceil\frac{C}{P}\rceil $$
 
-Where $L$ is the required minimum cache limit per node, in MB, $k$ is a constant that depends on the shuffle algorithm used, $S$ is the average shard size, in MB, $B$ is the shuffle block size (see [here](../dataset_configuration/shuffling.md#shuffle-block-based-algorithms)) as a number of samples, $K$ is the average number of samples per shard, $C$ is the number of canonical nodes (sample buckets), and $P$ is the number of physical nodes. This is because each shuffle block consists of $\lceil \frac{B}{Q}\rceil$ shards, and the subsequent shuffle block's shards may have to be predownloaded. The constant $k$ is $1$ for the [`'py1e'`](../dataset_configuration/shuffling.md#py1e-default) algorithm, whereas it is $2$ for both [`'py1br'`](../dataset_configuration/shuffling.md#py1br) and [`'py1b'`](../dataset_configuration/shuffling.md#py1b), meaning that `'py1e'` gives better cache limit performance, while retaining shuffle quality.
+Where $L$ is the required minimum cache limit per node, in MB, $k$ is a constant that depends on the shuffle algorithm used, $S$ is the average shard size, in MB, $B$ is the shuffle block size (see [here](../dataset_configuration/shuffling.md#shuffle-block-based-algorithms)) as a number of samples, $Q$ is the average number of samples per shard, $C$ is the number of canonical nodes (sample buckets), and $P$ is the number of physical nodes. This is because each shuffle block consists of $\lceil \frac{B}{Q}\rceil$ shards, and the subsequent shuffle block's shards may have to be predownloaded. The constant $k$ is $1$ for the [`'py1e'`](../dataset_configuration/shuffling.md#py1e-default) algorithm, whereas it is $2$ for both [`'py1br'`](../dataset_configuration/shuffling.md#py1br) and [`'py1b'`](../dataset_configuration/shuffling.md#py1b), meaning that `'py1e'` gives better cache limit performance, while retaining shuffle quality.
 
 ## Streaming Simulator
 

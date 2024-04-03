@@ -10,7 +10,7 @@ Let's cover the key concepts in this process.
 ## Dataset conversion
 Raw data samples need to be processed into a **stream**, or set of **shard** files, that allow for fast random access during training. Streaming supports the following file formats:
 * MDS (most performant)
-* XSV
+* CSV/TSV
 * JSONL
 
 A **shard** is a file, compatible with Streaming, that contains samples that are ready for training.
@@ -23,14 +23,48 @@ The diagram below shows how raw data samples are converted to MDS shards using {
 
 `MDSWriter` objects take in original dataset samples and convert them binary MDS shards, which contain serialized samples. The mapping from original files to shard files is not strict and can be one-to-one, many-to-one, or one-to-many. Each shard has a header that allows for fast random access to every sample during model training.
 
-As shown above, an `index.json` file is also created for the set of shard files, or stream, containing information such as the number of shards, number of samples per shard, shard sizes, etc.
+As shown above, an `index.json` file is also created for the set of shard files, or stream, containing information such as the number of shards, number of samples per shard, shard sizes, etc. An example `index.json` file, which has metadata for multiple MDS shards, and where samples contain only one column called "tokens" encoded as `Bytes`, is structured as below:
+<!--pytest.mark.skip-->
+```json
+{
+    "shards": [
+        {   // Shard 0
+            "column_encodings": ["bytes"],
+            "column_names": ["tokens"],
+            "column_sizes": [null],
+            "compression": null,
+            "format": "mds",
+            "hashes": [],
+            "raw_data": {
+                "basename": "shard.00000.mds",
+                "bytes": 67092637,
+                "hashes": {}
+            },
+            "samples": 4093,
+            "size_limit": 67108864,
+            "version": 2,
+            "zip_data": null
+        },
+        {   // Shard 1, very similar to Shard 0 metadata
+            ...
+            "raw_data": {
+                "basename": "shard.00001.mds",
+                "bytes": 67092637,
+                "hashes": {}
+            },
+            ...
+        },
+    // and so on
+    ]
+}
+```
 
 Below, we use `MDSWriter` to write out a stream to a remote location that contains integer columns `'x'` and `'y'` in each sample:
 <!--pytest.mark.skip-->
 ```python
 columns = {'x': 'int', 'y': 'int'}
 output_dir = 's3://path/for/mds/dataset'
-with MDSWriter(out=output_dir, columns=columns, compression=compression, hashes=hashes, size_limit=limit) as out:
+with MDSWriter(out=output_dir, columns=columns) as out:
     for sample in raw_dataset_iterator:
         out.write(sample)
 ```

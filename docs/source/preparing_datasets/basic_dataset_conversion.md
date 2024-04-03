@@ -22,15 +22,31 @@ out = ('/local/data', 'oci://bucket/data')
 
 3. A `column` parameter is a `dict` mapping a feature name or label name with a streaming supported encoding type. `MDSWriter` encodes your data to bytes, and at training time, data gets decoded back automatically to its original form. The `index.json` file stores `column` metadata for decoding. Supported encoding formats are:
 
-| Name   | Class  | Name    | Class   | Name | Class  |
-| ------ | ------ | ------- | ------- | ---- | ------ |
-| bytes  | `Bytes`  | int8    | `Int8`    | pil     | `PIL`     |
-| str    | `Str`    | int16   | `Int16`   | jpeg    | `JPEG`    |
-| int    | `Int`    | int32   | `Int32`   | png     | `PNG`     |
-| uint8  | `UInt8`  | int64   | `Int64`   | pkl     | `Pickle`  |
-| uint16 | `UInt16` | float16 | `Float16` | json    | `JSON`    |
-| uint32 | `UInt32` | float32 | `Float32` | ndarray | `NDArray` |
-| uint64 | `UInt64` | float64 | `Float64` |         |           |
+| Category           | Name          | Class        | Notes                    |
+|--------------------|---------------|--------------|--------------------------|
+| Encoding           | 'bytes'       | `Bytes`      | no-op encoding           |
+| Encoding           | 'str'         | `Str`        | stores in UTF-8          |
+| Encoding           | 'int'         | `Int`        | uses `numpy.int64`       |
+| Numpy Array        | 'ndarray'     | `NDArray`    | uses `numpy.ndarray`     |
+| Numpy Unsigned Int | 'uint8'       | `UInt8`      | uses `numpy.uint8`       |
+| Numpy Unsigned Int | 'uint16'      | `UInt16`     | uses `numpy.uint16`      |
+| Numpy Unsigned Int | 'uint32'      | `Uint32`     | uses `numpy.uint32`      |
+| Numpy Unsigned Int | 'uint64'      | `Uint64`     | uses  `numpy.uint64`     |
+| Numpy Signed Int   | 'int8'        | `Int8`       | uses  `numpy.int8`       |
+| Numpy Signed Int   | 'int16'       | `Int16`      | uses  `numpy.int16`      |
+| Numpy Signed Int   | 'int32'       | `Int32`      | uses  `numpy.int32`      |
+| Numpy Signed Int   | 'int64'       | `Int64`      | uses  `numpy.int64`      |
+| Numpy Float        | 'float16'     | `Float16`    | uses  `numpy.float16`    |
+| Numpy Float        | 'float32'     | `Float32`    | uses  `numpy.float32`    |
+| Numpy Float        | 'float64'     | `Float64`    | uses  `numpy.float64`    |
+| Numerical String   | 'str_int'     | `StrInt`     | stores in UTF-8          |
+| Numerical String   | 'str_float'   | `StrFloat`   | stores in UTF-8          |
+| Numerical String   | 'str_decimal' | `StrDecimal` | stores in UTF-8          |
+| Image              | 'pil'         | `PIL`        | raw PIL image            |
+| Image              | 'jpeg'        | `JPEG`       | PIL image as JPEG        |
+| Image              | 'png'         | `PNG`        | PIL image as PNG         |
+| Pickle             | 'pkl'         | `Pickle`     | arbitrary Python objects |
+| JSON               | 'json'        | `JSON`       | arbitrary data as JSON   |
 
 Here's an example where the field `x` is an image, and `y` is a class label, as an integer.
 <!--pytest.mark.skip-->
@@ -260,7 +276,7 @@ with MDSWriter(out='my_dataset1/',
         out.write({'my_array': my_array})
 
 # Inspect dataset
-dataset = StreamingDataset(local='my_dataset1/')
+dataset = StreamingDataset(local='my_dataset1/', batch_size=1)
 for i in range(dataset.num_samples):
     print(dataset[i])
 ```
@@ -285,7 +301,7 @@ with MDSWriter(out='my_dataset2/',
         out.write({'my_array': my_array})
 
 # Inspect dataset
-dataset = StreamingDataset(local='my_dataset2/')
+dataset = StreamingDataset(local='my_dataset2/', batch_size=1)
 for i in range(dataset.num_samples):
     print(dataset[i])
 ```
@@ -307,7 +323,7 @@ with MDSWriter(out='my_dataset3/',
         out.write({'my_array': my_array})
 
 # Inspect dataset
-dataset = StreamingDataset(local='my_dataset3/')
+dataset = StreamingDataset(local='my_dataset3/', batch_size=1)
 for i in range(dataset.num_samples):
     print(dataset[i])
 ```

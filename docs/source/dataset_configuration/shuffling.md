@@ -24,7 +24,7 @@ Shuffling is important for model convergence during training, but can be computa
 
 <img src="../_static/images/shards_canonical_nodes.png" alt="Shards in canonical nodes" width="800"/>
 
-**Step 4**: Samples are shuffled within each canonical node, to maximize performance and reduce inter-node shard downloads. Canonical nodes are then assigned to physical training nodes. Now, the sample IDs are shuffled and ready for training. The `shuffle_algo` parameter controls how this shuffling hapens.
+**Step 4**: Samples are shuffled within each canonical node, to maximize performance and reduce inter-node shard downloads. Canonical nodes are then assigned to physical training nodes. Now, the sample IDs are shuffled and ready for training. The `shuffle_algo` parameter controls how this shuffling happens.
 
 <img src="../_static/images/intra_canonical_node_shuffling.png" alt="Intra-canonical-node shuffling" width="800"/>
 

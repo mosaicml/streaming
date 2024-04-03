@@ -19,7 +19,7 @@ dataloader = StreamingDataLoader(dataset, batch_size=1)
 # We save the dataloader state after 4 batches, and stop after 6 batches.
 state_dict = None
 for i, batch in enumerate(dataloader):
-    print(i, batch["x"], batch["y"])
+    print(i, batch['x'], batch['y'])
     if i == 4:
         state_dict = dataloader.state_dict()
     if i == 6:

@@ -11,9 +11,7 @@ The `batch_size` argument to StreamingDataset is the *device* batch size. It sho
 ### How can I calculate ingress and egress costs?
 Ingress costs will depend on your GPU provider, but egress costs from cloud storage are equal to the egress costs for a single epoch of training. Streaming is smart about how samples are partitioned, and minimizes duplicate shard downloads between nodes. The egress cost is calculated as:
 
-$$C = R\cdot S \cdot N$$
-
-Where $C$ is the egress cost, $R$ is the egress cost per MB, $S$ is the average shard size, in MB, and $N$ is the total number of shard files.
+$$\text{Egress cost} = (\text{Egress cost per MB}) \times (\text{Average shard size in MB}) \times (\text{Total number of shards})$$
 
 For multi-epoch training, if your nodes have persistent storage or if your training job does not experience hardware failures, the egress cost will be the same as a single epoch of training. Otherwise, with ephemeral storage and training failures, you will likely have to redownload shards.
 
@@ -97,7 +95,7 @@ for global_sample_idx in range(num_dataset_samples):
     # Get the relative shard index (in the stream) by subtracting the offset
     relative_shard_idx = global_shard_idx - dataset.shard_offset_per_stream[stream_idx]
 
-    stream_shard_sample_ids = (stream_idx, relative_shard_idx, relative_sample_idx)
+    stream_shard_sample_ids.append((stream_idx, relative_shard_idx, relative_sample_idx))
 ```
 
 ### Don't make your shard file size too large or small
