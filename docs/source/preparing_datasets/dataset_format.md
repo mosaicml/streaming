@@ -16,10 +16,51 @@ For a high-level explanation of how dataset writing works, check out the [main c
 
 ## Formats
 ### 1. MDS
-Mosaic Data Shard (MDS) is our most performant file format for fast sample random-access. The sample can be a singular data entity or a dictionary of key/value pairs where the key is a data field, and the value is data. Use {class}`streaming.MDSWriter` for MDS.
+Mosaic Data Shard (MDS) is our most performant file format for fast sample random-access, and stores data in serialized tabular form. A single sample is a dictionary of key/value pairs where the key is the column name, and the value is the sample's entry for that column. Use {class}`streaming.MDSWriter` for MDS.
 
 ### 2. CSV/TSV
-CSV/TSV, or more generally XSV, is tabular data stored in plain-text form. Typically, CSV (Comma-Separated Values) and TSV (Tab-Separated Values) are used. CSV separates the data using delimiter `,` and TSV separates the data using delimiter `\t`. Use {class}`streaming.XSVWriter` for XSV, {class}`streaming.CSVWriter` for CSV, and {class}`streaming.TSVWriter` for TSV.
+CSV/TSV, or more generally XSV, is a plaintext tabular data format consisting of delimiter-separated values. For convenience, we have added two named sub-types which you will recognize as CSV (comma-delimited) and TSV (tab-delimited). To create datasets in these formats, use streaming.XSVWriter, streaming.CSVWriter, or streaming.TSVWriter.
 
 ### 3. JSONL
-JSON Lines text format, also called newline-delimited JSON, consists of several lines where each line is a valid JSON object, separated by newline character `\n`. Use {class}`streaming.JSONWriter` for JSONL.
+JSONL is a simple and popular dataset format in which each sample is a JSON dict terminated by a newline. Use {class}`streaming.JSONWriter` for JSONL.
+
+## Metadata
+
+Streaming also must store some metadata to keep track of a dataset's shards and samples. With MDS, only the `index.json` file is present, but with CSV/TSV and JSONL, additional files must also be stored which contain information about where specific samples are stored.
+
+### The `index.json` file
+As mentioned in the [main concepts](../getting_started/main_concepts.md#dataset-conversion) page, an `index.json` file is also created for each of shard files, containing information such as the number of shards, number of samples per shard, shard sizes, etc. An example `index.json` file, which has metadata for multiple MDS shards, and where samples contain only one column called "tokens" encoded as `Bytes`, is structured as below:
+<!--pytest.mark.skip-->
+```json
+{
+    "shards": [
+        {   // Shard 0
+            "column_encodings": ["bytes"],
+            "column_names": ["tokens"],
+            "column_sizes": [null],
+            "compression": null,
+            "format": "mds",
+            "hashes": [],
+            "raw_data": {
+                "basename": "shard.00000.mds",
+                "bytes": 67092637,
+                "hashes": {}
+            },
+            "samples": 4093,
+            "size_limit": 67108864,
+            "version": 2,
+            "zip_data": null
+        },
+        {   // Shard 1, very similar to Shard 0 metadata
+            ...
+            "raw_data": {
+                "basename": "shard.00001.mds",
+                "bytes": 67092637,
+                "hashes": {}
+            },
+            ...
+        },
+    // and so on
+    ]
+}
+```

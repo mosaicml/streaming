@@ -26,8 +26,8 @@ out = ('/local/data', 'oci://bucket/data')
 |--------------------|---------------|--------------|--------------------------|
 | Encoding           | 'bytes'       | `Bytes`      | no-op encoding           |
 | Encoding           | 'str'         | `Str`        | stores in UTF-8          |
-| Encoding           | 'int'         | `Int`        | uses `numpy.int64`       |
-| Numpy Array        | 'ndarray'     | `NDArray`    | uses `numpy.ndarray`     |
+| Encoding           | 'int'         | `Int`        | Python `int`, uses `numpy.int64` for encoding       |
+| Numpy Array        | 'ndarray:dtype:shape'     | `NDArray(dtype: Optional[str] = None, shape: Optional[Tuple[int]] = None)`    | uses `numpy.ndarray`     |
 | Numpy Unsigned Int | 'uint8'       | `UInt8`      | uses `numpy.uint8`       |
 | Numpy Unsigned Int | 'uint16'      | `UInt16`     | uses `numpy.uint16`      |
 | Numpy Unsigned Int | 'uint32'      | `Uint32`     | uses `numpy.uint32`      |
@@ -42,7 +42,7 @@ out = ('/local/data', 'oci://bucket/data')
 | Numerical String   | 'str_int'     | `StrInt`     | stores in UTF-8          |
 | Numerical String   | 'str_float'   | `StrFloat`   | stores in UTF-8          |
 | Numerical String   | 'str_decimal' | `StrDecimal` | stores in UTF-8          |
-| Image              | 'pil'         | `PIL`        | raw PIL image            |
+| Image              | 'pil'         | `PIL`        | raw PIL image class ([link]((https://pillow.readthedocs.io/en/stable/reference/Image.html)))            |
 | Image              | 'jpeg'        | `JPEG`       | PIL image as JPEG        |
 | Image              | 'png'         | `PNG`        | PIL image as PNG         |
 | Pickle             | 'pkl'         | `Pickle`     | arbitrary Python objects |
@@ -82,7 +82,7 @@ _encodings['complex128'] = Complex128
 <!--pytest.mark.skip-->
 ```python
 size_limit = 1024 # 1kB limit, as an int
-size_limit = "1kb" # 1kB limit, as a human-readable string
+size_limit = '1kb' # 1kB limit, as a human-readable string
 ```
 Shard file size depends on the dataset size, but generally, too small of a shard size creates a ton of shard files and heavy network overheads, and too large of a shard size creates fewer shard files, but downloads are less balanced. A shard size of between 50-100MB works well in practice.
 
@@ -105,7 +105,7 @@ The compression algorithm to use, if any, is specified by passing `code` or `cod
 compression = 'zstd' # zstd, defaults to level 3.
 compression = 'zstd:9' # zstd, specifying level 9.
 ```
-The higher the level, the higher the compression ratio. However, using higher compression levels will impact the compression speed. In our experience, `zstd` is optimal over the time-size Pareto frontier. Compression is most beneficial for text (up to 66% smaller shard size), whereas it is marginally helpful for other modalities like images.
+The higher the level, the higher the compression ratio. However, using higher compression levels will impact the compression speed. In our experience, `zstd` is optimal over the time-size Pareto frontier. Compression is most beneficial for text, whereas it is less helpful for other modalities like images.
 
 6. An optional `hashes` list of algorithm names, used to verify data integrity. Hashes are saved in the `index.json` file. Hash verification during training is controlled with the `validate_hash` argument more information [here](../dataset_configuration/shard_retrieval.md#Hash-validation).
 
@@ -162,7 +162,7 @@ class RandomClassificationDataset:
     def __init__(self, shape=(10,), size=10000, num_classes=2):
         self.size = size
         self.x = np.random.randn(size, *shape)
-        self.y = np.random.randint(0, num_classes, size=(size,)).tolist()
+        self.y = np.random.randint(0, num_classes, size)
 
     def __len__(self):
         return self.size
@@ -180,7 +180,7 @@ output_dir = 'test_output_dir'
 Specify the column encoding types for each sample and label:
 <!--pytest-codeblocks:cont-->
 ```python
-columns = {'x': 'pkl', 'y': 'int'}
+columns = {'x': 'pkl', 'y': 'int64'}
 ```
 
 Optionally, specify a compression algorithm and level:
@@ -203,25 +203,6 @@ Optionally, provide a shard size limit, after which a new shard starts. In this 
 limit = '10kb'
 ```
 
-The last thing we need is a generator that iterates over the raw data samples.
-<!--pytest-codeblocks:cont-->
-```python
-def each(samples):
-    """Generator over raw dataset samples.
-
-    Args:
-        samples: Raw samples as tuples of (feature, label).
-
-    Yields:
-        Each sample, as a dict.
-    """
-    for x, y in samples:
-        yield {
-            'x': x,
-            'y': y,
-        }
-```
-
 It's time to call the {class}`streaming.MDSWriter` with the above initialized parameters and write the samples by iterating over a dataset.
 <!--pytest-codeblocks:cont-->
 ```python
@@ -229,8 +210,8 @@ from streaming.base import MDSWriter
 
 dataset = RandomClassificationDataset()
 with MDSWriter(out=output_dir, columns=columns, compression=compression, hashes=hashes, size_limit=limit) as out:
-    for sample in each(dataset):
-        out.write(sample)
+    for x, y in dataset:
+        out.write({'x': x, 'y': y})
 ```
 
 Clean up after ourselves.
@@ -263,8 +244,9 @@ Serializing ndarrays with fixed dtype and shape is more efficient than fixed dty
 
 The streaming encoding type, as the value in the `columns` dict, should simply be `ndarray`.
 
-<!--pytest.mark.skip-->
 ```python
+import numpy as np
+from streaming.base import MDSWriter, StreamingDataset
 # Write to MDS
 with MDSWriter(out='my_dataset1/',
                columns={'my_array': 'ndarray'}) as out:
@@ -282,12 +264,11 @@ for i in range(dataset.num_samples):
     print(dataset[i])
 ```
 
-
 ### Dynamic shape, fixed dtype
 
 The streaming encoding type, as the value in the `columns` dict, should be `ndarray:dtype`. So in this example, it is `ndarray:int16`.
 
-<!--pytest.mark.skip-->
+<!--pytest-codeblocks:cont-->
 ```python
 # Write to MDS
 with MDSWriter(out='my_dataset2/',
@@ -309,16 +290,16 @@ for i in range(dataset.num_samples):
 
 ### Fixed shape, fixed dtype
 
-The streaming encoding type, as the value in the `columns` dict, should be `ndarray:dtype:shape`. So in this example, it is `ndarray:int16:3,4,5`.
+The streaming encoding type, as the value in the `columns` dict, should be `ndarray:dtype:shape`. So in this example, it is `ndarray:int16:3,3,3`.
 
-<!--pytest.mark.skip-->
+<!--pytest-codeblocks:cont-->
 ```python
 # Write to MDS
 with MDSWriter(out='my_dataset3/',
-               columns={'my_array': 'ndarray:int16:3,4,5'}) as out:
+               columns={'my_array': 'ndarray:int16:3,3,3'}) as out:
     for i in range(42):
         # Shape is fixed
-        shape = 3, 4, 5
+        shape = 3, 3, 3
         # Datatype is fixed
         my_array = np.random.normal(0, 100, shape).astype(np.int16)
         out.write({'my_array': my_array})
@@ -327,4 +308,30 @@ with MDSWriter(out='my_dataset3/',
 dataset = StreamingDataset(local='my_dataset3/', batch_size=1)
 for i in range(dataset.num_samples):
     print(dataset[i])
+```
+
+We can see that the dataset is more efficiently serialized when we are more specific about array shape and datatype:
+
+<!--pytest-codeblocks:cont-->
+```python
+import subprocess
+
+# Dynamic shape, dynamic dtype uses most space
+subprocess.run(['du', '-sh', 'my_dataset1'])
+
+# Dynamic shape, fixed dtype uses less space
+subprocess.run(['du', '-sh', 'my_dataset2'])
+
+# Fixed shape, fixed dtype uses the least space
+subprocess.run(['du', '-sh', 'my_dataset3'])
+```
+
+Clean up after ourselves.
+<!--pytest-codeblocks:cont-->
+```python
+from shutil import rmtree
+
+rmtree('my_dataset1')
+rmtree('my_dataset2')
+rmtree('my_dataset3')
 ```

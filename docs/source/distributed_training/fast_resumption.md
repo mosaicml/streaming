@@ -12,10 +12,10 @@ When checkpointing, simply call the `state_dict` method of `StreamingDataLoader`
 from streaming import StreamingDataset
 from streaming import StreamingDataLoader
 
-dataset = StreamingDataset(local="/tmp/cache", remote="s3://remote/dataset", batch_size=1)
+dataset = StreamingDataset(local='/tmp/cache', remote='s3://remote/dataset', batch_size=1)
 dataloader = StreamingDataLoader(dataset, batch_size=1)
 
-# Here, we assume each sample in our dataset has fields "x" and "y".
+# Here, we assume each sample in our dataset has fields 'x' and 'y'.
 # We save the dataloader state after 4 batches, and stop after 6 batches.
 state_dict = None
 for i, batch in enumerate(dataloader):
@@ -30,14 +30,14 @@ Now, we've completed 4 batches and seen 6, when training has "stopped". This is 
 <!--pytest.mark.skip-->
 ```python
 # Create a new dataset
-dataset_2 = StreamingDataset(local="cache", remote="path", batch_size=1)
+dataset_2 = StreamingDataset(local='cache', remote='path', batch_size=1)
 dataloader_2 = StreamingDataLoader(dataset_2, batch_size=1)
 # Load in the state dict that was previously saved
 dataloader_2.load_state_dict(state_dict)
 
 # Iterate over the dataset, which will start from batch 5 now.
 for i, batch in enumerate(dataloader_2):
-    print(i, batch["x"], batch["y"])
+    print(i, batch['x'], batch['y'])
 ```
 
 ## Resumption with Composer
