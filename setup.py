@@ -81,17 +81,23 @@ extra_deps['dev'] = [
 ]
 
 extra_deps['docs'] = [
-    'GitPython==3.1.41',
-    'docutils==0.18.1',
-    'furo==2024.1.29',
-    'myst-parser==2.0.0',
-    'nbsphinx==0.9.2',
+    'GitPython==3.1.42',
+    'docutils==0.17.1',
+    'furo==2022.9.29',
+    'myst-parser==0.16.1',
+    'nbsphinx==0.9.1',
     'pandoc==2.3',
     'pypandoc==1.13',
     'sphinx-argparse==0.4.0',
     'sphinx-copybutton==0.5.2',
-    'sphinx==6.2.1',
+    'sphinx==4.4.0',
     'sphinx-tabs==3.4.5',
+    'sphinxcontrib.katex==0.9.6',
+    'sphinxcontrib-applehelp==1.0.0',
+    'sphinxcontrib-devhelp==1.0.0',
+    'sphinxcontrib-htmlhelp==2.0.0',
+    'sphinxcontrib-qthelp==1.0.0',
+    'sphinxcontrib-serializinghtml==1.1.5',
 ]
 
 extra_deps['simulator'] = [
