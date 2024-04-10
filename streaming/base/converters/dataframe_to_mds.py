@@ -105,6 +105,9 @@ def infer_dataframe_schema(dataframe: DataFrame,
                 user_dtype = ':'.join(user_dtype.split(':')[:-1])
 
             if user_dtype not in mds_supported_dtypes:
+                if user_dtype == 'json':
+                    loggerwarning("Skip schema checking when json encoding is specified.")
+                    continue
                 raise ValueError(f'{user_dtype} is not supported by dataframe_to_mds')
 
             actual_spark_dtype = dataframe.schema[col_name].dataType

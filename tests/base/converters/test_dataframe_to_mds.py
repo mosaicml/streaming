@@ -86,6 +86,7 @@ class TestDataFrameToMDS:
             'keep_local': keep_local,
         }
 
+        # Automatic schema inference for ``properties`` is not available
         with pytest.raises(ValueError, match=f'.*is not supported by dataframe_to_mds.*'):
             _ = dataframe_to_mds(dataframe.select(col('id'), col('dept'), col('properties')),
                                  merge_index=merge_index,
@@ -153,6 +154,7 @@ class TestDataFrameToMDS:
             'out': out,
             'columns': user_defined_columns,
         }
+        # 'strr' is not a valid mds dtype
         with pytest.raises(ValueError, match=f'.* is not supported by dataframe_to_mds.*'):
             _ = dataframe_to_mds(dataframe, merge_index=False, mds_kwargs=mds_kwargs)
 
