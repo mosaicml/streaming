@@ -106,7 +106,7 @@ def infer_dataframe_schema(dataframe: DataFrame,
 
             if user_dtype not in mds_supported_dtypes:
                 if user_dtype == 'json':
-                    loggerwarning("Skip schema checking when json encoding is specified.")
+                    logger.warning('Skip schema checking when json encoding is specified.')
                     continue
                 raise ValueError(f'{user_dtype} is not supported by dataframe_to_mds')
 
