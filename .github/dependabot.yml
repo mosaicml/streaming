@@ -11,3 +11,21 @@ updates:
     interval: "weekly"
   # Allow up to 5 open pull requests for pip dependencies
   open-pull-requests-limit: 5
+  ignore:
+  - dependency-name: "GitPython"
+  - dependency-name: "docutils"
+  - dependency-name: "furo"
+  - dependency-name: "myst-parser"
+  - dependency-name: "nbsphinx"
+  - dependency-name: "pandoc"
+  - dependency-name: "pypandoc"
+  - dependency-name: "sphinx-argparse"
+  - dependency-name: "sphinx-copybutton"
+  - dependency-name: "sphinx"
+  - dependency-name: "sphinx-tabs"
+  - dependency-name: "sphinxcontrib.katex"
+  - dependency-name: "sphinxcontrib-applehelp"
+  - dependency-name: "sphinxcontrib-devhelp"
+  - dependency-name: "sphinxcontrib-htmlhelp"
+  - dependency-name: "sphinxcontrib-qthelp"
+  - dependency-name: "sphinxcontrib-serializinghtml"

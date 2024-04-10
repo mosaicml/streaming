@@ -181,8 +181,8 @@ def each(dataset: _COCODetection, shuffle: bool) -> Iterable[Dict[str, bytes]]:
             'img_id': img_id,
             'htot': htot,
             'wtot': wtot,
-            'bbox_sizes': bbox_sizes,  # (_, 4) float32.
-            'bbox_labels': bbox_labels,  # int64.
+            'bbox_sizes': np.array(bbox_sizes, dtype=np.float32),  # (_,4) np.float32 array.
+            'bbox_labels': np.array(bbox_labels, dtype=np.int64),  # np.int64 array.
         }
 
 
@@ -202,8 +202,8 @@ def main(args: Namespace) -> None:
         'img_id': 'int',
         'htot': 'int',
         'wtot': 'int',
-        'bbox_sizes': 'pkl',
-        'bbox_labels': 'pkl'
+        'bbox_sizes': 'ndarray:float32',
+        'bbox_labels': 'ndarray:int64',
     }
 
     for (split, expected_num_samples, shuffle) in [
