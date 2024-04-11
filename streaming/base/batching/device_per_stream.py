@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 def generate_work_device_per_stream_batching(dataset: StreamingDataset, world: World, epoch: int,
-                                      sample_in_epoch: int) -> NDArray[np.int64]:
+                                             sample_in_epoch: int) -> NDArray[np.int64]:
     """Generate this epoch's arrangement of samples for ``device_per_stream`` batching.
 
     This is only called in local rank zero. When ``batching_method`` is set to ``device_per_stream``,
@@ -92,23 +92,25 @@ def generate_work_device_per_stream_batching(dataset: StreamingDataset, world: W
         # Reshape the partition to be device batches in order of traversal.
         # We only count only batches without -1 in them.
         stream_samples_inorder = partition.transpose(3, 2, 0, 1, 4).flatten()
-        # Pad samples to make sure they are divisible by the device batch size.
+        # Pad samples to make sure they are divisible by the global batch size.
         padding_samples = batch_size - (stream_samples_inorder.size % batch_size)
-        stream_samples_inorder = np.concatenate((stream_samples_inorder, np.full(padding_samples, -1)))
+        stream_samples_inorder = np.concatenate(
+            (stream_samples_inorder, np.full(padding_samples, -1)))
         # Reshape samples to be device batches in order of traversal.
         stream_samples_inorder = stream_samples_inorder.reshape(-1, batch_size)
         num_full_batches = np.count_nonzero(np.min(stream_samples_inorder, axis=1) >= 0)
         batches_per_stream.append(num_full_batches)
         if num_full_batches != stream_samples_inorder.shape[0]:
             logger.warning(
-                f'Because of the `device_per_stream` batching method, some batches with an inadequate ' +
-                f'number of samples from stream with index {stream_idx} will be dropped.')
+                f'Because of the `device_per_stream` batching method, some batches with an inadequate '
+                + f'number of samples from stream with index {stream_idx} will be dropped.')
         if num_full_batches > 0:
             batches_from_partitions.append(stream_samples_inorder[:num_full_batches])
         else:
-            raise ValueError(f'Stream with index {stream_idx} does not have an adequate number of ' +
-                           f'samples to construct even a single device batch of size {batch_size}. ' +
-                           f'Training will occur without any samples from this stream!')
+            raise ValueError(
+                f'Stream with index {stream_idx} does not have an adequate number of ' +
+                f'samples to construct even a single device batch of size {batch_size}. ' +
+                f'Training will occur without any samples from this stream!')
 
     # Combine all device batches from all streams into one array.
     all_partition_batches = np.concatenate(batches_from_partitions)
@@ -142,8 +144,12 @@ def generate_work_device_per_stream_batching(dataset: StreamingDataset, world: W
             'Because of the `device_per_stream` batching method, resumption may only occur on a sample \
             that is a multiple of the current global batch size of ' + str(global_batch_size) +
             '. Resuming training after the most recently finished global batch.')
-        
-    # Reshape all_partition_batches to the global batch size instead of device batch size.
+
+    # Pad and reshape all_partition_batches to the global batch size instead of device batch size.
+    padding_batches = all_partition_batches.shape[0] - (all_partition_batches.shape[0] %
+                                                        (global_batch_size // batch_size))
+    all_partition_batches = np.concatenate(
+        (all_partition_batches, np.full((padding_batches, batch_size), -1)))
     all_partition_batches = all_partition_batches.reshape(-1, global_batch_size)
 
     # Discard previous batches that may have already finished
