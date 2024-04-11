@@ -93,7 +93,7 @@ def generate_work_device_per_stream_batching(dataset: StreamingDataset, world: W
         # We only count only batches without -1 in them.
         stream_samples_inorder = partition.transpose(3, 2, 0, 1, 4).flatten()
         # Pad samples to make sure they are divisible by the device batch size.
-        padding_samples = batch_size - (stream_samples_inorder.numel() % batch_size)
+        padding_samples = batch_size - (stream_samples_inorder.size % batch_size)
         stream_samples_inorder = np.concatenate(stream_samples_inorder, np.full(padding_samples, -1))        
         # Reshape samples to be device batches in order of traversal.
         stream_samples_inorder = stream_samples_inorder.reshape(-1, batch_size)
