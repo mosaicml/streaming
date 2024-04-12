@@ -27,6 +27,7 @@ __all__ = [
     'AzureUploader',
     'DatabricksUnityCatalogUploader',
     'DBFSUploader',
+    'AlipanUploader',
     'LocalUploader',
 ]
 
@@ -40,6 +41,7 @@ UPLOADERS = {
     'azure-dl': 'AzureDataLakeUploader',
     'dbfs:/Volumes': 'DatabricksUnityCatalogUploader',
     'dbfs': 'DBFSUploader',
+    'alipan': 'AlipanUploader',
     '': 'LocalUploader',
 }
 
@@ -943,6 +945,137 @@ class DBFSUploader(DatabricksUploader):
                     f'and for Databricks File System, file path must starts with `dbfs`. ' +
                     e.args[0],)
             raise e
+
+
+class AlipanUploader(CloudUploader):
+    """Upload file from local machine to Alipan.
+
+    Args:
+        out (str | Tuple[str, str]): Output dataset directory to save shard files.
+
+            1. If ``out`` is a local directory, shard files are saved locally.
+            2. If ``out`` is a remote directory, a local temporary directory is created to
+               cache the shard files and then the shard files are uploaded to a remote
+               location. At the end, the temp directory is deleted once shards are uploaded.
+            3. If ``out`` is a tuple of ``(local_dir, remote_dir)``, shard files are saved in
+               the `local_dir` and also uploaded to a remote location.
+        keep_local (bool): If the dataset is uploaded, whether to keep the local dataset
+            shard file or remove it after uploading. Defaults to ``False``.
+        progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
+            a remote location. Default to ``False``.
+        retry (int): Number of times to retry uploading a file. Defaults to ``2``.
+        exist_ok (bool): When exist_ok = False, raise error if the local part of ``out`` already
+            exists and has contents. Defaults to ``False``.
+    """
+
+    def __init__(self,
+                 out: Union[str, Tuple[str, str]],
+                 keep_local: bool = False,
+                 progress_bar: bool = False,
+                 retry: int = 2,
+                 exist_ok: bool = False) -> None:
+        super().__init__(out, keep_local, progress_bar, retry, exist_ok)
+
+        obj = urllib.parse.urlparse(self.remote)
+        if obj.scheme != 'alipan':
+            raise ValueError(
+                f'Expected obj.scheme to be `alipan`, instead, got {obj.scheme} for remote={self.remote}'
+            )
+        if obj.netloc != '':
+            raise ValueError(
+                f'Expected remote is like alipan:///path/to/some, instead, got remote={self.remote}'
+            )
+
+        from alipcs_py.alipcs import AliPCSApiMix
+        from alipcs_py.commands.upload import EncryptType
+
+        web_refresh_token = os.environ['ALIPAN_WEB_REFRESH_TOKEN']
+        web_token_type = 'Bearer'
+        self.alipan_encrypt_password = os.environ.get('ALIPAN_ENCRYPT_PASSWORD', '').encode()
+        self.alipan_encrypt_type = EncryptType.No  # No encryption by default
+        encrypt_type = os.environ.get('ALIPAN_ENCRYPT_TYPE', '')
+        if encrypt_type:
+            if getattr(EncryptType, encrypt_type, None) is None:
+                raise ValueError(
+                    f'Invalid ALIPAN_ENCRYPT_TYPE: {encrypt_type}. Encryption type must be one of `Simple`, `ChaCha20`, `AES256CBC`'
+                )
+            else:
+                self.alipan_encrypt_type = getattr(EncryptType, encrypt_type)
+
+        self.api = AliPCSApiMix(web_refresh_token, web_token_type=web_token_type)
+        self.check_token()
+
+    def check_token(self):
+        """Raise an exception if the refresh_token is invalid.
+
+        Raises:
+            error: AliPCSError with code `AccessTokenInvalid`
+        """
+        self.api.refresh()
+
+    def upload_file(self, filename: str):
+        """Upload file from local instance to Alipan directory.
+
+        Args:
+            filename (str): File to upload.
+        """
+        from alipcs_py.commands import upload as alipcs_upload
+        from alipcs_py.commands.upload import EncryptType, total_len
+
+        @retry(num_attempts=self.retry)
+        def _upload_file():
+            local_filename = os.path.join(self.local, filename)
+            remote_filename = os.path.join(self.remote, filename)  # pyright: ignore
+            obj = urllib.parse.urlparse(remote_filename)
+            logger.debug(f'Uploading to {remote_filename}')
+            if self.alipan_encrypt_type == EncryptType.No:
+                file_size = os.stat(local_filename).st_size
+            else:
+                file_size = self.alipan_encrypt_type
+                encrypt_io = self.alipan_encrypt_type.encrypt_io(open(local_filename, 'rb'),
+                                                                 self.alipan_encrypt_password)
+                file_size = total_len(encrypt_io)
+            with tqdm.tqdm(total=file_size,
+                           unit='B',
+                           unit_scale=True,
+                           desc=f'Uploading to {remote_filename}',
+                           disable=(not self.progress_bar)) as pbar:
+                alipcs_upload.upload_file(
+                    self.api, (local_filename, obj.path),
+                    'overwrite',
+                    encrypt_password=self.alipan_encrypt_password,
+                    encrypt_type=self.alipan_encrypt_type,
+                    callback_for_monitor=lambda offset: pbar.update(offset - pbar.n))
+            self.clear_local(local=local_filename)
+
+        _upload_file()
+
+    def list_objects(self, prefix: Optional[str] = None) -> List[str]:
+        """List all objects in the remote path with the given prefix.
+
+        Args:
+            prefix (Optional[str], optional): The prefix to search for. Defaults to ``None``.
+
+        Returns:
+            List[str]: A list of object names that match the prefix.
+        """
+        if prefix is None:
+            prefix = ''
+
+        assert self.remote is not None
+        obj = urllib.parse.urlparse(self.remote)
+
+        remote_pcs_file = self.api.get_file(remotepath=obj.path)
+        if remote_pcs_file is None:
+            raise FileNotFoundError(f'Alipan remote path `{obj.path}` not found.')
+
+        file_paths = []
+        for pcs_file in self.api.list_iter(remote_pcs_file.file_id, recursive=True):
+            file_path = pathlib.PosixPath(obj.path, pcs_file.path).as_posix()
+            if file_path.startswith(prefix):
+                file_paths.append(file_path)
+
+        return sorted(file_paths)
 
 
 class LocalUploader(CloudUploader):

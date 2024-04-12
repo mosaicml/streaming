@@ -168,3 +168,11 @@ def test_list_r2_buckets():
     client = boto3.client('s3', region_name='us-east-1', endpoint_url=R2_URL)
     buckets = client.list_buckets()
     assert buckets['Buckets'][0]['Name'] == MY_BUCKET
+
+
+@pytest.fixture()
+def alipan_credentials():
+    """Mocked alipan Credentials."""
+    os.environ['ALIPAN_WEB_REFRESH_TOKEN'] = 'testing'
+    yield
+    del os.environ['ALIPAN_WEB_REFRESH_TOKEN']

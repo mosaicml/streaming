@@ -11,10 +11,10 @@ from unittest.mock import ANY, MagicMock, Mock, patch
 import boto3
 import pytest
 
-from streaming.base.storage.upload import (AzureDataLakeUploader, AzureUploader, CloudUploader,
-                                           DatabricksUnityCatalogUploader, DBFSUploader,
-                                           GCSAuthentication, GCSUploader, LocalUploader,
-                                           S3Uploader)
+from streaming.base.storage.upload import (AlipanUploader, AzureDataLakeUploader, AzureUploader,
+                                           CloudUploader, DatabricksUnityCatalogUploader,
+                                           DBFSUploader, GCSAuthentication, GCSUploader,
+                                           LocalUploader, S3Uploader)
 from tests.conftest import MY_BUCKET, R2_URL
 
 MY_PREFIX = 'train'
@@ -486,6 +486,41 @@ class TestDBFSUploader:
             with open(local_file_path, 'w') as _:
                 pass
             _ = DBFSUploader(out=local)
+
+
+class TestAlipanUploader:
+
+    @patch('streaming.base.storage.upload.AlipanUploader.check_token')
+    @pytest.mark.usefixtures('alipan_credentials')
+    @pytest.mark.parametrize('out',
+                             ['alipan:///container/dir', ('./dir1', 'alipan:///container/dir/')])
+    def test_instantiation(self, mock_create_client: Mock, out: Any):
+        mock_create_client.side_effect = None
+        _ = AlipanUploader(out=out)
+        if not isinstance(out, str):
+            shutil.rmtree(out[0], ignore_errors=True)
+
+    @patch('streaming.base.storage.upload.AlipanUploader.check_token')
+    @pytest.mark.usefixtures('alipan_credentials')
+    @pytest.mark.parametrize('out', ['alipann://bucket/dir', ('./dir1', 'gcs://bucket/dir/')])
+    def test_invalid_remote_list(self, mock_create_client: Mock, out: Any):
+        mock_create_client.side_effect = None
+        with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
+            _ = AlipanUploader(out=out)
+
+    @patch('streaming.base.storage.upload.AlipanUploader.check_token')
+    @pytest.mark.usefixtures('alipan_credentials')
+    def test_local_directory_is_empty(self, mock_create_client: Mock,
+                                      local_remote_dir: Tuple[str, str]):
+        with pytest.raises(FileExistsError, match=f'Directory is not empty.*'):
+            mock_create_client.side_effect = None
+            local, _ = local_remote_dir
+            os.makedirs(local, exist_ok=True)
+            local_file_path = os.path.join(local, 'file.txt')
+            # Creating an empty file at specified location
+            with open(local_file_path, 'w') as _:
+                pass
+            _ = AlipanUploader(out=local)
 
 
 class TestLocalUploader:
