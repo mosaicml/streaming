@@ -983,8 +983,7 @@ class AlipanUploader(CloudUploader):
             )
         if obj.netloc != '':
             raise ValueError(
-                f'Expected remote is like alipan:///path/to/some, instead, got remote={self.remote}'
-            )
+                f'Expected remote to be alipan:///path/to/some, instead, got remote={self.remote}')
 
         from alipcs_py.alipcs import AliPCSApiMix
         from alipcs_py.commands.upload import EncryptType
