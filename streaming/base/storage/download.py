@@ -430,8 +430,8 @@ def download_from_alipan(remote: str, local: str) -> None:
         remote (str): Remote path (Alipan).
         local (str): Local path (local filesystem).
     """
-    from alipcs_py.alipcs import AliPCSApiMix, AliPCSError
-    from alipcs_py.commands.download import download
+    from alipcs_py.alipcs import AliPCSApiMix
+    from alipcs_py.commands.download import download_file
 
     web_refresh_token = os.environ['ALIPAN_WEB_REFRESH_TOKEN']
     web_token_type = 'Bearer'
@@ -447,20 +447,23 @@ def download_from_alipan(remote: str, local: str) -> None:
         raise ValueError(
             f'Expected remote is like alipan:///path/to/some, instead, got remote={remote}')
 
-    remote_path = pathlib.Path(obj.path)
-    filename = remote_path.name
+    remote_path = obj.path
+    filename = pathlib.PosixPath(remote_path).name
     localdir = pathlib.Path(local).parent
 
-    try:
-        download(api,
-                 remotepaths=[str(remote_path)],
-                 localdir=localdir,
-                 encrypt_password=alipan_encrypt_password,
-                 concurrency=1,
-                 show_progress=False)
-    except AliPCSError as e:
-        raise e
+    remote_pcs_file = api.get_file(remotepath=remote_path)
+    if remote_pcs_file is None:
+        raise FileNotFoundError(f'Object {remote} not found.')
 
+    download_file(
+        api,
+        remote_pcs_file,
+        localdir=localdir,
+        downloader='me',
+        concurrency=1,
+        show_progress=False,
+        encrypt_password=alipan_encrypt_password,
+    )
     os.rename(localdir / filename, local)
 
 

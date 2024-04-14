@@ -997,8 +997,8 @@ class AlipanUploader(CloudUploader):
         if encrypt_type:
             if getattr(EncryptType, encrypt_type, None) is None:
                 raise ValueError(
-                    f'Invalid ALIPAN_ENCRYPT_TYPE: {encrypt_type}. Encryption type must be one of `Simple`, `ChaCha20`, `AES256CBC`'
-                )
+                    f'Invalid ALIPAN_ENCRYPT_TYPE: {encrypt_type}. ' +
+                    'Encryption type must be one of `Simple`, `ChaCha20`, `AES256CBC`')
             else:
                 self.alipan_encrypt_type = getattr(EncryptType, encrypt_type)
 
@@ -1062,9 +1062,10 @@ class AlipanUploader(CloudUploader):
         if prefix is None:
             prefix = ''
 
-        assert self.remote is not None
-        obj = urllib.parse.urlparse(self.remote)
+        if self.remote is None:
+            raise ValueError('Alipan remote path must be set.')
 
+        obj = urllib.parse.urlparse(self.remote)
         remote_pcs_file = self.api.get_file(remotepath=obj.path)
         if remote_pcs_file is None:
             raise FileNotFoundError(f'Alipan remote path `{obj.path}` not found.')
