@@ -120,7 +120,7 @@ extra_deps['databricks'] = [
 ]
 
 extra_deps['alipan'] = [
-    'AliPCS-Py>=0.8',
+    'AliPCS-Py>=0.8,<1',
 ]
 
 extra_deps['testing'] = [
