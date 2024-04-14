@@ -445,7 +445,7 @@ def download_from_alipan(remote: str, local: str) -> None:
             f'Expected obj.scheme to be `alipan`, instead, got {obj.scheme} for remote={remote}')
     if obj.netloc != '':
         raise ValueError(
-            f'Expected remote is like alipan:///path/to/some, instead, got remote={remote}')
+            f'Expected remote to be alipan:///path/to/some, instead, got remote={remote}')
 
     remote_path = obj.path
     filename = pathlib.PosixPath(remote_path).name
