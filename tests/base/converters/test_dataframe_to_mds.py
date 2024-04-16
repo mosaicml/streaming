@@ -11,9 +11,9 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
 from pyspark.sql.types import (ArrayType, BinaryType, ByteType, DecimalType, DoubleType, FloatType,
                                IntegerType, LongType, ShortType, StringType, StructField,
-                               StructType, TimestampType)
+                               StructType, TimestampType, DateType, MapType, NullType, Row)
 
-from streaming.base.converters import dataframe_to_mds, infer_dataframe_schema
+from streaming.base.converters import dataframe_to_mds, infer_dataframe_schema, is_json_compatible
 
 os.environ[
     'OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'  # set to yes to all fork process in spark calls
@@ -22,19 +22,17 @@ os.environ[
 class TestDataFrameToMDS:
 
     @pytest.fixture
-    def decimal_dataframe(self):
+    def complex_dataframe(self):
         spark = SparkSession.builder.getOrCreate()  # pyright: ignore
+        message_schema = ArrayType(StructType([
+            StructField("role", StringType(), nullable=True),
+            StructField("content", StringType(), nullable=True)
+        ]))
+        data = [[ { "role": "system", "content": "Hello, World!" }, { "role": "user", "content": "Hi, MPT!" }, { "role": "assistant", "content": "Hi, user!" } ],
+                 [ { "role": "user", "content": "Hi, MPT!" }, { "role": "assistant", "content": "Hi, user!" } ]]
 
-        schema = StructType([
-            StructField('id', IntegerType(), nullable=False),
-            StructField('name', StringType(), nullable=False),
-            StructField('amount', DecimalType(10, 2), nullable=False)
-        ])
-
-        data = [(1, 'Alice', Decimal('123.45')), (2, 'Bob', Decimal('67.89')),
-                (3, 'Charlie', Decimal('987.65'))]
-        df = spark.createDataFrame(data, schema)
-
+        df = spark.createDataFrame(data, schema=message_schema)
+        df = df.withColumnRenamed("value", "messages")
         yield df
 
     @pytest.fixture
@@ -359,3 +357,102 @@ class TestDataFrameToMDS:
             _ = dataframe_to_mds(array_dataframe.select(col('id'), col('dept'), col('properties')),
                                  merge_index=merge_index,
                                  mds_kwargs=mds_kwargs)
+
+    def test_is_json_compatible(self):
+
+        message_schema = ArrayType(StructType([
+            StructField("role", StringType(), nullable=True),
+            StructField("content", StringType(), nullable=True)
+        ]))
+
+
+        prompt_response_schema = StructType([
+            StructField("prompt", StringType(), nullable=True),
+            StructField("response", StringType(), nullable=True)
+        ])
+
+        combined_schema = StructType([
+            StructField('prompt_response', StructType([
+                StructField('prompt', StringType(), True),
+                StructField('response', StringType(), True)]), True),
+            StructField('messages', ArrayType(StructType([
+                StructField('role', StringType(), True),
+                StructField('content', StringType(), True)]), True), True
+            )])
+
+        valid_schemas = [message_schema, prompt_response_schema, combined_schema]
+
+        schema_with_binary = StructType([
+            StructField("data", BinaryType(), nullable=True)
+        ])
+
+        # Schema with MapType having non-string keys
+        schema_with_non_string_map_keys = StructType([
+            StructField("map_field", MapType(IntegerType(), StringType()), nullable=True)
+        ])
+
+        # Schema with DateType and TimestampType
+        schema_with_date_and_timestamp = StructType([
+            StructField("birth_date", DateType(), nullable=True),
+            StructField("event_timestamp", TimestampType(), nullable=True)
+        ])
+
+        invalid_schemas = [schema_with_binary, schema_with_non_string_map_keys, schema_with_date_and_timestamp]
+
+        for s in valid_schemas:
+            assert is_json_compatible(s)
+
+        for s in invalid_schemas:
+            assert not is_json_compatible(s)
+
+
+    def test_complex_schema(self,
+                            complex_dataframe: Any,
+                            local_remote_dir: Tuple[str, str],
+                            keep_local: bool = True,
+                            merge_index: bool = True):
+        out, _ = local_remote_dir
+        mds_kwargs = {
+            'out': out,
+            'keep_local': keep_local,
+            'columns': {
+                'messages': 'json',
+            },
+        }
+
+        data = [[ { "role": "system", "content": "Hello, World!" }, { "role": "user", "content": "Hi, MPT!" }, { "role": "assistant", "content": "Hi, user!" } ],
+                 [ { "role": "user", "content": "Hi, MPT!" }, { "role": "assistant", "content": "Hi, user!" } ]]
+
+        def udf_iterable(df):
+            records = df.to_dict('records')
+            for sample in records:
+                v = list(sample)
+                yield {'messages': v}
+
+        _ = dataframe_to_mds(complex_dataframe,
+                             merge_index=merge_index,
+                             mds_kwargs=mds_kwargs,
+                             udf_iterable = udf_iterable,
+                             udf_kwargs = None,
+                             )
+        print('schema = ')
+        print(complex_dataframe.schema)
+        if merge_index:
+            if keep_local:
+                assert os.path.exists(os.path.join(out,
+                                                   'index.json')), 'No merged index.json found'
+                mgi = json.load(open(os.path.join(out, 'index.json'), 'r'))
+                nsamples = 0
+                for d in os.listdir(out):
+                    sub_dir = os.path.join(out, d)
+                    if os.path.isdir(sub_dir):
+                        shards = json.load(open(os.path.join(sub_dir, 'index.json'),
+                                                'r'))['shards']
+                        if shards:
+                            nsamples += shards[0]['samples']
+                assert nsamples == sum([a['samples'] for a in mgi['shards']])
+
+
+
+
+

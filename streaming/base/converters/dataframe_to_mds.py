@@ -20,7 +20,7 @@ try:
     from pyspark.sql.types import (ArrayType, BinaryType, BooleanType, ByteType, DateType,
                                    DayTimeIntervalType, DecimalType, DoubleType, FloatType,
                                    IntegerType, LongType, ShortType, StringType, StructField,
-                                   StructType, TimestampNTZType, TimestampType)
+                                   StructType, TimestampNTZType, TimestampType, NullType)
 except ImportError as e:
     e.msg = get_import_exception_message(e.name, extra_deps='spark')  # pyright: ignore
     raise e
@@ -54,6 +54,25 @@ SPARK_TO_MDS = {
     ArrayType(DoubleType()): 'ndarray:float64',
 }
 
+def is_json_compatible(data_type: Any):
+    """Recursively check if a given PySpark DataType is JSON compatible.
+
+    JSON = Union[Dict[str, 'JSON'], List['JSON'], str, float, int, bool, None]
+
+    Args:
+        data_type (Any): A pyspark schema for a column of the input spark dataframe.
+
+    Returns:
+        (bool): True if data_type is JSON compatible.
+    """
+    if isinstance(data_type, StructType):
+        return all(is_json_compatible(field.dataType) for field in data_type.fields)
+    elif isinstance(data_type, ArrayType):
+        return is_json_compatible(data_type.elementType)
+    elif isinstance(data_type, (StringType, IntegerType, FloatType, BooleanType, NullType)):
+        return True
+    else:
+        return False
 
 def infer_dataframe_schema(dataframe: DataFrame,
                            user_defined_cols: Optional[Dict[str, Any]] = None) -> Optional[Dict]:
@@ -101,18 +120,21 @@ def infer_dataframe_schema(dataframe: DataFrame,
             if col_name not in dataframe.columns:
                 raise ValueError(
                     f'{col_name} is not a column of input dataframe: {dataframe.columns}')
+
             if user_dtype.startswith('ndarray'):
                 user_dtype = ':'.join(user_dtype.split(':')[:-1])
 
+            actual_spark_dtype = dataframe.schema[col_name].dataType
+
             if user_dtype not in mds_supported_dtypes:
                 if user_dtype == 'json':
-                    logger.warning('Skip schema checking when json encoding is specified.')
-                    continue
+                    if is_json_compatible(actual_spark_dtype):
+                        continue
+                    else:
+                        raise ValueError(f'{col_name} can not be encoded by MDS JSON.')
                 raise ValueError(f'{user_dtype} is not supported by dataframe_to_mds')
 
-            actual_spark_dtype = dataframe.schema[col_name].dataType
             mapped_mds_dtype = map_spark_dtype(actual_spark_dtype)
-
             if user_dtype != mapped_mds_dtype:
                 raise ValueError(
                     f'Mismatched types: column name `{col_name}` is `{mapped_mds_dtype}` in ' +
