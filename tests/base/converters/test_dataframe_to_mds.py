@@ -9,9 +9,9 @@ from typing import Any, Tuple
 import pytest
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
-from pyspark.sql.types import (ArrayType, BinaryType, ByteType, DecimalType, DoubleType, FloatType,
-                               IntegerType, LongType, ShortType, StringType, StructField,
-                               StructType, TimestampType, DateType, MapType, NullType, Row)
+from pyspark.sql.types import (ArrayType, BinaryType, ByteType, DateType, DecimalType, DoubleType,
+                               FloatType, IntegerType, LongType, MapType, ShortType, StringType,
+                               StructField, StructType, TimestampType)
 
 from streaming.base.converters import dataframe_to_mds, infer_dataframe_schema, is_json_compatible
 
@@ -22,17 +22,48 @@ os.environ[
 class TestDataFrameToMDS:
 
     @pytest.fixture
+    def decimal_dataframe(self):
+        spark = SparkSession.builder.getOrCreate()  # pyright: ignore
+
+        schema = StructType([
+            StructField('id', IntegerType(), nullable=False),
+            StructField('name', StringType(), nullable=False),
+            StructField('amount', DecimalType(10, 2), nullable=False)
+        ])
+
+        data = [(1, 'Alice', Decimal('123.45')), (2, 'Bob', Decimal('67.89')),
+                (3, 'Charlie', Decimal('987.65'))]
+        df = spark.createDataFrame(data, schema)
+
+        yield df
+
+    @pytest.fixture
     def complex_dataframe(self):
         spark = SparkSession.builder.getOrCreate()  # pyright: ignore
-        message_schema = ArrayType(StructType([
-            StructField("role", StringType(), nullable=True),
-            StructField("content", StringType(), nullable=True)
-        ]))
-        data = [[ { "role": "system", "content": "Hello, World!" }, { "role": "user", "content": "Hi, MPT!" }, { "role": "assistant", "content": "Hi, user!" } ],
-                 [ { "role": "user", "content": "Hi, MPT!" }, { "role": "assistant", "content": "Hi, user!" } ]]
+        message_schema = ArrayType(
+            StructType([
+                StructField('role', StringType(), nullable=True),
+                StructField('content', StringType(), nullable=True)
+            ]))
+        data = [[{
+            'role': 'system',
+            'content': 'Hello, World!'
+        }, {
+            'role': 'user',
+            'content': 'Hi, MPT!'
+        }, {
+            'role': 'assistant',
+            'content': 'Hi, user!'
+        }], [{
+            'role': 'user',
+            'content': 'Hi, MPT!'
+        }, {
+            'role': 'assistant',
+            'content': 'Hi, user!'
+        }]]
 
         df = spark.createDataFrame(data, schema=message_schema)
-        df = df.withColumnRenamed("value", "messages")
+        df = df.withColumnRenamed('value', 'messages')
         yield df
 
     @pytest.fixture
@@ -127,7 +158,7 @@ class TestDataFrameToMDS:
     def test_end_to_end_conversion_local_decimal(self, decimal_dataframe: Any, use_columns: bool,
                                                  local_remote_dir: Tuple[str, str]):
         out, _ = local_remote_dir
-        user_defined_columns = {'id': 'int', 'name': 'str', 'amount': 'str_decimal'}
+        user_defined_columns = {'id': 'int32', 'name': 'str', 'amount': 'str_decimal'}
         mds_kwargs = {'out': out, 'columns': user_defined_columns, 'keep_local': True}
 
         if use_columns:
@@ -224,15 +255,17 @@ class TestDataFrameToMDS:
         expected_mappings = {
             'byte_col': 'uint8',
             'short_col': 'uint16',
-            'int_col': 'int',
+            'int_col': 'int32',
             'long_col': 'int64',
             'float_col': 'float32',
             'double_col': 'float64',
             'decimal_col': 'str_decimal',
             'string_col': 'str',
             'binary_col': 'bytes',
-            'array_int_col': 'ndarray:int',
+            'array_int_col': 'ndarray:int32',
         }
+        print('inferred')
+        print(infer_dataframe_schema(test_df))
         assert infer_dataframe_schema(test_df) == expected_mappings
 
     def test_unsupported_type_raises_value_error(self):
@@ -347,7 +380,7 @@ class TestDataFrameToMDS:
             'out': out,
             'keep_local': keep_local,
             'columns': {
-                'id': 'ndarray:int:3',
+                'id': 'ndarray:int32:3',
                 'dept': 'ndarray:float64:3',
                 'properties': 'ndarray:float64:3'
             },
@@ -360,51 +393,56 @@ class TestDataFrameToMDS:
 
     def test_is_json_compatible(self):
 
-        message_schema = ArrayType(StructType([
-            StructField("role", StringType(), nullable=True),
-            StructField("content", StringType(), nullable=True)
-        ]))
-
+        message_schema = ArrayType(
+            StructType([
+                StructField('role', StringType(), nullable=True),
+                StructField('content', StringType(), nullable=True)
+            ]))
 
         prompt_response_schema = StructType([
-            StructField("prompt", StringType(), nullable=True),
-            StructField("response", StringType(), nullable=True)
+            StructField('prompt', StringType(), nullable=True),
+            StructField('response', StringType(), nullable=True)
         ])
 
         combined_schema = StructType([
-            StructField('prompt_response', StructType([
-                StructField('prompt', StringType(), True),
-                StructField('response', StringType(), True)]), True),
-            StructField('messages', ArrayType(StructType([
-                StructField('role', StringType(), True),
-                StructField('content', StringType(), True)]), True), True
-            )])
+            StructField(
+                'prompt_response',
+                StructType([
+                    StructField('prompt', StringType(), True),
+                    StructField('response', StringType(), True)
+                ]), True),
+            StructField(
+                'messages',
+                ArrayType(
+                    StructType([
+                        StructField('role', StringType(), True),
+                        StructField('content', StringType(), True)
+                    ]), True), True)
+        ])
 
         valid_schemas = [message_schema, prompt_response_schema, combined_schema]
 
-        schema_with_binary = StructType([
-            StructField("data", BinaryType(), nullable=True)
-        ])
+        schema_with_binary = StructType([StructField('data', BinaryType(), nullable=True)])
 
         # Schema with MapType having non-string keys
-        schema_with_non_string_map_keys = StructType([
-            StructField("map_field", MapType(IntegerType(), StringType()), nullable=True)
-        ])
+        schema_with_non_string_map_keys = StructType(
+            [StructField('map_field', MapType(IntegerType(), StringType()), nullable=True)])
 
         # Schema with DateType and TimestampType
         schema_with_date_and_timestamp = StructType([
-            StructField("birth_date", DateType(), nullable=True),
-            StructField("event_timestamp", TimestampType(), nullable=True)
+            StructField('birth_date', DateType(), nullable=True),
+            StructField('event_timestamp', TimestampType(), nullable=True)
         ])
 
-        invalid_schemas = [schema_with_binary, schema_with_non_string_map_keys, schema_with_date_and_timestamp]
+        invalid_schemas = [
+            schema_with_binary, schema_with_non_string_map_keys, schema_with_date_and_timestamp
+        ]
 
         for s in valid_schemas:
             assert is_json_compatible(s)
 
         for s in invalid_schemas:
             assert not is_json_compatible(s)
-
 
     def test_complex_schema(self,
                             complex_dataframe: Any,
@@ -420,23 +458,19 @@ class TestDataFrameToMDS:
             },
         }
 
-        data = [[ { "role": "system", "content": "Hello, World!" }, { "role": "user", "content": "Hi, MPT!" }, { "role": "assistant", "content": "Hi, user!" } ],
-                 [ { "role": "user", "content": "Hi, MPT!" }, { "role": "assistant", "content": "Hi, user!" } ]]
-
-        def udf_iterable(df):
+        def udf_iterable(df: Any):
             records = df.to_dict('records')
             for sample in records:
                 v = list(sample)
                 yield {'messages': v}
 
-        _ = dataframe_to_mds(complex_dataframe,
-                             merge_index=merge_index,
-                             mds_kwargs=mds_kwargs,
-                             udf_iterable = udf_iterable,
-                             udf_kwargs = None,
-                             )
-        print('schema = ')
-        print(complex_dataframe.schema)
+        _ = dataframe_to_mds(
+            complex_dataframe,
+            merge_index=merge_index,
+            mds_kwargs=mds_kwargs,
+            udf_iterable=udf_iterable,
+            udf_kwargs=None,
+        )
         if merge_index:
             if keep_local:
                 assert os.path.exists(os.path.join(out,
@@ -451,8 +485,3 @@ class TestDataFrameToMDS:
                         if shards:
                             nsamples += shards[0]['samples']
                 assert nsamples == sum([a['samples'] for a in mgi['shards']])
-
-
-
-
-

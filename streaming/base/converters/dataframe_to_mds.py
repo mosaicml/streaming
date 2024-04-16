@@ -19,8 +19,8 @@ try:
     from pyspark.sql.dataframe import DataFrame
     from pyspark.sql.types import (ArrayType, BinaryType, BooleanType, ByteType, DateType,
                                    DayTimeIntervalType, DecimalType, DoubleType, FloatType,
-                                   IntegerType, LongType, ShortType, StringType, StructField,
-                                   StructType, TimestampNTZType, TimestampType, NullType)
+                                   IntegerType, LongType, NullType, ShortType, StringType,
+                                   StructField, StructType, TimestampNTZType, TimestampType)
 except ImportError as e:
     e.msg = get_import_exception_message(e.name, extra_deps='spark')  # pyright: ignore
     raise e
@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 SPARK_TO_MDS = {
     ByteType(): 'uint8',
     ShortType(): 'uint16',
-    IntegerType(): 'int',
+    IntegerType(): 'int32',
     LongType(): 'int64',
     FloatType(): 'float32',
     DoubleType(): 'float64',
@@ -47,12 +47,13 @@ SPARK_TO_MDS = {
     TimestampNTZType(): None,
     DateType(): None,
     DayTimeIntervalType(): None,
-    ArrayType(IntegerType()): 'ndarray:int',
+    ArrayType(IntegerType()): 'ndarray:int32',
     ArrayType(ShortType()): 'ndarray:int16',
     ArrayType(LongType()): 'ndarray:int64',
     ArrayType(FloatType()): 'ndarray:float32',
     ArrayType(DoubleType()): 'ndarray:float64',
 }
+
 
 def is_json_compatible(data_type: Any):
     """Recursively check if a given PySpark DataType is JSON compatible.
@@ -73,6 +74,7 @@ def is_json_compatible(data_type: Any):
         return True
     else:
         return False
+
 
 def infer_dataframe_schema(dataframe: DataFrame,
                            user_defined_cols: Optional[Dict[str, Any]] = None) -> Optional[Dict]:
@@ -113,16 +115,17 @@ def infer_dataframe_schema(dataframe: DataFrame,
 
     # user has provided schema, we just check if mds supports the dtype
     if user_defined_cols is not None:
-        mds_supported_dtypes = {
-            mds_type for mds_type in SPARK_TO_MDS.values() if mds_type is not None
-        }
+        mds_supported_dtypes = set(filter(bool, SPARK_TO_MDS.values()))
+
         for col_name, user_dtype in user_defined_cols.items():
             if col_name not in dataframe.columns:
                 raise ValueError(
                     f'{col_name} is not a column of input dataframe: {dataframe.columns}')
 
-            if user_dtype.startswith('ndarray'):
-                user_dtype = ':'.join(user_dtype.split(':')[:-1])
+            if user_dtype.startswith('ndarray:'):
+                parts = user_dtype.split(':')
+                if len(parts) == 3:
+                    user_dtype = ':'.join(parts[:-1])
 
             actual_spark_dtype = dataframe.schema[col_name].dataType
 
