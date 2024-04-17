@@ -99,54 +99,84 @@ def generate_work_device_per_stream_batching(dataset: StreamingDataset, world: W
     batches_from_partitions = []
     ncn_per_node = dataset.num_canonical_nodes // world.num_nodes
     for node in range(world.num_nodes):
+        # We keep track of per-node, per-stream device batches, and the number of batches per-node, per-stream.
+        per_node_stream_partitions = []
+        per_node_batches_per_stream = []
         for stream_idx, partition in enumerate(partition_per_stream):
             # Reshape the partition to be device batches in order of traversal.
             # We only count only batches without -1 in them.
             stream_samples_inorder = partition[node*ncn_per_node : (node+1)*ncn_per_node].transpose(3, 2, 0, 1, 4).flatten()
-            # Pad samples to make sure they are divisible by the global batch size.
+            # Pad samples to make sure they are divisible by the device batch size.
             padding_samples = batch_size - (stream_samples_inorder.size % batch_size)
             stream_samples_inorder = np.concatenate(
                 (stream_samples_inorder, np.full(padding_samples, -1)))
             # Reshape samples to be device batches in order of traversal.
             stream_samples_inorder = stream_samples_inorder.reshape(-1, batch_size)
             num_full_batches = np.count_nonzero(np.min(stream_samples_inorder, axis=1) >= 0)
-            batches_per_stream.append(num_full_batches)
+            per_node_batches_per_stream.append(num_full_batches)
             if num_full_batches != stream_samples_inorder.shape[0]:
                 logger.warning(
                     f'Because of the `device_per_stream` batching method, some batches with an inadequate '
                     + f'number of samples from stream with index {stream_idx} will be dropped.')
             if num_full_batches > 0:
-                batches_from_partitions.append(stream_samples_inorder[:num_full_batches])
+                per_node_stream_partitions.append(stream_samples_inorder[:num_full_batches])
             else:
                 raise ValueError(
                     f'Stream with index {stream_idx} does not have an adequate number of ' +
                     f'samples to construct even a single device batch of size {batch_size}. ' +
                     f'Training will occur without any samples from this stream!')
+            
+        batches_per_stream.append(per_node_batches_per_stream)
+        batches_from_partitions.append(per_node_stream_partitions)
 
-    # Combine all device batches from all streams into one array.
-    all_partition_batches = np.concatenate(batches_from_partitions)
+    # Combine all device batches from all streams into one array, per node.
+    all_partition_batches = []
+    for node in range(world.num_nodes):
+        all_partition_batches.append(np.concatenate(batches_from_partitions[node]))
+    
+    # Find the maximum number of device batches per node, for padding purposes.
+    max_device_batches_per_node = max([node_batches.shape[0] for node_batches in all_partition_batches])
+    # If the maximum number of device batches per node is not divisible by the number of devices, increase
+    # it so that it is. This is to ensure that later, we can reshape the device batches to global batches.
+    num_devices = world.num_nodes * world.ranks_per_node
+    padding_max_device_batches = num_devices - (max_device_batches_per_node % num_devices)
+    max_device_batches_per_node += padding_max_device_batches
 
     # Shuffle seed changes with every epoch, so the order of streams in our batches also changes.
     epoch_rng = np.random.default_rng(dataset.shuffle_seed + epoch)
 
-    # stream_origins is an array that tells us which stream each batch is using.
-    stream_origins = np.concatenate(
-        [np.full(n_batch, i) for i, n_batch in enumerate(batches_per_stream)])
-    epoch_rng.shuffle(stream_origins)
+    # Shuffle the device batch origin order for each node.
+    for node in range(world.num_nodes):
+        # stream_origins is an array that tells us which stream each device batch is using.
+        stream_origins = np.concatenate(
+            [np.full(n_batch, i) for i, n_batch in enumerate(batches_per_stream[node])])
+        epoch_rng.shuffle(stream_origins)
 
-    # Now, we want the batch_indices array to correctly index into the all_partition_batches
-    # array according to stream_origins in order to get our final device batch order.
-    # For each stream, we want to traverse its device batches in the same order as given in its partition.
-    batch_indices = np.zeros(stream_origins.shape[0]).astype(np.int64)
-    batch_offset = 0
-    for i, n_device_batch in enumerate(batches_per_stream):
-        # Update batch_indices for the one stream at a time.
-        batch_indices[stream_origins == i] += batch_offset + np.arange(n_device_batch)
-        batch_offset += n_device_batch
+        # Now, we want the batch_indices array to correctly index into the node's device batches
+        # array according to stream_origins in order to get our final device batch order.
+        # For each stream, we want to traverse its device batches in the same order as its original partition.
+        batch_indices = np.zeros(stream_origins.shape[0]).astype(np.int64)
+        batch_offset = 0
+        for i, n_device_batch in enumerate(batches_per_stream[node]):
+            # Update batch_indices for the one stream at a time.
+            batch_indices[stream_origins == i] += batch_offset + np.arange(n_device_batch)
+            batch_offset += n_device_batch
 
-    # Rearrange all_partition_batches by the batch_indices we have obtained.
-    # This is a (num_device_batches, device_batch_size) array.
-    all_partition_batches = all_partition_batches[batch_indices]
+        # Rearrange the node's device batches array by the batch_indices we have obtained.
+        # This is a (num_device_batches, device_batch_size) array.
+        all_partition_batches[node] = all_partition_batches[node][batch_indices]
+
+        # If needed, pad the node's device batches array to have the same number of device batches
+        # as the maximum number of device batches across all nodes.
+        padding_batches = max_device_batches_per_node - all_partition_batches[node].shape[0]
+        all_partition_batches[node] = np.concatenate((all_partition_batches[node],
+                                                      np.full((padding_batches, batch_size), -1)))
+        
+    # Concatenate all the per-node device batches into one large sample partition across all nodes.
+    # This sample partition is all device batches that are seen in the same order as in training.
+    # So for example, we go from node 0: [a1, a2, a3], node 1: [b1, b2, b3], node 2: [c1, c2, c3]
+    # to [a1, b1, c1, a2, b2, c2, a3, b3, c3], where each entry is a device batch.
+    all_partition_batches = np.stack(all_partition_batches, axis=1).reshape(-1, batch_size)
 
     # If applicable we resume right after the most recently used full global batch.
     global_batch_size = batch_size * world.num_nodes * world.ranks_per_node
@@ -157,10 +187,11 @@ def generate_work_device_per_stream_batching(dataset: StreamingDataset, world: W
             '. Resuming training after the most recently finished global batch.')
 
     # Pad and reshape all_partition_batches to the global batch size instead of device batch size.
-    padding_batches = (global_batch_size // batch_size) - (all_partition_batches.shape[0] %
-                                                        (global_batch_size // batch_size))
-    all_partition_batches = np.concatenate(
-        (all_partition_batches, np.full((padding_batches, batch_size), -1)))
+    # padding_batches = (global_batch_size // batch_size) - (all_partition_batches.shape[0] %
+    #                                                     (global_batch_size // batch_size))
+    # all_partition_batches = np.concatenate(
+    #     (all_partition_batches, np.full((padding_batches, batch_size), -1)))
+    # Padding to global_batch_size *should* be taken care of by the padding we did earlier, for node device batches.
     all_partition_batches = all_partition_batches.reshape(-1, global_batch_size)
 
     # Discard previous batches that may have already finished
