@@ -157,7 +157,7 @@ def generate_work_device_per_stream_batching(dataset: StreamingDataset, world: W
             '. Resuming training after the most recently finished global batch.')
 
     # Pad and reshape all_partition_batches to the global batch size instead of device batch size.
-    padding_batches = all_partition_batches.shape[0] - (all_partition_batches.shape[0] %
+    padding_batches = (global_batch_size // batch_size) - (all_partition_batches.shape[0] %
                                                         (global_batch_size // batch_size))
     all_partition_batches = np.concatenate(
         (all_partition_batches, np.full((padding_batches, batch_size), -1)))
