@@ -41,6 +41,12 @@ def generate_work_device_per_stream_batching(dataset: StreamingDataset, world: W
     if dataset.num_canonical_nodes is None:
         raise RuntimeError(f'`num_canonical_nodes` can never be None. ' +
                            f'Provide a positive integer.')
+    
+    if dataset.num_canonical_nodes % world.num_nodes != 0:
+        raise ValueError(
+            f'For `device_per_stream` batching, num_canonical_nodes must be divisible by physical nodes. ' +
+            f'Got {dataset.num_canonical_nodes} canonical nodes and {world.num_nodes} physical nodes.'
+        )
 
     # First, for each stream, sample each shard of the stream according to
     # stream proportions/repeats/samples. We obtain the resampled size of each shard
@@ -55,13 +61,14 @@ def generate_work_device_per_stream_batching(dataset: StreamingDataset, world: W
     for stream_id, stream in enumerate(dataset.streams):
         shuffle_units, small_per_big = dataset.resample_streams(epoch, stream_id)
         samples_in_stream = len(small_per_big)
-        # The partition for each stream is constructed with batch size 1 and 1 physical node
-        # in order to make sure that the sample order from each batch stays the same
+        # The partition for each stream is constructed with batch size 1 and physical nodes
+        # equal to canonical nodes in order to make sure that the sample order from each batch
+        # stays the same even when the number of physical nodes & batch size change.
         # We later reshape these partitions to the correct batch size per stream.
         # We also handle used samples (drop_first) at the end.
         stream_partition = get_partitions(dataset.partition_algo, samples_in_stream,
-                                          dataset.num_canonical_nodes, 1, world.ranks_per_node,
-                                          world.workers_per_rank, 1, 0,
+                                          dataset.num_canonical_nodes, dataset.num_canonical_nodes,
+                                          world.ranks_per_node, world.workers_per_rank, 1, 0,
                                           dataset.initial_physical_nodes)
         if dataset.shuffle:
             # Ratio of stream's shuffle block size to overall shuffle block size should be the
@@ -83,34 +90,38 @@ def generate_work_device_per_stream_batching(dataset: StreamingDataset, world: W
         partition_per_stream.append(
             np.where(stream_partition != -1, small_per_big[stream_partition], -1))
 
-    # We now merge the partitions from each stream to get our final partition over all
-    # streams, where each global batch has samples only from a single stream.
-    # Partitions are (physical nodes, ranks, workers, batches per worker, batch size).
+    # We now merge the partitions from each stream to get a partition over all streams 
+    # but for each physical node, where each device batch has samples only from a single stream.
+    # Original partitions are (physical nodes, ranks, workers, batches per worker, batch size).
+    # Since we have partitioned each stream with physical nodes equal to canonical nodes,
+    # we index into the partition to get each stream's portion of samples for each physical node.
     batches_per_stream = []
     batches_from_partitions = []
-    for stream_idx, partition in enumerate(partition_per_stream):
-        # Reshape the partition to be device batches in order of traversal.
-        # We only count only batches without -1 in them.
-        stream_samples_inorder = partition.transpose(3, 2, 0, 1, 4).flatten()
-        # Pad samples to make sure they are divisible by the global batch size.
-        padding_samples = batch_size - (stream_samples_inorder.size % batch_size)
-        stream_samples_inorder = np.concatenate(
-            (stream_samples_inorder, np.full(padding_samples, -1)))
-        # Reshape samples to be device batches in order of traversal.
-        stream_samples_inorder = stream_samples_inorder.reshape(-1, batch_size)
-        num_full_batches = np.count_nonzero(np.min(stream_samples_inorder, axis=1) >= 0)
-        batches_per_stream.append(num_full_batches)
-        if num_full_batches != stream_samples_inorder.shape[0]:
-            logger.warning(
-                f'Because of the `device_per_stream` batching method, some batches with an inadequate '
-                + f'number of samples from stream with index {stream_idx} will be dropped.')
-        if num_full_batches > 0:
-            batches_from_partitions.append(stream_samples_inorder[:num_full_batches])
-        else:
-            raise ValueError(
-                f'Stream with index {stream_idx} does not have an adequate number of ' +
-                f'samples to construct even a single device batch of size {batch_size}. ' +
-                f'Training will occur without any samples from this stream!')
+    ncn_per_node = dataset.num_canonical_nodes // world.num_nodes
+    for node in range(world.num_nodes):
+        for stream_idx, partition in enumerate(partition_per_stream):
+            # Reshape the partition to be device batches in order of traversal.
+            # We only count only batches without -1 in them.
+            stream_samples_inorder = partition[node*ncn_per_node : (node+1)*ncn_per_node].transpose(3, 2, 0, 1, 4).flatten()
+            # Pad samples to make sure they are divisible by the global batch size.
+            padding_samples = batch_size - (stream_samples_inorder.size % batch_size)
+            stream_samples_inorder = np.concatenate(
+                (stream_samples_inorder, np.full(padding_samples, -1)))
+            # Reshape samples to be device batches in order of traversal.
+            stream_samples_inorder = stream_samples_inorder.reshape(-1, batch_size)
+            num_full_batches = np.count_nonzero(np.min(stream_samples_inorder, axis=1) >= 0)
+            batches_per_stream.append(num_full_batches)
+            if num_full_batches != stream_samples_inorder.shape[0]:
+                logger.warning(
+                    f'Because of the `device_per_stream` batching method, some batches with an inadequate '
+                    + f'number of samples from stream with index {stream_idx} will be dropped.')
+            if num_full_batches > 0:
+                batches_from_partitions.append(stream_samples_inorder[:num_full_batches])
+            else:
+                raise ValueError(
+                    f'Stream with index {stream_idx} does not have an adequate number of ' +
+                    f'samples to construct even a single device batch of size {batch_size}. ' +
+                    f'Training will occur without any samples from this stream!')
 
     # Combine all device batches from all streams into one array.
     all_partition_batches = np.concatenate(batches_from_partitions)
