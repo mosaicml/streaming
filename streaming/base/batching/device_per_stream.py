@@ -41,10 +41,11 @@ def generate_work_device_per_stream_batching(dataset: StreamingDataset, world: W
     if dataset.num_canonical_nodes is None:
         raise RuntimeError(f'`num_canonical_nodes` can never be None. ' +
                            f'Provide a positive integer.')
-    
+
     if dataset.num_canonical_nodes % world.num_nodes != 0:
         raise ValueError(
-            f'For `device_per_stream` batching, num_canonical_nodes must be divisible by physical nodes. ' +
+            f'For `device_per_stream` batching, num_canonical_nodes must be divisible by physical nodes. '
+            +
             f'Got {dataset.num_canonical_nodes} canonical nodes and {world.num_nodes} physical nodes.'
         )
 
@@ -90,7 +91,7 @@ def generate_work_device_per_stream_batching(dataset: StreamingDataset, world: W
         partition_per_stream.append(
             np.where(stream_partition != -1, small_per_big[stream_partition], -1))
 
-    # We now merge the partitions from each stream to get a partition over all streams 
+    # We now merge the partitions from each stream to get a partition over all streams
     # but for each physical node, where each device batch has samples only from a single stream.
     # Original partitions are (physical nodes, ranks, workers, batches per worker, batch size).
     # Since we have partitioned each stream with physical nodes equal to canonical nodes,
@@ -105,7 +106,8 @@ def generate_work_device_per_stream_batching(dataset: StreamingDataset, world: W
         for stream_idx, partition in enumerate(partition_per_stream):
             # Reshape the partition to be device batches in order of traversal.
             # We only count only batches without -1 in them.
-            stream_samples_inorder = partition[node*ncn_per_node : (node+1)*ncn_per_node].transpose(3, 2, 0, 1, 4).flatten()
+            stream_samples_inorder = partition[node * ncn_per_node:(node + 1) *
+                                               ncn_per_node].transpose(3, 2, 0, 1, 4).flatten()
             # Pad samples to make sure they are divisible by the device batch size.
             padding_samples = batch_size - (stream_samples_inorder.size % batch_size)
             stream_samples_inorder = np.concatenate(
@@ -125,7 +127,7 @@ def generate_work_device_per_stream_batching(dataset: StreamingDataset, world: W
                     f'Stream with index {stream_idx} does not have an adequate number of ' +
                     f'samples to construct even a single device batch of size {batch_size}. ' +
                     f'Training will occur without any samples from this stream!')
-            
+
         batches_per_stream.append(per_node_batches_per_stream)
         batches_from_partitions.append(per_node_stream_partitions)
 
@@ -133,9 +135,10 @@ def generate_work_device_per_stream_batching(dataset: StreamingDataset, world: W
     all_partition_batches = []
     for node in range(world.num_nodes):
         all_partition_batches.append(np.concatenate(batches_from_partitions[node]))
-    
+
     # Find the maximum number of device batches per node, for padding purposes.
-    max_device_batches_per_node = max([node_batches.shape[0] for node_batches in all_partition_batches])
+    max_device_batches_per_node = max(
+        [node_batches.shape[0] for node_batches in all_partition_batches])
     # If the maximum number of device batches per node is not divisible by the number of devices, increase
     # it so that it is. This is to ensure that later, we can reshape the device batches to global batches.
     num_devices = world.num_nodes * world.ranks_per_node
@@ -169,9 +172,9 @@ def generate_work_device_per_stream_batching(dataset: StreamingDataset, world: W
         # If needed, pad the node's device batches array to have the same number of device batches
         # as the maximum number of device batches across all nodes.
         padding_batches = max_device_batches_per_node - all_partition_batches[node].shape[0]
-        all_partition_batches[node] = np.concatenate((all_partition_batches[node],
-                                                      np.full((padding_batches, batch_size), -1)))
-        
+        all_partition_batches[node] = np.concatenate(
+            (all_partition_batches[node], np.full((padding_batches, batch_size), -1)))
+
     # Concatenate all the per-node device batches into one large sample partition across all nodes.
     # This sample partition is all device batches that are seen in the same order as in training.
     # So for example, we go from node 0: [a1, a2, a3], node 1: [b1, b2, b3], node 2: [c1, c2, c3]
