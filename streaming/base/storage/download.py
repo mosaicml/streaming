@@ -9,6 +9,7 @@ import shutil
 import urllib.parse
 from time import sleep, time
 from typing import Any, Dict, Optional
+import logging
 
 from streaming.base.util import get_import_exception_message
 
@@ -251,6 +252,8 @@ def download_from_oci(remote: str, local: str) -> None:
         local (str): Local path (local filesystem).
     """
     import oci
+    # Enable debug logging
+    logging.getLogger('oci').setLevel(logging.DEBUG)
     config = oci.config.from_file()
     client = oci.object_storage.ObjectStorageClient(
         config=config, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)

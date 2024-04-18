@@ -507,6 +507,8 @@ class OCIUploader(CloudUploader):
         super().__init__(out, keep_local, progress_bar, retry, exist_ok)
 
         import oci
+        # Enable debug logging
+        logging.getLogger('oci').setLevel(logging.DEBUG)
 
         config = oci.config.from_file()
         self.client = oci.object_storage.ObjectStorageClient(

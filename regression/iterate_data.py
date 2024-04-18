@@ -79,6 +79,9 @@ def get_file_count(remote: str) -> Union[int, None]:
     elif cloud == 'oci':
         import oci
 
+        # Enable debug logging
+        logging.getLogger('oci').setLevel(logging.DEBUG)
+
         config = oci.config.from_file()
         oci_client = oci.object_storage.ObjectStorageClient(
             config=config, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
