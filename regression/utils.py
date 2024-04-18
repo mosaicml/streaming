@@ -201,7 +201,7 @@ def delete_oci(remote_dir: str) -> None:
     import oci
 
     # Enable debug logging
-    logging.getLogger('oci').setLevel(logging.DEBUG)
+    # logging.getLogger('oci').setLevel(logging.DEBUG)
 
     obj = urllib.parse.urlparse(remote_dir)
 

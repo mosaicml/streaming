@@ -3,13 +3,13 @@
 
 """Shard downloading from various storage providers."""
 
+# import logging
 import os
 import pathlib
 import shutil
 import urllib.parse
 from time import sleep, time
 from typing import Any, Dict, Optional
-import logging
 
 from streaming.base.util import get_import_exception_message
 
@@ -252,26 +252,36 @@ def download_from_oci(remote: str, local: str) -> None:
         local (str): Local path (local filesystem).
     """
     import oci
+    import requests
+
     # Enable debug logging
-    logging.getLogger('oci').setLevel(logging.DEBUG)
+    # logging.getLogger('oci').setLevel(logging.DEBUG)
+
     config = oci.config.from_file()
-    client = oci.object_storage.ObjectStorageClient(
-        config=config, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
-    namespace = client.get_namespace().data
+    signer = oci.signer.Signer(
+        tenancy=config['tenancy'],
+        user=config['user'],
+        fingerprint=config['fingerprint'],
+        private_key_file_location=config['key_file'],
+        pass_phrase=oci.config.get_config_value_or_default(config, 'pass_phrase'),
+    )
+    client = oci.object_storage.ObjectStorageClient(config=config)
     obj = urllib.parse.urlparse(remote)
     if obj.scheme != 'oci':
         raise ValueError(
             f'Expected obj.scheme to be `oci`, instead, got {obj.scheme} for remote={remote}')
 
+    namespace = client.get_namespace().data
     bucket_name = obj.netloc.split('@' + namespace)[0]
-    # Remove leading and trailing forward slash from string
     object_path = obj.path.strip('/')
-    object_details = client.get_object(namespace, bucket_name, object_path)
-    local_tmp = local + '.tmp'
-    with open(local_tmp, 'wb') as f:
-        for chunk in object_details.data.raw.stream(2048**2, decode_content=False):
-            f.write(chunk)
-    os.rename(local_tmp, local)
+    region = config['region']
+
+    object_storage_url = f'https://objectstorage.{region}.oraclecloud.com/n/{namespace}/b/{bucket_name}/o/{object_path}'
+    with requests.get(object_storage_url, auth=signer) as response:
+        local_tmp = local + '.tmp'
+        with open(local_tmp, 'wb') as f:
+            f.write(response.content)
+        os.rename(local_tmp, local)
 
 
 def download_from_azure(remote: str, local: str) -> None:

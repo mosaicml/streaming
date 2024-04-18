@@ -80,7 +80,7 @@ def get_file_count(remote: str) -> Union[int, None]:
         import oci
 
         # Enable debug logging
-        logging.getLogger('oci').setLevel(logging.DEBUG)
+        # logging.getLogger('oci').setLevel(logging.DEBUG)
 
         config = oci.config.from_file()
         oci_client = oci.object_storage.ObjectStorageClient(
