@@ -264,8 +264,6 @@ class TestDataFrameToMDS:
             'binary_col': 'bytes',
             'array_int_col': 'ndarray:int32',
         }
-        print('inferred')
-        print(infer_dataframe_schema(test_df))
         assert infer_dataframe_schema(test_df) == expected_mappings
 
     def test_unsupported_type_raises_value_error(self):
