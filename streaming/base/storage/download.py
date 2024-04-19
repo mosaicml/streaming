@@ -253,6 +253,7 @@ def download_from_oci(remote: str, local: str) -> None:
     """
     import oci
     import requests
+    import shutil
 
     # Enable debug logging
     # logging.getLogger('oci').setLevel(logging.DEBUG)
@@ -277,11 +278,12 @@ def download_from_oci(remote: str, local: str) -> None:
     region = config['region']
 
     object_storage_url = f'https://objectstorage.{region}.oraclecloud.com/n/{namespace}/b/{bucket_name}/o/{object_path}'
-    with requests.get(object_storage_url, auth=signer) as response:
-        local_tmp = local + '.tmp'
+    local_tmp = local + '.tmp'
+    with requests.get(object_storage_url, auth=signer, stream=True) as response:
         with open(local_tmp, 'wb') as f:
-            f.write(response.content)
-        os.rename(local_tmp, local)
+            shutil.copyfileobj(response.raw, f)
+
+    os.rename(local_tmp, local)
 
 
 def download_from_azure(remote: str, local: str) -> None:
