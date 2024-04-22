@@ -260,8 +260,9 @@ def download_from_oci(remote: str, local: str) -> None:
 
     try:
         config = oci.config.from_file()
+        no_retry = oci.retry.NoneRetryStrategy()
         client = oci.object_storage.ObjectStorageClient(
-            config=config, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
+            config=config, retry_strategy=no_retry)
         namespace = client.get_namespace().data
         obj = urllib.parse.urlparse(remote)
         if obj.scheme != 'oci':
