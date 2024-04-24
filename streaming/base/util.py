@@ -469,8 +469,8 @@ def retry(exc_class: TCallable) -> TCallable:
 def retry(  # type: ignore
     exc_class: Union[TCallable, Type[Exception], Sequence[Type[Exception]]] = Exception,
     num_attempts: int = 3,
-    initial_backoff: float = 100.0,
-    max_jitter: float = 50.0,
+    initial_backoff: float = 1.0,
+    max_jitter: float = 0.5,
 ):
     """Decorator to retry a function with backoff and jitter.
 
