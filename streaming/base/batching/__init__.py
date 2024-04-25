@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray
 
+from streaming.base.batching.device_per_stream import generate_work_device_per_stream_batching
 from streaming.base.batching.per_stream import generate_work_per_stream_batching
 from streaming.base.batching.random import generate_work_random_batching
 from streaming.base.batching.stratified import generate_work_stratified_batching
@@ -21,6 +22,7 @@ batching_methods = {
     'random': generate_work_random_batching,
     'stratified': generate_work_stratified_batching,
     'per_stream': generate_work_per_stream_batching,
+    'device_per_stream': generate_work_device_per_stream_batching,
 }
 
 
