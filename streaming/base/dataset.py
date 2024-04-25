@@ -297,8 +297,8 @@ class StreamingDataset(Array, IterableDataset):
             into blocks of this size, and samples within each block are shuffled. If ``None``, its
             value is calculated as ``max(4_000_000 // num_canonical_nodes), 1 << 18)``. Defaults to
             ``None``.
-        batching_method (str): Which batching method to use, either ``random``, ``stratified``, or
-            ``per_stream``. Defaults to ``random``.
+        batching_method (str): Which batching method to use, either ``random``, ``stratified``,
+            ``per_stream``, or ``device_per_stream``. Defaults to ``random``.
         allow_unsafe_types (bool): If a shard contains Pickle, which allows arbitrary code
             execution during deserialization, whether to keep going if ``True`` or raise an error
             if ``False``. Defaults to ``False``.
@@ -388,11 +388,11 @@ class StreamingDataset(Array, IterableDataset):
             raise ValueError(f'`sampling_granularity` must be a positive integer, but got: ' +
                              f'{self.sampling_granularity}.')
 
-        # Check batching method is one of "random", "stratified", or "per_stream".
-        if self.batching_method not in ['random', 'stratified', 'per_stream']:
+        # Check batching method is one of "random", "stratified", "per_stream", or "device_per_stream".
+        if self.batching_method not in ['random', 'stratified', 'per_stream', 'device_per_stream']:
             raise ValueError(
                 f'Invalid batching method: {batching_method}. ' + \
-                f'Must be one of `random`, `stratified`, or `per_stream.'
+                f'Must be one of `random`, `stratified`, `per_stream`, or `device_per_stream`.'
             )
 
         # issue deprecation warning for py1b shuffle algorithm.

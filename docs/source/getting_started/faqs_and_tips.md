@@ -41,8 +41,8 @@ If this still does not address the issue, refer to the [performance tuning page]
 ### I'm not seeing deterministic resumption on my training runs. How can I enable this?
 To enable elastic determinism and resumption, you should be using the {class}`streaming.StreamingDataLoader` instead of the generic PyTorch DataLoader. You should also make sure you're passing in `batch_size` to StreamingDataset in addition to your DataLoader. Certain launchers, such as [Composer](https://github.com/mosaicml/composer), support deterministic resumption with StreamingDataset automatically. See the [resumption](../distributed_training/fast_resumption.md) page for more information.
 
-### Is it possible for each global batch to consist only of samples from one Stream?
-Yes -- use the `per_stream` batching method as detailed in the [batching methods](../dataset_configuration/mixing_data_sources.md#batching-methods) section.
+### Is it possible for each global or device batch to consist only of samples from one Stream?
+Yes. For global batches drawn from a single stream, use the `per_stream` batching method, and for device batches drawn from a single stream, use the `device_per_stream` batching method. More details are in the [batching methods](../dataset_configuration/mixing_data_sources.md#batching-methods) section.
 
 ### I'm seeing a shared memory error. How can I fix this?
 Streaming uses shared memory to communicate between workers. These errors are indicative of stale shared memory, likely from a previous training run. To fix this, call `python` in your terminal and run the commands below:
