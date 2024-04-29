@@ -12,7 +12,9 @@ import pytest
 from torch.utils.data import DataLoader
 
 from streaming.base import Stream, StreamingDataLoader, StreamingDataset
+from streaming.base.batching import generate_work
 from streaming.base.util import clean_stale_shared_memory
+from streaming.base.world import World
 from tests.common.utils import convert_to_mds
 
 
@@ -173,6 +175,82 @@ def test_dataloader_per_stream_batching(local_remote_dir: Tuple[str, str], batch
 
     # Make sure that we see the expected number of batches, accounting for sample drops
     assert batches_seen == total_batches
+
+
+@pytest.mark.parametrize('batch_size', [4, 7])
+@pytest.mark.parametrize('seed', [2222])
+@pytest.mark.parametrize('shuffle', [True])
+@pytest.mark.parametrize('physical_nodes', [2, 8])
+@pytest.mark.parametrize('ranks_per_node', [4, 8])
+@pytest.mark.parametrize('workers_per_rank', [4, 8])
+@pytest.mark.parametrize('num_canonical_nodes', [8])
+@pytest.mark.usefixtures('local_remote_dir')
+def test_dataloader_device_per_stream_batching(local_remote_dir: Tuple[str, str], batch_size: int,
+                                               seed: int, shuffle: bool, physical_nodes: int,
+                                               ranks_per_node: int, workers_per_rank: int,
+                                               num_canonical_nodes: int):
+    # create mock datasets for 2 streams. Second one has 1.5x the samples
+    local, remote = local_remote_dir
+    local1 = os.path.join(local, 'stream1')
+    local2 = os.path.join(local, 'stream2')
+    remote1 = os.path.join(remote, 'stream1')
+    remote2 = os.path.join(remote, 'stream2')
+
+    # stream 1 has samples 0->600, sample ids 0->200
+    convert_to_mds(out_root=remote1,
+                   dataset_name='sequencedataset',
+                   num_samples=200,
+                   size_limit=1 << 8)
+    # stream 2 has samples 600 and above, sample ids 200 and above.
+    # This lets us differentiate between the samples from each stream
+    convert_to_mds(out_root=remote2,
+                   dataset_name='sequencedataset',
+                   num_samples=300,
+                   offset=600,
+                   size_limit=1 << 8)
+
+    stream1 = Stream(local=local1, remote=remote1)
+    stream2 = Stream(local=local2, remote=remote2)
+
+    # Build StreamingDataset
+    dataset = StreamingDataset(streams=[stream1, stream2],
+                               shuffle=shuffle,
+                               batch_size=batch_size,
+                               shuffle_seed=seed,
+                               num_canonical_nodes=num_canonical_nodes,
+                               batching_method='per_stream',
+                               shuffle_block_size=100)
+
+    # Get sample partition
+    fake_world = World(
+        num_nodes=physical_nodes,
+        ranks_per_node=ranks_per_node,
+        workers_per_rank=workers_per_rank,
+        worker=0,
+    )
+    sample_partition = generate_work(batching_method='device_per_stream',
+                                     dataset=dataset,
+                                     world=fake_world,
+                                     epoch=0,
+                                     sample_in_epoch=0)
+
+    # Partition shape should be:
+    # (physical nodes, ranks per node, workers per rank, batches per worker, batch size)
+    assert sample_partition.shape[0] == physical_nodes
+    assert sample_partition.shape[1] == ranks_per_node
+    assert sample_partition.shape[2] == workers_per_rank
+    assert sample_partition.shape[4] == batch_size
+
+    # Transpose and reshape sample partition to get device batches, in training traversal order.
+    sample_partition = sample_partition.transpose(3, 2, 0, 1, 4).flatten().reshape(-1, batch_size)
+
+    for device_batch in sample_partition:
+        if device_batch[0] < 200:
+            # Ensure all samples are from stream 1
+            assert (device_batch < 200).all()
+        else:
+            # Ensure all samples are from stream 2
+            assert (device_batch >= 200).all()
 
 
 @pytest.mark.parametrize('batch_size', [4, 7])
