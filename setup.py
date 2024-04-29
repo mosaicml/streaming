@@ -116,7 +116,7 @@ extra_deps['spark'] = [
 ]
 
 extra_deps['databricks'] = [
-    'databricks-sdk==0.23.0',
+    'databricks-sdk==0.26.0',
 ]
 
 extra_deps['testing'] = [
