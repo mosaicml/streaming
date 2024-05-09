@@ -864,7 +864,7 @@ class DatabricksUnityCatalogUploader(DatabricksUploader):
             timeout (int): Seconds for each try to upload.
         """
 
-        def wait_for_file(remote_filename, file_size):
+        def wait_for_file(remote_filename: str, file_size: int):
             """Wait for a file to be fully available."""
             start_time = time.time()
             while time.time() - start_time < timeout:

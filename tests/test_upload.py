@@ -459,7 +459,7 @@ class TestDatabricksUnityCatalogUploader:
     @patch('streaming.base.storage.upload.DatabricksUploader._create_workspace_client')
     #@patch('os.stat')
     @patch('time.sleep', return_value=None)
-    def test_upload_file_timeout(self, mock_sleep, mock_create_client,
+    def test_upload_file_timeout(self, mock_sleep: Any, mock_create_client: Any,
                                  local_remote_dir: Tuple[str, str]):
         local, remote = local_remote_dir
         print('local = ', local)
