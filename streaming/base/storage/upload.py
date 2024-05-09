@@ -8,13 +8,13 @@ import os
 import pathlib
 import shutil
 import sys
+import time
 import urllib.parse
 from enum import Enum
 from tempfile import mkdtemp
 from typing import Any, List, Optional, Tuple, Union
 
 import tqdm
-import time
 
 from streaming.base.storage.download import (BOTOCORE_CLIENT_ERROR_CODES,
                                              GCS_ERROR_NO_AUTHENTICATION)
@@ -872,7 +872,7 @@ class DatabricksUnityCatalogUploader(DatabricksUploader):
                     file_info = self.client.files.get_status(remote_filename)
                     if abs(file_info.file_size - file_size) < 10:
                         return True
-                except Exception as e:
+                except Exception as _:
                     continue
                 time.sleep(1)
             return False
@@ -888,7 +888,8 @@ class DatabricksUnityCatalogUploader(DatabricksUploader):
             with open(local_filename, 'rb') as f:
                 self.client.files.upload(remote_filename_wo_prefix, f)
                 if not wait_for_file(remote_filename_wo_prefix, file_size):
-                    raise TimeoutError(f"Time out in waiting for existance of {remote_filename_wo_prefix}")
+                    raise TimeoutError(
+                        f'Time out in waiting for existance of {remote_filename_wo_prefix}')
 
         _upload_file()
 
