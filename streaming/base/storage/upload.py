@@ -14,6 +14,7 @@ from tempfile import mkdtemp
 from typing import Any, List, Optional, Tuple, Union
 
 import tqdm
+import time
 
 from streaming.base.storage.download import (BOTOCORE_CLIENT_ERROR_CODES,
                                              GCS_ERROR_NO_AUTHENTICATION)
@@ -855,12 +856,26 @@ class DatabricksUnityCatalogUploader(DatabricksUploader):
                  exist_ok: bool = False) -> None:
         super().__init__(out, keep_local, progress_bar, retry, exist_ok)
 
-    def upload_file(self, filename: str):
+    def upload_file(self, filename: str, timeout: int = 10):
         """Upload file from local instance to Databricks Unity Catalog.
 
         Args:
             filename (str): Relative filepath to copy.
+            timeout (int): Seconds for each try to upload.
         """
+
+        def wait_for_file(remote_filename, file_size):
+            """Wait for a file to be fully available."""
+            start_time = time.time()
+            while time.time() - start_time < timeout:
+                try:
+                    file_info = self.client.files.get_status(remote_filename)
+                    if abs(file_info.file_size - file_size) < 10:
+                        return True
+                except Exception as e:
+                    continue
+                time.sleep(1)
+            return False
 
         @retry(num_attempts=self.retry)
         def _upload_file():
@@ -869,8 +884,11 @@ class DatabricksUnityCatalogUploader(DatabricksUploader):
             remote_filename = os.path.join(self.remote, filename)  # pyright: ignore
             remote_filename = remote_filename.replace('\\', '/')
             remote_filename_wo_prefix = urllib.parse.urlparse(remote_filename).path
+            file_size = os.stat(local_filename).st_size
             with open(local_filename, 'rb') as f:
                 self.client.files.upload(remote_filename_wo_prefix, f)
+                if not wait_for_file(remote_filename_wo_prefix, file_size):
+                    raise TimeoutError(f"Time out in waiting for existance of {remote_filename_wo_prefix}")
 
         _upload_file()
 

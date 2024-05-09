@@ -6,7 +6,7 @@ import shutil
 import tempfile
 from typing import Any, List, Tuple
 from unittest import mock
-from unittest.mock import ANY, MagicMock, Mock, patch
+from unittest.mock import ANY, MagicMock, Mock, patch, mock_open
 
 import boto3
 import pytest
@@ -455,6 +455,35 @@ class TestDatabricksUnityCatalogUploader:
             with open(local_file_path, 'w') as _:
                 pass
             _ = DatabricksUnityCatalogUploader(out=local)
+
+    @patch('streaming.base.storage.upload.DatabricksUploader._create_workspace_client')
+    #@patch('os.stat')
+    @patch('time.sleep', return_value=None)
+    def test_upload_file_timeout(self, mock_sleep, mock_create_client, local_remote_dir: Tuple[str, str]):
+        local, remote = local_remote_dir
+        print('local = ', local)
+        print('remote = ', remote)
+        mock_create_client.side_effect = None
+        local, remote = local_remote_dir
+        #os.makedirs(local, exist_ok=True)
+        mock_stat = MagicMock()
+        mock_stat.return_value = MagicMock(st_size=123)
+        mock_upload = MagicMock()
+        mock_get_status = MagicMock(side_effect=TimeoutError("Timeout"))
+        uploader = DatabricksUnityCatalogUploader(out=(local,remote))
+
+        with patch.object(uploader.client.files, 'upload', mock_upload), \
+             patch.object(uploader.client.files, 'get_status', mock_get_status), \
+             patch.object(os, 'stat', mock_stat):
+
+            local_file_path = os.path.join(local, 'file.txt')
+            with open(local_file_path, 'w') as _:
+                pass
+
+            with pytest.raises(TimeoutError):
+                uploader.upload_file("file.txt", timeout=1)
+
+            assert mock_get_status.call_count, uploader.retry
 
 
 class TestDBFSUploader:
