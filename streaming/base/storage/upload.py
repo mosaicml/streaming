@@ -867,11 +867,13 @@ class DatabricksUnityCatalogUploader(DatabricksUploader):
         def wait_for_file(remote_filename: str, file_size: int):
             """Wait for a file to be fully available."""
             start_time = time.time()
-            metadata = self.client.files.get_metadata(remote_filename)
             while time.time() - start_time < timeout:
                 try:
-                    file_info = self.client.files.get_status(remote_filename)
-                    if file_info.file_size == metadata.content_length:
+                    metadata = self.client.files.get_metadata(remote_filename)
+                    #actual_filesize = metadata.content_length
+                    #file_info = self.client.files.get_status(remote_filename)
+                    print(f'{file_size}, {metadata.content_length}')
+                    if file_size ==  metadata.content_length:
                         return True
                 except Exception as _:
                     continue
@@ -887,11 +889,11 @@ class DatabricksUnityCatalogUploader(DatabricksUploader):
             remote_filename_wo_prefix = urllib.parse.urlparse(remote_filename).path
             file_size = os.stat(local_filename).st_size
             with open(local_filename, 'rb') as f:
-                self.client.files.upload(remote_filename_wo_prefix, f)
+                self.client.files.upload(remote_filename_wo_prefix, f, overwrite=True)
                 if not wait_for_file(remote_filename_wo_prefix, file_size):
                     raise TimeoutError(
                         f'Time out in waiting for existance of {remote_filename_wo_prefix}')
-                print(f'Uploading {remote_filename_wo_prefix} is done')
+                print(f'Uploading {remote_filename_wo_prefix} is done. retry = {self.retry}. overwrite=True')
 
         _upload_file()
 
