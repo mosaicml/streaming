@@ -3,8 +3,8 @@
 
 """Base module for downloading/uploading files from/to cloud storage."""
 
-from streaming.base.storage.download import (download_file, download_from_azure,
-                                             download_from_azure_datalake,
+from streaming.base.storage.download import (download_file, download_from_alipan,
+                                             download_from_azure, download_from_azure_datalake,
                                              download_from_databricks_unity_catalog,
                                              download_from_dbfs, download_from_gcs,
                                              download_from_local, download_from_oci,
@@ -29,5 +29,6 @@ __all__ = [
     'download_from_azure_datalake',
     'download_from_databricks_unity_catalog',
     'download_from_dbfs',
+    'download_from_alipan',
     'download_from_local',
 ]

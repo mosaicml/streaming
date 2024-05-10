@@ -119,6 +119,10 @@ extra_deps['databricks'] = [
     'databricks-sdk==0.27.0',
 ]
 
+extra_deps['alipan'] = [
+    'AliPCS-Py>=0.8,<1',
+]
+
 extra_deps['testing'] = [
     'mosaicml-cli>=0.5.25,<0.7',
 ]

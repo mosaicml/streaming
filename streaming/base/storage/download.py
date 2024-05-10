@@ -21,6 +21,7 @@ __all__ = [
     'download_from_azure_datalake',
     'download_from_databricks_unity_catalog',
     'download_from_dbfs',
+    'download_from_alipan',
     'download_from_local',
 ]
 
@@ -422,6 +423,50 @@ def download_from_dbfs(remote: str, local: str) -> None:
     os.rename(local_tmp, local)
 
 
+def download_from_alipan(remote: str, local: str) -> None:
+    """Download a file from remote Alipan to local.
+
+    Args:
+        remote (str): Remote path (Alipan).
+        local (str): Local path (local filesystem).
+    """
+    from alipcs_py.alipcs import AliPCSApiMix
+    from alipcs_py.commands.download import download_file
+
+    web_refresh_token = os.environ['ALIPAN_WEB_REFRESH_TOKEN']
+    web_token_type = 'Bearer'
+    alipan_encrypt_password = os.environ.get('ALIPAN_ENCRYPT_PASSWORD', '').encode()
+
+    api = AliPCSApiMix(web_refresh_token, web_token_type=web_token_type)
+
+    obj = urllib.parse.urlparse(remote)
+    if obj.scheme != 'alipan':
+        raise ValueError(
+            f'Expected obj.scheme to be `alipan`, instead, got {obj.scheme} for remote={remote}')
+    if obj.netloc != '':
+        raise ValueError(
+            f'Expected remote to be alipan:///path/to/some, instead, got remote={remote}')
+
+    remote_path = obj.path
+    filename = pathlib.PosixPath(remote_path).name
+    localdir = pathlib.Path(local).parent
+
+    remote_pcs_file = api.get_file(remotepath=remote_path)
+    if remote_pcs_file is None:
+        raise FileNotFoundError(f'Object {remote} not found.')
+
+    download_file(
+        api,
+        remote_pcs_file,
+        localdir=localdir,
+        downloader='me',
+        concurrency=1,
+        show_progress=False,
+        encrypt_password=alipan_encrypt_password,
+    )
+    os.rename(localdir / filename, local)
+
+
 def download_from_local(remote: str, local: str) -> None:
     """Download a file from remote to local.
 
@@ -474,6 +519,8 @@ def download_file(remote: Optional[str], local: str, timeout: float):
         download_from_databricks_unity_catalog(remote, local)
     elif remote.startswith('dbfs:/'):
         download_from_dbfs(remote, local)
+    elif remote.startswith('alipan://'):
+        download_from_alipan(remote, local)
     else:
         download_from_local(remote, local)
 
