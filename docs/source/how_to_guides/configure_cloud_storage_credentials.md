@@ -280,7 +280,7 @@ export DATABRICKS_TOKEN='token key'
 
 To authenticate Alipan access, users must set their Alipan refresh token (`ALIPAN_WEB_REFRESH_TOKEN`) in the run environment.
 
-Get the refresh token from the Alipan website, user needs to login to the [Alipan website](https://www.alipan.com/drive) and go to the console of browser's devTools and pass the below code in the console to get the refresh token.
+To get the refresh token from the Alipan website, the user needs to login to the [Alipan website](https://www.alipan.com/drive), go to the console of the browser's devTools, and pass the code below into the console to get the refresh token.
 
 ```javascript
 JSON.parse(localStorage.token).refresh_token;
@@ -301,7 +301,7 @@ export ALIPAN_WEB_REFRESH_TOKEN='refresh_token'
 
 ### Encryption Data
 
-If you want to encrypt the data in the cloud storage, you can set the below environment variable to encrypt and decrypt the data.
+If you want to encrypt data in cloud storage, you can set the environment variable below to encrypt and decrypt the data.
 
 ````{tabs}
 ```{code-tab} py
