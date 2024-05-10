@@ -296,6 +296,8 @@ def dataframe_to_mds(dataframe: DataFrame,
         StructField('mds_path_local', StringType(), False),
         StructField('mds_path_remote', StringType(), False),
     ])
+
+    print("running version May 10 15:35")
     partitions = dataframe.mapInPandas(func=write_mds, schema=result_schema).collect()
 
     keep_local_files = True
