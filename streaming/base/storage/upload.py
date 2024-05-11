@@ -856,31 +856,14 @@ class DatabricksUnityCatalogUploader(DatabricksUploader):
                  exist_ok: bool = False) -> None:
         super().__init__(out, keep_local, progress_bar, retry, exist_ok)
 
-    def upload_file(self, filename: str, timeout: int = 10):
+    def upload_file(self, filename: str):
         """Upload file from local instance to Databricks Unity Catalog.
 
         Args:
             filename (str): Relative filepath to copy.
-            timeout (int): Seconds for each try to upload.
         """
 
-        def wait_for_file(remote_filename: str, file_size: int):
-            """Wait for a file to be fully available."""
-            start_time = time.time()
-            while time.time() - start_time < timeout:
-                try:
-                    metadata = self.client.files.get_metadata(remote_filename)
-                    #actual_filesize = metadata.content_length
-                    #file_info = self.client.files.get_status(remote_filename)
-                    print(f'{file_size}, {metadata.content_length}')
-                    if file_size ==  metadata.content_length:
-                        return True
-                except Exception as _:
-                    continue
-                time.sleep(1)
-            return False
-
-        @retry(num_attempts=self.retry)
+        @retry(num_attempts= self.retry)
         def _upload_file():
             local_filename = os.path.join(self.local, filename)
             local_filename = local_filename.replace('\\', '/')
@@ -890,10 +873,13 @@ class DatabricksUnityCatalogUploader(DatabricksUploader):
             file_size = os.stat(local_filename).st_size
             with open(local_filename, 'rb') as f:
                 self.client.files.upload(remote_filename_wo_prefix, f, overwrite=True)
-                if not wait_for_file(remote_filename_wo_prefix, file_size):
-                    raise TimeoutError(
-                        f'Time out in waiting for existance of {remote_filename_wo_prefix}')
-                print(f'Uploading {remote_filename_wo_prefix} is done. retry = {self.retry}. overwrite=True')
+
+            # Warning!
+            # filesAPI.upload fails silently when failed to upload!
+            # need to manually check HEAD and throw exception to retry
+            metadata = self.client.files.get_metadata(remote_filename_wo_prefix)
+            if file_size != metadata.content_length:
+                raise RuntimeError(f'Uploading failed! {file_size}!= {metadata.content_length}')
 
         _upload_file()
 
