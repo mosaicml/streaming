@@ -8,7 +8,6 @@ import os
 import pathlib
 import shutil
 import sys
-import time
 import urllib.parse
 from enum import Enum
 from tempfile import mkdtemp
@@ -863,7 +862,7 @@ class DatabricksUnityCatalogUploader(DatabricksUploader):
             filename (str): Relative filepath to copy.
         """
 
-        @retry(num_attempts= self.retry)
+        @retry(num_attempts=self.retry)
         def _upload_file():
             local_filename = os.path.join(self.local, filename)
             local_filename = local_filename.replace('\\', '/')
