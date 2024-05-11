@@ -5,6 +5,7 @@
 
 from streaming.base.join_dataset import StreamingJoinDataset
 from streaming.base import Stream
+from torch.utils.data import DataLoader
 import os
 
 # Create separate streams for each sub dataset
@@ -17,9 +18,10 @@ for colname in list(all_columns.keys())[1:]:
     streams.append(Stream(local=sub_dataset_path))
 
 dataset = StreamingJoinDataset(streams=streams, batch_size=1)
+dataloader = DataLoader(dataset, batch_size=1)
 
 # Inspect the dataset samples, joined on '_id'.
-for i, sample in enumerate(dataset):
+for i, sample in enumerate(dataloader):
     print(f'Batch {i}, sample is: {sample}')
 
 
