@@ -25,6 +25,13 @@ class TestMDSWriter:
         with pytest.raises(ValueError, match=f'.*Invalid Writer argument.*'):
             _ = MDSWriter(out=local, columns=columns, min_workers=1)
 
+    def test_max_size_limit(self, local_remote_dir: Tuple[str, str]):
+        local, _ = local_remote_dir
+        dataset = SequenceDataset(100)
+        columns = dict(zip(dataset.column_names, dataset.column_encodings))
+        with pytest.raises(ValueError, match=f'`size_limit` must be less than*'):
+            _ = MDSWriter(out=local, columns=columns, size_limit=2**32)
+
     @pytest.mark.parametrize('num_samples', [100])
     @pytest.mark.parametrize('size_limit', [32])
     def test_config(self, local_remote_dir: Tuple[str, str], num_samples: int,
@@ -152,6 +159,13 @@ class TestMDSWriter:
 
 class TestJSONWriter:
 
+    def test_max_size_limit(self, local_remote_dir: Tuple[str, str]):
+        local, _ = local_remote_dir
+        dataset = SequenceDataset(100)
+        columns = dict(zip(dataset.column_names, dataset.column_encodings))
+        with pytest.raises(ValueError, match=f'`size_limit` must be less than*'):
+            _ = JSONWriter(out=local, columns=columns, size_limit=2**32)
+
     @pytest.mark.parametrize('num_samples', [100])
     @pytest.mark.parametrize('size_limit', [32])
     def test_config(self, local_remote_dir: Tuple[str, str], num_samples: int,
@@ -235,6 +249,14 @@ class TestJSONWriter:
 
 
 class TestXSVWriter:
+
+    def test_max_size_limit(self, local_remote_dir: Tuple[str, str]):
+        local, _ = local_remote_dir
+        dataset = SequenceDataset(100)
+        columns = dict(zip(dataset.column_names, dataset.column_encodings))
+        separator = ','
+        with pytest.raises(ValueError, match=f'`size_limit` must be less than*'):
+            _ = XSVWriter(out=local, columns=columns, separator=separator, size_limit=2**32)
 
     @pytest.mark.parametrize('num_samples', [100])
     @pytest.mark.parametrize('size_limit', [32])
