@@ -19,6 +19,31 @@ from tests.common.utils import convert_to_mds
 
 
 @pytest.mark.usefixtures('local_remote_dir')
+def test_tiny_dataset_exception(local_remote_dir: Tuple[str, str]):
+
+    remote_dir, local_dir = local_remote_dir
+    convert_to_mds(out_root=remote_dir,
+                   dataset_name='sequencedataset',
+                   num_samples=1,
+                   size_limit=1 << 8)
+
+    # Build StreamingDataset
+    dataset = StreamingDataset(
+        local=local_dir,
+        remote=remote_dir,
+        shuffle=True,
+        num_canonical_nodes=2,
+        batch_size=1,
+    )
+
+    with pytest.raises(ValueError, match=f'The number of samples assigned to a canonical node*'):
+        # When we iterate through the dataset, we should throw an error because
+        # the number of samples is greater than num_canonical_nodes.
+        for _ in dataset:
+            pass
+
+
+@pytest.mark.usefixtures('local_remote_dir')
 def test_no_batch_size_exception(local_remote_dir: Tuple[str, str]):
 
     remote_dir, local_dir = local_remote_dir

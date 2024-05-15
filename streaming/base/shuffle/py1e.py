@@ -72,6 +72,13 @@ def get_shuffle_py1e(shard_sizes: NDArray[np.int64],
         cn_spans = spans[cn_begin:cn_end]
         cn_span_sizes = np.array([end - begin for begin, end in cn_spans])
         num_cn_samples = cn_span_sizes.sum()
+        if num_cn_samples == 0.0:
+            raise ValueError(f'The number of samples assigned to a canonical node is 0. This ' +
+                             f'very likely indicates that the number of samples in this stream ' +
+                             f'is less than the number of canonical nodes, which is ' +
+                             f'{num_canonical_nodes}. Please check your index.json file and ' +
+                             f'ensure that your dataset has been written out correctly. ' +
+                             f'If this was intended, reduce num_canonical_nodes.')
         # The spans of a canonical node are shuffled, so they have sample ids that are
         # not contiguous. We need to get the correct sample ids for the current canonical node.
         cn_samples = np.empty(num_cn_samples)
