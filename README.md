@@ -18,7 +18,7 @@
 <a href="https://www.mosaicml.com">[Website]</a>
 - <a href="https://streaming.docs.mosaicml.com/en/latest/getting_started/user_guide.html">[Getting Started]</a>
 - <a href="https://streaming.docs.mosaicml.com/">[Docs]
-- <a href="https://www.mosaicml.com/careers">[We're Hiring!]</a>
+- <a href="https://www.databricks.com/company/careers/open-positions?department=Mosaic%20AI&location=all">[We're Hiring!]</a>
 </p></h4>
 
 <p align="center">
