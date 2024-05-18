@@ -102,7 +102,7 @@ If you have any questions, please feel free to reach out to us on [Twitter](htt
 
    api_reference/*
 
-.. _Twitter: https://twitter.com/mosaicml
+.. _Twitter: https://twitter.com/DbrxMosaicAI
 .. _Email: mailto:community@mosaicml.com
 .. _Slack: https://mosaicml.me/slack
 ```
