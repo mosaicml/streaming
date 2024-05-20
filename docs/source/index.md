@@ -42,7 +42,7 @@ python -c "import streaming; print(streaming.__version__)"
 Streaming is part of the broader ML/AI community, and we welcome any contributions, pull requests, and issues.
 
 If you have any questions, please feel free to reach out to us on [Twitter](https://twitter.com/DbrxMosaicAI), 
-[Email](mailto:community%40mosaicml.com), or [Slack](https://mosaicml.me/slack)!
+[Email](mailto:community%40mosaicml.com), or [Slack](https://dub.sh/mcomm)!
 
 ```{eval-rst}
 .. toctree::
@@ -103,6 +103,6 @@ If you have any questions, please feel free to reach out to us on [Twitter](htt
    api_reference/*
 
 .. _Twitter: https://twitter.com/DbrxMosaicAI
-.. _Email: mailto:community@mosaicml.com
-.. _Slack: https://mosaicml.me/slack
+.. _Email: mailto:mcomm@databricks.com
+.. _Slack: https://dub.sh/mcomm
 ```
