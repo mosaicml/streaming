@@ -8,7 +8,7 @@ Streaming is purpose built for fast, large-scale distributed training. It relies
 - **MASTER_ADDR**: The hostname for the rank-zero process.
 - **MASTER_PORT**: The port for the rank-zero process.
 
-Some launchers will automatically take care of setting environment variables. For example, using [Composer](https://docs.mosaicml.com/projects/composer/en/stable/) in conjunction with [MosaicML Platform](https://docs.mosaicml.com/projects/mcli/en/latest/) will automatically enable distributed training.
+Some launchers will automatically take care of setting environment variables. For example, using [Composer](https://docs.mosaicml.com/projects/composer/en/stable/) in conjunction with [Databricks Mosaic AI Training](https://docs.mosaicml.com/projects/mcli/en/latest/) will automatically enable distributed training.
 
 More info about using different distributed training launchers with Streaming can be found [here](using_launchers.md).
 
