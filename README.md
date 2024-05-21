@@ -18,7 +18,7 @@
 <a href="https://www.mosaicml.com">[Website]</a>
 - <a href="https://streaming.docs.mosaicml.com/en/latest/getting_started/user_guide.html">[Getting Started]</a>
 - <a href="https://streaming.docs.mosaicml.com/">[Docs]
-- <a href="https://www.mosaicml.com/careers">[We're Hiring!]</a>
+- <a href="https://www.databricks.com/company/careers/open-positions?department=Mosaic%20AI&location=all">[We're Hiring!]</a>
 </p></h4>
 
 <p align="center">
@@ -37,7 +37,7 @@
     <a href="https://streaming.docs.mosaicml.com">
         <img alt="Documentation" src="https://readthedocs.org/projects/streaming/badge/?version=stable">
     </a>
-    <a href="https://mosaicml.me/slack">
+    <a href="https://dub.sh/mcomm">
         <img alt="Chat @ Slack" src="https://img.shields.io/badge/slack-chat-2eb67d.svg?logo=slack">
     </a>
     <a href="https://github.com/mosaicml/streaming/blob/main/LICENSE">
@@ -286,7 +286,7 @@ dataset = StreamingDataset(
 
 # 🏆 Project Showcase
 
-Here are some projects and experiments that used StreamingDataset. Got something to add?  Email [community@mosaicml.com](mailto:community@mosaicml.com) or join our [Community Slack](https://mosaicml.me/slack).
+Here are some projects and experiments that used StreamingDataset. Got something to add?  Email [mcomm@databricks.com](mailto:mcomm@databricks.com) or join our [Community Slack](https://dub.sh/mcomm).
 
 - [BioMedLM](https://www.mosaicml.com/blog/introducing-pubmed-gpt): a Domain Specific Large Language Model for BioMedicine by MosaicML and Stanford CRFM
 - [Mosaic Diffusion Models](https://www.mosaicml.com/blog/training-stable-diffusion-from-scratch-costs-160k): Training Stable Diffusion from Scratch Costs <$160k
