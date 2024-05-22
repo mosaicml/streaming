@@ -151,7 +151,7 @@ class Stream:
                         f'Could not create a temporary local directory {self.local} because it ' +
                         f'already exists. If you want to reuse the locally cached dataset, ' +
                         f'explicitly pass in a unique local directory with the `local` argument.' +
-                        f'Otherwise, delete this directory and retry.')
+                        f' Otherwise, delete this directory and retry.')
                 os.makedirs(self.local)
             barrier()
         else:
