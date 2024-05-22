@@ -154,5 +154,5 @@ def test_streaming_local_unspecified() -> None:
     # We expect an error if `local` is not specified but the locally cached dataset is attempted
     # to be used.
     _ = StreamingDataset(remote=remote_dataset, split=split, batch_size=1)
-    with pytest.raises(FileExistsError):
+    with pytest.raises(FileExistsError, match='Could not create a temporary local directory.*'):
         _ = StreamingDataset(remote=remote_dataset, split=split, batch_size=1)
