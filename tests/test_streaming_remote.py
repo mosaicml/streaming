@@ -134,3 +134,13 @@ def test_streaming_remote_dataset(tmp_path: pathlib.Path, name: str, split: str)
 
     # Test all samples arrived
     assert rcvd_samples == expected_samples
+
+
+def test_streaming_local_unspecified() -> None:
+    # We expect an error if `local` is not specified but the locally cached dataset is attempted
+    # to be used.
+    #remote_dataset = 's3://mosaicml-internal-dataset-ade20k/mds/2/'
+    remote_dataset = 'oci://mosaicml-internal-dataset-c4/preconcat-gpt_neox/'
+    _ = StreamingDataset(remote=remote_dataset, split='val', batch_size=1)
+    with pytest.raises(FileExistsError):
+        _ = StreamingDataset(remote=remote_dataset, split='val', batch_size=1)
