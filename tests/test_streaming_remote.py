@@ -1,11 +1,7 @@
 # Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-import hashlib
-import os
 import pathlib
-import shutil
-import tempfile
 import time
 from typing import Any, Dict, Optional, Tuple
 
@@ -141,18 +137,14 @@ def test_streaming_remote_dataset(tmp_path: pathlib.Path, name: str, split: str)
 
 
 def test_streaming_local_unspecified() -> None:
-    # Make sure to delete the directory if it exists already -- otherwise the first
-    # StreamingDataset instantiation will fail with FileExistsError. We create the local dir
-    # just like in the Stream class.
-    root = tempfile.gettempdir()
     remote_dataset = 's3://mosaicml-internal-dataset-ade20k/mds/2/'
     split = 'val'
-    hash = ''
-    hash = hashlib.blake2s(remote_dataset.encode('utf-8'), digest_size=16).hexdigest()
-    local_dir = os.path.join(root, hash, split)
-    shutil.rmtree(local_dir, ignore_errors=True)
-    # We expect an error if `local` is not specified but the locally cached dataset is attempted
-    # to be used.
-    _ = StreamingDataset(remote=remote_dataset, split=split, batch_size=1)
+    # The directory may actually exist already, and will throw the error that we want to catch.
+    # On CI, the directory will exist and so we want to ignore the error. Locally, we still
+    # want to make the local directory if it doesn't exist.
+    try:
+        _ = StreamingDataset(remote=remote_dataset, split=split, batch_size=1)
+    except FileExistsError:
+        pass
     with pytest.raises(FileExistsError, match='Could not create a temporary local directory.*'):
         _ = StreamingDataset(remote=remote_dataset, split=split, batch_size=1)
