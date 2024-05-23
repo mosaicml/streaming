@@ -20,8 +20,9 @@ def get_dataset(name: str,
                 other_kwargs: Optional[Dict[str, Any]] = None) -> Tuple[int, StreamingDataset]:
     other_kwargs = {} if other_kwargs is None else other_kwargs
     dataset_map = {
-        'cpt': {
-            'remote': 'dbfs:/Volumes/main/mosaic_hackathon/managed-volume/CPT/mds_data_11Jan24_3/',
+        'refinedweb': {
+            'local': f'/tmp/test_refinedweb_05May1029', 
+            'remote': 'dbfs:/Volumes/main/mosaic_hackathon/managed-volume/mds/refinedweb/',
             'num_samples': {
                 'train': 20206,
                 'val': 0,
@@ -30,6 +31,7 @@ def get_dataset(name: str,
             'kwargs': {},
         },
         'dummy_table': {
+            'local': f'/tmp/test_dummy_table_05May1029',
             'remote': 'SELECT * FROM main.streaming.dummy_cpt_table',
             'num_samples': {
                 'train': 20206,
@@ -39,6 +41,7 @@ def get_dataset(name: str,
             'kwargs': {},
         },
         'random_cpt_table': {
+            'local': f'/tmp/test_random_cpt_table_05May1029',
             'remote': 'SELECT text FROM main.streaming.random_cpt_table',
             'num_samples': {
                 'train': 20206,
@@ -53,6 +56,7 @@ def get_dataset(name: str,
 
     d = dataset_map[name]
     expected_samples = 1 # d['num_samples'][split]
+    local = d['local']
     remote = d['remote']
     kwargs = {**d['kwargs'], **other_kwargs}
     dataset = d['class'](local=local,
@@ -99,6 +103,6 @@ def test_streaming_remote_dataset(name: str, split: str) -> None:
 
 
 if __name__ == "__main__":
-#    test_streaming_remote_dataset(name = 'cpt', split=None)
+    test_streaming_remote_dataset(name = 'refinedweb', split=None)
     # test_streaming_remote_dataset(name = 'dummy_table', split=None)
-    test_streaming_remote_dataset(name = 'random_cpt_table', split=None)
+#     test_streaming_remote_dataset(name = 'random_cpt_table', split=None)
