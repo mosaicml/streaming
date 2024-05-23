@@ -147,10 +147,11 @@ class Stream:
             self.local = self._get_temporary_directory()
             if get_local_rank() == 0:
                 if os.path.exists(self.local):
-                    raise ValueError(
-                        f'Could not create a temporary local directory {self.local} . Either ' +
-                        f'delete the directory or specify a unique local directory with the ' +
-                        f'`local` value.')
+                    raise FileExistsError(
+                        f'Could not create a temporary local directory {self.local} because it ' +
+                        f'already exists. If you want to reuse the locally cached dataset, ' +
+                        f'explicitly pass in a unique local directory with the `local` argument.' +
+                        f' Otherwise, delete this directory and retry.')
                 os.makedirs(self.local)
             barrier()
         else:
