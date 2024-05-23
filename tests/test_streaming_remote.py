@@ -23,30 +23,28 @@ def get_dataset(name: str,
         'refinedweb': {
             'local': f'/tmp/test_refinedweb_05May1029', 
             'remote': 'dbfs:/Volumes/main/mosaic_hackathon/managed-volume/mds/refinedweb/',
-            'num_samples': {
-                'train': 20206,
-                'val': 0,
-            },
+            'num_samples': 20206,
             'class': StreamingDataset,
             'kwargs': {},
         },
         'dummy_table': {
             'local': f'/tmp/test_dummy_table_05May1029',
             'remote': 'SELECT * FROM main.streaming.dummy_cpt_table',
-            'num_samples': {
-                'train': 20206,
-                'val': 0,
-            },
+            'num_samples': 20206,
             'class': StreamingDataset,
             'kwargs': {},
         },
         'random_cpt_table': {
             'local': f'/tmp/test_random_cpt_table_05May1029',
             'remote': 'SELECT text FROM main.streaming.random_cpt_table',
-            'num_samples': {
-                'train': 20206,
-                'val': 0,
-            },
+            'num_samples': 100000,
+            'class': StreamingDataset,
+            'kwargs': {},
+        },
+        'random_large_table': {
+            'local': f'/tmp/test_random_large_table_05May1029',
+            'remote': 'SELECT * FROM main.streaming.random_large_table',
+            'num_samples': 100000,
             'class': StreamingDataset,
             'kwargs': {},
         },
@@ -55,7 +53,7 @@ def get_dataset(name: str,
     #    raise ValueError('Could not load dataset with name={name} and split={split}')
 
     d = dataset_map[name]
-    expected_samples = 1 # d['num_samples'][split]
+    expected_samples = d['num_samples']
     local = d['local']
     remote = d['remote']
     kwargs = {**d['kwargs'], **other_kwargs}
@@ -72,7 +70,7 @@ def test_streaming_remote_dataset(name: str, split: str) -> None:
     # Build StreamingDataset
     build_start = time.time()
     expected_samples, dataset = get_dataset(name=name,
-                                            local=f'/tmp/test_delta_05May1029',
+                                            local=None, # f'/tmp/test_delta_05May1029',
                                             split=split,
                                             shuffle=False,
                                             batch_size=16)
@@ -103,6 +101,8 @@ def test_streaming_remote_dataset(name: str, split: str) -> None:
 
 
 if __name__ == "__main__":
-    test_streaming_remote_dataset(name = 'refinedweb', split=None)
+#    test_streaming_remote_dataset(name = 'refinedweb', split=None)
     # test_streaming_remote_dataset(name = 'dummy_table', split=None)
-#     test_streaming_remote_dataset(name = 'random_cpt_table', split=None)
+#    test_streaming_remote_dataset(name = 'random_cpt_table', split=None)
+    test_streaming_remote_dataset(name = 'random_large_table', split=None)
+
