@@ -34,7 +34,7 @@ from streaming.base.sampling import get_sampling
 from streaming.base.shared import (SharedArray, SharedBarrier, SharedMemory, SharedScalar,
                                    _get_path, get_shm_prefix)
 from streaming.base.spanner import Spanner
-from streaming.base.stream import Stream
+from streaming.base.stream import Stream, DeltaStream
 from streaming.base.util import bytes_to_int, number_abbrev_to_int
 from streaming.base.world import World
 
@@ -443,6 +443,15 @@ class StreamingDataset(Array, IterableDataset):
             }
             for stream in streams:
                 stream.apply_default(default)
+        elif remote is not None and remote.startswith('SELECT'):
+            default = DeltaStream(remote=remote,
+                                  local=local,
+                                  split=split,
+                                  download_retry=download_retry,
+                                  download_timeout=download_timeout,
+                                  validate_hash=validate_hash,
+                                  keep_zip=keep_zip)
+            streams = [default]
         else:
             default = Stream(remote=remote,
                              local=local,
@@ -507,6 +516,8 @@ class StreamingDataset(Array, IterableDataset):
 
         # Build the shard index (for partitioning and mapping samples to shards).
         self.samples_per_shard = np.array([shard.samples for shard in self.shards], np.int64)
+        print('I am here 5.1, samples_per_shard = ')
+        print(self.samples_per_shard)
         self.sample_offset_per_shard = self.samples_per_shard.cumsum() - self.samples_per_shard
         self.spanner = Spanner(self.samples_per_shard)
 
@@ -1225,6 +1236,7 @@ class StreamingDataset(Array, IterableDataset):
             raise RuntimeError('Background thread failed. Check other traceback.')
         # Locate the shard and sample offset within that shard where the sample lives.
         shard_id, shard_sample_id = self.spanner[sample_id]
+        #print('I am here 5.2', shard_id, shard_sample_id)
         shard = self.shards[shard_id]
 
         sample = None
