@@ -21,7 +21,7 @@ def get_dataset(name: str,
     other_kwargs = {} if other_kwargs is None else other_kwargs
     dataset_map = {
         'refinedweb': {
-            'local': f'/tmp/test_refinedweb_05May1029', 
+            'local': f'/tmp/test_refinedweb_05May1029',
             'remote': 'dbfs:/Volumes/main/mosaic_hackathon/managed-volume/mds/refinedweb/',
             'num_samples': 20206,
             'class': StreamingDataset,
@@ -45,6 +45,20 @@ def get_dataset(name: str,
             'local': f'/tmp/test_random_large_table_05May1029',
             'remote': 'SELECT * FROM main.streaming.random_large_table',
             'num_samples': 100000,
+            'class': StreamingDataset,
+            'kwargs': {},
+        },
+        'reddit_table': {
+            'local': f'/tmp/test_random_reddit_table_05May1029',
+            'remote': 'SELECT text, added FROM main.reddit.data',
+            'num_samples': 378156152,
+            'class': StreamingDataset,
+            'kwargs': {},
+        },
+        'debug_local': {
+            'local': f'/tmp/test_random_reddit_table_05May1029',
+            'remote': None,
+            'num_samples': 378156152,
             'class': StreamingDataset,
             'kwargs': {},
         },
@@ -100,9 +114,12 @@ def test_streaming_remote_dataset(name: str, split: str) -> None:
     assert rcvd_samples >= expected_samples
 
 
-if __name__ == "__main__":
+#if __name__ == "__main__":
 #    test_streaming_remote_dataset(name = 'refinedweb', split=None)
     # test_streaming_remote_dataset(name = 'dummy_table', split=None)
 #    test_streaming_remote_dataset(name = 'random_cpt_table', split=None)
-    test_streaming_remote_dataset(name = 'random_large_table', split=None)
+#    test_streaming_remote_dataset(name = 'random_large_table', split=None)
+test_streaming_remote_dataset(name = 'reddit_table', split=None)
+#    test_streaming_remote_dataset(name = 'debug_local', split=None)
+
 

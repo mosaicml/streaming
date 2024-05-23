@@ -566,7 +566,8 @@ class DeltaStream(Stream):
         from streaming.base.converters import infer_dataframe_schema
 
         w = WorkspaceClient()
-        cluster_id = "0201-234512-tcp9nfat"
+        #cluster_id = "0201-234512-tcp9nfat" # e2-dogfood
+        cluster_id = "0523-224100-tid6mais" # db-force-one
 
         print('I am here 1')
         sparkSession = DatabricksSession.builder.remote(
@@ -588,16 +589,20 @@ class DeltaStream(Stream):
 
         print('schema = ', schema)
         self.columns = infer_dataframe_schema(df, None)
+
         column_names = []
         column_encodings = []
+        column_sizes = []
         for k, v in self.columns.items():
             column_names.append(k)
             column_encodings.append(v)
+            column_sizes.append(None)
+
         #self.columns = {'text': 'str'}
         print('inferred columns = ', self.columns)
 
         print('I am here 4', len(cloudfetch_results))
-        
+
 #        raise RuntimeError("break")
 
         if world.is_local_leader:
@@ -609,9 +614,9 @@ class DeltaStream(Stream):
 
             for index, result in enumerate(cloudfetch_results):
                 shard = {
-                    "column_encodings": column_encodings, 
+                    "column_encodings": column_encodings,
                     "column_names": column_names,
-                    "column_sizes": [None],
+                    "column_sizes": column_sizes,
                     "compression": None,
                     "format": "mds",
                     "hashes": ["sha1"],
@@ -673,9 +678,13 @@ class DeltaStream(Stream):
         Returns:
             str: Local cache filename.
         """
+        from streaming import MDSWriter
+
         def fetch_and_convert(cloud_fetch_url: str, local_shard_path: str):
-            from streaming import MDSWriter
             samples = pa.ipc.open_stream(requests.get(cloud_fetch_url).content).read_all().to_pylist()
+
+            print('samples = ')
+            print(len(samples))
 
             with TemporaryDirectory() as temp_dir:
                 with MDSWriter(columns=self.columns, out=temp_dir, size_limit=None) as out:
@@ -692,6 +701,7 @@ class DeltaStream(Stream):
         retry(num_attempts=self.download_retry)(
             lambda: fetch_and_convert(cloud_fetch_url, local))()
 
+        print('download to local is done = ', local)
         return local
 
 
