@@ -563,6 +563,7 @@ class DeltaStream(Stream):
         # Prepare cloudfetch
         from databricks.connect import DatabricksSession
         from databricks.sdk import WorkspaceClient
+        from streaming.base.converters import infer_dataframe_schema
 
         w = WorkspaceClient()
         cluster_id = "0201-234512-tcp9nfat"
@@ -586,9 +587,19 @@ class DeltaStream(Stream):
         filename = os.path.join(self.local, self.split, basename)
 
         print('schema = ', schema)
-        self.columns = {'text': 'str'}
+        self.columns = infer_dataframe_schema(df, None)
+        column_names = []
+        column_encodings = []
+        for k, v in self.columns.items():
+            column_names.append(k)
+            column_encodings.append(v)
+        #self.columns = {'text': 'str'}
+        print('inferred columns = ', self.columns)
 
         print('I am here 4', len(cloudfetch_results))
+        
+#        raise RuntimeError("break")
+
         if world.is_local_leader:
 
             metadata = {
@@ -598,8 +609,8 @@ class DeltaStream(Stream):
 
             for index, result in enumerate(cloudfetch_results):
                 shard = {
-                    "column_encodings": ["str"],
-                    "column_names": ["tokenized_example"],
+                    "column_encodings": column_encodings, 
+                    "column_names": column_names,
                     "column_sizes": [None],
                     "compression": None,
                     "format": "mds",
