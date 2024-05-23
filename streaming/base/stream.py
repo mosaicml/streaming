@@ -22,6 +22,10 @@ from streaming.base.storage import download_file
 from streaming.base.util import retry, wait_for_file_to_exist
 from streaming.base.world import World
 
+import pyarrow as pa
+import requests
+from tempfile import TemporaryDirectory
+
 
 class Stream:
     """A dataset, or sub-dataset if mixing, from which we stream/cache samples.
@@ -505,3 +509,178 @@ class Stream:
         """
         filename = os.path.join(self.local, self.split, get_index_basename())
         return os.stat(filename).st_size
+
+
+class DeltaStream(Stream):
+
+    def __init__(self,
+                 remote: Optional[str] = None,
+                 local: Optional[str] = None,
+                 split: Optional[str] = None,
+                 proportion: Optional[float] = None,
+                 repeat: Optional[float] = None,
+                 choose: Optional[int] = None,
+                 download_retry: Optional[int] = None,
+                 download_timeout: Optional[float] = None,
+                 validate_hash: Optional[str] = None,
+                 keep_zip: Optional[bool] = None) -> None:
+        super().__init__(remote=remote,
+                         local=local,
+                         split=split,
+                         proportion=proportion,
+                         repeat=repeat,
+                         choose=choose,
+                         download_retry=download_retry,
+                         download_timeout=download_timeout,
+                         validate_hash=validate_hash,
+                         keep_zip=keep_zip)
+
+        self.url_to_basename= {}
+        self.basename_to_url={}
+
+    def generate_unique_basename(self, url: str, index: int) -> str:
+        """Generate a unique basename for the file path from the URL."""
+        hash_object = hashlib.md5(url.encode())
+        hex_dig = hash_object.hexdigest()
+        # basename = f"{hex_dig[:3]}/shard.{int(hex_dig, 16) % 100000:05d}.mds"
+        basename = '.'.join(['shard', f'{index:05}', 'mds'])
+        self.url_to_basename[url] = basename
+        self.basename_to_url[basename] = url
+        return basename
+
+    def get_shards(self, world: World, allow_unsafe_types: bool) -> List[Reader]:
+        """Load this Stream's index, retrieving its shard readers.
+
+        Args:
+            world (World): Distributed context.
+            allow_unsafe_types (bool): If a shard contains Pickle, which allows arbitrary code
+                execution during deserialization, whether to keep going if ``True`` or raise an
+                error.
+
+        Returns:
+            `List[Reader]: Shard readers.
+        """
+        # Prepare cloudfetch
+        from databricks.connect import DatabricksSession
+        from databricks.sdk import WorkspaceClient
+
+        w = WorkspaceClient()
+        cluster_id = "0201-234512-tcp9nfat"
+
+        print('I am here 1')
+        sparkSession = DatabricksSession.builder.remote(
+            host=w.config.host,
+            token=w.config.token,
+            cluster_id=cluster_id).getOrCreate()
+
+        print('I am here 2')
+        df = sparkSession.sql(self.remote)
+        print('I am here 2.0')
+        query = df._plan.to_proto(df._session.client)  # pyright: ignore
+        print('I am here 2.1')
+        schema, cloudfetch_results = df._session.client.experimental_to_cloudfetch(query, "arrow", compression=False)  # pyright: ignore
+
+        # Local leader prepares the index file based on cloudfetch results
+        print('I am here 3')
+        basename = get_index_basename()
+        filename = os.path.join(self.local, self.split, basename)
+
+        print('schema = ', schema)
+        self.columns = {'text': 'str'}
+
+        print('I am here 4', len(cloudfetch_results))
+        if world.is_local_leader:
+
+            metadata = {
+                "version": 2,
+                "shards": []
+            }
+
+            for index, result in enumerate(cloudfetch_results):
+                shard = {
+                    "column_encodings": ["str"],
+                    "column_names": ["tokenized_example"],
+                    "column_sizes": [None],
+                    "compression": None,
+                    "format": "mds",
+                    "hashes": ["sha1"],
+                    "raw_data": {
+                        "basename": self.generate_unique_basename(result.url, index),
+                        "bytes": result.uncompressed_size,
+                        "hashes": {}
+                    },
+                    "samples": result.row_count,
+                    "size_limit": 67108864,
+                    "version": 2,
+                    "zip_data": None
+                }
+                metadata["shards"].append(shard)
+
+            print('metadata = ')
+            print(metadata)
+
+            with open(filename, 'w') as f:
+                json.dump(metadata, f, indent=4)
+
+        else:
+            wait_for_file_to_exist(
+                filename, TICK, self.download_timeout,
+                f'Index file {os.path.join(self.remote or "", self.split or "", basename)} ' +
+                f'-> {filename} took too long to download. Either increase the ' +
+                f'`download_timeout` value or check the other traceback.')
+
+        # Load the index.
+        try:
+            obj = json.load(open(filename))
+        except json.decoder.JSONDecodeError as error:
+            error.args = (f'Index file at {filename} is empty or corrupted. ' + error.args[0],)
+            raise error
+
+        # Version check.
+        if obj['version'] != 2:
+            raise ValueError(f'Unsupported streaming data version: {obj["version"]}. ' +
+                             f'Expected version 2.')
+
+        # Initialize shard readers according to the loaded info.
+        shards = []
+        for info in obj['shards']:
+            shard = reader_from_json(self.local, self.split, info)
+            shard.validate(allow_unsafe_types)
+            shards.append(shard)
+
+            print('I am here  4.1, shard.samples = ', shard.samples)
+
+        return shards
+
+    def _download_file(self, from_basename: str, to_basename: Optional[str] = None) -> str:
+        """Safely download a file from remote to local cache.
+
+        Args:
+            from_basename (str): Source basename.
+            to_basename (str, optional): Destination basename, if different.
+
+        Returns:
+            str: Local cache filename.
+        """
+        def fetch_and_convert(cloud_fetch_url: str, local_shard_path: str):
+            from streaming import MDSWriter
+            samples = pa.ipc.open_stream(requests.get(cloud_fetch_url).content).read_all().to_pylist()
+
+            with TemporaryDirectory() as temp_dir:
+                with MDSWriter(columns=self.columns, out=temp_dir, size_limit=None) as out:
+                    for sample in samples:
+                        out.write(sample)
+                temp_mds_filename = os.path.join(temp_dir, 'shard.00000.mds')
+                os.rename(temp_mds_filename, local_shard_path)
+
+        print('from_basename = ', from_basename)
+        cloud_fetch_url = self.basename_to_url[from_basename]
+        local = os.path.join(self.local, self.split, from_basename)
+
+        # Attempt to download, possibly repeating on failure.
+        retry(num_attempts=self.download_retry)(
+            lambda: fetch_and_convert(cloud_fetch_url, local))()
+
+        return local
+
+
