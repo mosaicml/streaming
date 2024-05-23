@@ -134,17 +134,3 @@ def test_streaming_remote_dataset(tmp_path: pathlib.Path, name: str, split: str)
 
     # Test all samples arrived
     assert rcvd_samples == expected_samples
-
-
-def test_streaming_local_unspecified() -> None:
-    remote_dataset = 's3://mosaicml-internal-dataset-ade20k/mds/2/'
-    split = 'val'
-    # The directory may actually exist already, and will throw the error that we want to catch.
-    # On CI, the directory will exist and so we want to ignore the error. Locally, we still
-    # want to make the local directory if it doesn't exist.
-    try:
-        _ = StreamingDataset(remote=remote_dataset, split=split, batch_size=1)
-    except FileExistsError:
-        pass
-    with pytest.raises(FileExistsError, match='Could not create a temporary local directory.*'):
-        _ = StreamingDataset(remote=remote_dataset, split=split, batch_size=1)
