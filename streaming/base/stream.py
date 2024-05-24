@@ -544,7 +544,6 @@ class DeltaStream(Stream):
         """Generate a unique basename for the file path from the URL."""
         hash_object = hashlib.md5(url.encode())
         hex_dig = hash_object.hexdigest()
-        # basename = f"{hex_dig[:3]}/shard.{int(hex_dig, 16) % 100000:05d}.mds"
         basename = '.'.join(['shard', f'{index:05}', 'mds'])
         self.url_to_basename[url] = basename
         self.basename_to_url[basename] = url

@@ -1259,7 +1259,6 @@ class StreamingDataset(Array, IterableDataset):
             raise RuntimeError('Background thread failed. Check other traceback.')
         # Locate the shard and sample offset within that shard where the sample lives.
         shard_id, shard_sample_id = self.spanner[sample_id]
-        #print('I am here 5.2', shard_id, shard_sample_id)
         shard = self.shards[shard_id]
 
         sample = None
