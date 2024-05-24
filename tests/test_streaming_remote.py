@@ -79,8 +79,7 @@ def get_dataset(name: str,
     local = d['local']
     remote = d['remote']
     kwargs = {**d['kwargs'], **other_kwargs}
-    dataset = d['class'](d['cluster_id'],
-                         local=local,
+    dataset = d['class'](local=local,
                          remote=remote,
                          split=split,
                          shuffle=shuffle,

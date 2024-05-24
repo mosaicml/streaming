@@ -568,8 +568,6 @@ class DeltaStream(Stream):
         from streaming.base.converters import infer_dataframe_schema
 
         w = WorkspaceClient()
-        ##cluster_id = "0201-234512-tcp9nfat" # e2-dogfood
-        #cluster_id = "0523-224100-tid6mais" # db-force-one
 
         sparkSession = DatabricksSession.builder.remote(
             host=w.config.host,
