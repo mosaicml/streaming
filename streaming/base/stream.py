@@ -514,6 +514,7 @@ class Stream:
 class DeltaStream(Stream):
 
     def __init__(self,
+                 cluster_id: str,
                  remote: Optional[str] = None,
                  local: Optional[str] = None,
                  split: Optional[str] = None,
@@ -537,6 +538,7 @@ class DeltaStream(Stream):
 
         self.url_to_basename= {}
         self.basename_to_url={}
+        self.cluster_id = cluster_id
 
     def generate_unique_basename(self, url: str, index: int) -> str:
         """Generate a unique basename for the file path from the URL."""
@@ -566,28 +568,22 @@ class DeltaStream(Stream):
         from streaming.base.converters import infer_dataframe_schema
 
         w = WorkspaceClient()
-        #cluster_id = "0201-234512-tcp9nfat" # e2-dogfood
-        cluster_id = "0523-224100-tid6mais" # db-force-one
+        ##cluster_id = "0201-234512-tcp9nfat" # e2-dogfood
+        #cluster_id = "0523-224100-tid6mais" # db-force-one
 
-        print('I am here 1')
         sparkSession = DatabricksSession.builder.remote(
             host=w.config.host,
             token=w.config.token,
-            cluster_id=cluster_id).getOrCreate()
+            cluster_id=self.cluster_id).getOrCreate()
 
-        print('I am here 2')
         df = sparkSession.sql(self.remote)
-        print('I am here 2.0')
         query = df._plan.to_proto(df._session.client)  # pyright: ignore
-        print('I am here 2.1')
         schema, cloudfetch_results = df._session.client.experimental_to_cloudfetch(query, "arrow", compression=False)  # pyright: ignore
 
         # Local leader prepares the index file based on cloudfetch results
-        print('I am here 3')
         basename = get_index_basename()
         filename = os.path.join(self.local, self.split, basename)
 
-        print('schema = ', schema)
         self.columns = infer_dataframe_schema(df, None)
 
         column_names = []
@@ -597,13 +593,6 @@ class DeltaStream(Stream):
             column_names.append(k)
             column_encodings.append(v)
             column_sizes.append(None)
-
-        #self.columns = {'text': 'str'}
-        print('inferred columns = ', self.columns)
-
-        print('I am here 4', len(cloudfetch_results))
-
-#        raise RuntimeError("break")
 
         if world.is_local_leader:
 
@@ -631,9 +620,6 @@ class DeltaStream(Stream):
                     "zip_data": None
                 }
                 metadata["shards"].append(shard)
-
-            print('metadata = ')
-            print(metadata)
 
             with open(filename, 'w') as f:
                 json.dump(metadata, f, indent=4)
@@ -664,8 +650,6 @@ class DeltaStream(Stream):
             shard.validate(allow_unsafe_types)
             shards.append(shard)
 
-            print('I am here  4.1, shard.samples = ', shard.samples)
-
         return shards
 
     def _download_file(self, from_basename: str, to_basename: Optional[str] = None) -> str:
@@ -683,9 +667,6 @@ class DeltaStream(Stream):
         def fetch_and_convert(cloud_fetch_url: str, local_shard_path: str):
             samples = pa.ipc.open_stream(requests.get(cloud_fetch_url).content).read_all().to_pylist()
 
-            print('samples = ')
-            print(len(samples))
-
             with TemporaryDirectory() as temp_dir:
                 with MDSWriter(columns=self.columns, out=temp_dir, size_limit=None) as out:
                     for sample in samples:
@@ -693,7 +674,6 @@ class DeltaStream(Stream):
                 temp_mds_filename = os.path.join(temp_dir, 'shard.00000.mds')
                 os.rename(temp_mds_filename, local_shard_path)
 
-        print('from_basename = ', from_basename)
         cloud_fetch_url = self.basename_to_url[from_basename]
         local = os.path.join(self.local, self.split, from_basename)
 
