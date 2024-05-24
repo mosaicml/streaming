@@ -32,35 +32,43 @@ def get_dataset(name: str,
             'remote': 'SELECT * FROM main.streaming.dummy_cpt_table',
             'num_samples': 20206,
             'class': StreamingDataset,
-            'kwargs': {},
+            'kwargs': {
+                'cluster_id': "0201-234512-tcp9nfat"
+            },
         },
         'random_cpt_table': {
             'local': f'/tmp/test_random_cpt_table_05May1029',
             'remote': 'SELECT text FROM main.streaming.random_cpt_table',
             'num_samples': 100000,
             'class': StreamingDataset,
-            'kwargs': {},
+            'kwargs': {
+                'cluster_id': "0201-234512-tcp9nfat"
+            },
         },
         'random_large_table': {
             'local': f'/tmp/test_random_large_table_05May1029',
             'remote': 'SELECT * FROM main.streaming.random_large_table',
             'num_samples': 100000,
             'class': StreamingDataset,
-            'kwargs': {},
+            'kwargs': {
+                'cluster_id': "0201-234512-tcp9nfat"
+            },
         },
         'reddit_table': {
             'local': f'/tmp/test_random_reddit_table_05May1029',
             'remote': 'SELECT text, added FROM main.reddit.data',
             'num_samples': 378156152,
             'class': StreamingDataset,
-            'kwargs': {},
+            'kwargs': {
+                'cluster_id': "0523-224100-tid6mais"
+            },
         },
         'debug_local': {
             'local': f'/tmp/test_random_reddit_table_05May1029',
             'remote': None,
             'num_samples': 378156152,
             'class': StreamingDataset,
-            'kwargs': {},
+            'kwargs': {}
         },
     }
     #if name not in dataset_map and split not in dataset_map[name]['num_samples'][split]:
@@ -71,7 +79,8 @@ def get_dataset(name: str,
     local = d['local']
     remote = d['remote']
     kwargs = {**d['kwargs'], **other_kwargs}
-    dataset = d['class'](local=local,
+    dataset = d['class'](d['cluster_id'],
+                         local=local,
                          remote=remote,
                          split=split,
                          shuffle=shuffle,
@@ -117,9 +126,9 @@ def test_streaming_remote_dataset(name: str, split: str) -> None:
 #if __name__ == "__main__":
 #    test_streaming_remote_dataset(name = 'refinedweb', split=None)
     # test_streaming_remote_dataset(name = 'dummy_table', split=None)
-#    test_streaming_remote_dataset(name = 'random_cpt_table', split=None)
+test_streaming_remote_dataset(name = 'random_cpt_table', split=None)
 #    test_streaming_remote_dataset(name = 'random_large_table', split=None)
-test_streaming_remote_dataset(name = 'reddit_table', split=None)
+# test_streaming_remote_dataset(name = 'reddit_table', split=None)
 #    test_streaming_remote_dataset(name = 'debug_local', split=None)
 
 

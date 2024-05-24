@@ -315,9 +315,6 @@ class Scalar(Encoding):
         return self.dtype(obj).tobytes()
 
     def decode(self, data: bytes) -> Any:
-        print(f"Data length: {len(data)}, Expected dtype: {self.dtype}, Element size: {np.dtype(self.dtype).itemsize}")
-        if len(data) % np.dtype(self.dtype).itemsize != 0:
-            print(f"Error: Buffer size {len(data)} is not a multiple of element size {np.dtype(self.dtype).itemsize}")
         return np.frombuffer(data, self.dtype)[0]
 
 

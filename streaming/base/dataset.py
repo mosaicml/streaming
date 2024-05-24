@@ -331,7 +331,8 @@ class StreamingDataset(Array, IterableDataset):
                  shuffle_block_size: Optional[int] = None,
                  batching_method: str = 'random',
                  allow_unsafe_types: bool = False,
-                 replication: Optional[int] = None) -> None:
+                 replication: Optional[int] = None,
+                 **kwargs: Any) -> None:
         # Global arguments (which do not live in Streams).
         self.predownload = predownload
         self.cache_limit = cache_limit
@@ -444,7 +445,9 @@ class StreamingDataset(Array, IterableDataset):
             for stream in streams:
                 stream.apply_default(default)
         elif remote is not None and remote.startswith('SELECT'):
-            default = DeltaStream(remote=remote,
+            cluster_id = kwargs.get('cluster_id', None)
+            default = DeltaStream(cluster_id,
+                                  remote=remote,
                                   local=local,
                                   split=split,
                                   download_retry=download_retry,
