@@ -38,6 +38,7 @@ class SharedMemory:
         # save the original register tracker function
         original_rtracker_reg = resource_tracker.register
         logger.info(f"bigning debug shared memory init")
+        print(f"bigning debug shared memory init")
 
         try:
             if create is True:
@@ -113,6 +114,7 @@ class SharedMemory:
 
     def cleanup(self):
         logger.info(f"bigning debug rank {torch.distributed.get_rank()} shared memory cleanup")
+        print(f"bigning debug rank {torch.distributed.get_rank()} shared memory cleanup")
 
         """Clean up SharedMemory resources."""
         # save the original unregister tracker function

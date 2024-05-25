@@ -366,6 +366,7 @@ class StreamingDataset(Array, IterableDataset):
         self._unique_worker_world: World
         self._parallel_worker_world: World
         logger.info(f"bigning debug streaming datatset init haha")
+        print(f"bigning debug streaming datatset init haha")
 
         # Initialize initial_physical_nodes to None. If we are resuming, then we will set it to the
         # number of physical nodes of the initial run in the _resume function, or the number of
