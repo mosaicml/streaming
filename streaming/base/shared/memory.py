@@ -114,6 +114,7 @@ class SharedMemory:
 
     def cleanup(self):
         logger.info(f"bigning debug rank {torch.distributed.get_rank()} shared memory cleanup")
+        logger.warning(f"bigning debug rank {torch.distributed.get_rank()} shared memory cleanup")
         print(f"bigning debug rank {torch.distributed.get_rank()} shared memory cleanup")
 
         """Clean up SharedMemory resources."""
