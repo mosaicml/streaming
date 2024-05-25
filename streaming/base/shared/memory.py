@@ -128,8 +128,6 @@ class SharedMemory:
         logger.info(f"bigning debug rank {torch.distributed.get_rank()} shared memory cleanup")
         logger.warning(f"bigning debug rank {torch.distributed.get_rank()} shared memory cleanup")
         print(f"bigning debug rank {torch.distributed.get_rank()} shared memory cleanup")
-        if self.cleaned_up:
-            return
 
 
         """Clean up SharedMemory resources."""
@@ -150,5 +148,7 @@ class SharedMemory:
             pass
         finally:
             resource_tracker.unregister = original_rtracker_unreg
+            del self.created_shms
+            del self.opened_shms
             self.cleaned_up = True
 
