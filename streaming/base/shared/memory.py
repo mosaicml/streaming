@@ -71,7 +71,7 @@ class SharedMemory:
         if auto_cleanup:
             # atexit handler doesn't get called if the program is killed by a signal not
             # handled by python or when os.exit() is called or for any python internal fatal error.
-            atexit.register(self.cleanup)
+            atexit.register(self.cleanup2)
 
     @property
     def buf(self) -> memoryview:
@@ -116,6 +116,29 @@ class SharedMemory:
         logger.info(f"bigning debug rank {torch.distributed.get_rank()} shared memory cleanup")
         logger.warning(f"bigning debug rank {torch.distributed.get_rank()} shared memory cleanup")
         print(f"bigning debug rank {torch.distributed.get_rank()} shared memory cleanup")
+
+        """Clean up SharedMemory resources."""
+        # save the original unregister tracker function
+        original_rtracker_unreg = resource_tracker.unregister
+
+        # Close each SharedMemory instance
+        try:
+            for shm in self.created_shms:
+                shm.close()
+                # Destroy the shared memory block
+                shm.unlink()
+            for shm in self.opened_shms:
+                resource_tracker.unregister = self.fix_unregister
+                shm.close()
+        # skip the error if a child process already cleaned up the shared memory
+        except FileNotFoundError:
+            pass
+        finally:
+            resource_tracker.unregister = original_rtracker_unreg
+
+    def cleanup2(self):
+        logger.warning(f"bigning debug at exit rank {torch.distributed.get_rank()} shared memory cleanup")
+        print(f"bigning debug at exit rank {torch.distributed.get_rank()} shared memory cleanup")
 
         """Clean up SharedMemory resources."""
         # save the original unregister tracker function
