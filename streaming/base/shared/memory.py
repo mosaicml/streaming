@@ -125,6 +125,8 @@ class SharedMemory:
         return resource_tracker._resource_tracker.unregister(self, name, rtype)
 
     def cleanup(self):
+        if self.cleaned_up:
+            return
         logger.info(f"bigning debug rank {torch.distributed.get_rank()} shared memory cleanup")
         logger.warning(f"bigning debug rank {torch.distributed.get_rank()} shared memory cleanup")
         print(f"bigning debug rank {torch.distributed.get_rank()} shared memory cleanup")
