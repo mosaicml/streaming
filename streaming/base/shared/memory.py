@@ -8,8 +8,11 @@ from multiprocessing import resource_tracker  # pyright: ignore
 from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
 from time import sleep
 from typing import Any, Optional
+import torch
+import logging
 
 from streaming.base.constant import TICK
+logger = logging.getLogger(__name__)
 
 
 class SharedMemory:
@@ -34,6 +37,7 @@ class SharedMemory:
         shm = None
         # save the original register tracker function
         original_rtracker_reg = resource_tracker.register
+        logger.info(f"bigning debug shared memory init")
 
         try:
             if create is True:
@@ -108,6 +112,8 @@ class SharedMemory:
         return resource_tracker._resource_tracker.unregister(self, name, rtype)
 
     def cleanup(self):
+        logger.info(f"bigning debug rank {torch.distributed.get_rank()} shared memory cleanup")
+
         """Clean up SharedMemory resources."""
         # save the original unregister tracker function
         original_rtracker_unreg = resource_tracker.unregister
