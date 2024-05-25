@@ -78,7 +78,7 @@ class SharedMemory:
 
             def signal_handler(sig, frame):
                 signame = signal.Signals(sig).name
-                log.warning(f"signal handler {sig=}, {signame=}")
+                logger.warning(f"signal handler {sig=}, {signame=}")
                 self.cleanup()
                 sys.exit(0)
             signal.signal(signal.SIGTERM, signal_handler)
