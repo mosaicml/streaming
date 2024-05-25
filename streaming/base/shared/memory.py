@@ -6,7 +6,7 @@
 import atexit
 from multiprocessing import resource_tracker  # pyright: ignore
 from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
-import signal
+import signal, sys
 from time import sleep
 from typing import Any, Optional
 import torch
@@ -81,8 +81,9 @@ class SharedMemory:
                 log.warning(f"signal handler {sig=}, {signame=}")
                 self.cleanup()
                 sys.exit(0)
-            for t in [signal.SIGINT, signal.SIGKILL, signal.SIGTERM]:
-                signal.signal(t, signal_handler)
+            signal.signal(signal.SIGINT, signal_handler)
+            signal.signal(signal.SIGKILL, signal_handler)
+            signal.signal(signal.SIGTERM, signal_handler)
 
 
     @property
