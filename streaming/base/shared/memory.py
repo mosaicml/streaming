@@ -81,8 +81,7 @@ class SharedMemory:
                 logger.warning(f"signal handler {sig=}, {signame=}")
                 self.cleanup()
                 sys.exit(0)
-            #signal.signal(signal.SIGTERM, signal_handler)
-            #signal.signal(signal.SIGINT, signal_handler)
+            signal.signal(signal.SIGTERM, signal_handler)
 
 
     @property
