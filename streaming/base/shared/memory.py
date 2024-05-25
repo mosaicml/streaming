@@ -77,11 +77,12 @@ class SharedMemory:
             atexit.register(self.cleanup)
 
             def signal_handler(sig, frame):
-                log.warning(f"signal handler {sig=}")
+                signame = signal.Signals(sig).name
+                log.warning(f"signal handler {sig=}, {signame=}")
                 self.cleanup()
                 sys.exit(0)
-            for sig in [signal.SIGINT, signal.SIGKILL, signal.SIGTERM]:
-                signal.signal(sig, signal_handler)
+            for t in [signal.SIGINT, signal.SIGKILL, signal.SIGTERM]:
+                signal.signal(t, signal_handler)
 
 
     @property
