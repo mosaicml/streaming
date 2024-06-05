@@ -995,12 +995,13 @@ class StreamingDataset(Array, IterableDataset):
 
         # Do expensive work that may use a lot of cores/memory just once, in the local leader.
         if u_world.is_local_leader:
-            if self.replication is not None and not u_world.worker_of_rank:
-                logger.warning(f'The `replication` arg has been set and training is resuming ' +
-                               f'from sample {sample_in_epoch}. Make sure you are accounting ' +
-                               f"for sample replication when using StreamingDataset's " +
-                               f'`state_dict` method for deterministic resumption. Otherwise, ' +
-                               f'you will resume training from the wrong sample.')
+            if self.replication is not None and self.replication > 1 and not u_world.worker_of_rank:
+                logger.warning(
+                    f'The `replication` arg has been set to {self.replication} and ' +
+                    f'training is resuming from sample {sample_in_epoch}. ' +
+                    f'Make sure you are accounting for sample replication when using ' +
+                    f"StreamingDataset's `state_dict` method for deterministic resumption. " +
+                    f'Otherwise, you will resume training from the wrong sample.')
             # Ensure that batch_size is passed in, and is an integer. This is necessary for
             # deterministic resumption and optimal performance.
             if not isinstance(self.batch_size, int):

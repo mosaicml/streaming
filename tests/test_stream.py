@@ -52,7 +52,7 @@ def test_local_exists(split: Optional[str]) -> None:
 def test_existing_local_raises_exception(monkeypatch: MonkeyPatch) -> None:
     local = tempfile.mkdtemp()
     monkeypatch.setattr(tempfile, 'gettempdir', lambda: local)
-    with pytest.raises(ValueError, match=f'Could not create a temporary local directory.*'):
+    with pytest.raises(FileExistsError, match=f'Could not create a temporary local directory.*'):
         _ = Stream()
     shutil.rmtree(local, ignore_errors=True)
 

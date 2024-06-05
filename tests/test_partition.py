@@ -225,17 +225,21 @@ def test_partition_nodrop_norepeat(physical_nodes: int, canonical_nodes: int, ra
     assert samples_seen_set == set(range(num_samples))
 
 
-@pytest.mark.parametrize('physical_nodes', [1, 4])
+@pytest.mark.parametrize('physical_nodes', [1, 4, 7, 13])
 @pytest.mark.parametrize('canonical_nodes', [12, 4, 64])
 @pytest.mark.parametrize('ranks_per_node', [8])
 @pytest.mark.parametrize('workers_per_rank', [1, 8])
 @pytest.mark.parametrize('batch_size', [2, 8])
 @pytest.mark.parametrize('num_samples', [1024, 16384])
 @pytest.mark.parametrize('sample_in_epoch', [0, 256])
-@pytest.mark.parametrize('replication', [2, 4])
+@pytest.mark.parametrize('replication', [2, 4, 8])
 def test_replication_samples(physical_nodes: int, canonical_nodes: int, ranks_per_node: int,
                              workers_per_rank: int, batch_size: int, num_samples: int,
                              sample_in_epoch: int, replication: int):
+
+    # Make sure canonical nodes works with physical nodes
+    if physical_nodes % canonical_nodes != 0 and canonical_nodes % physical_nodes != 0:
+        canonical_nodes = physical_nodes
 
     # Create a World object reflecting the hardware -- the actual nodes and rank
     actual_world = World(physical_nodes, ranks_per_node, workers_per_rank, 0)
