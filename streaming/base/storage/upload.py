@@ -871,8 +871,16 @@ class DatabricksUnityCatalogUploader(DatabricksUploader):
             remote_filename = os.path.join(self.remote, filename)  # pyright: ignore
             remote_filename = remote_filename.replace('\\', '/')
             remote_filename_wo_prefix = urllib.parse.urlparse(remote_filename).path
+            file_size = os.stat(local_filename).st_size
             with open(local_filename, 'rb') as f:
-                self.client.files.upload(remote_filename_wo_prefix, f)
+                self.client.files.upload(remote_filename_wo_prefix, f, overwrite=True)
+
+            # Warning!
+            # filesAPI.upload fails silently when failed to upload!
+            # need to manually check HEAD and throw exception to retry
+            metadata = self.client.files.get_metadata(remote_filename_wo_prefix)
+            if file_size != metadata.content_length:
+                raise RuntimeError(f'Uploading failed! {file_size}!= {metadata.content_length}')
 
         _upload_file()
 

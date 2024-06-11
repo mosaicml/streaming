@@ -45,4 +45,4 @@ Yaml files that follow MosaicML conventions can be uploaded and simulated as wel
 ![Yaml Quality Toggle](../docs/source/_static/images/yaml_toggle.png)
 
 ## 💬 Contact
-If you have problems, questions, or suggestions, please reach out to the MosaicML team on our [community slack channel](https://mosaicml.me/slack).
+If you have problems, questions, or suggestions, please reach out to the MosaicML team on our [community slack channel](https://dub.sh/mcomm).

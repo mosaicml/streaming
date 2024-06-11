@@ -133,7 +133,12 @@ class World:
         rank = self.rank // replication  # Evenly divide ranks.
         num_ranks = self.num_ranks // replication  # Floor divide our rank.
         worker = rank * self.workers_per_rank + self.worker_of_rank  # Derive worker.
-        num_nodes = (num_ranks + self.ranks_per_node - 1) // self.ranks_per_node  # Ceil divide.
+        # Attempt to evenly divide ranks per node. If not possible, the World
+        # object will just use one node.
+        if num_ranks % self.ranks_per_node == 0:
+            num_nodes = num_ranks // self.ranks_per_node
+        else:
+            num_nodes = 1
         ranks_per_node = num_ranks // num_nodes  # Evenly divide ranks per node.
         return World(
             num_nodes=num_nodes,

@@ -99,6 +99,10 @@ class Writer(ABC):
             if size_limit_value < 0:
                 raise ValueError(f'`size_limit` must be greater than zero, instead, ' +
                                  f'found as {size_limit_value}.')
+            if size_limit_value >= 2**32:
+                raise ValueError(f'`size_limit` must be less than 2**32, instead, ' +
+                                 f'found as {size_limit_value}. This is because sample ' +
+                                 f'byte offsets are stored with uint32.')
 
         # Validate keyword arguments
         invalid_kwargs = [
