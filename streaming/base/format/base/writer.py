@@ -124,7 +124,7 @@ class Writer(ABC):
         self.shards = []
 
         # Remove local directory if requested prior to creating writer
-        local = os.path.expanduser(out) if isinstance(out, str) else out[0]
+        local = os.path.expanduser(out) if isinstance(out, str) else os.path.expanduser(out[0])
         if os.path.exists(local) and kwargs.get('exist_ok', False):
             logger.warning(
                 f'Directory {local} exists and is not empty; exist_ok is set to True so will remove contents.'
