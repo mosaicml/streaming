@@ -922,14 +922,16 @@ class StreamingDataset(Array, IterableDataset):
         sample_ids = np.concatenate(sample_ids).astype(np.int64)
         return shuffle_units, sample_ids
 
-    def _share_work(self, sample_ids: NDArray[np.int64]) -> Tuple[SharedMemory, SharedMemory]:
+    def _share_work(self,
+                    sample_ids: NDArray[np.int64]) -> Tuple[SharedMemory, Optional[SharedMemory]]:
         """Put an epoch's sample ordering into shared memory.
 
         Args:
             sample_ids (NDArray[np.int64]): Sample IDs.
 
         Returns:
-            Tuple[SharedMemory, SharedMemory]: Shared memory arrays containing shape and data.
+            Tuple[SharedMemory, Optional[SharedMemory]]: Shared memory arrays containing shape and
+                data, if present.
         """
         ndim = 5
 
@@ -945,19 +947,26 @@ class StreamingDataset(Array, IterableDataset):
         shape_shm = SharedMemory(name=name, create=True, size=size, auto_cleanup=False)
         shape_shm.buf[:size] = np.array(sample_ids.shape, np.int64).tobytes()
 
-        # Save the generated epoch data to shared memory.
-        name = _get_path(self._shm_prefix_int, EPOCH_DATA)
-        size = sample_ids.size * np.int64().nbytes
-        data_shm = SharedMemory(name=name, create=True, size=size, auto_cleanup=False)
-        data_shm.buf[:size] = sample_ids.tobytes()
+        if sample_ids.size > 0:
+            # Save the generated epoch data to shared memory, but only if the sample partition is
+            # non-empty. Otherwise, the end of the epoch has been reached.
+            name = _get_path(self._shm_prefix_int, EPOCH_DATA)
+            size = sample_ids.size * np.int64().nbytes
+            data_shm = SharedMemory(name=name, create=True, size=size, auto_cleanup=False)
+            data_shm.buf[:size] = sample_ids.tobytes()
 
-        return shape_shm, data_shm
+            return shape_shm, data_shm
 
-    def _attach_work(self) -> Tuple[NDArray[np.int64], SharedMemory, SharedMemory]:
+        else:
+
+            return shape_shm, None
+
+    def _attach_work(self) -> Tuple[NDArray[np.int64], SharedMemory, Optional[SharedMemory]]:
         """Get an epoch's sample ordering from shared memory.
 
         Returns:
-            NDArray[np.int64]: Sample IDs.
+            Tuple[NDArray[np.int64], SharedMemory, Optional[SharedMemory]]: Sample IDs, shared
+                memory array for shape, and shared memory array for data, if present.
         """
         ndim = 5
 
@@ -967,13 +976,22 @@ class StreamingDataset(Array, IterableDataset):
         shape_shm = SharedMemory(name=name, create=False, size=size, auto_cleanup=False)
         shape = tuple(np.ndarray(5, buffer=shape_shm.buf, dtype=np.int64))
 
-        # Attach to the generated epoch data in shared memory.
-        name = _get_path(self._shm_prefix_int, EPOCH_DATA)
-        size = int(np.prod(shape)) * np.int64().nbytes
-        data_shm = SharedMemory(name=name, create=False, size=size, auto_cleanup=False)
-        sample_ids = np.ndarray(shape, buffer=data_shm.buf, dtype=np.int64)
+        num_elements = int(np.prod(shape))
 
-        return sample_ids, shape_shm, data_shm
+        if num_elements > 0:
+            # Attach to the generated epoch data in shared memory, but only if the sample partition
+            # is non-empty. Otherwise, the end of the epoch has been reached.
+            name = _get_path(self._shm_prefix_int, EPOCH_DATA)
+            size = num_elements * np.int64().nbytes
+            data_shm = SharedMemory(name=name, create=False, size=size, auto_cleanup=False)
+            sample_ids = np.ndarray(shape, buffer=data_shm.buf, dtype=np.int64)
+
+            return sample_ids, shape_shm, data_shm
+
+        else:
+
+            sample_ids = np.empty(shape=shape, dtype=np.int64)
+            return sample_ids, shape_shm, None
 
     def _get_work(self, epoch: int, sample_in_epoch: int) -> NDArray[np.int64]:
         """Get this worker's partition of this epoch's sample space.
@@ -1025,7 +1043,9 @@ class StreamingDataset(Array, IterableDataset):
 
         # Now clean up after ourselves.
         shape_shm.cleanup()
-        data_shm.cleanup()
+        # Can be None if the sample partition was empty.
+        if data_shm is not None:
+            data_shm.cleanup()
 
         return worker_sample_ids
 
