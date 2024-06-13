@@ -21,7 +21,7 @@ import sys
 import tempfile
 import types
 import warnings
-from typing import Any, List, Tuple, Type
+from typing import Any, List, Type
 
 import sphinx.application
 import sphinx.ext.autodoc
@@ -284,11 +284,11 @@ def _auto_rst_for_module(module: types.ModuleType, exclude_members: List[Any]) -
     name = module.__name__
     lines = []
 
-    functions: List[Tuple[str, types.FunctionType]] = []
-    exceptions: List[Tuple[str, Type[BaseException]]] = []
-    classes: List[Tuple[str, Type[object]]] = []
-    methods: List[Tuple[str, types.MethodType]] = []
-    attributes: List[Tuple[str, object]] = []
+    functions: List[tuple[str, types.FunctionType]] = []
+    exceptions: List[tuple[str, Type[BaseException]]] = []
+    classes: List[tuple[str, Type[object]]] = []
+    methods: List[tuple[str, types.MethodType]] = []
+    attributes: List[tuple[str, object]] = []
 
     # add title and module docstring
     lines.append(f'{name}')

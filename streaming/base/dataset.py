@@ -15,7 +15,7 @@ from math import ceil
 from tempfile import gettempdir
 from threading import Event, Lock
 from time import sleep, time_ns
-from typing import Any, Dict, Iterator, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Iterator, Optional, Sequence, Union
 
 import numpy as np
 from filelock import FileLock
@@ -673,7 +673,7 @@ class StreamingDataset(Array, IterableDataset):
             self.shuffle_block_size = max(4_000_000 // self.num_canonical_nodes, 1 << 18) \
                 if self.num_canonical_nodes is not None else 1 << 18
 
-    def _resume(self, world: World, epoch: int) -> Tuple[int, int]:
+    def _resume(self, world: World, epoch: int) -> tuple[int, int]:
         """Either resume from checkpoint or start at the beginning.
 
         Args:
@@ -681,7 +681,7 @@ class StreamingDataset(Array, IterableDataset):
             epoch (int): What epoch we think it is (pre-checkpoint).
 
         Returns:
-            Tuple[int, int]: What epoch this is, and sample offset in that epoch.
+            tuple[int, int]: What epoch this is, and sample offset in that epoch.
         """
         # Get the resume state, if it exists.
         name = _get_path(self._shm_prefix_int, RESUME)
@@ -739,13 +739,13 @@ class StreamingDataset(Array, IterableDataset):
 
         return epoch, sample_in_epoch
 
-    def _resume_incr_epoch(self) -> Tuple[int, int]:
+    def _resume_incr_epoch(self) -> tuple[int, int]:
         """Start or resume training, pre-incrementing the next epoch.
 
         This is called on each worker.
 
         Returns:
-            Tuple[int, int]: What epoch this is, and sample offset in that epoch.
+            tuple[int, int]: What epoch this is, and sample offset in that epoch.
         """
         # Lazily create the shared barrier's FileLock, which contains a threading Lock, which is
         # unpickleable.
@@ -848,7 +848,7 @@ class StreamingDataset(Array, IterableDataset):
     def resample_streams(
             self,
             epoch: int,
-            stream_id: Optional[int] = None) -> Tuple[NDArray[np.int64], NDArray[np.int64]]:
+            stream_id: Optional[int] = None) -> tuple[NDArray[np.int64], NDArray[np.int64]]:
         """Perform the up/down-sampling needed to generate the weighted epoch.
 
         Args:
@@ -857,7 +857,7 @@ class StreamingDataset(Array, IterableDataset):
                 Defaults to ``None``.
 
         Returns:
-            Tuple[NDArray[np.int64], NDArray[np.int64]]: Sampled shard sizes and sample mapping.
+            tuple[NDArray[np.int64], NDArray[np.int64]]: Sampled shard sizes and sample mapping.
         """
         # Initialize random number generator and arrays. If sampling_method is "fixed", the rng
         # seed does not change, resulting in the same samples from each stream each epoch.
@@ -922,14 +922,14 @@ class StreamingDataset(Array, IterableDataset):
         sample_ids = np.concatenate(sample_ids).astype(np.int64)
         return shuffle_units, sample_ids
 
-    def _share_work(self, sample_ids: NDArray[np.int64]) -> Tuple[SharedMemory, SharedMemory]:
+    def _share_work(self, sample_ids: NDArray[np.int64]) -> tuple[SharedMemory, SharedMemory]:
         """Put an epoch's sample ordering into shared memory.
 
         Args:
             sample_ids (NDArray[np.int64]): Sample IDs.
 
         Returns:
-            Tuple[SharedMemory, SharedMemory]: Shared memory arrays containing shape and data.
+            tuple[SharedMemory, SharedMemory]: Shared memory arrays containing shape and data.
         """
         ndim = 5
 
@@ -953,7 +953,7 @@ class StreamingDataset(Array, IterableDataset):
 
         return shape_shm, data_shm
 
-    def _attach_work(self) -> Tuple[NDArray[np.int64], SharedMemory, SharedMemory]:
+    def _attach_work(self) -> tuple[NDArray[np.int64], SharedMemory, SharedMemory]:
         """Get an epoch's sample ordering from shared memory.
 
         Returns:

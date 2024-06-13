@@ -5,7 +5,7 @@
 
 from argparse import ArgumentParser, Namespace
 from collections import defaultdict
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, tuple
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -46,14 +46,14 @@ def parse_args() -> Namespace:
     return args.parse_args()
 
 
-def load(f: str) -> List[Tuple[str, int, float]]:
+def load(f: str) -> List[tuple[str, int, float]]:
     """Load data CSV.
 
     Args:
         f (str): Filename.
 
     Returns:
-        List[Tuple[str, int, float]]: Tuples of (algo, size, time).
+        List[tuple[str, int, float]]: Tuples of (algo, size, time).
     """
     fp = open(f)
     next(fp)
@@ -69,12 +69,12 @@ def load(f: str) -> List[Tuple[str, int, float]]:
     return rr
 
 
-def plot_hash_rates(data: List[Tuple[str, int, float]], algo2color: Dict[str, Optional[str]],
+def plot_hash_rates(data: List[tuple[str, int, float]], algo2color: Dict[str, Optional[str]],
                     dpi: int, font_size: int, line_width: float, filename: str) -> None:
     """Plot hash rate by size.
 
     Args:
-        data (List[Tuple[str, int, float]]): Tuples of (algo, size, time).
+        data (List[tuple[str, int, float]]): Tuples of (algo, size, time).
         algo2color (Dict[str, Optional[str]): Color of algo in plots, or None to omit.
         dpi (int): DPI of plots.
         font_size (int): Font size of plots.

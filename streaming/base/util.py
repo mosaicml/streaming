@@ -16,7 +16,7 @@ from collections import OrderedDict
 from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
 from pathlib import Path
 from time import sleep, time
-from typing import Any, Callable, List, Sequence, Tuple, Type, TypeVar, Union, cast, overload
+from typing import Any, Callable, List, Sequence, Type, TypeVar, Union, cast, overload
 
 import torch.distributed as dist
 
@@ -229,14 +229,14 @@ def merge_index(*args: Any, **kwargs: Any):
     The second takes the root of a MDS dataset and parse the partition folders from there.
 
     Args:
-        index_file_urls (List[Union[str, Tuple[str,str]]]): index.json from all the partitions.
+        index_file_urls (List[Union[str, tuple[str,str]]]): index.json from all the partitions.
             Each element can take the form of a single path string or a tuple string.
 
             1. If ``index_file_urls`` is a List of local URLs, merge locally without download.
             2. If ``index_file_urls`` is a List of tuple (local, remote) URLs, check if local index.json are missing, download before merging.
             3. If ``index_file_urls`` is a List of remote URLs, download all and merge.
 
-        out (Union[str, Tuple[str,str]]): folder that contain MDS partitions and to put the merged index file
+        out (Union[str, tuple[str,str]]): folder that contain MDS partitions and to put the merged index file
 
             1. A local directory, merge index happens locally.
             2. A remote directory, download all the sub-directories index.json, merge locally and upload.
@@ -253,14 +253,14 @@ def merge_index(*args: Any, **kwargs: Any):
     raise ValueError(f'Invalid arguments to merge_index: {args}, {kwargs}')
 
 
-def _merge_index_from_list(index_file_urls: Sequence[Union[str, Tuple[str, str]]],
-                           out: Union[str, Tuple[str, str]],
+def _merge_index_from_list(index_file_urls: Sequence[Union[str, tuple[str, str]]],
+                           out: Union[str, tuple[str, str]],
                            keep_local: bool = True,
                            download_timeout: int = 60) -> None:
     """Merge index.json from a list of index files of MDS directories to create joined index.
 
     Args:
-        index_file_urls (Union[str, Tuple[str,str]]): index.json from all the partitions
+        index_file_urls (Union[str, tuple[str,str]]): index.json from all the partitions
             each element can take the form of a single path string or a tuple string.
 
             The pattern of index_file_urls and corresponding reaction is one of:
@@ -269,7 +269,7 @@ def _merge_index_from_list(index_file_urls: Sequence[Union[str, Tuple[str, str]]
             3. All URLS are tuple (local, remote). Download URL that is not accessible locally
             4. All URLS are str (remote) -> download all
 
-        out (Union[str, Tuple[str, str]]): path to put the merged index file
+        out (Union[str, tuple[str, str]]): path to put the merged index file
         keep_local (bool): Keep local copy of the merged index file. Defaults to ``True``
         download_timeout (int): The allowed time for downloading each json file. Defaults to 60.
     """
@@ -397,13 +397,13 @@ def _format_remote_index_files(remote: str, files: List[str]) -> List[str]:
     return remote_index_files
 
 
-def _merge_index_from_root(out: Union[str, Tuple[str, str]],
+def _merge_index_from_root(out: Union[str, tuple[str, str]],
                            keep_local: bool = True,
                            download_timeout: int = 60) -> None:
     """Merge index.json given the root of MDS dataset. Write merged index to the root folder.
 
     Args:
-        out (Union[str, Tuple[str,str]]): folder that contain MDS partitions.
+        out (Union[str, tuple[str,str]]): folder that contain MDS partitions.
             :A local directory, merge index happens locally
             :A remote directory, download all the sub-directories index.json in a temporary
                 sub-directories, merge locally, and then upload it to out location

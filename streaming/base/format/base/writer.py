@@ -13,7 +13,7 @@ from concurrent.futures._base import Future
 from threading import Event
 from time import sleep
 from types import TracebackType
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, List, Optional, Type, Union
 
 from typing_extensions import Self
 
@@ -32,7 +32,7 @@ class Writer(ABC):
     """Writes a streaming dataset.
 
     Args:
-        out (str | Tuple[str, str]): Output dataset directory to save shard files.
+        out (str | tuple[str, str]): Output dataset directory to save shard files.
 
             1. If ``out`` is a local directory, shard files are saved locally.
             2. If ``out`` is a remote directory, a local temporary directory is created to
@@ -72,7 +72,7 @@ class Writer(ABC):
 
     def __init__(self,
                  *,
-                 out: Union[str, Tuple[str, str]],
+                 out: Union[str, tuple[str, str]],
                  keep_local: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,
@@ -162,14 +162,14 @@ class Writer(ABC):
         """
         raise NotImplementedError
 
-    def _name_next_shard(self, extension: Optional[str] = None) -> Tuple[str, Optional[str]]:
+    def _name_next_shard(self, extension: Optional[str] = None) -> tuple[str, Optional[str]]:
         """Get the filenames of the next shard to be created.
 
         Args:
             extension (str): Optional additional extension (eg, meta files).
 
         Returns:
-            Tuple[str, str]: Pair of (decompressed, compressed) filenames.
+            tuple[str, str]: Pair of (decompressed, compressed) filenames.
         """
         shard = len(self.shards)
         parts = ['shard', f'{shard:05}', self.format]
@@ -200,7 +200,7 @@ class Writer(ABC):
         return {'basename': basename, 'bytes': len(data), 'hashes': hashes}
 
     def _process_file(self, raw_data: bytes, raw_basename: str,
-                      zip_basename: Optional[str]) -> Tuple[dict, Optional[dict]]:
+                      zip_basename: Optional[str]) -> tuple[dict, Optional[dict]]:
         """Process and save a shard file (hash, compress, hash, write).
 
         Args:
@@ -362,7 +362,7 @@ class JointWriter(Writer):
     """Writes a streaming dataset with joint shards.
 
     Args:
-        out (str | Tuple[str, str]): Output dataset directory to save shard files.
+        out (str | tuple[str, str]): Output dataset directory to save shard files.
 
             1. If ``out`` is a local directory, shard files are saved locally.
             2. If ``out`` is a remote directory, a local temporary directory is created to
@@ -395,7 +395,7 @@ class JointWriter(Writer):
 
     def __init__(self,
                  *,
-                 out: Union[str, Tuple[str, str]],
+                 out: Union[str, tuple[str, str]],
                  keep_local: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,
@@ -452,7 +452,7 @@ class SplitWriter(Writer):
     Split shards refer to raw data (csv, json, etc.) paired with an index into it.
 
     Args:
-        out (str | Tuple[str, str]): Output dataset directory to save shard files.
+        out (str | tuple[str, str]): Output dataset directory to save shard files.
 
             1. If ``out`` is a local directory, shard files are saved locally.
             2. If ``out`` is a remote directory, a local temporary directory is created to
@@ -484,7 +484,7 @@ class SplitWriter(Writer):
 
     def __init__(self,
                  *,
-                 out: Union[str, Tuple[str, str]],
+                 out: Union[str, tuple[str, str]],
                  keep_local: bool = False,
                  compression: Optional[str] = None,
                  hashes: Optional[List[str]] = None,
@@ -500,7 +500,7 @@ class SplitWriter(Writer):
                          **kwargs)
 
     @abstractmethod
-    def encode_split_shard(self) -> Tuple[bytes, bytes]:
+    def encode_split_shard(self) -> tuple[bytes, bytes]:
         """Encode a split shard out of the cached samples (data, meta files).
 
         Returns:

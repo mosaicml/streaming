@@ -258,7 +258,7 @@ The following guidelines apply to documentation.
     specify "optional", and the docstring should say the default value. Some examples:
 
     ```python
-    from typing import Optional, Tuple, Union
+    from typing import Optional, Union
 
     def foo(bar: int):
         """Foo.
@@ -303,7 +303,7 @@ The following guidelines apply to documentation.
         """
         ...
 
-    def foo6(bar: int) -> Tuple[int, str]:
+    def foo6(bar: int) -> tuple[int, str]:
         """Foo6.
 
         Args:

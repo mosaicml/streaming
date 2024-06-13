@@ -7,7 +7,7 @@ import hashlib
 import json
 import os
 import tempfile
-from typing import List, Optional, Sequence, Tuple
+from typing import List, Optional, Sequence
 
 import numpy as np
 from numpy.typing import NDArray
@@ -194,7 +194,7 @@ class Stream:
             self.safe_keep_zip = default['keep_zip'] or self.remote in {None, self.local}
 
     @classmethod
-    def validate_weights(cls, streams: Sequence[Self]) -> Tuple[bool, bool]:
+    def validate_weights(cls, streams: Sequence[Self]) -> tuple[bool, bool]:
         """Validate stream weights, returning whether relative or absolute weighting was used.
 
         Args:

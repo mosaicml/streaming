@@ -3,15 +3,13 @@
 
 """Peripheral functions for simulation functionality."""
 
-from typing import Tuple
-
 import numpy as np
 from core.sim_dataset import SimulationDataset
 from core.sim_time import Time, TimeUnit
 from numpy.typing import NDArray
 
 
-def get_batches_epochs(dataset: SimulationDataset, max_duration: Time) -> Tuple[int, int, int]:
+def get_batches_epochs(dataset: SimulationDataset, max_duration: Time) -> tuple[int, int, int]:
     """Get batches per epoch, epochs, and total epochs from a Time object.
 
     Args:
@@ -19,7 +17,7 @@ def get_batches_epochs(dataset: SimulationDataset, max_duration: Time) -> Tuple[
         max_duration (Time): The maximum duration, can be specified in yaml.
 
     Returns:
-        Tuple[int, int, int]: batches per epoch, epochs, and the total batches.
+        tuple[int, int, int]: batches per epoch, epochs, and the total batches.
     """
     # get epochs, batches_per_epoch, and total_batches from a Time obect
     dataset_batches = dataset.get_num_batches()
@@ -128,7 +126,7 @@ def get_rolling_avg_throughput(step_times: NDArray, window: int = 10) -> NDArray
 
 
 def get_simulation_stats(step_times: NDArray, time_per_sample: float,
-                         device_batch_size: int) -> Tuple[int, float, int, int]:
+                         device_batch_size: int) -> tuple[int, float, int, int]:
     """Gets simulation stats for web UI.
 
     Args:
@@ -137,7 +135,7 @@ def get_simulation_stats(step_times: NDArray, time_per_sample: float,
         device_batch_size (int): batch size per device
 
     Returns:
-        Tuple[int, float, int, int]: number of steps with throughput drops, time till warmup,
+        tuple[int, float, int, int]: number of steps with throughput drops, time till warmup,
             step number of warmup, number of steps with throughput drops after warmup
     """
     # calculate percent of download-limited steps

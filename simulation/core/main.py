@@ -5,7 +5,7 @@
 
 import logging
 import time
-from typing import Generator, Tuple, Union
+from typing import Generator, Union
 
 import numpy as np
 from core.node_tracker import NodeTracker
@@ -25,7 +25,7 @@ def simulate(
     node_network_bandwidth: int,
     max_duration: Time,
     generator: bool = False
-) -> Generator[Union[Tuple[int, float, int], Tuple[float, int], Tuple[NDArray, NDArray, float,
+) -> Generator[Union[tuple[int, float, int], tuple[float, int], tuple[NDArray, NDArray, float,
                                                                       int]], None, None]:
     """Simulates step time and downloads using streaming for the specified input parameters.
 
@@ -56,9 +56,9 @@ def simulate(
         generator (bool): True if we yield throughput and shard_download one step at a time.
 
     Returns:
-        Generator[Union[Tuple[int, float, int],
-            Tuple[NDArray, NDArray, float, int],
-            Tuple[float, int]], None, None]: either a tuple of step number, step time, and
+        Generator[Union[tuple[int, float, int],
+            tuple[NDArray, NDArray, float, int],
+            tuple[float, int]], None, None]: either a tuple of step number, step time, and
             downloaded bytes, a tuple of startup time and min needed cache limit,
             (both when generator=True), or a tuple of all step times, downloaded bytes,
             startup_time, and min needed cache limit.

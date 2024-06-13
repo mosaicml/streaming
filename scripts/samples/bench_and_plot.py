@@ -9,7 +9,7 @@ from argparse import ArgumentParser, Namespace
 from contextlib import contextmanager
 from shutil import rmtree
 from time import time, time_ns
-from typing import Any, Callable, Dict, Iterator, List, Tuple
+from typing import Any, Callable, Dict, Iterator, List
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -131,7 +131,7 @@ def timed(text: str) -> Iterator:
     print(f'{text}: {t:.3f} s')
 
 
-def generate_text(dataset_size: int, text_len: int) -> Tuple[Dict[str, str], List[Dict[str, Any]]]:
+def generate_text(dataset_size: int, text_len: int) -> tuple[Dict[str, str], List[Dict[str, Any]]]:
     """Generate dataset of text samples.
 
     Args:
@@ -139,7 +139,7 @@ def generate_text(dataset_size: int, text_len: int) -> Tuple[Dict[str, str], Lis
         text_len (int): Length of each text field.
 
     Returns:
-        Tuple[Dict[str, str], List[Dict[str, Any]]]: Column names/types and each sample.
+        tuple[Dict[str, str], List[Dict[str, Any]]]: Column names/types and each sample.
     """
     columns = {'text': 'str'}
     vocab = np.array(list(map(ord, string.ascii_letters)))
@@ -155,7 +155,7 @@ def generate_text(dataset_size: int, text_len: int) -> Tuple[Dict[str, str], Lis
 
 
 def generate_tokens(dataset_size: int, tokens_per_sample: int, dtype: DTypeLike) -> \
-        Tuple[Dict[str, str], List[Dict[str, Any]]]:
+        tuple[Dict[str, str], List[Dict[str, Any]]]:
     """Generate dataset of token samples.
 
     Args:
@@ -164,7 +164,7 @@ def generate_tokens(dataset_size: int, tokens_per_sample: int, dtype: DTypeLike)
         dtype (DTypeLike): Which dtype to use for the tokens ndarray.
 
     Returns:
-        Tuple[Dict[str, str], List[Dict[str, Any]]]: Column names/types and each sample.
+        tuple[Dict[str, str], List[Dict[str, Any]]]: Column names/types and each sample.
     """
     dtype = np.dtype(dtype)
     columns = {'tokens': f'ndarray:{dtype.name}:{tokens_per_sample}'}

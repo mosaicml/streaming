@@ -3,8 +3,6 @@
 
 """Mapping of global sample index to shard and relative sample index."""
 
-from typing import Tuple
-
 import numpy as np
 from numpy.typing import NDArray
 
@@ -39,14 +37,14 @@ class Spanner:
 
         self.shard_sizes[-1] -= underflow
 
-    def __getitem__(self, index: int) -> Tuple[int, int]:
+    def __getitem__(self, index: int) -> tuple[int, int]:
         """Map global sample index to shard and relative sample index.
 
         Args:
             index (int): Global sample index.
 
         Returns:
-            Tuple[int, int]: Shard and relative sample index.
+            tuple[int, int]: Shard and relative sample index.
         """
         if not (0 <= index < self.num_samples):
             raise ValueError(f'Invalid sample index `{index}`: 0 <= {index} < {self.num_samples}')

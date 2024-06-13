@@ -7,7 +7,7 @@ import logging
 import os
 import shutil
 from collections.abc import Iterable
-from typing import Any, Callable, Dict, Iterable, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, Optional
 
 import pandas as pd
 
@@ -160,7 +160,7 @@ def dataframeToMDS(dataframe: DataFrame,
                    merge_index: bool = True,
                    mds_kwargs: Optional[Dict[str, Any]] = None,
                    udf_iterable: Optional[Callable] = None,
-                   udf_kwargs: Optional[Dict[str, Any]] = None) -> Tuple[str, str]:
+                   udf_kwargs: Optional[Dict[str, Any]] = None) -> tuple[str, str]:
     """Deprecated API Signature.
 
     To be replaced by dataframe_to_mds
@@ -175,7 +175,7 @@ def dataframe_to_mds(dataframe: DataFrame,
                      merge_index: bool = True,
                      mds_kwargs: Optional[Dict[str, Any]] = None,
                      udf_iterable: Optional[Callable] = None,
-                     udf_kwargs: Optional[Dict[str, Any]] = None) -> Tuple[str, str]:
+                     udf_kwargs: Optional[Dict[str, Any]] = None) -> tuple[str, str]:
     """Execute a spark dataframe to MDS conversion process.
 
     This method orchestrates the conversion of a spark dataframe into MDS format by processing the
@@ -285,7 +285,7 @@ def dataframe_to_mds(dataframe: DataFrame,
     keep_local = False if 'keep_local' not in mds_kwargs else mds_kwargs['keep_local']
     cu = CloudUploader.get(out, keep_local=keep_local)
 
-    # Fix output format as mds_path: Tuple(local, remote)
+    # Fix output format as mds_path: tuple(local, remote)
     if cu.remote is None:
         mds_path = (cu.local, '')
     else:

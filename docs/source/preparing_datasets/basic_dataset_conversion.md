@@ -27,7 +27,7 @@ out = ('/local/data', 'oci://bucket/data')
 | Encoding           | 'bytes'       | `Bytes`      | no-op encoding           |
 | Encoding           | 'str'         | `Str`        | stores in UTF-8          |
 | Encoding           | 'int'         | `Int`        | Python `int`, uses `numpy.int64` for encoding       |
-| Numpy Array        | 'ndarray:dtype:shape'     | `NDArray(dtype: Optional[str] = None, shape: Optional[Tuple[int]] = None)`    | uses `numpy.ndarray`     |
+| Numpy Array        | 'ndarray:dtype:shape'     | `NDArray(dtype: Optional[str] = None, shape: Optional[tuple[int]] = None)`    | uses `numpy.ndarray`     |
 | Numpy Unsigned Int | 'uint8'       | `UInt8`      | uses `numpy.uint8`       |
 | Numpy Unsigned Int | 'uint16'      | `UInt16`     | uses `numpy.uint16`      |
 | Numpy Unsigned Int | 'uint32'      | `Uint32`     | uses `numpy.uint32`      |

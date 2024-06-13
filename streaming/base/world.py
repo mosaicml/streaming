@@ -3,7 +3,7 @@
 
 """Information about nodes, ranks, and workers."""
 
-from typing import Any, Dict, Tuple
+from typing import Any, Dict
 
 from torch.utils.data import get_worker_info
 from typing_extensions import Self
@@ -74,11 +74,11 @@ class World:
         return dict(self.__dict__)
 
     @classmethod
-    def _get_worker_info(cls) -> Tuple[int, int]:
+    def _get_worker_info(cls) -> tuple[int, int]:
         """Get worker info, or default to 0 of 1.
 
         Returns:
-            Tuple[int, int]: Worker ID out of how many workers.
+            tuple[int, int]: Worker ID out of how many workers.
         """
         info = get_worker_info()
         if info:

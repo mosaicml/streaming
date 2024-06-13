@@ -3,8 +3,6 @@
 
 """Mapping of global sample index to shard index for simulation purposes."""
 
-from typing import Tuple
-
 from streaming.base.spanner import Spanner
 
 
@@ -16,7 +14,7 @@ class SimulationSpanner(Spanner):
         span_size (int): Size of the divisions of the sample space. Defaults to ``1 << 10``.
     """
 
-    def __getitem__(self, index: int) -> Tuple[int, int]:
+    def __getitem__(self, index: int) -> tuple[int, int]:
         """Map global sample index to shard index only.
 
         Args:

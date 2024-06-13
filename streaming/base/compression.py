@@ -6,7 +6,7 @@
 import bz2
 import gzip
 from abc import ABC, abstractmethod
-from typing import Dict, Iterator, Optional, Set, Tuple, Type
+from typing import Dict, Iterator, Optional, Set, tuple, Type
 
 import brotli
 import snappy
@@ -24,11 +24,11 @@ class Compression(ABC):
     extension: str = ''  # Filename extension.
 
     @classmethod
-    def each(cls) -> Iterator[Tuple[str, Self]]:
+    def each(cls) -> Iterator[tuple[str, Self]]:
         """Get each instance of this compression algorithm family.
 
         Returns:
-            Iterator[Tuple[str, Self]]: Each level.
+            Iterator[tuple[str, Self]]: Each level.
         """
         yield cls.extension, cls()
 
@@ -70,7 +70,7 @@ class LevelledCompression(Compression):
         raise NotImplementedError
 
     @classmethod
-    def each(cls) -> Iterator[Tuple[str, Self]]:
+    def each(cls) -> Iterator[tuple[str, Self]]:
         yield cls.extension, cls()
         for level in cls.levels:
             yield f'{cls.extension}:{level}', cls(level)
