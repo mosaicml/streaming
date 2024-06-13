@@ -288,7 +288,7 @@ class Stream:
             stream.repeat = repeat
             stream.choose = choose
 
-        return choose_per_epoch
+        return int(choose_per_epoch)
 
     def _download_file(self, from_basename: str, to_basename: Optional[str] = None) -> str:
         """Safely download a file from remote to local cache.
