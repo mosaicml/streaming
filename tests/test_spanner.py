@@ -24,6 +24,6 @@ def test_spanner_success():
 def test_spanner_invalid_index(index: int):
     shard_sizes = np.arange(5, 100, 5)
     span_size = 7
-    with pytest.raises(ValueError, match='Invalid sample index.*'):
+    with pytest.raises(IndexError, match='Invalid sample index.*'):
         spanner = Spanner(shard_sizes, span_size)
         spanner[index]
