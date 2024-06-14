@@ -80,8 +80,9 @@ class MDSReader(JointReader):
         args['dirname'] = dirname
         args['split'] = split
         for key in ['raw_data', 'zip_data']:
-            arg = args[key]
-            args[key] = FileInfo(**arg) if arg else None
+            arg = args.get(key)
+            if arg:
+                args[key] = FileInfo(**arg)
         return cls(**args)
 
     def validate(self, allow_unsafe_types: bool) -> None:
