@@ -8,6 +8,7 @@ from typing import Any, Tuple, Union
 
 import numpy as np
 import pytest
+from numpy.typing import NDArray
 from PIL import Image
 
 import streaming.base.format.json.encodings as jsonEnc
@@ -131,6 +132,19 @@ class TestMDSEncodings:
 
         assert b3_len < b2_len < b1_len
         assert b3_len == np.prod(shape) * dtype().nbytes
+
+    def test_error_no_elements_ndarray(self):
+        encoding = 'ndarray'
+        with pytest.raises(ValueError,
+                           match='Attempting to encode a numpy array with 0 elements.*'):
+            _ = mdsEnc.mds_encode(encoding, np.array([]))
+
+    @pytest.mark.parametrize('array', [np.array(0.5), np.empty(()), np.array(1)])
+    def test_error_scalar_ndarray(self, array: NDArray):
+        encoding = 'ndarray'
+        with pytest.raises(ValueError,
+                           match='Attempting to encode a scalar with NDArray encoding.*'):
+            _ = mdsEnc.mds_encode(encoding, array)
 
     @pytest.mark.parametrize('mode', ['I', 'L', 'RGB'])
     def test_pil_encode_decode(self, mode: str):
