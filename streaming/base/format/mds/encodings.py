@@ -201,6 +201,11 @@ class NDArray(Encoding):
         Returns:
             str: The smallest acceptable uint* dtype.
         """
+        if len(shape) == 0:
+            raise ValueError(
+                'Attempting to encode a scalar with NDArray encoding. Please use a scalar encoding.'
+            )
+
         if shape.min() <= 0:
             raise ValueError('All dimensions must be greater than zero.')
         x = shape.max()
@@ -234,6 +239,9 @@ class NDArray(Encoding):
         else:
             if obj.dtype != self.dtype:
                 raise ValueError(f'Wrong dtype: expected {self.dtype}, got {obj.dtype.name}.')
+
+        if obj.size == 0:
+            raise ValueError('Attempting to encode a numpy array with 0 elements.')
 
         # Encode shape, if not given in header.
         if self.shape is None:
