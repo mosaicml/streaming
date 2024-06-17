@@ -65,6 +65,7 @@ def get_partitions_relaxed(num_samples: int,
         return get_partitions_orig(num_samples, num_canonical_nodes, num_physical_nodes,
                                    ranks_per_node, workers_per_rank, batch_size, drop_first)
     else:
+        print('WE HERE')
         # First, make a partition over the initial number of physical nodes and device batch size.
         # We assume that ranks_per_node and workers_per_rank stay constant during resumptions.
         global_batch_size = num_physical_nodes * ranks_per_node * batch_size
@@ -82,6 +83,7 @@ def get_partitions_relaxed(num_samples: int,
         partition = get_partitions_orig(num_samples, num_canonical_nodes, initial_physical_nodes,
                                         ranks_per_node, workers_per_rank, initial_batch_size,
                                         drop_first)
+        print('ORIG PARTITION SHAPE: ', partition.shape)
 
         # Flatten the initial partition in order of traversal.
         # partition was originally (nodes, ranks, workers, batches per worker, batch size)
