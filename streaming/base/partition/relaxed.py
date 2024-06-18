@@ -82,7 +82,6 @@ def get_partitions_relaxed(num_samples: int,
         partition = get_partitions_orig(num_samples, num_canonical_nodes, initial_physical_nodes,
                                         ranks_per_node, workers_per_rank, initial_batch_size,
                                         drop_first)
-        print('ORIG PARTITION SHAPE: ', partition.shape)
 
         # Flatten the initial partition in order of traversal.
         # partition was originally (nodes, ranks, workers, batches per worker, batch size)
