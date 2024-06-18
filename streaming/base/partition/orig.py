@@ -46,7 +46,7 @@ def get_partitions_orig(num_samples: int,
         NDArray[np.int64]: Partitions of shape (physical nodes, ranks per node, workers per rank,
             batches per worker, batch size).
     """
-    if num_samples <= drop_first:
+    if num_samples < drop_first:
         raise ValueError(f'Resuming further into the dataset ({drop_first}) than it has samples ' +
                          f'({num_samples})')
 
