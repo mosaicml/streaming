@@ -49,10 +49,6 @@ def get_partitions_relaxed(num_samples: int,
         NDArray[np.int64]: Partitions of shape (physical nodes, ranks per node, workers per rank,
             batches per worker, batch size).
     """
-    if num_samples < drop_first:
-        raise ValueError(f'Resuming further into the dataset ({drop_first}) than it has samples ' +
-                         f'({num_samples})')
-
     if initial_physical_nodes is None or (num_physical_nodes <= num_canonical_nodes and
                                           num_canonical_nodes % num_physical_nodes == 0) or \
                                          (num_physical_nodes > num_canonical_nodes and

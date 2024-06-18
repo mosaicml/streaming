@@ -3,6 +3,7 @@
 
 """Apportion shards/samples to nodes/ranks/workers for elastically deterministic sample order."""
 
+import logging
 from typing import Optional
 
 import numpy as np
@@ -10,6 +11,8 @@ from numpy.typing import NDArray
 
 from streaming.base.partition.orig import get_partitions_orig
 from streaming.base.partition.relaxed import get_partitions_relaxed
+
+logger = logging.getLogger(__name__)
 
 algos = {
     'orig': get_partitions_orig,
@@ -51,6 +54,17 @@ def get_partitions(algo: str,
         NDArray[np.int64]: Partitions of shape (physical nodes, ranks per node, workers per rank,
             batches per worker, batch size).
     """
+    world_size = ranks_per_node * num_physical_nodes
+    num_repeated_samples = world_size - (num_samples % world_size)
+    if num_samples + num_repeated_samples < drop_first:
+        raise ValueError(f'Resuming further into the dataset ({drop_first}) than it has samples ' +
+                         f'({num_samples})')
+
+    if num_repeated_samples > 0:
+        logger.debug(f'Using {num_repeated_samples} repeated samples to ensure that the epoch ' +
+                     f'size is divisible by the number of total devices. This ensures that each ' +
+                     f'device contributes the same number of samples per global batch. ')
+
     get = algos[algo]
     return get(num_samples, num_canonical_nodes, num_physical_nodes, ranks_per_node,
                workers_per_rank, batch_size, drop_first, initial_physical_nodes)
