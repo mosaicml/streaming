@@ -46,10 +46,6 @@ def get_partitions_orig(num_samples: int,
         NDArray[np.int64]: Partitions of shape (physical nodes, ranks per node, workers per rank,
             batches per worker, batch size).
     """
-    if num_samples < drop_first:
-        raise ValueError(f'Resuming further into the dataset ({drop_first}) than it has samples ' +
-                         f'({num_samples})')
-
     if num_canonical_nodes < num_physical_nodes:
         if num_physical_nodes % num_canonical_nodes:
             raise ValueError('Either canonical or physical nodes must be evenly divisible by ' +
@@ -81,7 +77,7 @@ def get_partitions_orig(num_samples: int,
 
     # For samples to be properly split across canonical nodes, there must be more samples than nodes.
     # The edge case is when the number of samples is equal to the number of canonical nodes, but this only works when
-    #  there is an equal or greater number of canonical nodes than physical nodes.
+    # there is an equal or greater number of canonical nodes than physical nodes.
     # If these conditions are not met, an alternative sampling approach is used that leads to many repeats.
     if num_samples > num_canonical_nodes or (num_samples == num_canonical_nodes and
                                              num_canonical_nodes >= num_physical_nodes):
@@ -141,8 +137,7 @@ def get_partitions_orig(num_samples: int,
     ids = ids.reshape(-1, num_physical_nodes)
     ids = ids.transpose()
 
-    # Interleave the node sample ranges over each node's ranks, padding by repeating the last
-    # sample.
+    # Interleave the node sample ranges over each node's ranks, padding with -1 for reshaping.
     #
     # ids: (physical nodes, samples per rank, ranks per node).
     overflow = ids.shape[1] % ranks_per_node
