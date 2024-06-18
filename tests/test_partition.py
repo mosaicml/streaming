@@ -67,6 +67,7 @@ def test_partition_drop_all(num_samples: int, num_canonical_nodes: int, num_phys
 
 @pytest.mark.parametrize('num_samples', [400, 1000])
 @pytest.mark.parametrize('drop_additional', [1, 400])
+@pytest.mark.parametrize('num_canonical_nodes', [4])
 @pytest.mark.parametrize('num_physical_nodes', [4])
 @pytest.mark.parametrize('ranks_per_node', [8])
 @pytest.mark.parametrize('workers_per_rank', [8])
