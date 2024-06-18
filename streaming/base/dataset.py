@@ -922,8 +922,10 @@ class StreamingDataset(Array, IterableDataset):
         sample_ids = np.concatenate(sample_ids).astype(np.int64)
         return shuffle_units, sample_ids
 
-    def _share_work(self,
-                    sample_ids: NDArray[np.int64]) -> Tuple[SharedMemory, Optional[SharedMemory]]:
+    def _share_work(
+        self,
+        sample_ids: NDArray[np.int64],
+    ) -> Tuple[SharedMemory, Optional[SharedMemory]]:
         """Put an epoch's sample ordering into shared memory.
 
         Args:
