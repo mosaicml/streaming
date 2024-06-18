@@ -56,7 +56,7 @@ def get_partitions(algo: str,
     """
     world_size = ranks_per_node * num_physical_nodes
     num_repeated_samples = world_size - (num_samples % world_size)
-    if (num_samples + num_repeated_samples) < drop_first:
+    if num_samples + num_repeated_samples < drop_first:
         raise ValueError(f'Resuming further into the dataset ({drop_first}) than it has samples ' +
                          f'({num_samples})')
 
