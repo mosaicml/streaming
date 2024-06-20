@@ -159,7 +159,7 @@ def main(args: Namespace) -> None:
                 x = open(filenames[i], 'rb').read()
                 y = classes[i]
                 out.write({
-                    'i': i,
+                    'i': int(i),
                     'x': x,
                     'y': y,
                 })
