@@ -625,9 +625,8 @@ class HFUploader(CloudUploader):
         out (str | Tuple[str, str]): Output dataset directory to save shard files.
 
             1. If ``out`` is a local directory, shard files are saved locally.
-            2. If ``out`` is a remote directory, a local temporary directory is created to
-               cache the shard files and then the shard files are uploaded to a remote
-               location. At the end, the temp directory is deleted once shards are uploaded.
+            2. If ``out`` is a remote directory then the shard files are uploaded to the
+               remote location.
         keep_local (bool): If the dataset is uploaded, whether to keep the local dataset
             shard file or remove it after uploading. Defaults to ``False``.
         progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
@@ -665,7 +664,7 @@ class HFUploader(CloudUploader):
 
         @retry(num_attempts=self.retry)
         def _upload_file():
-            local_filename = os.path.join(self.local, filename)
+            local_filename = filename
             local_filename = local_filename.replace('\\', '/')
             remote_filename = f'datasets/{self.dataset_id}/{filename}'  # pyright: ignore
             remote_filename = remote_filename.replace('\\', '/')
@@ -674,8 +673,6 @@ class HFUploader(CloudUploader):
             with self.fs.open(remote_filename, 'wb') as f:
                 with open(local_filename, 'rb') as data:
                     f.write(data.read())
-
-            self.clear_local(local=local_filename)
 
         _upload_file()
 
