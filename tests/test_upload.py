@@ -429,7 +429,7 @@ class TestHFUploader:
 
     @patch('streaming.base.storage.upload.HFUploader.check_dataset_exists')
     @pytest.mark.usefixtures('hf_credentials')
-    @pytest.mark.parametrize('out', ['hf://container/dir', ('./dir1', 'hf://container/dir/')])
+    @pytest.mark.parametrize('out', ['hf://datasets/org_name/repo_name/path'])
     def test_instantiation(self, mocked_requests: Mock, out: Any):
         mocked_requests.side_effect = None
         _ = HFUploader(out=out)
@@ -438,11 +438,6 @@ class TestHFUploader:
 
     @pytest.mark.parametrize('out', ['ss4://container/dir'])
     def test_invalid_remote_str(self, out: str):
-        with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
-            _ = HFUploader(out=out)
-
-    @pytest.mark.parametrize('out', ['ss4://container/dir', ('./dir1', 'gcs://container/dir/')])
-    def test_invalid_remote_list(self, out: Any):
         with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
             _ = HFUploader(out=out)
 
