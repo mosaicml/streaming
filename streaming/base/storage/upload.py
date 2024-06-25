@@ -654,7 +654,7 @@ class HFUploader(CloudUploader):
 
         _, _, _, self.repo_org, self.repo_name, self.path = out.split('/', 5)
         self.dataset_id = f'{self.repo_org}/{self.repo_name}'
-        self.check_bucket_exists()  # pyright: ignore
+        self.check_dataset_exists()  # pyright: ignore
 
     def upload_file(self, filename: str):
         """Upload file from local instance to HF.
@@ -677,7 +677,7 @@ class HFUploader(CloudUploader):
 
         _upload_file()
 
-    def check_bucket_exists(self):
+    def check_dataset_exists(self):
         """Raise an exception if the dataset does not exist.
 
         Raises:

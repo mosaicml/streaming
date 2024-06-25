@@ -427,7 +427,7 @@ class TestAzureDataLakeUploader:
 
 class TestHFUploader:
 
-    @patch('streaming.base.storage.upload.HFUploader.check_container_exists')
+    @patch('streaming.base.storage.upload.HFUploader.check_dataset_exists')
     @pytest.mark.usefixtures('hf_credentials')
     @pytest.mark.parametrize('out', ['hf://container/dir', ('./dir1', 'hf://container/dir/')])
     def test_instantiation(self, mocked_requests: Mock, out: Any):
