@@ -7,7 +7,7 @@ Streaming dataset supports the following cloud storage providers to stream your 
 - [Oracle Cloud Storage](#oracle-cloud-storage)
 - [Azure Blob Storage](#azure-blob-storage-and-azure-datalake)
 - [Databricks](#databricks)
-- [Huggingface Datasets](#huggingface)
+- [Huggingface Datasets](#huggingface-datasets)
 
 ## Amazon S3
 
