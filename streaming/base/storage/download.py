@@ -282,7 +282,8 @@ def download_from_hf(remote: str, local: str) -> None:
     """
     from huggingface_hub import hf_hub_download
 
-    if 'hf://' not in remote:
+    obj = urllib.parse.urlparse(remote)
+    if obj.scheme != 'hf':
         raise ValueError(f'Expected remote path to start with `hf://`, got {remote}.')
 
     _, _, _, repo_org, repo_name, path = remote.split('/', 5)

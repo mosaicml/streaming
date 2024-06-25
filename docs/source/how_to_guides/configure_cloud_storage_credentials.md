@@ -254,15 +254,18 @@ export AZURE_ACCOUNT_ACCESS_KEY='NN1KHxKKkj20ZO92EMiDQjx3wp2kZG4UUvfAGlgGWRn6sPR
 
 ## Huggingface Datasets
 
-To authenticate with uploading and for private downloads, set the `HF_TOKEN` beforehand.
+To authenticate Huggingface Hub access, users must set their HuggingFace token ([HF_TOKEN](https://huggingface.co/docs/huggingface_hub/main/en/package_reference/environment_variables#hftoken)) in the run environment. See the [HF's documentation](https://huggingface.co/docs/huggingface_hub/guides/hf_file_system) on the URL format.
 
-The format of the urls can be found in [HF's documentation](https://huggingface.co/docs/huggingface_hub/guides/hf_file_system), for example:
-```
-from streaming.base.storage import download_from_hf
-download_from_hf(f"hf://datasets/<org_name>/<repo_name>/<path_to_file>", "<local_name>")
+Set the Huggingface token in the run environment as shown below
+
+```{code-tab} py
+import os
+os.environ['HF_TOKEN'] = 'EXAMPLEFODNN7EXAMPLE'
 ```
 
-Similar formats should be used for uploads. The uploader will create the dataset for you if it doesn't exist.
+```{code-tab} sh
+export HF_TOKEN='EXAMPLEFODNN7EXAMPLE'
+```
 
 
 ## Databricks
