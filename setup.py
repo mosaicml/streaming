@@ -58,7 +58,7 @@ install_requires = [
     'azure-storage-blob>=12.0.0,<13',
     'azure-storage-file-datalake>=12.11.0,<13',
     'azure-identity>=1.13.0',
-    'huggingface_hub>=3.15.4',
+    'huggingface_hub>=0.23.4',
 ]
 
 extra_deps = {}
