@@ -258,6 +258,7 @@ To authenticate Huggingface Hub access, users must set their HuggingFace token (
 
 Set the Huggingface token in the run environment as shown below
 
+````{tabs}
 ```{code-tab} py
 import os
 os.environ['HF_TOKEN'] = 'EXAMPLEFODNN7EXAMPLE'
@@ -266,7 +267,7 @@ os.environ['HF_TOKEN'] = 'EXAMPLEFODNN7EXAMPLE'
 ```{code-tab} sh
 export HF_TOKEN='EXAMPLEFODNN7EXAMPLE'
 ```
-
+````
 
 ## Databricks
 
