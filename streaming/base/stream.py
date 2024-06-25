@@ -22,6 +22,10 @@ from streaming.base.storage import download_file
 from streaming.base.util import retry, wait_for_file_to_exist
 from streaming.base.world import World
 
+import pyarrow as pa
+import requests
+from tempfile import TemporaryDirectory
+
 
 class Stream:
     """A dataset, or sub-dataset if mixing, from which we stream/cache samples.
@@ -505,3 +509,203 @@ class Stream:
         """
         filename = os.path.join(self.local, self.split, get_index_basename())
         return os.stat(filename).st_size
+
+import json
+import os
+
+def save_dict_to_file(directory, filename, dictionary):
+    """Save a dictionary to a file in the specified directory."""
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+    file_path = os.path.join(directory, filename)
+    with open(file_path, 'w') as file:
+        json.dump(dictionary, file, indent=4)
+    print(f"Dictionary saved to {file_path}")
+
+def load_dict_from_file(directory, filename):
+    """Load a dictionary from a file in the specified directory."""
+    file_path = os.path.join(directory, filename)
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"No such file: '{file_path}'")
+
+    with open(file_path, 'r') as file:
+        dictionary = json.load(file)
+    print(f"Dictionary loaded from {file_path}")
+    return dictionary
+
+
+class DeltaStream(Stream):
+
+    def __init__(self,
+                 cluster_id: str,
+                 remote: Optional[str] = None,
+                 local: Optional[str] = None,
+                 split: Optional[str] = None,
+                 proportion: Optional[float] = None,
+                 repeat: Optional[float] = None,
+                 choose: Optional[int] = None,
+                 download_retry: Optional[int] = None,
+                 download_timeout: Optional[float] = None,
+                 validate_hash: Optional[str] = None,
+                 keep_zip: Optional[bool] = None) -> None:
+        super().__init__(remote=remote,
+                         local=local,
+                         split=split,
+                         proportion=proportion,
+                         repeat=repeat,
+                         choose=choose,
+                         download_retry=download_retry,
+                         download_timeout=download_timeout,
+                         validate_hash=validate_hash,
+                         keep_zip=keep_zip)
+
+        self.url_to_basename= {}
+        self.basename_to_url={}
+        self.cluster_id = cluster_id
+
+    def generate_unique_basename(self, url: str, index: int) -> str:
+        """Generate a unique basename for the file path from the URL."""
+        hash_object = hashlib.md5(url.encode())
+        hex_dig = hash_object.hexdigest()
+        basename = '.'.join(['shard', f'{index:05}', 'mds'])
+        self.url_to_basename[url] = basename
+        self.basename_to_url[basename] = url
+
+        return basename
+
+    def get_shards(self, world: World, allow_unsafe_types: bool) -> List[Reader]:
+        """Load this Stream's index, retrieving its shard readers.
+
+        Args:
+            world (World): Distributed context.
+            allow_unsafe_types (bool): If a shard contains Pickle, which allows arbitrary code
+                execution during deserialization, whether to keep going if ``True`` or raise an
+                error.
+
+        Returns:
+            `List[Reader]: Shard readers.
+        """
+        # Prepare cloudfetch
+        from databricks.connect import DatabricksSession
+        from databricks.sdk import WorkspaceClient
+        from streaming.base.converters import infer_dataframe_schema
+
+        w = WorkspaceClient()
+
+        sparkSession = DatabricksSession.builder.remote(
+            host=w.config.host,
+            token=w.config.token,
+            cluster_id=self.cluster_id).getOrCreate()
+
+        df = sparkSession.sql(self.remote)
+        query = df._plan.to_proto(df._session.client)  # pyright: ignore
+        schema, cloudfetch_results = df._session.client.experimental_to_cloudfetch(query, "arrow", compression=False)  # pyright: ignore
+
+        # Local leader prepares the index file based on cloudfetch results
+        basename = get_index_basename()
+        filename = os.path.join(self.local, self.split, basename)
+
+        self.columns = infer_dataframe_schema(df, None)
+
+        column_names = []
+        column_encodings = []
+        column_sizes = []
+        for k, v in self.columns.items():
+            column_names.append(k)
+            column_encodings.append(v)
+            column_sizes.append(None)
+
+        if world.is_local_leader:
+
+            metadata = {
+                "version": 2,
+                "shards": []
+            }
+
+            for index, result in enumerate(cloudfetch_results):
+                shard = {
+                    "column_encodings": column_encodings,
+                    "column_names": column_names,
+                    "column_sizes": column_sizes,
+                    "compression": None,
+                    "format": "mds",
+                    "hashes": ["sha1"],
+                    "raw_data": {
+                        "basename": self.generate_unique_basename(result.url, index),
+                        "bytes": result.uncompressed_size,
+                        "hashes": {}
+                    },
+                    "samples": result.row_count,
+                    "size_limit": 67108864,
+                    "version": 2,
+                    "zip_data": None
+                }
+                metadata["shards"].append(shard)
+
+            with open(filename, 'w') as f:
+                json.dump(metadata, f, indent=4)
+
+        else:
+            wait_for_file_to_exist(
+                filename, TICK, self.download_timeout,
+                f'Index file {os.path.join(self.remote or "", self.split or "", basename)} ' +
+                f'-> {filename} took too long to download. Either increase the ' +
+                f'`download_timeout` value or check the other traceback.')
+
+        # Load the index.
+        try:
+            obj = json.load(open(filename))
+        except json.decoder.JSONDecodeError as error:
+            error.args = (f'Index file at {filename} is empty or corrupted. ' + error.args[0],)
+            raise error
+
+        # Version check.
+        if obj['version'] != 2:
+            raise ValueError(f'Unsupported streaming data version: {obj["version"]}. ' +
+                             f'Expected version 2.')
+
+        # Initialize shard readers according to the loaded info.
+        shards = []
+        for info in obj['shards']:
+            shard = reader_from_json(self.local, self.split, info)
+            shard.validate(allow_unsafe_types)
+            shards.append(shard)
+
+        save_dict_to_file('./', 'basename_to_url.json', self.basename_to_url)
+
+        return shards
+
+    def _download_file(self, from_basename: str, to_basename: Optional[str] = None) -> str:
+        """Safely download a file from remote to local cache.
+
+        Args:
+            from_basename (str): Source basename.
+            to_basename (str, optional): Destination basename, if different.
+
+        Returns:
+            str: Local cache filename.
+        """
+        from streaming import MDSWriter
+
+        def fetch_and_convert(cloud_fetch_url: str, local_shard_path: str):
+            samples = pa.ipc.open_stream(requests.get(cloud_fetch_url).content).read_all().to_pylist()
+
+            with TemporaryDirectory() as temp_dir:
+                with MDSWriter(columns=self.columns, out=temp_dir, size_limit=None) as out:
+                    for sample in samples:
+                        out.write(sample)
+                temp_mds_filename = os.path.join(temp_dir, 'shard.00000.mds')
+                os.rename(temp_mds_filename, local_shard_path)
+
+        cloud_fetch_url = self.basename_to_url[from_basename]
+        local = os.path.join(self.local, self.split, from_basename)
+
+        # Attempt to download, possibly repeating on failure.
+        retry(num_attempts=self.download_retry)(
+            lambda: fetch_and_convert(cloud_fetch_url, local))()
+
+        print('download to local is done = ', local)
+        return local
+
+
