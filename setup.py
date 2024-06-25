@@ -58,7 +58,6 @@ install_requires = [
     'azure-storage-blob>=12.0.0,<13',
     'azure-storage-file-datalake>=12.11.0,<13',
     'azure-identity>=1.13.0',
-    'huggingface_hub>=0.23.4',
 ]
 
 extra_deps = {}
@@ -122,6 +121,10 @@ extra_deps['databricks'] = [
 
 extra_deps['alipan'] = [
     'AliPCS-Py>=0.8,<1',
+]
+
+extra_deps['hf'] = [
+    'huggingface_hub>=0.23.4',
 ]
 
 extra_deps['testing'] = [
