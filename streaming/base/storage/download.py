@@ -291,7 +291,9 @@ def download_from_hf(remote: str, local: str) -> None:
                     filename=path,
                     repo_type='dataset',
                     local_dir=local_dirname)
-    os.rename(os.path.join(local_dirname, os.path.basename(path)), local)
+
+    downloaded_name = os.path.join(local_dirname, path)
+    os.rename(downloaded_name, local)
 
 
 def download_from_azure(remote: str, local: str) -> None:

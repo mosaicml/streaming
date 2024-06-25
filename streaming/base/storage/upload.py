@@ -677,15 +677,17 @@ class HFUploader(CloudUploader):
         _upload_file()
 
     def check_bucket_exists(self):
-        """Creates the dataset if the HF dataset does not exist."""
+        """Raise an exception if the dataset does not exist.
+
+        Raises:
+            error: Dataset does not exist.
+        """
         import huggingface_hub
         try:
             _ = list(huggingface_hub.list_repo_tree(self.dataset_id, repo_type='dataset'))
         except Exception:
-            _ = self.api.create_repo(
-                self.dataset_id,
-                repo_type='dataset',
-                exist_ok=True,
+            raise FileNotFoundError(
+                f'The HF dataset {self.dataset_id} could not be found. Please make sure that the dataset exists and you have the correct access permissions.'
             )
 
 
