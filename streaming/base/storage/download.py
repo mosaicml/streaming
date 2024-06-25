@@ -403,7 +403,7 @@ def download_from_databricks_unity_catalog(remote: str, local: str) -> None:
                       f'operations. Increase the `download_retry` value to retry downloading ' +
                       f'a file.',)
         if e.error_code == 'NOT_FOUND':
-            raise FileNotFoundError(f'Object dbfs:{remote} not found.') from e
+            raise FileNotFoundError(f'Object {remote} not found.') from e
         raise e
     os.rename(local_tmp, local)
 
