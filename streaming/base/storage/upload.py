@@ -648,7 +648,8 @@ class HFUploader(CloudUploader):
         self.api = huggingface_hub.HfApi()
         self.fs = huggingface_hub.HfFileSystem(token=os.environ.get('HF_TOKEN', None))
 
-        if 'hf://' not in out:
+        obj = urllib.parse.urlparse(out)
+        if obj.scheme != 'hf':
             raise ValueError(f'Expected remote path to start with `hf://`, got {out}.')
 
         _, _, _, self.repo_org, self.repo_name, self.path = out.split('/', 5)
@@ -687,8 +688,8 @@ class HFUploader(CloudUploader):
             _ = list(huggingface_hub.list_repo_tree(self.dataset_id, repo_type='dataset'))
         except Exception:
             raise FileNotFoundError(
-                f'The HF dataset {self.dataset_id} could not be found. Please make sure that the dataset exists and you have the correct access permissions.'
-            )
+                f'The HF dataset {self.dataset_id} could not be found. Please make sure ' +
+                f'that the dataset exists and you have the correct access permissions.')
 
 
 class AzureUploader(CloudUploader):
