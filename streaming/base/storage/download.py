@@ -19,6 +19,7 @@ __all__ = [
     'download_from_oci',
     'download_from_azure',
     'download_from_azure_datalake',
+    'download_from_hf',
     'download_from_databricks_unity_catalog',
     'download_from_dbfs',
     'download_from_alipan',
@@ -272,6 +273,27 @@ def download_from_oci(remote: str, local: str) -> None:
     os.rename(local_tmp, local)
 
 
+def download_from_hf(remote: str, local: str) -> None:
+    """Download a file from remote Hugging Face to local.
+
+    Args:
+        remote (str): Remote path (Hugging Face).
+        local (str): Local path (local filesystem).
+    """
+    from huggingface_hub import hf_hub_download
+
+    if 'hf://' not in remote:
+        raise ValueError(f'Expected remote path to start with `hf://`, got {remote}.')
+
+    _, _, _, repo_org, repo_name, path = remote.split('/', 5)
+    local_dirname = os.path.dirname(local)
+    hf_hub_download(repo_id=f'{repo_org}/{repo_name}',
+                    filename=path,
+                    repo_type='dataset',
+                    local_dir=local_dirname)
+    os.rename(os.path.join(local_dirname, os.path.basename(path)), local)
+
+
 def download_from_azure(remote: str, local: str) -> None:
     """Download a file from remote Microsoft Azure to local.
 
@@ -511,6 +533,8 @@ def download_file(remote: Optional[str], local: str, timeout: float):
         download_from_gcs(remote, local)
     elif remote.startswith('oci://'):
         download_from_oci(remote, local)
+    elif remote.startswith('hf://'):
+        download_from_hf(remote, local)
     elif remote.startswith('azure://'):
         download_from_azure(remote, local)
     elif remote.startswith('azure-dl://'):

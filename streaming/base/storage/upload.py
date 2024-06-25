@@ -24,6 +24,7 @@ __all__ = [
     'S3Uploader',
     'GCSUploader',
     'OCIUploader',
+    'HFUploader',
     'AzureUploader',
     'DatabricksUnityCatalogUploader',
     'DBFSUploader',
@@ -37,6 +38,7 @@ UPLOADERS = {
     's3': 'S3Uploader',
     'gs': 'GCSUploader',
     'oci': 'OCIUploader',
+    'hf': 'HFUploader',
     'azure': 'AzureUploader',
     'azure-dl': 'AzureDataLakeUploader',
     'dbfs:/Volumes': 'DatabricksUnityCatalogUploader',
@@ -614,6 +616,80 @@ class OCIUploader(CloudUploader):
                     raise e
             raise e
         return []
+
+
+class HFUploader(CloudUploader):
+    """Upload file from local machine to a Huggingface Dataset.
+
+    Args:
+        out (str | Tuple[str, str]): Output dataset directory to save shard files.
+
+            1. If ``out`` is a local directory, shard files are saved locally.
+            2. If ``out`` is a remote directory, a local temporary directory is created to
+               cache the shard files and then the shard files are uploaded to a remote
+               location. At the end, the temp directory is deleted once shards are uploaded.
+        keep_local (bool): If the dataset is uploaded, whether to keep the local dataset
+            shard file or remove it after uploading. Defaults to ``False``.
+        progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
+            a remote location. Default to ``False``.
+        retry (int): Number of times to retry uploading a file. Defaults to ``2``.
+        exist_ok (bool): When exist_ok = False, raise error if the local part of ``out`` already
+            exists and has contents. Defaults to ``False``.
+    """
+
+    def __init__(self,
+                 out: str,
+                 keep_local: bool = False,
+                 progress_bar: bool = False,
+                 retry: int = 2,
+                 exist_ok: bool = False) -> None:
+        super().__init__(out, keep_local, progress_bar, retry, exist_ok)
+
+        import huggingface_hub
+        self.api = huggingface_hub.HfApi()
+        self.fs = huggingface_hub.HfFileSystem(token=os.environ.get('HF_TOKEN', None))
+
+        if 'hf://' not in out:
+            raise ValueError(f'Expected remote path to start with `hf://`, got {out}.')
+
+        _, _, _, self.repo_org, self.repo_name, self.path = out.split('/', 5)
+        self.dataset_id = f'{self.repo_org}/{self.repo_name}'
+        self.check_bucket_exists()  # pyright: ignore
+
+    def upload_file(self, filename: str):
+        """Upload file from local instance to HF.
+
+        Args:
+            filename (str): File to upload.
+        """
+
+        @retry(num_attempts=self.retry)
+        def _upload_file():
+            local_filename = os.path.join(self.local, filename)
+            local_filename = local_filename.replace('\\', '/')
+            remote_filename = f'datasets/{self.dataset_id}/{filename}'  # pyright: ignore
+            remote_filename = remote_filename.replace('\\', '/')
+            logger.debug(f'Uploading to {remote_filename}')
+
+            with self.fs.open(remote_filename, 'wb') as f:
+                with open(local_filename, 'rb') as data:
+                    f.write(data.read())
+
+            self.clear_local(local=local_filename)
+
+        _upload_file()
+
+    def check_bucket_exists(self):
+        """Creates the dataset if the HF dataset does not exist."""
+        import huggingface_hub
+        try:
+            _ = list(huggingface_hub.list_repo_tree(self.dataset_id, repo_type='dataset'))
+        except Exception:
+            _ = self.api.create_repo(
+                self.dataset_id,
+                repo_type='dataset',
+                exist_ok=True,
+            )
 
 
 class AzureUploader(CloudUploader):

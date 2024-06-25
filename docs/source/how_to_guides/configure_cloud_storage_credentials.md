@@ -7,6 +7,7 @@ Streaming dataset supports the following cloud storage providers to stream your 
 - [Oracle Cloud Storage](#oracle-cloud-storage)
 - [Azure Blob Storage](#azure-blob-storage-and-azure-datalake)
 - [Databricks](#databricks)
+- [Huggingface Datasets](#huggingface)
 
 ## Amazon S3
 
@@ -250,6 +251,19 @@ export AZURE_ACCOUNT_NAME='test'
 export AZURE_ACCOUNT_ACCESS_KEY='NN1KHxKKkj20ZO92EMiDQjx3wp2kZG4UUvfAGlgGWRn6sPRmGY/TEST/Dri+ExAmPlEExAmPlExA+ExAmPlExA=='
 ```
 ````
+
+## Huggingface Datasets
+
+To authenticate with uploading and for private downloads, set the `HF_TOKEN` beforehand.
+
+The format of the urls can be found in [HF's documentation](https://huggingface.co/docs/huggingface_hub/guides/hf_file_system), for example:
+```
+from streaming.base.storage import download_from_hf
+download_from_hf(f"hf://datasets/<org_name>/<repo_name>/<path_to_file>", "<local_name>")
+```
+
+Similar formats should be used for uploads. The uploader will create the dataset for you if it doesn't exist.
+
 
 ## Databricks
 

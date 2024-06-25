@@ -14,7 +14,7 @@ import pytest
 from streaming.base.storage.upload import (AlipanUploader, AzureDataLakeUploader, AzureUploader,
                                            CloudUploader, DatabricksUnityCatalogUploader,
                                            DBFSUploader, GCSAuthentication, GCSUploader,
-                                           LocalUploader, S3Uploader)
+                                           HFUploader, LocalUploader, S3Uploader)
 from tests.conftest import MY_BUCKET, R2_URL
 
 MY_PREFIX = 'train'
@@ -423,6 +423,38 @@ class TestAzureDataLakeUploader:
             with open(local_file_path, 'w') as _:
                 pass
             _ = AzureDataLakeUploader(out=local)
+
+
+class TestHFUploader:
+
+    @patch('streaming.base.storage.upload.HFUploader.check_container_exists')
+    @pytest.mark.usefixtures('hf_credentials')
+    @pytest.mark.parametrize('out', ['hf://container/dir', ('./dir1', 'hf://container/dir/')])
+    def test_instantiation(self, mocked_requests: Mock, out: Any):
+        mocked_requests.side_effect = None
+        _ = HFUploader(out=out)
+        if not isinstance(out, str):
+            shutil.rmtree(out[0], ignore_errors=True)
+
+    @pytest.mark.parametrize('out', ['ss4://container/dir'])
+    def test_invalid_remote_str(self, out: str):
+        with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
+            _ = HFUploader(out=out)
+
+    @pytest.mark.parametrize('out', ['ss4://container/dir', ('./dir1', 'gcs://container/dir/')])
+    def test_invalid_remote_list(self, out: Any):
+        with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
+            _ = HFUploader(out=out)
+
+    def test_local_directory_is_empty(self, local_remote_dir: Tuple[str, str]):
+        with pytest.raises(FileExistsError, match=f'Directory is not empty.*'):
+            local, _ = local_remote_dir
+            os.makedirs(local, exist_ok=True)
+            local_file_path = os.path.join(local, 'file.txt')
+            # Creating an empty file at specified location
+            with open(local_file_path, 'w') as _:
+                pass
+            _ = HFUploader(out=local)
 
 
 class TestDatabricksUnityCatalogUploader:

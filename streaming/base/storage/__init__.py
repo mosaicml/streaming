@@ -7,10 +7,12 @@ from streaming.base.storage.download import (download_file, download_from_alipan
                                              download_from_azure, download_from_azure_datalake,
                                              download_from_databricks_unity_catalog,
                                              download_from_dbfs, download_from_gcs,
-                                             download_from_local, download_from_oci,
-                                             download_from_s3, download_from_sftp)
+                                             download_from_hf, download_from_local,
+                                             download_from_oci, download_from_s3,
+                                             download_from_sftp)
 from streaming.base.storage.upload import (AzureDataLakeUploader, AzureUploader, CloudUploader,
-                                           GCSUploader, LocalUploader, OCIUploader, S3Uploader)
+                                           GCSUploader, HFUploader, LocalUploader, OCIUploader,
+                                           S3Uploader)
 
 __all__ = [
     'download_file',
@@ -18,6 +20,7 @@ __all__ = [
     'S3Uploader',
     'GCSUploader',
     'OCIUploader',
+    'HFUploader',
     'LocalUploader',
     'AzureUploader',
     'AzureDataLakeUploader',
@@ -31,4 +34,5 @@ __all__ = [
     'download_from_dbfs',
     'download_from_alipan',
     'download_from_local',
+    'download_from_hf',
 ]
