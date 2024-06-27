@@ -125,5 +125,7 @@ def maybe_init_dist() -> bool:
         backend = 'nccl'
     else:
         backend = 'gloo'
+    print(f"bigning debug {backend}, rank={get_rank()}, world size: {get_world_size()}")
     dist.init_process_group(backend=backend, rank=get_rank(), world_size=get_world_size())
+    print(f"bigning debug init done {backend}")
     return True

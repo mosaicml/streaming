@@ -325,6 +325,7 @@ class Stream:
         """
         # Load compressed.
         data = open(zip_filename, 'rb').read()
+        print(f"bigning debug reading {zip_filename}")
 
         # Validate what was downloaded.
         if self.validate_hash:
@@ -345,6 +346,7 @@ class Stream:
 
         # Maybe remove compressed to save space.
         if not self.safe_keep_zip:
+            print(f"bigning debug removing {zip_filename}")
             os.remove(zip_filename)
 
     def _prepare_shard_part(self,
@@ -371,6 +373,7 @@ class Stream:
         raw_filename = os.path.join(self.local, self.split, raw_info.basename)
         if os.path.isfile(raw_filename):
             # Has raw.
+            print(f"bigning debug found raw file")
             if zip_info and not self.safe_keep_zip:
                 zip_filename = os.path.join(self.local, self.split, zip_info.basename)
                 if os.path.isfile(zip_filename):
@@ -380,6 +383,7 @@ class Stream:
         else:
             # Missing raw. Uses zip?
             if zip_info:
+                print(f"bigning debug try to download zip file")
                 # Ensure has zip.
                 zip_filename = os.path.join(self.local, self.split, zip_info.basename)
                 if not os.path.isfile(zip_filename):
@@ -393,6 +397,7 @@ class Stream:
                     delta -= zip_info.bytes
             else:
                 # Download raw.
+                print(f"bigning debug try to download raw file")
                 self._download_file(raw_info.basename)
                 delta += raw_info.bytes
 

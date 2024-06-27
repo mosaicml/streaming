@@ -53,6 +53,7 @@ def download_from_s3(remote: str, local: str, timeout: float) -> None:
             extra_args (Dict[str, Any], optional): Extra arguments supported by boto3.
                 Defaults to ``None``.
         """
+        """
         if unsigned:
             # Client will be using unsigned mode in which public
             # resources can be accessed without credentials
@@ -75,6 +76,15 @@ def download_from_s3(remote: str, local: str, timeout: float) -> None:
                          local,
                          ExtraArgs=extra_args,
                          Config=TransferConfig(use_threads=False))
+        """
+        import shutil
+        #raise RuntimeError(f"bigning debug {obj.netloc}, {obj.path.lstrip('/')}")
+        import time, random
+        if '.tmp' not in local:
+            sleep_time = random.uniform(0.5, 0.5001)
+            time.sleep(sleep_time)
+        shutil.copyfile(f"./{obj.path.lstrip('/')}", local)
+
 
     import boto3
     from boto3.s3.transfer import TransferConfig
