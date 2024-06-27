@@ -5,6 +5,7 @@
 
 import hashlib
 import json
+import logging
 import os
 import tempfile
 from typing import List, Optional, Sequence, Tuple
@@ -21,6 +22,8 @@ from streaming.base.hashing import get_hash
 from streaming.base.storage import download_file
 from streaming.base.util import retry, wait_for_file_to_exist
 from streaming.base.world import World
+
+logger = logging.getLogger(__name__)
 
 
 class Stream:
@@ -103,6 +106,8 @@ class Stream:
         self.remote = remote
         self._local = local
         self.split = split or ''
+
+        logger.warning(f'bigning debug using custom version streaming')
 
         has_proportion = proportion is not None
         has_repeat = repeat is not None
@@ -324,7 +329,14 @@ class Stream:
             compression (str, optional): Compression algorithm.
         """
         # Load compressed.
-        data = open(zip_filename, 'rb').read()
+        try:
+            data = open(zip_filename, 'rb').read()
+        except Exception as e:
+            raw_file_exists = os.path.isfile(raw_filename)
+            log.warning(f"bigning debug raw file exists ? {raw_file_exists}")
+            if raw_file_exists == False:
+                raise RuntimeError(f"raw file doesn't exist")
+            raise e
 
         # Validate what was downloaded.
         if self.validate_hash:
@@ -345,7 +357,9 @@ class Stream:
 
         # Maybe remove compressed to save space.
         if not self.safe_keep_zip:
+            logger.warning(f"bigning debug removing zip file: {zip_filename}")
             os.remove(zip_filename)
+            logger.warning(f"bigning debug removed zip file: {zip_filename}")
 
     def _prepare_shard_part(self,
                             raw_info: FileInfo,
@@ -375,7 +389,9 @@ class Stream:
                 zip_filename = os.path.join(self.local, self.split, zip_info.basename)
                 if os.path.isfile(zip_filename):
                     # If don't keep zip and it has a zip, drop the zip.
+                    logger.warning(f"bigning debug removing zip file 2: {zip_filename}")
                     os.remove(zip_filename)
+                    logger.warning(f"bigning debug removed zip file 2: {zip_filename}")
                     delta -= zip_info.bytes
         else:
             # Missing raw. Uses zip?
