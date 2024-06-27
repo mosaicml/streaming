@@ -653,7 +653,7 @@ class HFUploader(CloudUploader):
             raise ValueError(f'Expected remote path to start with `hf://`, got {out}.')
 
         _, _, _, self.repo_org, self.repo_name, self.path = out.split('/', 5)
-        self.dataset_id = f'{self.repo_org}/{self.repo_name}'
+        self.dataset_id = os.path.join(self.repo_org, self.repo_name)
         self.check_dataset_exists()  # pyright: ignore
 
     def upload_file(self, filename: str):
@@ -667,7 +667,7 @@ class HFUploader(CloudUploader):
         def _upload_file():
             local_filename = filename
             local_filename = local_filename.replace('\\', '/')
-            remote_filename = f'datasets/{self.dataset_id}/{filename}'  # pyright: ignore
+            remote_filename = os.path.join('datasets', self.dataset_id, filename)
             remote_filename = remote_filename.replace('\\', '/')
             logger.debug(f'Uploading to {remote_filename}')
 
