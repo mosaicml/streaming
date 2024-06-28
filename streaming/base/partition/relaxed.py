@@ -91,3 +91,6 @@ def get_partitions_relaxed(num_samples: int,
         # Re-transpose this partition matrix back to the original format below and return it:
         # (physical nodes, ranks per node, workers per rank, batches per worker, batch size)
         return partition.transpose(2, 3, 1, 0, 4)
+
+
+
