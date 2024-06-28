@@ -7,6 +7,7 @@ Streaming dataset supports the following cloud storage providers to stream your 
 - [Oracle Cloud Storage](#oracle-cloud-storage)
 - [Azure Blob Storage](#azure-blob-storage-and-azure-datalake)
 - [Databricks](#databricks)
+- [Huggingface Datasets](#huggingface-datasets)
 
 ## Amazon S3
 
@@ -248,6 +249,23 @@ os.environ['AZURE_ACCOUNT_ACCESS_KEY'] = 'NN1KHxKKkj20ZO92EMiDQjx3wp2kZG4UUvfAGl
 ```{code-tab} sh
 export AZURE_ACCOUNT_NAME='test'
 export AZURE_ACCOUNT_ACCESS_KEY='NN1KHxKKkj20ZO92EMiDQjx3wp2kZG4UUvfAGlgGWRn6sPRmGY/TEST/Dri+ExAmPlEExAmPlExA+ExAmPlExA=='
+```
+````
+
+## Huggingface Datasets
+
+To authenticate Huggingface Hub access, users must set their HuggingFace token ([HF_TOKEN](https://huggingface.co/docs/huggingface_hub/main/en/package_reference/environment_variables#hftoken)) in the run environment. See the [HF's documentation](https://huggingface.co/docs/huggingface_hub/guides/hf_file_system) on the URL format.
+
+Set the Huggingface token in the run environment as shown below
+
+````{tabs}
+```{code-tab} py
+import os
+os.environ['HF_TOKEN'] = 'EXAMPLEFODNN7EXAMPLE'
+```
+
+```{code-tab} sh
+export HF_TOKEN='EXAMPLEFODNN7EXAMPLE'
 ```
 ````
 

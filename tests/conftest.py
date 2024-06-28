@@ -51,6 +51,12 @@ def aws_credentials():
     os.environ['AWS_SESSION_TOKEN'] = 'testing'
 
 
+@pytest.fixture(scope='class', autouse=True)
+def hf_credentials():
+    """Mocked HF Credentials."""
+    os.environ['HF_TOKEN'] = 'testing'
+
+
 @pytest.fixture()
 def s3_client(aws_credentials: Any):
     with mock_aws():
