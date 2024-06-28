@@ -54,12 +54,15 @@ def download_from_s3(remote: str, local: str, timeout: float) -> None:
             extra_args (Dict[str, Any], optional): Extra arguments supported by boto3.
                 Defaults to ``None``.
         """
+        retries = {
+            'mode': 'adaptive',
+        }
         if unsigned:
             # Client will be using unsigned mode in which public
             # resources can be accessed without credentials
-            config = Config(read_timeout=timeout, signature_version=UNSIGNED)
+            config = Config(read_timeout=timeout, signature_version=UNSIGNED, retries=retries)
         else:
-            config = Config(read_timeout=timeout)
+            config = Config(read_timeout=timeout, retries=retries)
 
         if extra_args is None:
             extra_args = {}
