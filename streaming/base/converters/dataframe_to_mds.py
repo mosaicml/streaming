@@ -52,6 +52,7 @@ SPARK_TO_MDS = {
     ArrayType(LongType()): 'ndarray:int64',
     ArrayType(FloatType()): 'ndarray:float32',
     ArrayType(DoubleType()): 'ndarray:float64',
+    ArrayType(ArrayType(FloatType())): 'ndarray:float32',
 }
 
 
@@ -239,6 +240,7 @@ def dataframe_to_mds(dataframe: DataFrame,
                                 f'{type(records)}')
 
                 for sample in records:
+                    #raise ValueError(f'Got sample: {sample}, {type(sample)}')
                     mds_writer.write(sample)
 
         yield pd.concat([
@@ -251,6 +253,8 @@ def dataframe_to_mds(dataframe: DataFrame,
                       name='mds_path_remote')
         ],
                         axis=1)
+
+    print('New dataframe_to_mds')
 
     if dataframe is None or dataframe.isEmpty():
         raise ValueError(f'Input dataframe is None or Empty!')
