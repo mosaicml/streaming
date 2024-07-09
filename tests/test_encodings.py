@@ -201,7 +201,7 @@ class TestMDSEncodings:
 
         # Creating the (32 x 32) NumPy Array with random values
         size = {'RGB': (224, 224, 3), 'L': (28, 28)}[mode]
-        np_data = np.random.randint(255, size=size, dtype=np.uint8)
+        np_data = np.array(np.random.randint(255, size=size, dtype=np.uint8))
         # Default image mode of PIL Image is 'I'
         img = Image.fromarray(np_data).convert(mode)
 
