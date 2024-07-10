@@ -15,7 +15,6 @@ from streaming.base.storage.upload import (AzureDataLakeUploader, AzureUploader,
                                            S3Uploader)
 
 __all__ = [
-    'download_file',
     'CloudUploader',
     'S3Uploader',
     'GCSUploader',
@@ -24,6 +23,7 @@ __all__ = [
     'AzureUploader',
     'AzureDataLakeUploader',
     'HFUploader',
+    'download_file',
     'download_from_s3',
     'download_from_sftp',
     'download_from_gcs',
