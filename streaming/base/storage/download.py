@@ -395,7 +395,7 @@ def download_from_databricks_unity_catalog(remote: str, local: str) -> None:
     file_path = urllib.parse.urlparse(remote)
     local_tmp = local + '.tmp'
     try:
-        with client.files.download(file_path.path).contents as response:
+        with client.files.download(file_path.path).contents as response:  # pyright: ignore
             with open(local_tmp, 'wb') as f:
                 # Download data in chunks to avoid memory issues.
                 for chunk in iter(lambda: response.read(64 * 1024 * 1024), b''):
