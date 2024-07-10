@@ -622,7 +622,7 @@ class HFUploader(CloudUploader):
     """Upload file from local machine to a Huggingface Dataset.
 
     Args:
-        out (str | Tuple[str, str]): Output dataset directory to save shard files.
+        out (str): Output dataset directory to save shard files.
 
             1. If ``out`` is a local directory, shard files are saved locally.
             2. If ``out`` is a remote directory then the shard files are uploaded to the
