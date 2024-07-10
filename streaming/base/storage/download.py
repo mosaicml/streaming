@@ -379,7 +379,7 @@ def download_from_databricks_unity_catalog(remote: str, local: str) -> None:
     """
     try:
         from databricks.sdk import WorkspaceClient
-        from databricks.sdk.core import DatabricksError
+        from databricks.sdk.core import DatabricksError  # pyright: ignore
     except ImportError as e:
         e.msg = get_import_exception_message(e.name, 'databricks')  # pyright: ignore
         raise e
@@ -420,7 +420,7 @@ def download_from_dbfs(remote: str, local: str) -> None:
     """
     try:
         from databricks.sdk import WorkspaceClient
-        from databricks.sdk.core import DatabricksError
+        from databricks.sdk.core import DatabricksError  # pyright: ignore
     except ImportError as e:
         e.msg = get_import_exception_message(e.name, 'databricks')  # pyright: ignore
         raise e

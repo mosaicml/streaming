@@ -1017,7 +1017,7 @@ class DBFSUploader(DatabricksUploader):
         Raises:
             error: Folder does not exist.
         """
-        from databricks.sdk.core import DatabricksError
+        from databricks.sdk.core import DatabricksError  # pyright: ignore
         try:
             if not self.client.dbfs.exists(self.dbfs_path):
                 raise FileNotFoundError(f'Databricks File System path {self.dbfs_path} not found')
