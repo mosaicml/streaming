@@ -454,8 +454,8 @@ class Stream:
                 wait_for_file_to_exist(
                     filename, TICK, self.download_timeout,
                     f'Index file {os.path.join(self.remote or "", self.split or "", basename)} ' +
-                    f'-> {filename} took too long to download. Either increase the ' +
-                    f'`download_timeout` value or check the other traceback.')
+                    f'-> {filename} took too long to download or failed to download. Either increase the '
+                    + f'`download_timeout` value or check the local rank 0 traceback.')
 
         # Load the index.
         try:
