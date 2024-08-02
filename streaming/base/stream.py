@@ -854,7 +854,7 @@ class DeltaDBSQLStream(Stream):
 
         return shards
 
-    @retry(num_attemps=2)
+    @retry(num_attempts=2)
     def _download_file(self, from_basename: str, to_basename: Optional[str] = None) -> str:
         """Safely download a file from remote to local cache.
 
