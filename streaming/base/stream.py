@@ -880,7 +880,7 @@ class DeltaDBSQLStream(Stream):
         print('chunk_index = ', chunk_index)
         response = requests.get(f"{self.base_url}/{self.statement_id}/result/chunks/{chunk_index}", headers = self.headers)
         response.raise_for_status()
-        cloud_fetch_url = json.loads(response.decode('utf-8'))['external_links'][0]['external_link']
+        cloud_fetch_url = response.json()['external_links'][0]['external_link']
         local = os.path.join(self.local, self.split, from_basename)
 
         # Attempt to download, possibly repeating on failure.
