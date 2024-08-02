@@ -5,7 +5,7 @@ import pathlib
 import time
 from typing import Any, Dict, Optional, Tuple
 
-import pytest
+#import pytest
 
 from streaming.base import StreamingDataset
 from streaming.text import StreamingC4
