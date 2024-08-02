@@ -750,7 +750,7 @@ class DeltaDBSQLStream(Stream):
             "format": "ARROW_STREAM",
             "disposition": "EXTERNAL_LINKS",
             "statement": remote,
-            "wait_timeout": "2s",
+            "wait_timeout": "5s", # cannot be less than 5 otherwise throws bad request error
             "parameters": [],
         }
 
