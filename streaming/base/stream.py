@@ -783,17 +783,17 @@ class DeltaDBSQLStream(Stream):
         Returns:
             `List[Reader]: Shard readers.
         """
-        metadata = self.refresh_statement_id()
+        sql_response = self.refresh_statement_id()
 
         # Local leader prepares the index file based on cloudfetch results
         basename = get_index_basename()
         filename = os.path.join(self.local, self.split, basename)
 
-        self.columns = metadata['manifest']['schema']['columns']
+        self.columns = sql_response['manifest']['schema']['columns']
         column_names = [ c['name'] for c in self.columns ]
         column_encodings = [ c['type_name'].lower() for c in self.columns ]
         column_sizes = [ None for _ in self.columns ]
-        total_shard_count = metadata['manifest']['total_chunk_count']
+        total_shard_count = sql_response['manifest']['total_chunk_count']
 
         if world.is_local_leader:
 
@@ -802,7 +802,7 @@ class DeltaDBSQLStream(Stream):
                 "shards": []
             }
 
-            for shard_id, shard_meta in enumerate(metadata['manifest']['chunks']):
+            for shard_id, shard_meta in enumerate(sql_response['manifest']['chunks']):
                 shard = {
                     "column_encodings": column_encodings,
                     "column_names": column_names,
