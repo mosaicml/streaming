@@ -789,10 +789,11 @@ class DeltaDBSQLStream(Stream):
         basename = get_index_basename()
         filename = os.path.join(self.local, self.split, basename)
 
-        self.columns = sql_response['manifest']['schema']['columns']
-        column_names = [ c['name'] for c in self.columns ]
-        column_encodings = [ c['type_name'].lower() for c in self.columns ]
-        column_sizes = [ None for _ in self.columns ]
+        column_meta = sql_response['manifest']['schema']['columns']
+        column_names = [ c['name'] for c in column_meta ]
+        column_encodings = [ c['type_name'].lower() for c in column_meta]
+        column_sizes = [ None for _ in column_meta ]
+        self.columns = { c['name'] : c['type_name'].lower() for c in column_meta }
         total_shard_count = sql_response['manifest']['total_chunk_count']
 
         if world.is_local_leader:
