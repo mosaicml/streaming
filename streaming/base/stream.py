@@ -891,5 +891,7 @@ class DeltaDBSQLStream(Stream):
             return local
         except:
             print('Failed to download, refresh statement id and try again')
+            print('cloud_fetch_url = ', cloud_fetch_url)
+            print('response = ', response.json())
             self.refresh_statement_id()
 
