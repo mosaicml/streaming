@@ -791,7 +791,7 @@ class DeltaDBSQLStream(Stream):
         raise TimeoutError(f"Query execution failed with status: {query_status}")
 
     def get_encode_format(self, sql_fmt: str):
-        mds_fmt = self.dtypes_mapping.get(sql_fmt, None)
+        mds_fmt = self.dtypes_mapping.get(sql_fmt.lower(), None)
         if not mds_fmt:
             raise TypeError(f"{sql_fmt} is not supported by MDSWrite.")
         return mds_fmt
