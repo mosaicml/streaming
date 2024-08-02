@@ -876,7 +876,11 @@ class DeltaDBSQLStream(Stream):
                 os.rename(temp_mds_filename, local_shard_path)
 
         chunk_index = int(re.search(r'\d+', from_basename).group())
-        cloud_fetch_url = f"{self.base_url}/{self.statement_id}/result/chunks/{chunk_index}"
+        print('from_basename = ', from_basename)
+        print('chunk_index = ', chunk_index)
+        response = requests.get(f"{self.base_url}/{self.statement_id}/result/chunks/{chunk_index}", headers = self.headers)
+        response.raise_for_status()
+        cloud_fetch_url = json.loads(response.decode('utf-8'))['external_links'][0]['external_link']
         local = os.path.join(self.local, self.split, from_basename)
 
         # Attempt to download, possibly repeating on failure.
@@ -886,5 +890,6 @@ class DeltaDBSQLStream(Stream):
             print('download to local is done = ', local)
             return local
         except:
+            print('Failed to download, refresh statement id and try again')
             self.refresh_statement_id()
 
