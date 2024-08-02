@@ -7,7 +7,7 @@ import hashlib
 import json
 import os
 import tempfile
-from typing import List, Optional, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple, Any
 
 import numpy as np
 from numpy.typing import NDArray
