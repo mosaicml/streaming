@@ -511,7 +511,6 @@ class Stream:
         filename = os.path.join(self.local, self.split, get_index_basename())
         return os.stat(filename).st_size
 
-
 def save_dict_to_file(directory, filename, dictionary):
     """Save a dictionary to a file in the specified directory."""
     if not os.path.exists(directory):
@@ -671,6 +670,7 @@ class DeltaSCStream(Stream):
             shard.validate(allow_unsafe_types)
             shards.append(shard)
 
+        save_dict_to_file('./', 'basename_to_url.json', self.basename_to_url)
         return shards
 
     def _download_file(self, from_basename: str, to_basename: Optional[str] = None) -> str:
@@ -888,7 +888,4 @@ class DeltaDBSQLStream(Stream):
             return local
         except:
             self.refresh_statement_id()
-
-
-
 

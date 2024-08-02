@@ -19,40 +19,40 @@ def get_dataset(name: str,
                 other_kwargs: Optional[Dict[str, Any]] = None) -> Tuple[int, StreamingDataset]:
     other_kwargs = {} if other_kwargs is None else other_kwargs
     dataset_map = {
-        # 'refinedweb': {
-        #     'local': f'/tmp/test_refinedweb_05May1029',
-        #     'remote': 'dbfs:/Volumes/main/mosaic_hackathon/managed-volume/mds/refinedweb/',
-        #     'num_samples': 20206,
-        #     'class': StreamingDataset,
-        #     'kwargs': {},
-        # },
-        # 'dummy_table': {
-        #     'local': f'/tmp/test_dummy_table_05May1029',
-        #     'remote': 'SELECT * FROM main.streaming.dummy_cpt_table',
-        #     'num_samples': 20206,
-        #     'class': StreamingDataset,
-        #     'kwargs': {
-        #         'cluster_id': "0201-234512-tcp9nfat"
-        #     },
-        # },
-        # 'random_cpt_table': {
-        #     'local': f'/tmp/test_random_cpt_table_05May1029',
-        #     'remote': 'SELECT text FROM main.streaming.random_cpt_table',
-        #     'num_samples': 100000,
-        #     'class': StreamingDataset,
-        #     'kwargs': {
-        #         'cluster_id': "0201-234512-tcp9nfat"
-        #     },
-        # },
-        # 'random_large_table': {
-        #     'local': f'/tmp/test_random_large_table_05May1029',
-        #     'remote': 'SELECT * FROM main.streaming.random_large_table',
-        #     'num_samples': 100000,
-        #     'class': StreamingDataset,
-        #     'kwargs': {
-        #         'cluster_id': "0201-234512-tcp9nfat"
-        #     },
-        # },
+        'refinedweb': {
+            'local': f'/tmp/test_refinedweb_05May1029',
+            'remote': 'dbfs:/Volumes/main/mosaic_hackathon/managed-volume/mds/refinedweb/',
+            'num_samples': 20206,
+            'class': StreamingDataset,
+            'kwargs': {},
+        },
+        'dummy_table': {
+            'local': f'/tmp/test_dummy_table_05May1029',
+            'remote': 'SELECT * FROM main.streaming.dummy_cpt_table',
+            'num_samples': 20206,
+            'class': StreamingDataset,
+            'kwargs': {
+                'cluster_id': "0201-234512-tcp9nfat"
+            },
+        },
+        'random_cpt_table': {
+            'local': f'/tmp/test_random_cpt_table_05May1029',
+            'remote': 'SELECT text FROM main.streaming.random_cpt_table',
+            'num_samples': 100000,
+            'class': StreamingDataset,
+            'kwargs': {
+                'cluster_id': "0201-234512-tcp9nfat"
+            },
+        },
+        'random_large_table': {
+            'local': f'/tmp/test_random_large_table_05May1029',
+            'remote': 'SELECT * FROM main.streaming.random_large_table',
+            'num_samples': 100000,
+            'class': StreamingDataset,
+            'kwargs': {
+                'cluster_id': "0201-234512-tcp9nfat"
+            },
+        },
         'reddit_table_sparkconnect': {
             'local': f'/tmp/test_random_reddit_table_05May1029',
             'remote': 'SELECT text, added FROM main.reddit.data',
@@ -73,13 +73,13 @@ def get_dataset(name: str,
                 'schema': 'reddit',
             },
         },
-        # 'debug_local': {
-        #     'local': f'/tmp/test_random_reddit_table_05May1029',
-        #     'remote': None,
-        #     'num_samples': 378156152,
-        #     'class': StreamingDataset,
-        #     'kwargs': {}
-        # },
+        'debug_local': {
+            'local': f'/tmp/test_random_reddit_table_05May1029',
+            'remote': None,
+            'num_samples': 378156152,
+            'class': StreamingDataset,
+            'kwargs': {}
+        },
     }
     #if name not in dataset_map and split not in dataset_map[name]['num_samples'][split]:
     #    raise ValueError('Could not load dataset with name={name} and split={split}')
