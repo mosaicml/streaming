@@ -68,7 +68,7 @@ def get_dataset(name: str,
             'num_samples': 378156152,
             'class': StreamingDataset,
             'kwargs': {
-                'warehouse_id': "0523-224100-tid6mais",
+                'warehouse_id': "89cf2c9b9f9cb3bc",
                 'catalog': 'main',
                 'schema': 'reddit',
             },
