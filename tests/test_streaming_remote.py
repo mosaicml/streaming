@@ -64,7 +64,7 @@ def get_dataset(name: str,
         },
         'reddit_table_dbsql': {
             'local': f'/tmp/test_random_reddit_table_05May1029',
-            'remote': 'SELECT text, added FROM main.reddit.data',
+            'remote': 'SELECT * FROM main.reddit.data',
             'num_samples': 378156152,
             'class': StreamingDataset,
             'kwargs': {

@@ -747,12 +747,11 @@ class DeltaDBSQLStream(Stream):
         }
         self.data = {
             "warehouse_id": warehouse_id,
-            "catalog": catalog,
-            "schema": schema,
             "format": "ARROW_STREAM",
             "disposition": "EXTERNAL_LINKS",
             "statement": remote,
             "wait_timeout": "2s",
+            "parameters": [],
         }
 
     def refresh_statement_id(self, timeout=100):
