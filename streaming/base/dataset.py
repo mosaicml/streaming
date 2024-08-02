@@ -1331,7 +1331,10 @@ class StreamingDataset(Array, IterableDataset):
                 break
 
             # If we're out of samples this epoch, exit this thread because we are done downloading.
-            if it.prepare_index == it.total:
+            # Or, if the ready_index has reached to the end, exit this thread to unblock other threads.
+            # The second scenario is rare, where ready_thread has higher priority and progresses way
+            # faster than this thread, which means at the end of epoch all other threads need to wait.
+            if it.prepare_index == it.total or it.ready_index == it.total:
                 break
 
             # Background thread or a main process crashed, terminate this thread.
