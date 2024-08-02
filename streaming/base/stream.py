@@ -771,6 +771,7 @@ class DeltaDBSQLStream(Stream):
             'smallint': 'int16',
             'struct': 'json',
             'tinyint': 'int8',
+            'long': 'int8',
         }
 
     def refresh_statement_id(self, timeout=100):
