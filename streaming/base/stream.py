@@ -754,6 +754,25 @@ class DeltaDBSQLStream(Stream):
             "parameters": [],
         }
 
+        # From dbsql dtyps (lower case) to MDS encoded types
+        # https://docs.databricks.com/en/dev-tools/python-sql-connector.html
+        self.dtypes_mapping = {
+            'string' : 'str',
+            'bigint' : 'int64',
+            'array': 'ndarray',
+            'binary': 'bytes',
+            'boolean': 'uint32',
+            'date': 'str',
+            'datetime.date': 'str',
+            'decimal': 'str_decimal',
+            'double' : 'float64',
+            'int': 'int',
+            'map': 'json',
+            'smallint': 'int16',
+            'struct': 'json',
+            'tinyint': 'int8',
+        }
+
     def refresh_statement_id(self, timeout=100):
         total_time = 0
         while total_time <= timeout:
@@ -770,6 +789,12 @@ class DeltaDBSQLStream(Stream):
             time.sleep(3)
             total_time += 3
         raise TimeoutError(f"Query execution failed with status: {query_status}")
+
+    def get_encode_format(self, sql_fmt: str):
+        mds_fmt = self.dtypes_mapping.get(sql_fmt, None)
+        if not mds_fmt:
+            raise TypeError(f"{sql_fmt} is not supported by MDSWrite.")
+        return mds_fmt
 
     def get_shards(self, world: World, allow_unsafe_types: bool) -> List[Reader]:
         """Load this Stream's index, retrieving its shard readers.
@@ -790,10 +815,15 @@ class DeltaDBSQLStream(Stream):
         filename = os.path.join(self.local, self.split, basename)
 
         column_meta = sql_response['manifest']['schema']['columns']
-        column_names = [ c['name'] for c in column_meta ]
-        column_encodings = [ c['type_name'].lower() for c in column_meta]
-        column_sizes = [ None for _ in column_meta ]
-        self.columns = { c['name'] : c['type_name'].lower() for c in column_meta }
+        column_names, column_encodings, column_sizes = [], [], []
+        self.columns = {}
+        for c in column_meta:
+            column_names.append(c['name'])
+            encoding = self.get_encode_format(c['type_name'])
+            column_encodings.append(encoding)
+            column_sizes.append(None)
+            self.columns[c['name']] = encoding
+
         total_shard_count = sql_response['manifest']['total_chunk_count']
 
         if world.is_local_leader:
