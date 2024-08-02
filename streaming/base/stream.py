@@ -894,5 +894,6 @@ class DeltaDBSQLStream(Stream):
             print('cloud_fetch_url = ', cloud_fetch_url)
             print('response = ', response.json())
             print(e)
+            raise from e
             self.refresh_statement_id()
 
