@@ -740,9 +740,9 @@ class DeltaDBSQLStream(Stream):
         if any([not warehouse_id, not host, not token, not catalog, not schema]):
             raise TypeError(f"Need to specify warehouse_id, host, token catalog, schema, during initialization")
 
-        self.base_url = f"https://{self.host}/api/2.0/sql/statements/"
+        self.base_url = f"https://{host}/api/2.0/sql/statements/"
         self.headers = {
-            "Authorization": f"Bearer {self.token}",
+            "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
         }
         self.data = {
