@@ -784,7 +784,7 @@ class DeltaDBSQLStream(Stream):
 
             if query_status == "SUCCEEDED":
                 self.statement_id = response_data['statement_id']
-                save_dict_to_file(self.local, f'response_{int(time.time()}', response_data)
+                save_dict_to_file(self.local, f'response_{int(time.time())}', response_data)
                 return response_data
 
             print(f"Query status: {query_status}")
