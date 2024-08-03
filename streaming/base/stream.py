@@ -754,6 +754,7 @@ class DeltaDBSQLStream(Stream):
             "statement": remote,
             "wait_timeout": "5s", # cannot be less than 5 otherwise throws bad request error
             "parameters": [],
+            "byte_limit": 9223372036854775807,
         }
 
         # From dbsql dtyps (lower case) to MDS encoded types
