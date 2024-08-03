@@ -887,9 +887,13 @@ class DeltaDBSQLStream(Stream):
         return shards
 
     def _make_request(self, url: str) -> requests.Response:
-        response = requests.get(url, headers=self.headers)
-        response.raise_for_status()
-        return response
+#        response = requests.get(url, headers=self.headers)
+#        response.raise_for_status()
+#        return response
+        response = requests.Response()
+        response.status_code = 404
+        response.url = url
+        raise requests.exceptions.HTTPError("Manually raised HTTPError for testing purposes", response=response)
 
     def _fetch_and_convert(self, cloud_fetch_url: str, local_shard_path: str):
         samples = pa.ipc.open_stream(requests.get(cloud_fetch_url).content).read_all().to_pylist()
