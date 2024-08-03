@@ -859,24 +859,24 @@ class DeltaDBSQLStream(Stream):
             with open(filename, 'w') as f:
                 json.dump(metadata, f, indent=4)
 
+            # Load the index.
+            try:
+                obj = json.load(open(filename))
+            except json.decoder.JSONDecodeError as error:
+                error.args = (f'Index file at {filename} is empty or corrupted. ' + error.args[0],)
+                raise error
+
+            # Version check.
+            if obj['version'] != 2:
+                raise ValueError(f'Unsupported streaming data version: {obj["version"]}. ' +
+                                 f'Expected version 2.')
+
         else:
             wait_for_file_to_exist(
                 filename, TICK, self.download_timeout,
                 f'Index file {os.path.join(self.remote or "", self.split or "", basename)} ' +
                 f'-> {filename} took too long to download. Either increase the ' +
                 f'`download_timeout` value or check the other traceback.')
-
-        # Load the index.
-        try:
-            obj = json.load(open(filename))
-        except json.decoder.JSONDecodeError as error:
-            error.args = (f'Index file at {filename} is empty or corrupted. ' + error.args[0],)
-            raise error
-
-        # Version check.
-        if obj['version'] != 2:
-            raise ValueError(f'Unsupported streaming data version: {obj["version"]}. ' +
-                             f'Expected version 2.')
 
         # Initialize shard readers according to the loaded info.
         shards = []
