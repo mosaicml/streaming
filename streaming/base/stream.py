@@ -24,6 +24,7 @@ from streaming.base.util import retry, wait_for_file_to_exist, wait_for_json_to_
 from streaming.base.world import World
 
 import re
+import random
 import pyarrow as pa
 import requests
 from tempfile import TemporaryDirectory
@@ -887,12 +888,11 @@ class DeltaDBSQLStream(Stream):
         return shards
 
     def _make_request(self, url: str) -> requests.Response:
-        import random
-        if random.random() < 0.2:  # 20% of the time
+        if random.random() < 0.3:  # 20% of the time
             response = requests.Response()
             response.status_code = 404
             response.url = url
-            raise requests.exceptions.HTTPError("Manually raised HTTPError for testing purposes", response=response)
+            raise requests.exceptions.HTTPError(f"Manually raised HTTPError for testing purposes: {int(time.time())}", response=response)
         else:
             response = requests.get(url, headers=self.headers)
             response.raise_for_status()
