@@ -27,6 +27,9 @@ from streaming.base.shared.prefix import _get_path
 
 logger = logging.getLogger(__name__)
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [Process %(process)d, Thread %(thread)d] %(message)s')
+
+
 TCallable = TypeVar('TCallable', bound=Callable)
 
 __all__ = [
@@ -72,6 +75,7 @@ def wait_for_json_to_exist(filename: str, poll_interval: float, timeout: float,
     while True:
         sleep(poll_interval)
         if os.path.exists(filename) and is_valid_json(filename):
+            logging.warning('json has read in')
             sleep(poll_interval)
             break
         dt = time() - start_time
