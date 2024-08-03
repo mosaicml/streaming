@@ -20,7 +20,7 @@ from streaming.base.distributed import barrier, get_local_rank
 from streaming.base.format import FileInfo, Reader, get_index_basename, reader_from_json
 from streaming.base.hashing import get_hash
 from streaming.base.storage import download_file
-from streaming.base.util import retry, wait_for_file_to_exist
+from streaming.base.util import retry, wait_for_file_to_exist, wait_for_json_to_exist
 from streaming.base.world import World
 
 import re
@@ -859,7 +859,7 @@ class DeltaDBSQLStream(Stream):
             with open(filename, 'w') as f:
                 json.dump(metadata, f, indent=4)
         else:
-            wait_for_file_to_exist(
+            wait_for_json_to_exist(
                 filename, TICK, self.download_timeout,
                 f'Index file {os.path.join(self.remote or "", self.split or "", basename)} ' +
                 f'-> {filename} took too long to download. Either increase the ' +

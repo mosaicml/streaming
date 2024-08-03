@@ -46,6 +46,37 @@ def get_list_arg(text: str) -> List[str]:
     """
     return text.split(',') if text else []
 
+def wait_for_json_to_exist(filename: str, poll_interval: float, timeout: float,
+                           err_msg: str) -> None:
+    """Wait for a json to exist till timeout seconds. Raise an Exception after that.
+
+    Difference from wait_for_file_to_exist is that we load json and validate.
+
+    Args:
+        filename (str): A file name of a json
+        poll_interval (float): Number of seconds to wait before next polling
+        timeout (float): Number of seconds to wait for a file to exist before raising an exception
+        err_msg (str): Error message description for an exception
+
+    Raises:
+        RuntimeError: Raise an Exception if file does not exist after timeout
+    """
+    def is_valid_json(filename):
+        try:
+            obj = json.load(open(filename))
+            return True
+        except json.decoder.JSONDecodeError as error:
+            return False
+
+    start_time = time()
+    while True:
+        sleep(poll_interval)
+        if os.path.exists(filename) and is_valid_json(filename):
+            sleep(poll_interval)
+            break
+        dt = time() - start_time
+        if dt > timeout:
+            raise RuntimeError(f'{err_msg}' + f'{timeout:.3f} < {dt:.3f} secs.')
 
 def wait_for_file_to_exist(filename: str, poll_interval: float, timeout: float,
                            err_msg: str) -> None:
