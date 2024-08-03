@@ -9,11 +9,12 @@ from streaming.base.format.base import FileInfo, Reader
 from streaming.base.format.index import get_index_basename
 from streaming.base.format.json import JSONReader, JSONWriter
 from streaming.base.format.mds import MDSReader, MDSWriter
+from streaming.base.format.pq import PQReader
 from streaming.base.format.xsv import (CSVReader, CSVWriter, TSVReader, TSVWriter, XSVReader,
                                        XSVWriter)
 
 __all__ = [
-    'CSVWriter', 'FileInfo', 'get_index_basename', 'JSONWriter', 'MDSWriter', 'Reader',
+    'CSVWriter', 'FileInfo', 'get_index_basename', 'JSONWriter', 'MDSWriter', 'PQReader', 'Reader',
     'reader_from_json', 'TSVWriter', 'XSVWriter'
 ]
 
@@ -21,6 +22,7 @@ _readers = {
     'csv': CSVReader,
     'json': JSONReader,
     'mds': MDSReader,
+    'pq': PQReader,
     'tsv': TSVReader,
     'xsv': XSVReader
 }
