@@ -898,15 +898,6 @@ class DeltaDBSQLStream(Stream):
             response.raise_for_status()
             return response
 
-    def _fetch_and_convert(self, cloud_fetch_url: str, local_shard_path: str):
-        samples = pa.ipc.open_stream(requests.get(cloud_fetch_url).content).read_all().to_pylist()
-        with TemporaryDirectory() as temp_dir:
-            with MDSWriter(columns=self.columns, out=temp_dir, size_limit=None) as out:
-                for sample in samples:
-                    out.write(sample)
-            temp_mds_filename = os.path.join(temp_dir, 'shard.00000.mds')
-            os.rename(temp_mds_filename, local_shard_path)
-
     def _download_file(self, from_basename: str, to_basename: Optional[str] = None) -> str:
         """Safely download a file from remote to local cache.
 
@@ -917,6 +908,16 @@ class DeltaDBSQLStream(Stream):
         Returns:
             str: Local cache filename.
         """
+        from streaming import MDSWriter
+        def _fetch_and_convert(cloud_fetch_url: str, local_shard_path: str):
+            samples = pa.ipc.open_stream(requests.get(cloud_fetch_url).content).read_all().to_pylist()
+            with TemporaryDirectory() as temp_dir:
+                with MDSWriter(columns=self.columns, out=temp_dir, size_limit=None) as out:
+                    for sample in samples:
+                        out.write(sample)
+                temp_mds_filename = os.path.join(temp_dir, 'shard.00000.mds')
+                os.rename(temp_mds_filename, local_shard_path)
+
         chunk_index = int(re.search(r'\d+', from_basename).group())
         print('from_basename = ', from_basename)
         print('chunk_index = ', chunk_index)
@@ -934,7 +935,7 @@ class DeltaDBSQLStream(Stream):
 
         cloud_fetch_url = response.json()['external_links'][0]['external_link']
         local = os.path.join(self.local, self.split, from_basename)
-        retry(num_attempts=self.download_retry)(lambda: self._fetch_and_convert(cloud_fetch_url, local))()
+        retry(num_attempts=self.download_retry)(lambda: ._fetch_and_convert(cloud_fetch_url, local))()
 
         print('Download to local is done = ', local)
         return local
