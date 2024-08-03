@@ -886,7 +886,20 @@ class DeltaDBSQLStream(Stream):
 
         return shards
 
-    @retry(num_attempts=2)
+    def _make_request(self, url: str) -> requests.Response:
+        response = requests.get(url, headers=self.headers)
+        response.raise_for_status()
+        return response
+
+    def _fetch_and_convert(self, cloud_fetch_url: str, local_shard_path: str):
+        samples = pa.ipc.open_stream(requests.get(cloud_fetch_url).content).read_all().to_pylist()
+        with TemporaryDirectory() as temp_dir:
+            with MDSWriter(columns=self.columns, out=temp_dir, size_limit=None) as out:
+                for sample in samples:
+                    out.write(sample)
+            temp_mds_filename = os.path.join(temp_dir, 'shard.00000.mds')
+            os.rename(temp_mds_filename, local_shard_path)
+
     def _download_file(self, from_basename: str, to_basename: Optional[str] = None) -> str:
         """Safely download a file from remote to local cache.
 
@@ -897,35 +910,24 @@ class DeltaDBSQLStream(Stream):
         Returns:
             str: Local cache filename.
         """
-        from streaming import MDSWriter
-
-        def fetch_and_convert(cloud_fetch_url: str, local_shard_path: str):
-            samples = pa.ipc.open_stream(requests.get(cloud_fetch_url).content).read_all().to_pylist()
-            with TemporaryDirectory() as temp_dir:
-                with MDSWriter(columns=self.columns, out=temp_dir, size_limit=None) as out:
-                    for sample in samples:
-                        out.write(sample)
-                temp_mds_filename = os.path.join(temp_dir, 'shard.00000.mds')
-                os.rename(temp_mds_filename, local_shard_path)
-
         chunk_index = int(re.search(r'\d+', from_basename).group())
         print('from_basename = ', from_basename)
         print('chunk_index = ', chunk_index)
-        response = requests.get(f"{self.base_url}/{self.statement_id}/result/chunks/{chunk_index}", headers = self.headers)
-        response.raise_for_status()
-        cloud_fetch_url = response.json()['external_links'][0]['external_link']
-        local = os.path.join(self.local, self.split, from_basename)
 
-        # Attempt to download, possibly repeating on failure.
+        url = f"{self.base_url}/{self.statement_id}/result/chunks/{chunk_index}"
+
         try:
-            retry(num_attempts=self.download_retry)(
-                lambda: fetch_and_convert(cloud_fetch_url, local))()
-            print('download to local is done = ', local)
-            return local
-        except Exception as e:
+            response = self._make_request(url)
+        except Exception as e: # requests.exceptions.HTTPError as e:
             print('Failed to download, refresh statement id and try again')
-            print('cloud_fetch_url = ', cloud_fetch_url)
-            print('response = ', response.json())
+            print('url = ', url)
             print(e)
             self.refresh_statement_id()
+            response = self._make_request(url)
 
+        cloud_fetch_url = response.json()['external_links'][0]['external_link']
+        local = os.path.join(self.local, self.split, from_basename)
+        retry(num_attempts=self.download_retry)(lambda: self._fetch_and_convert(cloud_fetch_url, local))()
+
+        print('Download to local is done = ', local)
+        return local
