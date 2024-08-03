@@ -922,15 +922,16 @@ class DeltaDBSQLStream(Stream):
         print('from_basename = ', from_basename)
         print('chunk_index = ', chunk_index)
 
-        url = f"{self.base_url}/{self.statement_id}/result/chunks/{chunk_index}"
 
         try:
+            url = f"{self.base_url}/{self.statement_id}/result/chunks/{chunk_index}"
             response = self._make_request(url)
         except Exception as e: # requests.exceptions.HTTPError as e:
             print('Failed to download, refresh statement id and try again')
             print('url = ', url)
             print(e)
             self.refresh_statement_id()
+            url = f"{self.base_url}/{self.statement_id}/result/chunks/{chunk_index}"
             response = self._make_request(url)
 
         cloud_fetch_url = response.json()['external_links'][0]['external_link']

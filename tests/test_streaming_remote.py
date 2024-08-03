@@ -185,16 +185,16 @@ def test_streaming_remote_dataloader(name: str, split: str) -> None:
     assert rcvd_samples >= expected_samples
 
 
+if __name__ == "__main__":
 #    test_streaming_remote_dataset(name = 'refinedweb', split=None)
     # test_streaming_remote_dataset(name = 'dummy_table', split=None)
 #test_streaming_remote_dataset(name = 'random_cpt_table_dbsql', split=None)
 # test_streaming_remote_dataset(name = 'random_large_table', split=None)
 # test_streaming_remote_dataset(name = 'reddit_table', split=None)
-#test_streaming_remote_dataset(name = 'reddit_table_dbsql', split=None)
+    test_streaming_remote_dataset(name = 'reddit_table_dbsql', split=None)
 #    test_streaming_remote_dataset(name = 'debug_local', split=None)
 
-if __name__ == "__main__":
     #test_streaming_remote_dataloader(name = 'refinedweb', split=None)
-    test_streaming_remote_dataloader(name = 'random_cpt_table_dbsql', split=None)
+   # test_streaming_remote_dataloader(name = 'random_cpt_table_dbsql', split=None)
 
 
