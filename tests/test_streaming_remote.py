@@ -115,7 +115,7 @@ def test_streaming_remote_dataset(name: str, split: str) -> None:
     for _ in dataset:
         rcvd_samples += 1
 
-        if (rcvd_samples % 100 == 0):
+        if (rcvd_samples % 10000 == 0):
             print(f'samples read: {rcvd_samples}')
 
     iter_end = time.time()
