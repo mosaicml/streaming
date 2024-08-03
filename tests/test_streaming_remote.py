@@ -7,7 +7,7 @@ from typing import Any, Dict, Optional, Tuple
 
 #import pytest
 
-from streaming.base import StreamingDataset
+from streaming.base import StreamingDataset, StreamingDataLoader
 from streaming.text import StreamingC4
 from streaming.vision import StreamingADE20K, StreamingCIFAR10, StreamingCOCO, StreamingImageNet
 
@@ -35,13 +35,24 @@ def get_dataset(name: str,
                 'cluster_id': "0201-234512-tcp9nfat"
             },
         },
-        'random_cpt_table': {
+        'random_cpt_table_sparkconnect': {
             'local': f'/tmp/test_random_cpt_table_05May1029',
             'remote': 'SELECT text FROM main.streaming.random_cpt_table',
             'num_samples': 100000,
             'class': StreamingDataset,
             'kwargs': {
                 'cluster_id': "0201-234512-tcp9nfat"
+            },
+        },
+        'random_cpt_table_dbsql': {
+            'local': f'/tmp/test_random_cpt_table_05May1029',
+            'remote': 'SELECT text FROM main.streaming.random_cpt_table',
+            'num_samples': 100000,
+            'class': StreamingDataset,
+            'kwargs': {
+                'warehouse_id': "7e083095329f3ca5",
+                'catalog': 'main',
+                'schema': 'streaming',
             },
         },
         'random_large_table': {
@@ -130,14 +141,60 @@ def test_streaming_remote_dataset(name: str, split: str) -> None:
     # Test all samples arrived
     assert rcvd_samples >= expected_samples
 
+def test_streaming_remote_dataloader(name: str, split: str) -> None:
+    # Build StreamingDataset
+    build_start = time.time()
+    batch_size = 16
+    expected_samples, dataset = get_dataset(name=name,
+                                            split=split,
+                                            shuffle=False,
+                                            batch_size=batch_size)
 
-#if __name__ == "__main__":
+
+    data_loader = StreamingDataLoader(dataset,
+                                      batch_size=16,
+                                      num_workers=4,
+                                      prefetch_factor=None,
+                                      #persistent_workers=True,
+                                      pin_memory=True,
+                                      drop_last=True)
+    build_end = time.time()
+    build_dur = build_end - build_start
+    print('Built dataset')
+
+    # Test basic iteration
+    rcvd_samples = 0
+    iter_start = time.time()
+
+    for batch_idx, data_dict in enumerate(data_loader):
+        rcvd_samples += batch_size
+
+        if (rcvd_samples % (10*batch_size) == 0):
+            print(f'samples read: {rcvd_samples}')
+
+    iter_end = time.time()
+    iter_dur = iter_end - iter_start
+    samples_per_sec = rcvd_samples / iter_dur
+
+    # Print debug info
+    print(f'received {rcvd_samples} samples')
+    print(f'build_dur={build_dur:.2f}s, iter_dur={iter_dur:.2f}, ' +
+          f'samples_per_sec={samples_per_sec:.2f}')
+
+    # Test all samples arrived
+    assert rcvd_samples >= expected_samples
+
+
 #    test_streaming_remote_dataset(name = 'refinedweb', split=None)
     # test_streaming_remote_dataset(name = 'dummy_table', split=None)
-# test_streaming_remote_dataset(name = 'random_cpt_table', split=None)
-#    test_streaming_remote_dataset(name = 'random_large_table', split=None)
+#test_streaming_remote_dataset(name = 'random_cpt_table_dbsql', split=None)
+# test_streaming_remote_dataset(name = 'random_large_table', split=None)
 # test_streaming_remote_dataset(name = 'reddit_table', split=None)
-test_streaming_remote_dataset(name = 'reddit_table_dbsql', split=None)
+#test_streaming_remote_dataset(name = 'reddit_table_dbsql', split=None)
 #    test_streaming_remote_dataset(name = 'debug_local', split=None)
+
+if __name__ == "__main__":
+    #test_streaming_remote_dataloader(name = 'refinedweb', split=None)
+    test_streaming_remote_dataloader(name = 'random_cpt_table_dbsql', split=None)
 
 
