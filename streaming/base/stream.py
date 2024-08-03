@@ -935,7 +935,7 @@ class DeltaDBSQLStream(Stream):
 
         cloud_fetch_url = response.json()['external_links'][0]['external_link']
         local = os.path.join(self.local, self.split, from_basename)
-        retry(num_attempts=self.download_retry)(lambda: ._fetch_and_convert(cloud_fetch_url, local))()
+        retry(num_attempts=self.download_retry)(lambda: _fetch_and_convert(cloud_fetch_url, local))()
 
         print('Download to local is done = ', local)
         return local
