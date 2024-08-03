@@ -888,7 +888,7 @@ class DeltaDBSQLStream(Stream):
         return shards
 
     def _make_request(self, url: str) -> requests.Response:
-        if random.random() < 0.3:  # 20% of the time
+        if random.random() < 0.0:  # make rhs > 0.0 for testing, so x% of the time return HTTPError
             response = requests.Response()
             response.status_code = 404
             response.url = url
