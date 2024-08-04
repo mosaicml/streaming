@@ -96,6 +96,19 @@ def get_dataset(name: str,
                 'cache_limit': '100mb',
             },
         },
+        'wiki_table_dbsql_cachelimit': {
+            'local': f'/tmp/test_wiki_table_05May1029',
+            'remote': 'SELECT id, text FROM main.streaming.wiki_table',
+            'num_samples': 378156152,
+            'class': StreamingDataset,
+            'kwargs': {
+                'warehouse_id': "89cf2c9b9f9cb3bc",
+                'catalog': 'main',
+                'schema': 'streaming',
+                'cache_limit': '100mb',
+            },
+            'shuffle': True,
+        },
         'debug_local': {
             'local': f'/tmp/test_random_reddit_table_05May1029',
             'remote': None,
@@ -111,6 +124,7 @@ def get_dataset(name: str,
     expected_samples = d['num_samples']
     local = d['local']
     remote = d['remote']
+    shuffle = d['shuffle'] or shuffle
     kwargs = {**d['kwargs'], **other_kwargs}
     dataset = d['class'](local=local,
                          remote=remote,
@@ -178,11 +192,12 @@ def test_streaming_remote_dataloader(name: str, split: str) -> None:
     rcvd_samples = 0
     iter_start = time.time()
 
-    for batch_idx, data_dict in enumerate(data_loader):
-        rcvd_samples += batch_size
+    for epcoh in range(3):
+        for batch_idx, data_dict in enumerate(data_loader):
+            rcvd_samples += batch_size
 
-        if (rcvd_samples % (10*batch_size) == 0):
-            print(f'samples read: {rcvd_samples}')
+            if (rcvd_samples % (10*batch_size) == 0):
+                print(f'samples read: {rcvd_samples}')
 
     iter_end = time.time()
     iter_dur = iter_end - iter_start
@@ -213,4 +228,5 @@ if __name__ == "__main__":
     #test_streaming_remote_dataloader(name = 'refinedweb', split=None)
    # test_streaming_remote_dataloader(name = 'random_cpt_table_dbsql', split=None)
    # test_streaming_remote_dataloader(name = 'reddit_table_dbsql', split=None)
+   test_streaming_remote_dataloader(name = 'wiki_table_dbsql_cachelimit', split=None)
 
