@@ -59,6 +59,7 @@ install_requires = [
     'azure-storage-file-datalake>=12.11.0,<13',
     'azure-identity>=1.13.0',
     'databricks-connect>=14.3.0',
+    'pyarrow>=17,<18',
 ]
 
 extra_deps = {}
