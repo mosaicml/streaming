@@ -320,7 +320,10 @@ def download_from_azure(remote: str, local: str) -> None:
         account_url=f"https://{os.environ['AZURE_ACCOUNT_NAME']}.blob.core.windows.net",
         credential=os.environ['AZURE_ACCOUNT_ACCESS_KEY'])
     try:
-        blob_client = service.get_blob_client(container=obj.netloc, blob=obj.path.lstrip('/'))
+        file_path = obj.path.lstrip('/').split('/')
+        container_name = file_path[0]
+        blob_name = os.path.join(*file_path[1:])
+        blob_client = service.get_blob_client(container=container_name, blob=blob_name)
         local_tmp = local + '.tmp'
         with open(local_tmp, 'wb') as my_blob:
             blob_data = blob_client.download_blob()
