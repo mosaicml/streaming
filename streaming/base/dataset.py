@@ -34,7 +34,7 @@ from streaming.base.sampling import get_sampling
 from streaming.base.shared import (SharedArray, SharedBarrier, SharedMemory, SharedScalar,
                                    _get_path, get_shm_prefix)
 from streaming.base.spanner import Spanner
-from streaming.base.stream import Stream
+from streaming.base.stream import Stream, DeltaDBSQLStream, DeltaSCStream
 from streaming.base.util import bytes_to_int, number_abbrev_to_int
 from streaming.base.world import World
 
@@ -331,7 +331,8 @@ class StreamingDataset(Array, IterableDataset):
                  shuffle_block_size: Optional[int] = None,
                  batching_method: str = 'random',
                  allow_unsafe_types: bool = False,
-                 replication: Optional[int] = None) -> None:
+                 replication: Optional[int] = None,
+                 **kwargs: Any) -> None:
         # Global arguments (which do not live in Streams).
         self.predownload = predownload
         self.cache_limit = cache_limit
@@ -443,6 +444,27 @@ class StreamingDataset(Array, IterableDataset):
             }
             for stream in streams:
                 stream.apply_default(default)
+        elif remote is not None and remote.startswith('SELECT'):
+            cluster_id = kwargs.get('cluster_id', None)
+            if not cluster_id:
+                default = DeltaDBSQLStream(remote=remote,
+                                           local=local,
+                                           split=split,
+                                           download_retry=download_retry,
+                                           download_timeout=download_timeout,
+                                           validate_hash=validate_hash,
+                                           keep_zip=keep_zip,
+                                           **kwargs)
+            else:
+                default = DeltaSCStream(cluster_id,
+                                      remote=remote,
+                                      local=local,
+                                      split=split,
+                                      download_retry=download_retry,
+                                      download_timeout=download_timeout,
+                                      validate_hash=validate_hash,
+                                      keep_zip=keep_zip)
+            streams = [default]
         else:
             default = Stream(remote=remote,
                              local=local,
