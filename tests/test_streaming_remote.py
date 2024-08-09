@@ -109,6 +109,19 @@ def get_dataset(name: str,
             },
             'shuffle': True,
         },
+        'coco_table_dbsql': {
+            'local': f'/tmp/test_coco_table_05May1029',
+            'remote': 'SELECT data, captions FROM main.streaming.coco_with_meta_and_captions',
+            'num_samples': 26688,
+            'class': StreamingDataset,
+            'kwargs': {
+                'warehouse_id': "89cf2c9b9f9cb3bc",
+                'catalog': 'main',
+                'schema': 'streaming',
+                'cache_limit': '100mb',
+            },
+            'shuffle': True,
+        },
         'debug_local': {
             'local': f'/tmp/test_random_reddit_table_05May1029',
             'remote': None,
@@ -221,12 +234,13 @@ if __name__ == "__main__":
 # test_streaming_remote_dataset(name = 'random_large_table', split=None)
 # test_streaming_remote_dataset(name = 'reddit_table', split=None)
     # test_streaming_remote_dataset(name = 'reddit_table_dbsql', split=None)
-    test_streaming_remote_dataset(name = 'reddit_table_dbsql_cachelimit', split=None)
+    #test_streaming_remote_dataset(name = 'reddit_table_dbsql_cachelimit', split=None)
+    test_streaming_remote_dataset(name = 'coco_table_dbsql', split=None)
 
 #    test_streaming_remote_dataset(name = 'debug_local', split=None)
 
     #test_streaming_remote_dataloader(name = 'refinedweb', split=None)
    # test_streaming_remote_dataloader(name = 'random_cpt_table_dbsql', split=None)
    # test_streaming_remote_dataloader(name = 'reddit_table_dbsql', split=None)
-   test_streaming_remote_dataloader(name = 'wiki_table_dbsql_cachelimit', split=None)
+    # test_streaming_remote_dataloader(name = 'wiki_table_dbsql_cachelimit', split=None)
 
