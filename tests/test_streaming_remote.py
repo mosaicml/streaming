@@ -137,7 +137,7 @@ def get_dataset(name: str,
     expected_samples = d['num_samples']
     local = d['local']
     remote = d['remote']
-    shuffle = d['shuffle'] or shuffle
+    shuffle = d.get('shuffle', False) or shuffle
     kwargs = {**d['kwargs'], **other_kwargs}
     dataset = d['class'](local=local,
                          remote=remote,
