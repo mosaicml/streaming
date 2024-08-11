@@ -539,9 +539,9 @@ class StrArray(Encoding):
         index = 0
         decoded_strings = []
         while index < len(data):
-            length = int.from_bytes(encdoed_bytes[index:index+4], byteorder='big')
+            length = int.from_bytes(data[index:index+4], byteorder='big')
             index += 4
-            decoded_str = encoded_bytes[index:index+length].decode('utf-8')
+            decoded_str = data[index:index+length].decode('utf-8')
             decoded_strings.append(decoded_str)
             index += length
         return decoded_strings
