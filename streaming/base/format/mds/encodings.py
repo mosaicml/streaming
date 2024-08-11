@@ -533,7 +533,7 @@ class StrArray(Encoding):
             encoded_str = s.encode('utf-8')
             length_prefix = len(encoded_str).to_bytes(4, byteorder='big')
             encoded_parts.append(length_prefix + encoded_str)
-        return b''.join(encode_parts)
+        return b''.join(encoded_parts)
 
     def decode(self, data: bytes) -> Any:
         index = 0
