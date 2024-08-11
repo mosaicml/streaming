@@ -539,11 +539,20 @@ class StrArray(Encoding):
         index = 0
         decoded_strings = []
         while index < len(data):
-            length = int.from_bytes(data[index:index+4], byteorder='big')
-            index += 4
-            decoded_str = data[index:index+length].decode('utf-8')
-            decoded_strings.append(decoded_str)
-            index += length
+            try:
+                length = int.from_bytes(data[index:index+4], byteorder='big')
+                index += 4
+                encoded_str = data[index:index+length]
+                decoded_str = encoded_str.decode('utf-8')
+                decoded_strings.append(decoded_str)
+                index += length
+            except UnicodeDecodeError as e:
+                print(f"UnicodeDecodeError: {e} for bytes: {encoded_str}")
+                decoded_strings.append(f"<decoding error: {e}>")
+                break
+            except Exception as e:
+                print(f"Unexpected error: {e}")
+                break
         return decoded_strings
 
     def _is_valid(self, original: Any, converted: Any) -> None:
