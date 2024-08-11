@@ -527,43 +527,43 @@ class JSON(Encoding):
 class StrArray(Encoding):
     """Store a list of strings."""
 
-    def encode(self, obj: Any) -> bytes:
+    def encode(self, strings: Any) -> bytes:
         encoded_parts = []
-        if len(obj) == 0:
-            raise ValueError(f"obj cannot be empty {obj}")
-        for s in obj:
-            encoded_str = s.encode('utf-8')
-            length_prefix = len(encoded_str).to_bytes(4, byteorder='big')
+
+        # Encode the length of the list of strings
+        list_length = len(strings)
+        encoded_parts.append(list_length.to_bytes(4, byteorder='big'))
+
+        for s in strings:
+            # Encode each string
+            encoded_str = s.encode('utf-8')  # Encode string to UTF-8 bytes
+            length_prefix = len(encoded_str).to_bytes(4, byteorder='big')  # Prefix with 4-byte length
             encoded_parts.append(length_prefix + encoded_str)
-        data = b''.join(encoded_parts)
 
-        try:
-            self.decode(data)
-        except:
-            print(f'Failed to decode an ecoded obj: {obj}')
-            raise RuntimeError
-
+        # Return the concatenated byte sequence
         return b''.join(encoded_parts)
 
-    def decode(self, data: bytes) -> Any:
+
+    def decode(self, encoded_bytes: bytes) -> Any:
         index = 0
         decoded_strings = []
-        while index < len(data):
-            try:
-                length = int.from_bytes(data[index:index+4], byteorder='big')
-                index += 4
-                encoded_str = data[index:index+length]
-                decoded_str = encoded_str.decode('utf-8')
-                decoded_strings.append(decoded_str)
-                index += length
-            except UnicodeDecodeError as e:
-                print('index =', index)
-                print('length = ', length)
-                raise RuntimeError from e
-                break
-            except Exception as e:
-                print(f"Unexpected error: {e}")
-                break
+
+        # Decode the length of the list of strings
+        list_length = int.from_bytes(encoded_bytes[index:index+4], byteorder='big')
+        index += 4
+
+        for _ in range(list_length):
+            # Decode the length of the next string
+            length = int.from_bytes(encoded_bytes[index:index+4], byteorder='big')
+            index += 4
+
+            # Extract and decode the string
+            encoded_str = encoded_bytes[index:index+length]
+            decoded_str = encoded_str.decode('utf-8')
+            decoded_strings.append(decoded_str)
+
+            index += length
+
         return decoded_strings
 
 
