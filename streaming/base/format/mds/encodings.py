@@ -529,6 +529,8 @@ class StrArray(Encoding):
 
     def encode(self, obj: Any) -> bytes:
         encoded_parts = []
+        if len(obj) == 0:
+            raise ValueError(f"obj cannot be empty {obj}")
         for s in obj:
             encoded_str = s.encode('utf-8')
             length_prefix = len(encoded_str).to_bytes(4, byteorder='big')
