@@ -763,6 +763,7 @@ class DeltaDBSQLStream(Stream):
             'string' : 'str',
             'bigint' : 'int64',
             'array': 'ndarray',
+            'array<string>': 'str_array',
             'binary': 'bytes',
             'boolean': 'uint32',
             'date': 'str',
@@ -775,7 +776,6 @@ class DeltaDBSQLStream(Stream):
             'struct': 'json',
             'tinyint': 'int8',
             'long': 'int8',
-            'list': 'json', # assume items are json serializable
         }
 
     def refresh_statement_id(self, timeout=100):
@@ -825,7 +825,8 @@ class DeltaDBSQLStream(Stream):
         self.columns = {}
         for c in column_meta:
             column_names.append(c['name'])
-            encoding = self.get_encode_format(c['type_name'])
+            encoding = self.get_encode_format(c['type_text'])
+            print(f'c = {c}, encoding = {encoding}')
             column_encodings.append(encoding)
             column_sizes.append(None)
             self.columns[c['name']] = encoding

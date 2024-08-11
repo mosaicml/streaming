@@ -524,6 +524,34 @@ class JSON(Encoding):
             e.msg = f'Invalid JSON data: {original}'
             raise
 
+class StrArray(Encoding):
+    """Store a list of strings."""
+
+    def encode(self, obj: Any) -> bytes:
+        encoded_parts = []
+        for s in obj:
+            encoded_str = s.encode('utf-8')
+            length_prefix = len(encoded_str).to_bytes(4, byteorder='big')
+            encoded_parts.append(length_prefix + encoded_str)
+        return b''.join(encode_parts)
+
+    def decode(self, data: bytes) -> Any:
+        index = 0
+        decoded_strings = []
+        while index < len(data):
+            length = int.from_bytes(encdoed_bytes[index:index+4], byteorder='big')
+            index += 4
+            decoded_str = encoded_bytes[index:index+length].decode('utf-8')
+            decoded_strings.append(decoded_str)
+            index += length
+        return decoded_strings
+
+    def _is_valid(self, original: Any, converted: Any) -> None:
+        try:
+            json.loads(converted)
+        except json.decoder.JSONDecodeError as e:
+            e.msg = f'Invalid JSON data: {original}'
+            raise
 
 # Encodings (name -> class).
 _encodings = {
@@ -545,6 +573,7 @@ _encodings = {
     'str_int': StrInt,
     'str_float': StrFloat,
     'str_decimal': StrDecimal,
+    'str_array': StrArray,
     'pil': PIL,
     'jpeg': JPEG,
     'png': PNG,
