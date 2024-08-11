@@ -775,6 +775,7 @@ class DeltaDBSQLStream(Stream):
             'struct': 'json',
             'tinyint': 'int8',
             'long': 'int8',
+            'list': 'json', # assume items are json serializable
         }
 
     def refresh_statement_id(self, timeout=100):
