@@ -555,6 +555,8 @@ class StrArray(Encoding):
                 decoded_strings.append(decoded_str)
                 index += length
             except UnicodeDecodeError as e:
+                print('index =', index)
+                print('length = ', length)
                 raise RuntimeError from e
                 break
             except Exception as e:
@@ -562,12 +564,6 @@ class StrArray(Encoding):
                 break
         return decoded_strings
 
-    def _is_valid(self, original: Any, converted: Any) -> None:
-        try:
-            json.loads(converted)
-        except json.decoder.JSONDecodeError as e:
-            e.msg = f'Invalid JSON data: {original}'
-            raise
 
 # Encodings (name -> class).
 _encodings = {
