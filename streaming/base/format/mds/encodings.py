@@ -549,6 +549,7 @@ class StrArray(Encoding):
             except UnicodeDecodeError as e:
                 print(f"UnicodeDecodeError: {e} for bytes: {encoded_str}")
                 decoded_strings.append(f"<decoding error: {e}>")
+                raise RuntimeError from e
                 break
             except Exception as e:
                 print(f"Unexpected error: {e}")
