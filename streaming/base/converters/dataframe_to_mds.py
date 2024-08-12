@@ -297,10 +297,10 @@ def dataframe_to_mds(dataframe: DataFrame,
         # storage such as /dbfs or /Volumes in Databricks for example.
         # It's not wrong in this case, but probably nevertheless desirable to specify a local temp
         # path explicitly, to interpret the FUSE-mounted path as remote
-        logger.warning(f"Path {cu.local} is interpreted as a local path. If this is actually " +
+        logger.warning(f'Path {cu.local} is interpreted as a local path. If this is actually ' +
                        'mounted distributed storage, it will work, but consider also specifying ' +
-                       "a local temp path. Pass a (local, remote) tuple as 'out', as in " +
-                       f"('/local_disk0/my_tmp', {cu.local})")
+                       'a local temp path. Pass a (local, remote) tuple as "out", as in ' +
+                       f'("/local_disk0/my_tmp", "{cu.local}")')
         mds_path = (cu.local, '')
     else:
         mds_path = (cu.local, cu.remote)
