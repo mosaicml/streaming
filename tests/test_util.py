@@ -142,7 +142,8 @@ def integrity_check(out: Union[str, Tuple[str, str]],
         n_shard_files = 0
         cu = CloudUploader.get(mds_root, exist_ok=True, keep_local=True)
         for o in cu.list_objects():
-            if o.endswith('.mds'):
+            # ends with .mds, or perhaps .mds.zstd
+            if '.mds' in o:
                 n_shard_files += 1
         return n_shard_files
 
