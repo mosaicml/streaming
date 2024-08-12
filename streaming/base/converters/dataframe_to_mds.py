@@ -304,7 +304,7 @@ def dataframe_to_mds(dataframe: DataFrame,
         logger.warning(f"Path {cu.local} is interpreted as a local path. If this is actually " +
                        "mounted distributed storage, it will work, but consider also specifying " +
                        "a local temp path. Pass a (local, remote) tuple in out, as in " +
-                       f"('/local_disk0/my_tmp', {cu.local})"
+                       f"('/local_disk0/my_tmp', {cu.local})")
         mds_path = (cu.local, '')
     else:
         mds_path = (cu.local, cu.remote)
