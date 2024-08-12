@@ -265,7 +265,7 @@ def dataframe_to_mds(dataframe: DataFrame,
         raise ValueError(f'`out` and `columns` need to be specified in `mds_kwargs`')
 
     if 'compression' not in mds_kwargs:
-        logger.info("Defaulting to zstd compression")
+        logger.info('Defaulting to zstd compression')
         mds_kwargs['compression'] = 'zstd'
 
     if udf_iterable is not None:
@@ -292,16 +292,15 @@ def dataframe_to_mds(dataframe: DataFrame,
     # Fix output format as mds_path: Tuple(local, remote)
     if cu.remote is None:
         # If dataframe_to_mds is being called, this is in a distributed Spark env.
-        # If there is no remote, it's because the given out path is local, which does not 
-        # in general make sense, unless this 'local' path is FUSE-mounted distributed 
+        # If there is no remote, it's because the given out path is local, which does not
+        # in general make sense, unless this 'local' path is FUSE-mounted distributed
         # storage such as /dbfs or /Volumes in Databricks for example.
         # It's not wrong in this case, but probably nevertheless desirable to specify a local temp
         # path explicitly, to interpret the FUSE-mounted path as remote
-        logger.warning(
-            f"Path {cu.local} is interpreted as a local path. If this is actually " +
-            "mounted distributed storage, it will work, but consider also specifying " +
-            "a local temp path. Pass a (local, remote) tuple as 'out', as in " +
-            f"('/local_disk0/my_tmp', {cu.local})")
+        logger.warning(f"Path {cu.local} is interpreted as a local path. If this is actually " +
+                       'mounted distributed storage, it will work, but consider also specifying ' +
+                       "a local temp path. Pass a (local, remote) tuple as 'out', as in " +
+                       f"('/local_disk0/my_tmp', {cu.local})")
         mds_path = (cu.local, '')
     else:
         mds_path = (cu.local, cu.remote)
