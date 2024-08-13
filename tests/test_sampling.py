@@ -2,11 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+import pytest
 
 from streaming.base.sampling import get_sampling
 
 
-def test_choose_per_shard_adds_up():
+@pytest.mark.parametrize('use_epoch', [True, False])
+def test_choose_per_shard_adds_up(use_epoch: bool):
     for granularity in range(1, 100):
         for _ in range(10):
             samples_per_shard = 100 + np.random.choice(100, 10)
@@ -14,7 +16,6 @@ def test_choose_per_shard_adds_up():
             choose = np.random.choice(samples)
             seed = np.random.choice(31337)
             epoch = np.random.choice(42)
-            use_epoch = bool(np.random.choice(2))
             choose_per_shard = get_sampling(samples_per_shard, choose, granularity, seed, epoch,
                                             use_epoch)
             assert (0 <= choose_per_shard).all()
@@ -22,17 +23,17 @@ def test_choose_per_shard_adds_up():
             assert sum(choose_per_shard) == choose
 
 
-def test_is_deterministic():
+@pytest.mark.parametrize('use_epoch', [True, False])
+def test_is_deterministic(use_epoch: bool):
     for granularity in range(1, 100):
-        for _iter in range(3):
+        for _ in range(3):
             samples_per_shard = 100 + np.random.choice(100, 10)
             samples = sum(samples_per_shard)
             choose = np.random.choice(samples)
             seed = np.random.choice(31337)
             epoch = np.random.choice(42)
-            use_epoch = bool(np.random.choice(2))
             last = None
-            for _repeat in range(2):
+            for _ in range(2):
                 choose_per_shard = get_sampling(samples_per_shard, choose, granularity, seed,
                                                 epoch, use_epoch)
                 if last is not None:
@@ -40,7 +41,8 @@ def test_is_deterministic():
                 last = choose_per_shard
 
 
-def test_balance():
+@pytest.mark.parametrize('use_epoch', [True, False])
+def test_balance(use_epoch: bool):
     samples_per_shard = 1_000 + np.random.choice(1_000, 10)
     samples = sum(samples_per_shard)
     choose = np.random.choice(samples)
@@ -49,7 +51,6 @@ def test_balance():
         for _ in range(10):
             seed = np.random.choice(31337)
             epoch = np.random.choice(42)
-            use_epoch = bool(np.random.choice(2))
             choose_per_shard += get_sampling(samples_per_shard, choose, granularity, seed, epoch,
                                              use_epoch)
     choose_per_shard /= 99 * 10

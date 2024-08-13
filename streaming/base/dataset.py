@@ -880,7 +880,8 @@ class StreamingDataset(Array, IterableDataset):
             samples_per_stream_shard = self.samples_per_shard[stream_shard_ids]
             # the number of items to choose from each stream, obtained during initialization
             stream_choose = self.streams[stream_id].choose
-            use_epoch = self.sampling_method == 'balanced'
+            # Only use a new seed for the epoch if using balanced sampling and if we are shuffling.
+            use_epoch = self.sampling_method == 'balanced' and self.shuffle == True
             choose_per_stream_shard = get_sampling(samples_per_stream_shard, stream_choose,
                                                    self.sampling_granularity, self.shuffle_seed,
                                                    epoch, use_epoch)

@@ -85,6 +85,60 @@ def test_new_defaults_warning(local_remote_dir: Tuple[str, str], caplog: Callabl
     assert 'Because `num_canonical_nodes` was not specified,' in caplog.text
 
 
+@pytest.mark.parametrize('batch_size', [4, 7])
+@pytest.mark.parametrize('seed', [2222, 1000])
+@pytest.mark.parametrize('num_canonical_nodes', [2, 4])
+@pytest.mark.parametrize('batching_method',
+                         ['random', 'stratified', 'per_stream', 'device_per_stream'])
+@pytest.mark.usefixtures('local_remote_dir')
+def test_dataset_no_shuffle(local_remote_dir: Tuple[str, str], batch_size: int, seed: int,
+                            num_canonical_nodes: int, batching_method: str):
+
+    shuffle = False
+    # create mock datasets for 2 streams. Second one has 1.5x the samples
+    local, remote = local_remote_dir
+    local1 = os.path.join(local, 'stream1')
+    local2 = os.path.join(local, 'stream2')
+    remote1 = os.path.join(remote, 'stream1')
+    remote2 = os.path.join(remote, 'stream2')
+
+    # stream 1 has samples 0->600
+    convert_to_mds(out_root=remote1,
+                   dataset_name='sequencedataset',
+                   num_samples=200,
+                   size_limit=1 << 8)
+    # stream 2 has samples 600 and above.
+    # This lets us differentiate between the samples from each stream
+    convert_to_mds(out_root=remote2,
+                   dataset_name='sequencedataset',
+                   num_samples=300,
+                   offset=600,
+                   size_limit=1 << 8)
+
+    stream1 = Stream(local=local1, remote=remote1)
+    stream2 = Stream(local=local2, remote=remote2)
+
+    # Build StreamingDataset
+    dataset = StreamingDataset(streams=[stream1, stream2],
+                               shuffle=shuffle,
+                               batch_size=batch_size,
+                               shuffle_seed=seed,
+                               num_canonical_nodes=num_canonical_nodes,
+                               batching_method=batching_method)
+
+    # Make sure samples seen in first epoch are the same as in the second epoch.
+    epoch_0_samples = []
+    epoch_1_samples = []
+    for epoch in range(2):
+        for sample in dataset:
+            if epoch == 0:
+                epoch_0_samples.append(sample)
+            else:
+                epoch_1_samples.append(sample)
+
+    assert epoch_0_samples == epoch_1_samples
+
+
 @pytest.mark.parametrize('batch_size', [4])
 @pytest.mark.parametrize('seed', [2222])
 @pytest.mark.parametrize('shuffle', [False])
