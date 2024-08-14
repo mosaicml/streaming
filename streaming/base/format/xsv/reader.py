@@ -5,7 +5,7 @@
 
 import os
 from copy import deepcopy
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 import numpy as np
 from typing_extensions import Self
@@ -43,10 +43,10 @@ class XSVReader(SplitReader):
         self,
         dirname: str,
         split: Optional[str],
-        column_encodings: List[str],
-        column_names: List[str],
+        column_encodings: list[str],
+        column_names: list[str],
         compression: Optional[str],
-        hashes: List[str],
+        hashes: list[str],
         newline: str,
         raw_data: FileInfo,
         raw_meta: FileInfo,
@@ -64,7 +64,7 @@ class XSVReader(SplitReader):
         self.separator = separator
 
     @classmethod
-    def from_json(cls, dirname: str, split: Optional[str], obj: Dict[str, Any]) -> Self:
+    def from_json(cls, dirname: str, split: Optional[str], obj: dict[str, Any]) -> Self:
         """Initialize from JSON object.
 
         Args:
@@ -91,7 +91,7 @@ class XSVReader(SplitReader):
             args[key] = FileInfo(**arg) if arg else None
         return cls(**args)
 
-    def decode_sample(self, data: bytes) -> Dict[str, Any]:
+    def decode_sample(self, data: bytes) -> dict[str, Any]:
         """Decode a sample dict from bytes.
 
         Args:
@@ -156,10 +156,10 @@ class CSVReader(XSVReader):
         self,
         dirname: str,
         split: Optional[str],
-        column_encodings: List[str],
-        column_names: List[str],
+        column_encodings: list[str],
+        column_names: list[str],
         compression: Optional[str],
-        hashes: List[str],
+        hashes: list[str],
         newline: str,
         raw_data: FileInfo,
         raw_meta: FileInfo,
@@ -173,7 +173,7 @@ class CSVReader(XSVReader):
                          zip_data, zip_meta)
 
     @classmethod
-    def from_json(cls, dirname: str, split: Optional[str], obj: Dict[str, Any]) -> Self:
+    def from_json(cls, dirname: str, split: Optional[str], obj: dict[str, Any]) -> Self:
         """Initialize from JSON object.
 
         Args:
@@ -227,10 +227,10 @@ class TSVReader(XSVReader):
         self,
         dirname: str,
         split: Optional[str],
-        column_encodings: List[str],
-        column_names: List[str],
+        column_encodings: list[str],
+        column_names: list[str],
         compression: Optional[str],
-        hashes: List[str],
+        hashes: list[str],
         newline: str,
         raw_data: FileInfo,
         raw_meta: FileInfo,
@@ -244,7 +244,7 @@ class TSVReader(XSVReader):
                          zip_data, zip_meta)
 
     @classmethod
-    def from_json(cls, dirname: str, split: Optional[str], obj: Dict[str, Any]) -> Self:
+    def from_json(cls, dirname: str, split: Optional[str], obj: dict[str, Any]) -> Self:
         """Initialize from JSON object.
 
         Args:

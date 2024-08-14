@@ -6,7 +6,7 @@
 import bz2
 import gzip
 from abc import ABC, abstractmethod
-from typing import Dict, Iterator, Optional, Set, Tuple, Type
+from typing import Iterator, Optional
 
 import brotli
 import snappy
@@ -24,7 +24,7 @@ class Compression(ABC):
     extension: str = ''  # Filename extension.
 
     @classmethod
-    def each(cls) -> Iterator[Tuple[str, Self]]:
+    def each(cls) -> Iterator[tuple[str, Self]]:
         """Get each instance of this compression algorithm family.
 
         Returns:
@@ -70,7 +70,7 @@ class LevelledCompression(Compression):
         raise NotImplementedError
 
     @classmethod
-    def each(cls) -> Iterator[Tuple[str, Self]]:
+    def each(cls) -> Iterator[tuple[str, Self]]:
         yield cls.extension, cls()
         for level in cls.levels:
             yield f'{cls.extension}:{level}', cls(level)
@@ -157,7 +157,7 @@ class Zstandard(LevelledCompression):
 
 
 # Compression algorithm families (extension -> class).
-_families: Dict[str, Type[Compression]] = {
+_families: dict[str, type[Compression]] = {
     'br': Brotli,
     'bz2': Bzip2,
     'gz': Gzip,
@@ -166,7 +166,7 @@ _families: Dict[str, Type[Compression]] = {
 }
 
 
-def _collect(families: Dict[str, Type[Compression]]) -> Dict[str, Compression]:
+def _collect(families: dict[str, type[Compression]]) -> dict[str, Compression]:
     """Get each level of each compression type and flatten into a single dict.
 
     Args:
@@ -183,10 +183,10 @@ def _collect(families: Dict[str, Type[Compression]]) -> Dict[str, Compression]:
 
 
 # Compression algorithms (extension:level -> instance).
-_algorithms: Dict[str, Compression] = _collect(_families)
+_algorithms: dict[str, Compression] = _collect(_families)
 
 
-def get_compressions() -> Set[str]:
+def get_compressions() -> set[str]:
     """List supported compression algorithms.
 
     Returns:

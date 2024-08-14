@@ -3,7 +3,7 @@
 
 import os
 import tempfile
-from typing import Any, Tuple
+from typing import Any
 from unittest.mock import Mock, patch
 
 import boto3
@@ -25,7 +25,7 @@ MY_PREFIX = 'train'
 def remote_local_file() -> Any:
     """Creates a temporary directory and then deletes it when the calling function is done."""
 
-    def _method(cloud_prefix: str = '', filename: str = 'file.txt') -> Tuple[str, str]:
+    def _method(cloud_prefix: str = '', filename: str = 'file.txt') -> tuple[str, str]:
         try:
             mock_local_dir = tempfile.TemporaryDirectory()
             mock_local_filepath = os.path.join(mock_local_dir.name, filename)

@@ -3,7 +3,7 @@
 
 """Individual dataset writer for every format."""
 
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from streaming.base.format.base import FileInfo, Reader
 from streaming.base.format.index import get_index_basename
@@ -26,7 +26,7 @@ _readers = {
 }
 
 
-def reader_from_json(dirname: str, split: Optional[str], obj: Dict[str, Any]) -> Reader:
+def reader_from_json(dirname: str, split: Optional[str], obj: dict[str, Any]) -> Reader:
     """Initialize the reader from JSON object.
 
     Args:

@@ -4,7 +4,7 @@
 """Utility and helper functions to convert CV datasets."""
 
 import os
-from typing import List, Optional
+from typing import Optional
 
 import numpy as np
 from torch.utils.data import Dataset
@@ -17,7 +17,7 @@ def convert_image_class_dataset(dataset: Dataset,
                                 out_root: str,
                                 split: Optional[str] = None,
                                 compression: Optional[str] = None,
-                                hashes: Optional[List[str]] = None,
+                                hashes: Optional[list[str]] = None,
                                 size_limit: int = 1 << 24,
                                 progress_bar: bool = True,
                                 leave: bool = False,

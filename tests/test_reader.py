@@ -6,7 +6,7 @@ import logging
 import os
 import shutil
 import time
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Union
 
 import numpy as np
 import pytest
@@ -189,11 +189,11 @@ def test_reader_after_crash(local_remote_dir: Any, created_ago: float, download_
         pass
 
 
-def _validate_sample(index: Union[int, slice, List[int], NDArray[np.int64]],
-                     output_sample: Union[Dict, List], total_samples: int):
+def _validate_sample(index: Union[int, slice, list[int], NDArray[np.int64]],
+                     output_sample: Union[dict, list], total_samples: int):
     """Validate the generated sample with the expected sample."""
 
-    def validate_single_sample(index: int, output_sample: Dict, total_samples: int):
+    def validate_single_sample(index: int, output_sample: dict, total_samples: int):
         if index < 0:
             sample_index = total_samples + index
             assert output_sample['id'] == f'{sample_index:06}'
@@ -203,9 +203,9 @@ def _validate_sample(index: Union[int, slice, List[int], NDArray[np.int64]],
             assert output_sample['sample'] == 3 * index
 
     if isinstance(index, int):
-        assert isinstance(output_sample, Dict)
+        assert isinstance(output_sample, dict)
         validate_single_sample(index, output_sample, total_samples)
-    elif isinstance(index, List):
+    elif isinstance(index, list):
         for i, sample_idx in enumerate(index):
             validate_single_sample(sample_idx, output_sample[i], total_samples)
     elif isinstance(index, slice):
@@ -234,7 +234,7 @@ def _validate_sample(index: Union[int, slice, List[int], NDArray[np.int64]],
 ])
 @pytest.mark.parametrize('seed', [5566])
 def test_reader_getitem(local_remote_dir: Any, share_remote_local: bool,
-                        index: Union[int, slice, List[int], NDArray[np.int64]], seed: int):
+                        index: Union[int, slice, list[int], NDArray[np.int64]], seed: int):
     remote_dir, local_dir = local_remote_dir
     convert_to_mds(out_root=remote_dir,
                    dataset_name='sequencedataset',
@@ -273,7 +273,7 @@ def test_dataset_split_instantiation(local_remote_dir: Any):
 
 
 @pytest.mark.usefixtures('local_remote_dir')
-def test_invalid_index_json_exception(local_remote_dir: Tuple[str, str]):
+def test_invalid_index_json_exception(local_remote_dir: tuple[str, str]):
     local_dir, remote_dir = local_remote_dir
     convert_to_mds(out_root=remote_dir,
                    dataset_name='sequencedataset',
@@ -293,7 +293,7 @@ def test_invalid_index_json_exception(local_remote_dir: Tuple[str, str]):
 
 
 @pytest.mark.usefixtures('local_remote_dir')
-def test_empty_shards_index_json_exception(local_remote_dir: Tuple[str, str]):
+def test_empty_shards_index_json_exception(local_remote_dir: tuple[str, str]):
     local_dir, remote_dir = local_remote_dir
     convert_to_mds(out_root=remote_dir,
                    dataset_name='sequencedataset',

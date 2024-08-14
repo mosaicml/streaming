@@ -4,7 +4,7 @@
 import logging
 import math
 import os
-from typing import Any, Tuple
+from typing import Any
 from unittest import mock
 
 import numpy as np
@@ -72,7 +72,7 @@ class TestInit(DistributedTest):
     @pytest.mark.parametrize('num_workers', [0, 1, 8])
     @pytest.mark.parametrize('num_samples', [9867])
     @pytest.mark.parametrize('size_limit', [8_192])
-    def test_dataloader_multi_device(self, local_remote_dir: Tuple[str, str], batch_size: int,
+    def test_dataloader_multi_device(self, local_remote_dir: tuple[str, str], batch_size: int,
                                      drop_last: bool, num_workers: int, num_samples: int,
                                      size_limit: int):
 

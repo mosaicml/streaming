@@ -7,7 +7,7 @@ import json
 import os
 from argparse import ArgumentParser, Namespace
 from time import sleep, time
-from typing import Iterator, List, Optional, Union
+from typing import Iterator, Optional, Union
 
 import numpy as np
 from pyarrow import parquet as pq
@@ -119,7 +119,7 @@ def get_str(x: Optional[str]) -> str:
     return x or ''
 
 
-def convert(parquet_filename: str, mds_dirname: str, hashes: List[str]) -> None:
+def convert(parquet_filename: str, mds_dirname: str, hashes: list[str]) -> None:
     """Convert a parquet shard to MDS shard with an index.
 
     Args:

@@ -31,7 +31,7 @@ def parse_args() -> Namespace:
     return args.parse_args()
 
 
-def parse(text: str) -> List[int]:
+def parse(text: str) -> list[int]:
     """Parse an int range.
 
     Args:

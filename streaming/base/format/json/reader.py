@@ -6,7 +6,7 @@
 import json
 import os
 from copy import deepcopy
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 import numpy as np
 from typing_extensions import Self
@@ -42,9 +42,9 @@ class JSONReader(SplitReader):
         self,
         dirname: str,
         split: Optional[str],
-        columns: Dict[str, str],
+        columns: dict[str, str],
         compression: Optional[str],
-        hashes: List[str],
+        hashes: list[str],
         newline: str,
         raw_data: FileInfo,
         raw_meta: FileInfo,
@@ -59,7 +59,7 @@ class JSONReader(SplitReader):
         self.newline = newline
 
     @classmethod
-    def from_json(cls, dirname: str, split: Optional[str], obj: Dict[str, Any]) -> Self:
+    def from_json(cls, dirname: str, split: Optional[str], obj: dict[str, Any]) -> Self:
         """Initialize from JSON object.
 
         Args:
@@ -88,7 +88,7 @@ class JSONReader(SplitReader):
             args[key] = FileInfo(**arg) if arg else None
         return cls(**args)
 
-    def decode_sample(self, data: bytes) -> Dict[str, Any]:
+    def decode_sample(self, data: bytes) -> dict[str, Any]:
         """Decode a sample dict from bytes.
 
         Args:

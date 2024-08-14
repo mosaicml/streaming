@@ -6,7 +6,7 @@ import os
 import shutil
 import socket
 import tempfile
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 import pytest
 
@@ -74,11 +74,11 @@ def convert_to_mds(**kwargs: Any):
 
 def get_config_in_bytes(format: str,
                         size_limit: int,
-                        column_names: List[str],
-                        column_encodings: List[str],
-                        column_sizes: List[str],
+                        column_names: list[str],
+                        column_encodings: list[str],
+                        column_sizes: list[str],
                         compression: Optional[str] = None,
-                        hashes: Optional[List[str]] = None):
+                        hashes: Optional[list[str]] = None):
     hashes = hashes or []
     config = {
         'version': 2,

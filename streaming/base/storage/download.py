@@ -8,7 +8,7 @@ import pathlib
 import shutil
 import urllib.parse
 from time import sleep, time
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from streaming.base.util import get_import_exception_message
 
@@ -45,7 +45,7 @@ def download_from_s3(remote: str, local: str, timeout: float) -> None:
     """
 
     def _download_file(unsigned: bool = False,
-                       extra_args: Optional[Dict[str, Any]] = None) -> None:
+                       extra_args: Optional[dict[str, Any]] = None) -> None:
         """Download the file from AWS S3 bucket. The bucket can be either public or private.
 
         Args:

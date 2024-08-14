@@ -4,7 +4,7 @@
 import json
 import os
 from decimal import Decimal
-from typing import Any, Tuple
+from typing import Any
 
 import pytest
 from pyspark.sql import SparkSession
@@ -108,7 +108,7 @@ class TestDataFrameToMDS:
     @pytest.mark.parametrize('merge_index', [True, False])
     def test_end_to_end_conversion_local_nocolumns(self, dataframe: Any, keep_local: bool,
                                                    merge_index: bool,
-                                                   local_remote_dir: Tuple[str, str]):
+                                                   local_remote_dir: tuple[str, str]):
         out, _ = local_remote_dir
         mds_kwargs = {
             'out': out,
@@ -156,7 +156,7 @@ class TestDataFrameToMDS:
 
     @pytest.mark.parametrize('use_columns', [True, False])
     def test_end_to_end_conversion_local_decimal(self, decimal_dataframe: Any, use_columns: bool,
-                                                 local_remote_dir: Tuple[str, str]):
+                                                 local_remote_dir: tuple[str, str]):
         out, _ = local_remote_dir
         user_defined_columns = {'id': 'int32', 'name': 'str', 'amount': 'str_decimal'}
         mds_kwargs = {'out': out, 'columns': user_defined_columns, 'keep_local': True}
@@ -167,7 +167,7 @@ class TestDataFrameToMDS:
         _ = dataframe_to_mds(decimal_dataframe, merge_index=True, mds_kwargs=mds_kwargs)
         assert len(os.listdir(out)) > 0, f'{out} is empty'
 
-    def test_user_defined_columns(self, dataframe: Any, local_remote_dir: Tuple[str, str]):
+    def test_user_defined_columns(self, dataframe: Any, local_remote_dir: tuple[str, str]):
         out, _ = local_remote_dir
         user_defined_columns = {'idd': 'str', 'dept': 'str'}
         mds_kwargs = {
@@ -190,7 +190,7 @@ class TestDataFrameToMDS:
     @pytest.mark.parametrize('keep_local', [True, False])
     @pytest.mark.parametrize('merge_index', [True, False])
     def test_end_to_end_conversion_local(self, dataframe: Any, keep_local: bool, merge_index: bool,
-                                         local_remote_dir: Tuple[str, str]):
+                                         local_remote_dir: tuple[str, str]):
         out, _ = local_remote_dir
         mds_kwargs = {
             'out': out,
@@ -279,7 +279,7 @@ class TestDataFrameToMDS:
     @pytest.mark.parametrize('merge_index', [True, False])
     def test_array_end_to_end_conversion_local_nocolumns(self, array_dataframe: Any,
                                                          keep_local: bool, merge_index: bool,
-                                                         local_remote_dir: Tuple[str, str]):
+                                                         local_remote_dir: tuple[str, str]):
         out, _ = local_remote_dir
         mds_kwargs = {
             'out': out,
@@ -321,7 +321,7 @@ class TestDataFrameToMDS:
 
     def test_array_udf_correct_columns(self,
                                        array_dataframe: Any,
-                                       local_remote_dir: Tuple[str, str],
+                                       local_remote_dir: tuple[str, str],
                                        keep_local: bool = True,
                                        merge_index: bool = True):
         out, _ = local_remote_dir
@@ -370,7 +370,7 @@ class TestDataFrameToMDS:
 
     def test_array_udf_wrong_columns(self,
                                      array_dataframe: Any,
-                                     local_remote_dir: Tuple[str, str],
+                                     local_remote_dir: tuple[str, str],
                                      keep_local: bool = True,
                                      merge_index: bool = True):
         out, _ = local_remote_dir
@@ -444,7 +444,7 @@ class TestDataFrameToMDS:
 
     def test_complex_schema(self,
                             complex_dataframe: Any,
-                            local_remote_dir: Tuple[str, str],
+                            local_remote_dir: tuple[str, str],
                             keep_local: bool = True,
                             merge_index: bool = True):
         out, _ = local_remote_dir

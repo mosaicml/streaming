@@ -6,7 +6,7 @@ import math
 import os
 import shutil
 from multiprocessing import Process
-from typing import Any, Callable, Tuple
+from typing import Any, Callable
 
 import pytest
 from torch.utils.data import DataLoader
@@ -19,7 +19,7 @@ from tests.common.utils import convert_to_mds
 
 
 @pytest.mark.usefixtures('local_remote_dir')
-def test_tiny_dataset_exception(local_remote_dir: Tuple[str, str]):
+def test_tiny_dataset_exception(local_remote_dir: tuple[str, str]):
 
     remote_dir, local_dir = local_remote_dir
     convert_to_mds(out_root=remote_dir,
@@ -44,7 +44,7 @@ def test_tiny_dataset_exception(local_remote_dir: Tuple[str, str]):
 
 
 @pytest.mark.usefixtures('local_remote_dir')
-def test_no_batch_size_exception(local_remote_dir: Tuple[str, str]):
+def test_no_batch_size_exception(local_remote_dir: tuple[str, str]):
 
     remote_dir, local_dir = local_remote_dir
     convert_to_mds(out_root=remote_dir,
@@ -66,7 +66,7 @@ def test_no_batch_size_exception(local_remote_dir: Tuple[str, str]):
 
 
 @pytest.mark.usefixtures('local_remote_dir')
-def test_new_defaults_warning(local_remote_dir: Tuple[str, str], caplog: Callable):
+def test_new_defaults_warning(local_remote_dir: tuple[str, str], caplog: Callable):
     caplog.set_level(logging.WARNING)
     local, remote = local_remote_dir
     convert_to_mds(out_root=remote,
@@ -91,7 +91,7 @@ def test_new_defaults_warning(local_remote_dir: Tuple[str, str], caplog: Callabl
 @pytest.mark.parametrize('batching_method',
                          ['random', 'stratified', 'per_stream', 'device_per_stream'])
 @pytest.mark.usefixtures('local_remote_dir')
-def test_dataset_no_shuffle(local_remote_dir: Tuple[str, str], batch_size: int, seed: int,
+def test_dataset_no_shuffle(local_remote_dir: tuple[str, str], batch_size: int, seed: int,
                             num_canonical_nodes: int, batching_method: str):
 
     shuffle = False
@@ -147,7 +147,7 @@ def test_dataset_no_shuffle(local_remote_dir: Tuple[str, str], batch_size: int, 
 @pytest.mark.parametrize('num_canonical_nodes', [8])
 @pytest.mark.parametrize('epoch_size', [10, 200])
 @pytest.mark.usefixtures('local_remote_dir')
-def test_dataloader_epoch_size_no_streams(local_remote_dir: Tuple[str,
+def test_dataloader_epoch_size_no_streams(local_remote_dir: tuple[str,
                                                                   str], batch_size: int, seed: int,
                                           shuffle: bool, drop_last: bool, num_workers: int,
                                           num_canonical_nodes: int, epoch_size: int):
@@ -192,7 +192,7 @@ def test_dataloader_epoch_size_no_streams(local_remote_dir: Tuple[str,
 @pytest.mark.parametrize('num_workers', [3, 6])
 @pytest.mark.parametrize('num_canonical_nodes', [8])
 @pytest.mark.usefixtures('local_remote_dir')
-def test_dataloader_per_stream_batching(local_remote_dir: Tuple[str, str], batch_size: int,
+def test_dataloader_per_stream_batching(local_remote_dir: tuple[str, str], batch_size: int,
                                         seed: int, shuffle: bool, drop_last: bool,
                                         num_workers: int, num_canonical_nodes: int):
     # create mock datasets for 2 streams. Second one has 1.5x the samples
@@ -264,7 +264,7 @@ def test_dataloader_per_stream_batching(local_remote_dir: Tuple[str, str], batch
 @pytest.mark.parametrize('workers_per_rank', [4, 8])
 @pytest.mark.parametrize('num_canonical_nodes', [8])
 @pytest.mark.usefixtures('local_remote_dir')
-def test_dataloader_device_per_stream_batching(local_remote_dir: Tuple[str, str], batch_size: int,
+def test_dataloader_device_per_stream_batching(local_remote_dir: tuple[str, str], batch_size: int,
                                                seed: int, shuffle: bool, physical_nodes: int,
                                                ranks_per_node: int, workers_per_rank: int,
                                                num_canonical_nodes: int):
@@ -341,7 +341,7 @@ def test_dataloader_device_per_stream_batching(local_remote_dir: Tuple[str, str]
 @pytest.mark.parametrize('num_stream_1_samples', [200, 255])
 @pytest.mark.parametrize('num_stream_2_samples', [342, 557])
 @pytest.mark.usefixtures('local_remote_dir')
-def test_dataloader_stratified_batching(local_remote_dir: Tuple[str, str], batch_size: int,
+def test_dataloader_stratified_batching(local_remote_dir: tuple[str, str], batch_size: int,
                                         seed: int, shuffle: bool, drop_last: bool,
                                         num_workers: int, num_canonical_nodes: int,
                                         num_stream_1_samples: int, num_stream_2_samples: int):
@@ -430,7 +430,7 @@ def test_dataloader_stratified_batching(local_remote_dir: Tuple[str, str], batch
 @pytest.mark.parametrize('stream_1_proportion', [2, 5])
 @pytest.mark.parametrize('stream_2_proportion', [2, 5])
 @pytest.mark.usefixtures('local_remote_dir')
-def test_dataloader_stratified_batching_user_set(local_remote_dir: Tuple[str,
+def test_dataloader_stratified_batching_user_set(local_remote_dir: tuple[str,
                                                                          str], batch_size: int,
                                                  seed: int, shuffle: bool, drop_last: bool,
                                                  num_workers: int, num_canonical_nodes: int,
@@ -497,7 +497,7 @@ def test_dataloader_stratified_batching_user_set(local_remote_dir: Tuple[str,
 
 @pytest.mark.parametrize('stream_2_size', list(range(1, 65, 10)))
 @pytest.mark.usefixtures('local_remote_dir')
-def test_stratified_batching_Exception(local_remote_dir: Tuple[str, str], stream_2_size: int):
+def test_stratified_batching_Exception(local_remote_dir: tuple[str, str], stream_2_size: int):
 
     local, remote = local_remote_dir
     local1 = os.path.join(local, 'stream1')
@@ -546,7 +546,7 @@ def test_stratified_batching_Exception(local_remote_dir: Tuple[str, str], stream
 @pytest.mark.parametrize('num_canonical_nodes', [8])
 @pytest.mark.parametrize('epoch_size', [10, 200])
 @pytest.mark.usefixtures('local_remote_dir')
-def test_dataloader_epoch_size_multiple_streams_default(local_remote_dir: Tuple[str, str],
+def test_dataloader_epoch_size_multiple_streams_default(local_remote_dir: tuple[str, str],
                                                         batch_size: int, seed: int, shuffle: bool,
                                                         drop_last: bool, num_workers: int,
                                                         num_canonical_nodes: int, epoch_size: int):
@@ -688,7 +688,7 @@ def test_dataloader_fixed_balanced_sampling(local_remote_dir: Any, batch_size: i
 @pytest.mark.parametrize('num_samples', [9867])
 @pytest.mark.parametrize('seed', [1234])
 @pytest.mark.usefixtures('local_remote_dir')
-def test_dataloader_mid_epoch_exit(local_remote_dir: Tuple[str, str], num_samples: int, seed: int):
+def test_dataloader_mid_epoch_exit(local_remote_dir: tuple[str, str], num_samples: int, seed: int):
     local, remote = local_remote_dir
     convert_to_mds(out_root=remote, dataset_name='sequencedataset', num_samples=num_samples)
 
@@ -750,7 +750,7 @@ def test_py1e_shuffle_block_warning(local_remote_dir: Any, batch_size: int, size
 @pytest.mark.parametrize('size_limit', [8_192])
 @pytest.mark.parametrize('seed', [1234])
 @pytest.mark.usefixtures('local_remote_dir')
-def test_dataloader_single_device(local_remote_dir: Tuple[str, str], batch_size: int,
+def test_dataloader_single_device(local_remote_dir: tuple[str, str], batch_size: int,
                                   drop_last: bool, shuffle: bool, num_workers: int,
                                   num_samples: int, size_limit: int, seed: int):
     local, remote = local_remote_dir
@@ -1040,7 +1040,7 @@ def test_multiple_dataset_instantiation(local_remote_dir: Any, shuffle_seed: tup
     assert len(set(train_sample_order)) == len(set(val_sample_order)), 'Duplicate samples'
 
 
-def test_same_local_no_remote(local_remote_dir: Tuple[str, str]):
+def test_same_local_no_remote(local_remote_dir: tuple[str, str]):
     local_0, _ = local_remote_dir
     convert_to_mds(out_root=local_0,
                    dataset_name='sequencedataset',
@@ -1062,7 +1062,7 @@ def test_same_local_no_remote(local_remote_dir: Tuple[str, str]):
     assert len(samples_seen_0) == len(samples_seen_1) == 117
 
 
-def test_same_local_diff_remote(local_remote_dir: Tuple[str, str]):
+def test_same_local_diff_remote(local_remote_dir: tuple[str, str]):
     local_0, remote_0 = local_remote_dir
     _, remote_1 = local_remote_dir
     convert_to_mds(out_root=local_0,

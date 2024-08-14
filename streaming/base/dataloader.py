@@ -3,7 +3,7 @@
 
 """Streaming DataLoader."""
 
-from typing import Any, Dict, Iterator, Optional
+from typing import Any, Iterator, Optional
 
 from torch import Tensor
 from torch.utils.data import DataLoader
@@ -59,7 +59,7 @@ class StreamingDataLoader(DataLoader):
             self.num_samples_yielded += self._get_batch_size(batch)
             yield batch
 
-    def state_dict(self) -> Optional[Dict[str, Any]]:
+    def state_dict(self) -> Optional[dict[str, Any]]:
         """Get a dict containing training state (called from non-worker process).
 
         This is called on rank zero.
@@ -83,7 +83,7 @@ class StreamingDataLoader(DataLoader):
             return self.dataset.state_dict(num_samples, False)
         return None
 
-    def load_state_dict(self, obj: Dict[str, Any]) -> None:
+    def load_state_dict(self, obj: dict[str, Any]) -> None:
         """Load a dict containing training state (called from non-worker process).
 
         This is called on each copy of the dataset when resuming.

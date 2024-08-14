@@ -3,7 +3,7 @@
 
 """Base classes for computer vision :class:`StreamingDataset`s."""
 
-from typing import Any, Callable, Optional, Tuple
+from typing import Any, Callable, Optional
 
 from torchvision.datasets import VisionDataset
 from torchvision.transforms.functional import to_tensor
@@ -27,7 +27,7 @@ class StandardTransform:
         self.transform = transform
         self.target_transform = target_transform
 
-    def __call__(self, x: Any, y: Any) -> Tuple[Any, Any]:
+    def __call__(self, x: Any, y: Any) -> tuple[Any, Any]:
         """Apply the transforms to input and output.
 
         Args:

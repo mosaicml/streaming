@@ -25,7 +25,7 @@ import csv
 import re
 from argparse import ArgumentParser, Namespace
 from multiprocessing import Pool
-from typing import Any, Dict, Iterator, Optional
+from typing import Any, Iterator, Optional
 
 import requests
 
@@ -70,7 +70,7 @@ def parse_args() -> Namespace:
     return args.parse_args()
 
 
-def each_todo(filename: str) -> Iterator[Dict[str, Any]]:
+def each_todo(filename: str) -> Iterator[dict[str, Any]]:
     """Get each sample to download.
 
     Args:
@@ -115,7 +115,7 @@ def parse_duration(text: str) -> int:
     return hours * 3600 + minutes * 60 + seconds
 
 
-def download(obj: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def download(obj: dict[str, Any]) -> Optional[dict[str, Any]]:
     """Download the video for the given sample.
 
     Args:

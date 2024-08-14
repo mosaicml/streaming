@@ -131,7 +131,7 @@ def timed(text: str) -> Iterator:
     print(f'{text}: {t:.3f} s')
 
 
-def generate_text(dataset_size: int, text_len: int) -> Tuple[Dict[str, str], List[Dict[str, Any]]]:
+def generate_text(dataset_size: int, text_len: int) -> tuple[dict[str, str], list[dict[str, Any]]]:
     """Generate dataset of text samples.
 
     Args:
@@ -155,7 +155,7 @@ def generate_text(dataset_size: int, text_len: int) -> Tuple[Dict[str, str], Lis
 
 
 def generate_tokens(dataset_size: int, tokens_per_sample: int, dtype: DTypeLike) -> \
-        Tuple[Dict[str, str], List[Dict[str, Any]]]:
+        tuple[dict[str, str], list[dict[str, Any]]]:
     """Generate dataset of token samples.
 
     Args:
@@ -177,8 +177,8 @@ def generate_tokens(dataset_size: int, tokens_per_sample: int, dtype: DTypeLike)
     return columns, samples
 
 
-def write(writer_class: type, dirname: str, columns: Dict[str, str], shard_size_limit: int,
-          samples: List[Dict[str, Any]]) -> None:
+def write(writer_class: type, dirname: str, columns: dict[str, str], shard_size_limit: int,
+          samples: list[dict[str, Any]]) -> None:
     """Given a writer class and information to write, serialize a dataset in that format.
 
     Args:
@@ -230,7 +230,7 @@ def iter_rand(dataset: StreamingDataset) -> NDArray[np.int64]:
 
 
 def bench(args: Namespace, bench_name: str, desc: str, generate: Callable,
-          formats: List[str]) -> None:
+          formats: list[str]) -> None:
     """Benchmark a type of data across potentially multiple formats.
 
     Args:

@@ -4,14 +4,14 @@
 """Setter and Getter for support hashing algorithms."""
 
 import hashlib
-from typing import Any, Callable, Dict, Set
+from typing import Any, Callable
 
 import xxhash
 
 __all__ = ['get_hash', 'get_hashes', 'is_hash']
 
 
-def _collect() -> Dict[str, Callable[[bytes], Any]]:
+def _collect() -> dict[str, Callable[[bytes], Any]]:
     """Get all supported hash algorithms.
 
     Returns:
@@ -31,7 +31,7 @@ def _collect() -> Dict[str, Callable[[bytes], Any]]:
 _hashes = _collect()
 
 
-def get_hashes() -> Set[str]:
+def get_hashes() -> set[str]:
     """List supported hash algorithms.
 
     Returns:

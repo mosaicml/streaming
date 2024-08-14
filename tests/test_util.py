@@ -7,7 +7,7 @@ import tempfile
 import time
 import urllib.parse
 from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Union
 
 import pytest
 
@@ -30,7 +30,7 @@ os.environ[
 
 @pytest.mark.parametrize(('text', 'expected_output'), [('hello,world', ['hello', 'world']),
                                                        ('hello', ['hello']), ('', [])])
-def test_get_list_arg(text: str, expected_output: List[Optional[str]]):
+def test_get_list_arg(text: str, expected_output: list[Optional[str]]):
     output = get_list_arg(text)
     assert output == expected_output
 
@@ -126,7 +126,7 @@ def test_clean_stale_shared_memory():
         _ = BuiltinSharedMemory(name, False, 64)
 
 
-def integrity_check(out: Union[str, Tuple[str, str]],
+def integrity_check(out: Union[str, tuple[str, str]],
                     keep_local: bool,
                     expected_n_shard_files: int = -1):
     """Check if merged_index file has integrity
@@ -201,7 +201,7 @@ def test_format_remote_index_files(scheme: str):
 @pytest.mark.parametrize('index_file_urls_pattern', [1, 2, 3])
 @pytest.mark.parametrize('keep_local', [True, False])
 @pytest.mark.parametrize('scheme', ['gs://', 's3://', 'oci://'])
-def test_merge_index_from_list_local(local_remote_dir: Tuple[str, str], keep_local: bool,
+def test_merge_index_from_list_local(local_remote_dir: tuple[str, str], keep_local: bool,
                                      index_file_urls_pattern: int, scheme: str):
     """Validate the final merge index json for following patterns of index_file_urls:
     1. All URLs are str (local). All URLs are accessible locally -> no download
@@ -275,7 +275,7 @@ def test_merge_index_from_list_local(local_remote_dir: Tuple[str, str], keep_loc
 
 @pytest.mark.parametrize('n_partitions', [1, 2, 3, 4])
 @pytest.mark.parametrize('keep_local', [False, True])
-def test_merge_index_from_root_local(local_remote_dir: Tuple[str, str], n_partitions: int,
+def test_merge_index_from_root_local(local_remote_dir: tuple[str, str], n_partitions: int,
                                      keep_local: bool):
     from decimal import Decimal
 

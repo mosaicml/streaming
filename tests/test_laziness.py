@@ -1,7 +1,7 @@
 # Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any, Tuple
+from typing import Any
 
 import pytest
 
@@ -59,7 +59,7 @@ def five(remote: str, local: str):
 
 @pytest.mark.usefixtures('local_remote_dir')
 @pytest.mark.parametrize('func', [one, two, three, four, five])
-def test_laziness(local_remote_dir: Tuple[str, str], func: Any):
+def test_laziness(local_remote_dir: tuple[str, str], func: Any):
     num_samples = 10_000
     local, remote = local_remote_dir
     columns = {'value': 'int'}

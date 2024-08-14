@@ -6,8 +6,6 @@
 This algorithm is roughly half as fast as algorithm ``py1s``, but ever so slightly more random.
 """
 
-from typing import List
-
 import numpy as np
 from numpy.typing import NDArray
 
@@ -25,7 +23,7 @@ class _Shard(object):
         self.samples = samples
 
 
-def _create_shards(sizes: NDArray[np.int64]) -> List[_Shard]:
+def _create_shards(sizes: NDArray[np.int64]) -> list[_Shard]:
     """Get the sample ID range for each shard.
 
     Args:
@@ -43,7 +41,7 @@ def _create_shards(sizes: NDArray[np.int64]) -> List[_Shard]:
     return shards
 
 
-def _shards_to_samples(shards: List[_Shard]) -> NDArray[np.int64]:
+def _shards_to_samples(shards: list[_Shard]) -> NDArray[np.int64]:
     """Collect the sample IDs of the given shards into a single array.
 
     Args:
@@ -59,7 +57,7 @@ def _shards_to_samples(shards: List[_Shard]) -> NDArray[np.int64]:
     return np.array([], np.int64)
 
 
-def _partition(shards: List[_Shard], num_parts: int) -> List[List[_Shard]]:
+def _partition(shards: list[_Shard], num_parts: int) -> list[list[_Shard]]:
     """Divide the given shards into partitions (groupings of shards).
 
     Warning: don't use `shards` after this, as its memory is recycled into the returned partitions

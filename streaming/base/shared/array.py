@@ -3,7 +3,7 @@
 
 """A numpy array of predetermined shape and dtype that lives in shared memory."""
 
-from typing import Any, Tuple, Union
+from typing import Any, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -20,7 +20,7 @@ class SharedArray:
         name (str): Its name in shared memory.
     """
 
-    def __init__(self, shape: Union[int, Tuple[int]], dtype: type, name: str) -> None:
+    def __init__(self, shape: Union[int, tuple[int]], dtype: type, name: str) -> None:
         self.shape = np.empty(shape).shape
         self.dtype = dtype
         self.name = name

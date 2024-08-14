@@ -3,7 +3,7 @@
 
 """A read-only list of items that can be fancy indexed like a numpy array."""
 
-from typing import Any, Iterator, List, Union
+from typing import Any, Iterator, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -75,7 +75,7 @@ class Array:
 
         yield from range(start, stop, step)
 
-    def __getitem__(self, at: Union[int, slice, List[int], NDArray[np.int64]]) -> Any:
+    def __getitem__(self, at: Union[int, slice, list[int], NDArray[np.int64]]) -> Any:
         """Get item(s) by index, slice, int list, or numpy array.
 
         Args:

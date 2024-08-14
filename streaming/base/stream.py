@@ -7,7 +7,7 @@ import hashlib
 import json
 import os
 import tempfile
-from typing import List, Optional, Sequence, Tuple
+from typing import Optional, Sequence
 
 import numpy as np
 from numpy.typing import NDArray
@@ -194,7 +194,7 @@ class Stream:
             self.safe_keep_zip = default['keep_zip'] or self.remote in {None, self.local}
 
     @classmethod
-    def validate_weights(cls, streams: Sequence[Self]) -> Tuple[bool, bool]:
+    def validate_weights(cls, streams: Sequence[Self]) -> tuple[bool, bool]:
         """Validate stream weights, returning whether relative or absolute weighting was used.
 
         Args:
@@ -422,7 +422,7 @@ class Stream:
             delta += self._prepare_shard_part(raw_info, zip_info, shard.compression)
         return delta
 
-    def get_shards(self, world: World, allow_unsafe_types: bool) -> List[Reader]:
+    def get_shards(self, world: World, allow_unsafe_types: bool) -> list[Reader]:
         """Load this Stream's index, retrieving its shard readers.
 
         Args:
@@ -478,7 +478,7 @@ class Stream:
 
         return shards
 
-    def set_up_local(self, shards: List[Reader], cache_usage_per_shard: NDArray[np.int64]) -> None:
+    def set_up_local(self, shards: list[Reader], cache_usage_per_shard: NDArray[np.int64]) -> None:
         """Bring a local directory into a consistent state, getting which shards are present.
 
         Args:

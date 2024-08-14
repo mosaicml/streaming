@@ -10,14 +10,12 @@ boundaries, which is non-random in this algorithm. In practice, we found this do
 convergence, while making us faster.
 """
 
-from typing import List, Tuple
-
 import numpy as np
 from numpy.typing import NDArray
 
 
-def divide_spans(spans: List[Tuple[int, int]], num_samples: int, num_parts: int) -> \
-        Tuple[List[Tuple[int, int]], List[Tuple[int, int]]]:
+def divide_spans(spans: list[tuple[int, int]], num_samples: int, num_parts: int) -> \
+        tuple[list[tuple[int, int]], list[tuple[int, int]]]:
     """Divide the spans into discrete, equal sized partitions.
 
     Don't use ``spans`` after this, as it is modified in-place for performance reasons.

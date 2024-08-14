@@ -13,7 +13,7 @@ from concurrent.futures._base import Future
 from threading import Event
 from time import sleep
 from types import TracebackType
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Optional, Union
 
 from typing_extensions import Self
 
@@ -72,10 +72,10 @@ class Writer(ABC):
 
     def __init__(self,
                  *,
-                 out: Union[str, Tuple[str, str]],
+                 out: Union[str, tuple[str, str]],
                  keep_local: bool = False,
                  compression: Optional[str] = None,
-                 hashes: Optional[List[str]] = None,
+                 hashes: Optional[list[str]] = None,
                  size_limit: Optional[Union[int, str]] = 1 << 26,
                  extra_bytes_per_shard: int = 0,
                  extra_bytes_per_sample: int = 0,
@@ -118,7 +118,7 @@ class Writer(ABC):
         self.size_limit = size_limit_value
         self.extra_bytes_per_shard = extra_bytes_per_shard
         self.extra_bytes_per_sample = extra_bytes_per_sample
-        self.new_samples: List[bytes]
+        self.new_samples: list[bytes]
         self.new_shard_size: int
 
         self.shards = []
@@ -151,7 +151,7 @@ class Writer(ABC):
         self.new_shard_size = self.extra_bytes_per_shard
 
     @abstractmethod
-    def encode_sample(self, sample: Dict[str, Any]) -> bytes:
+    def encode_sample(self, sample: dict[str, Any]) -> bytes:
         """Encode a sample dict to bytes.
 
         Args:
@@ -162,7 +162,7 @@ class Writer(ABC):
         """
         raise NotImplementedError
 
-    def _name_next_shard(self, extension: Optional[str] = None) -> Tuple[str, Optional[str]]:
+    def _name_next_shard(self, extension: Optional[str] = None) -> tuple[str, Optional[str]]:
         """Get the filenames of the next shard to be created.
 
         Args:
@@ -184,7 +184,7 @@ class Writer(ABC):
             zip_basename = None
         return raw_basename, zip_basename
 
-    def _hash(self, data: bytes, basename: str) -> Dict[str, Any]:
+    def _hash(self, data: bytes, basename: str) -> dict[str, Any]:
         """Generate file metadata.
 
         Args:
@@ -200,7 +200,7 @@ class Writer(ABC):
         return {'basename': basename, 'bytes': len(data), 'hashes': hashes}
 
     def _process_file(self, raw_data: bytes, raw_basename: str,
-                      zip_basename: Optional[str]) -> Tuple[dict, Optional[dict]]:
+                      zip_basename: Optional[str]) -> tuple[dict, Optional[dict]]:
         """Process and save a shard file (hash, compress, hash, write).
 
         Args:
@@ -226,7 +226,7 @@ class Writer(ABC):
             out.write(data)
         return raw_info, zip_info
 
-    def get_config(self) -> Dict[str, Any]:
+    def get_config(self) -> dict[str, Any]:
         """Get object describing shard-writing configuration.
 
         Returns:
@@ -245,7 +245,7 @@ class Writer(ABC):
         """Flush cached samples to storage, creating a new shard."""
         raise NotImplementedError
 
-    def write(self, sample: Dict[str, Any]) -> None:
+    def write(self, sample: dict[str, Any]) -> None:
         """Write a sample.
 
         May flush an entire new shard, then caches the sample.
@@ -341,7 +341,7 @@ class Writer(ABC):
         """
         return self
 
-    def __exit__(self, exc_type: Optional[Type[BaseException]], exc: Optional[BaseException],
+    def __exit__(self, exc_type: Optional[type[BaseException]], exc: Optional[BaseException],
                  traceback: Optional[TracebackType]) -> None:
         """Exit context manager.
 
@@ -395,10 +395,10 @@ class JointWriter(Writer):
 
     def __init__(self,
                  *,
-                 out: Union[str, Tuple[str, str]],
+                 out: Union[str, tuple[str, str]],
                  keep_local: bool = False,
                  compression: Optional[str] = None,
-                 hashes: Optional[List[str]] = None,
+                 hashes: Optional[list[str]] = None,
                  size_limit: Optional[Union[int, str]] = 1 << 26,
                  extra_bytes_per_shard: int = 0,
                  extra_bytes_per_sample: int = 0,
@@ -484,10 +484,10 @@ class SplitWriter(Writer):
 
     def __init__(self,
                  *,
-                 out: Union[str, Tuple[str, str]],
+                 out: Union[str, tuple[str, str]],
                  keep_local: bool = False,
                  compression: Optional[str] = None,
-                 hashes: Optional[List[str]] = None,
+                 hashes: Optional[list[str]] = None,
                  size_limit: Optional[Union[int, str]] = 1 << 26,
                  **kwargs: Any) -> None:
         super().__init__(out=out,
@@ -500,7 +500,7 @@ class SplitWriter(Writer):
                          **kwargs)
 
     @abstractmethod
-    def encode_split_shard(self) -> Tuple[bytes, bytes]:
+    def encode_split_shard(self) -> tuple[bytes, bytes]:
         """Encode a split shard out of the cached samples (data, meta files).
 
         Returns:

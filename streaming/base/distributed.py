@@ -4,7 +4,7 @@
 """Helper methods to get the distributed attributes."""
 
 import os
-from typing import List, TypeVar, cast
+from typing import TypeVar, cast
 
 import torch.distributed as dist
 
@@ -74,7 +74,7 @@ def broadcast(tensor: Tensor, src: int) -> None:
         dist.broadcast(tensor, src)
 
 
-def all_gather(tensor_list: List[Tensor], tensor: Tensor) -> None:
+def all_gather(tensor_list: list[Tensor], tensor: Tensor) -> None:
     """Gathers tensors from the whole group in a list.
 
     Args:
@@ -86,7 +86,7 @@ def all_gather(tensor_list: List[Tensor], tensor: Tensor) -> None:
         dist.all_gather(tensor_list, tensor)
 
 
-def all_gather_object(obj: TObj) -> List[TObj]:
+def all_gather_object(obj: TObj) -> list[TObj]:
     """Collect a pickle-able object from each rank and return a list of these objects.
 
     .. seealso:: :func:`torch.distributed.all_gather_object`
@@ -102,7 +102,7 @@ def all_gather_object(obj: TObj) -> List[TObj]:
         dist.all_gather_object(obj_gather_list, obj)
         # torch.distributed will replace the None's in obj_gather_list with the gathered objects on
         # rank zero or will just be None on non-rank-zero.
-        return cast(List[TObj], obj_gather_list)
+        return cast(list[TObj], obj_gather_list)
     world_size = get_world_size()
     if world_size == 1:
         return [obj]

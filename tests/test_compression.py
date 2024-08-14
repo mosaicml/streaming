@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from filecmp import dircmp
-from typing import Any, Optional, Tuple, Union
+from typing import Any, Optional, Union
 
 import numpy as np
 import pytest
@@ -254,7 +254,7 @@ def check_for_diff_files(dir: dircmp, compression_ext: Union[None, str]):
 @pytest.mark.parametrize('compression', [None, 'br:11', 'bz2:9', 'gz:5', 'snappy', 'zstd:15'])
 @pytest.mark.parametrize('num_samples', [9867])
 @pytest.mark.parametrize('size_limit', [16_384])
-def test_dataset_compression(compressed_local_remote_dir: Tuple[str, str, str],
+def test_dataset_compression(compressed_local_remote_dir: tuple[str, str, str],
                              compression: Optional[str], num_samples: int, size_limit: int):
     shuffle = True
     compressed, local, remote = compressed_local_remote_dir

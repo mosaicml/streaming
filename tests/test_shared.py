@@ -1,8 +1,7 @@
 # Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Tuple, Type
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
@@ -14,14 +13,14 @@ from tests.common.utils import convert_to_mds
 
 
 @pytest.mark.usefixtures('local_remote_dir')
-def test_get_shm_prefix(local_remote_dir: Tuple[str, str]):
+def test_get_shm_prefix(local_remote_dir: tuple[str, str]):
     local, remote = local_remote_dir
 
     _, _ = get_shm_prefix(streams_local=[local], streams_remote=[remote], world=World.detect())
 
 
 @pytest.mark.usefixtures('local_remote_dir')
-def test_get_shm_prefix_same_local_dir(local_remote_dir: Tuple[str, str]):
+def test_get_shm_prefix_same_local_dir(local_remote_dir: tuple[str, str]):
     local, remote = local_remote_dir
     with pytest.raises(ValueError, match='Reused local directory.*Provide a different one.'):
         _, _ = get_shm_prefix(streams_local=[local, local],
@@ -30,7 +29,7 @@ def test_get_shm_prefix_same_local_dir(local_remote_dir: Tuple[str, str]):
 
 
 @pytest.mark.usefixtures('local_remote_dir')
-def test_get_shm_prefix_same_split_dir(local_remote_dir: Tuple[str, str]):
+def test_get_shm_prefix_same_split_dir(local_remote_dir: tuple[str, str]):
     local, remote = local_remote_dir
     _, _ = get_shm_prefix(streams_local=[local, remote],
                           streams_remote=[local, remote],
@@ -41,7 +40,7 @@ def test_get_shm_prefix_same_split_dir(local_remote_dir: Tuple[str, str]):
                               world=World.detect())
 
 
-def test_same_local_remote_none(local_remote_dir: Tuple[str, str]):
+def test_same_local_remote_none(local_remote_dir: tuple[str, str]):
     local, _ = local_remote_dir
     _, _ = get_shm_prefix(streams_local=[local], streams_remote=[None], world=World.detect())
     _, _ = get_shm_prefix(streams_local=[local], streams_remote=[None], world=World.detect())
@@ -49,7 +48,7 @@ def test_same_local_remote_none(local_remote_dir: Tuple[str, str]):
 
 @pytest.mark.parametrize('from_beginning', [True, False])
 @pytest.mark.usefixtures('local_remote_dir')
-def test_load_get_state_dict_once(local_remote_dir: Tuple[str, str], from_beginning: bool):
+def test_load_get_state_dict_once(local_remote_dir: tuple[str, str], from_beginning: bool):
     local, remote = local_remote_dir
     convert_to_mds(out_root=remote,
                    dataset_name='sequencedataset',
@@ -93,7 +92,7 @@ def test_load_get_state_dict_once(local_remote_dir: Tuple[str, str], from_beginn
 
 @pytest.mark.parametrize('iterations', [10])
 @pytest.mark.usefixtures('local_remote_dir')
-def test_load_get_state_dict_multiple(local_remote_dir: Tuple[str, str], iterations: int):
+def test_load_get_state_dict_multiple(local_remote_dir: tuple[str, str], iterations: int):
     local, remote = local_remote_dir
     convert_to_mds(out_root=remote,
                    dataset_name='sequencedataset',
@@ -134,7 +133,7 @@ def test_load_get_state_dict_multiple(local_remote_dir: Tuple[str, str], iterati
 
 
 @pytest.mark.usefixtures('local_remote_dir')
-def test_state_dict_too_large(local_remote_dir: Tuple[str, str]):
+def test_state_dict_too_large(local_remote_dir: tuple[str, str]):
     local, remote = local_remote_dir
     convert_to_mds(out_root=remote,
                    dataset_name='sequencedataset',
@@ -153,8 +152,8 @@ def test_state_dict_too_large(local_remote_dir: Tuple[str, str]):
 
 @pytest.mark.parametrize('dtype', [np.int32, np.int64, np.float32, np.float64])
 @patch('streaming.base.shared.array.SharedMemory')
-def test_shared_array_size_is_integer(mock_shared_memory: Type, dtype: Type[np.dtype]):
+def test_shared_array_size_is_integer(mock_shared_memory: MagicMock, dtype: type[np.dtype]):
     SharedArray(3, dtype=dtype, name='test_shared_array')
-    mock_shared_memory.assert_called_once()
+    mock_shared_memory.assert_called_once()  # pyright: ignore
     size_arg = mock_shared_memory.call_args[1]['size']
     assert isinstance(size_arg, int), 'Size passed to SharedMemory is not an integer'

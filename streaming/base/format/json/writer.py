@@ -4,7 +4,7 @@
 """:class:`JSONWriter` writes samples to `.json` files that can be read by :class:`JSONReader`."""
 
 import json
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Optional, Union
 
 import numpy as np
 
@@ -54,12 +54,12 @@ class JSONWriter(SplitWriter):
 
     def __init__(self,
                  *,
-                 columns: Dict[str, str],
+                 columns: dict[str, str],
                  newline: str = '\n',
-                 out: Union[str, Tuple[str, str]],
+                 out: Union[str, tuple[str, str]],
                  keep_local: bool = False,
                  compression: Optional[str] = None,
-                 hashes: Optional[List[str]] = None,
+                 hashes: Optional[list[str]] = None,
                  size_limit: Optional[Union[int, str]] = 1 << 26,
                  **kwargs: Any) -> None:
         super().__init__(out=out,
@@ -74,7 +74,7 @@ class JSONWriter(SplitWriter):
         self.columns = columns
         self.newline = newline
 
-    def encode_sample(self, sample: Dict[str, Any]) -> bytes:
+    def encode_sample(self, sample: dict[str, Any]) -> bytes:
         """Encode a sample dict to bytes.
 
         Args:
@@ -91,7 +91,7 @@ class JSONWriter(SplitWriter):
         text = json.dumps(obj, sort_keys=True) + self.newline
         return text.encode('utf-8')
 
-    def get_config(self) -> Dict[str, Any]:
+    def get_config(self) -> dict[str, Any]:
         """Get object describing shard-writing configuration.
 
         Returns:
@@ -101,7 +101,7 @@ class JSONWriter(SplitWriter):
         obj.update({'columns': self.columns, 'newline': self.newline})
         return obj
 
-    def encode_split_shard(self) -> Tuple[bytes, bytes]:
+    def encode_split_shard(self) -> tuple[bytes, bytes]:
         """Encode a split shard out of the cached samples (data, meta files).
 
         Returns:

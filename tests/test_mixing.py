@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from typing import List, Tuple
 
 import numpy as np
 import pytest
@@ -10,7 +9,7 @@ import pytest
 from streaming import MDSWriter, Stream, StreamingDataset
 
 
-def walk(dataset: StreamingDataset) -> List[int]:
+def walk(dataset: StreamingDataset) -> list[int]:
     return [sample['value'] for sample in dataset]
 
 
@@ -20,7 +19,7 @@ def float_eq(a: float, b: float) -> bool:
 
 @pytest.mark.usefixtures('local_remote_dir')
 @pytest.fixture()
-def root(local_remote_dir: Tuple[str, str]):
+def root(local_remote_dir: tuple[str, str]):
     root, _ = local_remote_dir
     columns = {'value': 'int'}
     for i in range(4):

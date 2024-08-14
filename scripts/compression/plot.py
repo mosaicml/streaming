@@ -101,7 +101,7 @@ class Datum(object):
     dec_time: float
 
 
-def load(f: str, min_dec_size: int) -> List[Datum]:
+def load(f: str, min_dec_size: int) -> list[Datum]:
     """Load data CSV.
 
     Args:
@@ -128,7 +128,7 @@ def load(f: str, min_dec_size: int) -> List[Datum]:
     return rr
 
 
-def plot_compression_rates(data: List[Datum], algo2color: Dict[str, Optional[str]], dpi: int,
+def plot_compression_rates(data: list[Datum], algo2color: dict[str, Optional[str]], dpi: int,
                            font_size: float, line_width: float, filename: str) -> None:
     """Plot compression rate by size.
 
@@ -169,7 +169,7 @@ def plot_compression_rates(data: List[Datum], algo2color: Dict[str, Optional[str
     plt.clf()
 
 
-def plot_compressed_sizes(data: List[Datum], algo2color: Dict[str, Optional[str]], dpi: int,
+def plot_compressed_sizes(data: list[Datum], algo2color: dict[str, Optional[str]], dpi: int,
                           font_size: float, line_width: float, filename: str) -> None:
     """Plot compressed size by size.
 
@@ -209,7 +209,7 @@ def plot_compressed_sizes(data: List[Datum], algo2color: Dict[str, Optional[str]
     plt.clf()
 
 
-def plot_decompression_rates(data: List[Datum], algo2color: Dict[str, Optional[str]], dpi: int,
+def plot_decompression_rates(data: list[Datum], algo2color: dict[str, Optional[str]], dpi: int,
                              font_size: float, line_width: float, filename: str) -> None:
     """Plot decompression rate by size.
 

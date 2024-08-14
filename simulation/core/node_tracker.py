@@ -151,7 +151,7 @@ class NodeTracker():
             raise ValueError('Must specify either index, or worker and device.')
 
     def get_current_batch_shards(self, worker: int, worker_sample_index: int,
-                                 sample_to_shard: Spanner) -> Tuple[set, set]:
+                                 sample_to_shard: Spanner) -> tuple[set, set]:
         """Get this node's shards for the current batch.
 
         Args:

@@ -3,7 +3,7 @@
 
 import pathlib
 import time
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Optional
 
 import pytest
 
@@ -17,7 +17,7 @@ def get_dataset(name: str,
                 split: str,
                 shuffle: bool,
                 batch_size: Optional[int],
-                other_kwargs: Optional[Dict[str, Any]] = None) -> Tuple[int, StreamingDataset]:
+                other_kwargs: Optional[dict[str, Any]] = None) -> tuple[int, StreamingDataset]:
     other_kwargs = {} if other_kwargs is None else other_kwargs
     dataset_map = {
         'ade20k': {

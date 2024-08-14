@@ -4,7 +4,7 @@
 import os
 import shutil
 import tempfile
-from typing import Any, List, Tuple
+from typing import Any
 from unittest import mock
 from unittest.mock import ANY, MagicMock, Mock, patch
 
@@ -24,7 +24,7 @@ MY_PREFIX = 'train'
 def remote_local_dir() -> Any:
     """Creates a temporary directory and then deletes it when the calling function is done."""
 
-    def _method(cloud_prefix: str = '') -> Tuple[str, str]:
+    def _method(cloud_prefix: str = '') -> tuple[str, str]:
         try:
             mock_local_dir = tempfile.TemporaryDirectory()
             mock_local = mock_local_dir.name
@@ -56,8 +56,8 @@ class TestCloudUploader:
         self,
         s3_mocked_requests: Mock,
         gcs_mocked_requests: Mock,
-        local_remote_dir: Tuple[str, str],
-        mapping: List[Any],
+        local_remote_dir: tuple[str, str],
+        mapping: list[Any],
     ):
         s3_mocked_requests.side_effect = None
         gcs_mocked_requests.side_effect = None
@@ -80,7 +80,7 @@ class TestCloudUploader:
         with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
             _ = CloudUploader.get(out=out)
 
-    def test_local_directory_is_empty(self, local_remote_dir: Tuple[str, str]):
+    def test_local_directory_is_empty(self, local_remote_dir: tuple[str, str]):
         with pytest.raises(FileExistsError, match=f'Directory is not empty.*'):
             local, _ = local_remote_dir
             os.makedirs(local, exist_ok=True)
@@ -90,12 +90,12 @@ class TestCloudUploader:
                 pass
             _ = CloudUploader.get(out=local)
 
-    def test_local_directory_is_created(self, local_remote_dir: Tuple[str, str]):
+    def test_local_directory_is_created(self, local_remote_dir: tuple[str, str]):
         local, _ = local_remote_dir
         _ = CloudUploader(out=local)
         assert os.path.exists(local)
 
-    def test_delete_local_file(self, local_remote_dir: Tuple[str, str]):
+    def test_delete_local_file(self, local_remote_dir: tuple[str, str]):
         local, _ = local_remote_dir
         local_file_path = os.path.join(local, 'file.txt')
         cw = CloudUploader.get(out=local)
@@ -142,7 +142,7 @@ class TestS3Uploader:
         with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
             _ = S3Uploader(out=out)
 
-    def test_local_directory_is_empty(self, local_remote_dir: Tuple[str, str]):
+    def test_local_directory_is_empty(self, local_remote_dir: tuple[str, str]):
         with pytest.raises(FileExistsError, match=f'Directory is not empty.*'):
             local, _ = local_remote_dir
             os.makedirs(local, exist_ok=True)
@@ -153,7 +153,7 @@ class TestS3Uploader:
             _ = S3Uploader(out=local)
 
     @pytest.mark.usefixtures('s3_client', 's3_test')
-    def test_upload_file(self, local_remote_dir: Tuple[str, str]):
+    def test_upload_file(self, local_remote_dir: tuple[str, str]):
         with tempfile.NamedTemporaryFile(delete=True, suffix='.txt') as tmp:
             filename = tmp.name.split(os.sep)[-1]
             local, _ = local_remote_dir
@@ -166,7 +166,7 @@ class TestS3Uploader:
             assert not os.path.exists(local_file_path)
 
     @pytest.mark.usefixtures('r2_client', 'r2_test')
-    def test_upload_file_to_r2(self, local_remote_dir: Tuple[str, str]):
+    def test_upload_file_to_r2(self, local_remote_dir: tuple[str, str]):
         with tempfile.NamedTemporaryFile(delete=True, suffix='.txt') as tmp:
             filename = tmp.name.split(os.sep)[-1]
             local, _ = local_remote_dir
@@ -214,7 +214,7 @@ class TestS3Uploader:
             _ = cu.list_objects()
 
     @pytest.mark.usefixtures('s3_client', 's3_test')
-    def test_extra_args(self, local_remote_dir: Tuple[str, str]):
+    def test_extra_args(self, local_remote_dir: tuple[str, str]):
         with tempfile.NamedTemporaryFile(delete=True, suffix='.txt') as tmp:
             filename = tmp.name.split(os.sep)[-1]
             local, _ = local_remote_dir
@@ -275,7 +275,7 @@ class TestGCSUploader:
             _ = GCSUploader(out=out)
 
     @pytest.mark.usefixtures('gcs_hmac_credentials')
-    def test_local_directory_is_empty(self, local_remote_dir: Tuple[str, str]):
+    def test_local_directory_is_empty(self, local_remote_dir: tuple[str, str]):
         with pytest.raises(FileExistsError, match=f'Directory is not empty.*'):
             local, _ = local_remote_dir
             os.makedirs(local, exist_ok=True)
@@ -286,7 +286,7 @@ class TestGCSUploader:
             _ = GCSUploader(out=local)
 
     @pytest.mark.usefixtures('gcs_hmac_client', 'gcs_test')
-    def test_upload_file(self, local_remote_dir: Tuple[str, str]):
+    def test_upload_file(self, local_remote_dir: tuple[str, str]):
         with tempfile.NamedTemporaryFile(delete=True, suffix='.txt') as tmp:
             filename = tmp.name.split(os.sep)[-1]
             local, _ = local_remote_dir
@@ -381,7 +381,7 @@ class TestAzureUploader:
         with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
             _ = AzureUploader(out=out)
 
-    def test_local_directory_is_empty(self, local_remote_dir: Tuple[str, str]):
+    def test_local_directory_is_empty(self, local_remote_dir: tuple[str, str]):
         with pytest.raises(FileExistsError, match=f'Directory is not empty.*'):
             local, _ = local_remote_dir
             os.makedirs(local, exist_ok=True)
@@ -414,7 +414,7 @@ class TestAzureDataLakeUploader:
         with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
             _ = AzureDataLakeUploader(out=out)
 
-    def test_local_directory_is_empty(self, local_remote_dir: Tuple[str, str]):
+    def test_local_directory_is_empty(self, local_remote_dir: tuple[str, str]):
         with pytest.raises(FileExistsError, match=f'Directory is not empty.*'):
             local, _ = local_remote_dir
             os.makedirs(local, exist_ok=True)
@@ -441,7 +441,7 @@ class TestHFUploader:
         with pytest.raises(ValueError, match=f'Invalid Cloud provider prefix.*'):
             _ = HFUploader(out=out)
 
-    def test_local_directory_is_empty(self, local_remote_dir: Tuple[str, str]):
+    def test_local_directory_is_empty(self, local_remote_dir: tuple[str, str]):
         with pytest.raises(FileExistsError, match=f'Directory is not empty.*'):
             local, _ = local_remote_dir
             os.makedirs(local, exist_ok=True)
@@ -472,7 +472,7 @@ class TestDatabricksUnityCatalogUploader:
 
     @patch('streaming.base.storage.upload.DatabricksUploader._create_workspace_client')
     def test_local_directory_is_empty(self, mock_create_client: Mock,
-                                      local_remote_dir: Tuple[str, str]):
+                                      local_remote_dir: tuple[str, str]):
         mock_create_client.side_effect = None
         with pytest.raises(FileExistsError, match=f'Directory is not empty.*'):
             local, _ = local_remote_dir
@@ -503,7 +503,7 @@ class TestDBFSUploader:
 
     @patch('streaming.base.storage.upload.DatabricksUploader._create_workspace_client')
     def test_local_directory_is_empty(self, mock_create_client: Mock,
-                                      local_remote_dir: Tuple[str, str]):
+                                      local_remote_dir: tuple[str, str]):
         with pytest.raises(FileExistsError, match=f'Directory is not empty.*'):
             mock_create_client.side_effect = None
             local, _ = local_remote_dir
@@ -538,7 +538,7 @@ class TestAlipanUploader:
     @patch('streaming.base.storage.upload.AlipanUploader.check_token')
     @pytest.mark.usefixtures('alipan_credentials')
     def test_local_directory_is_empty(self, mock_create_client: Mock,
-                                      local_remote_dir: Tuple[str, str]):
+                                      local_remote_dir: tuple[str, str]):
         with pytest.raises(FileExistsError, match=f'Directory is not empty.*'):
             mock_create_client.side_effect = None
             local, _ = local_remote_dir
@@ -552,7 +552,7 @@ class TestAlipanUploader:
 
 class TestLocalUploader:
 
-    def test_upload_file(self, local_remote_dir: Tuple[str, str]):
+    def test_upload_file(self, local_remote_dir: tuple[str, str]):
         local, remote = local_remote_dir
         filename = 'file.txt'
         local_file_path = os.path.join(local, filename)
@@ -565,13 +565,13 @@ class TestLocalUploader:
         lw.upload_file(filename)
         assert os.path.exists(remote_file_path)
 
-    def test_instantiation_remote_none(self, local_remote_dir: Tuple[str, str]):
+    def test_instantiation_remote_none(self, local_remote_dir: tuple[str, str]):
         local, _ = local_remote_dir
         lc = LocalUploader(out=local)
         assert lc.local == local
         assert lc.remote is None
 
-    def test_upload_file_remote_none(self, local_remote_dir: Tuple[str, str]):
+    def test_upload_file_remote_none(self, local_remote_dir: tuple[str, str]):
         local, remote = local_remote_dir
         filename = 'file.txt'
         local_file_path = os.path.join(local, filename)
@@ -583,7 +583,7 @@ class TestLocalUploader:
         lc.upload_file(filename)
         assert not os.path.exists(remote_file_path)
 
-    def test_upload_file_from_local_to_remote(self, local_remote_dir: Tuple[str, str]):
+    def test_upload_file_from_local_to_remote(self, local_remote_dir: tuple[str, str]):
         local, remote = local_remote_dir
         filename = 'file.txt'
         local_file_path = os.path.join(local, filename)
@@ -595,14 +595,14 @@ class TestLocalUploader:
         lc.upload_file(filename)
         assert os.path.exists(remote_file_path)
 
-    def test_upload_file_exception(self, local_remote_dir: Tuple[str, str]):
+    def test_upload_file_exception(self, local_remote_dir: tuple[str, str]):
         local, remote = local_remote_dir
         filename = 'file.txt'
         lc = LocalUploader(out=(local, remote))
         with pytest.raises(FileNotFoundError, match=f'No such file or directory:.*'):
             lc.upload_file(filename)
 
-    def test_list_objects_no_prefix(self, local_remote_dir: Tuple[str, str]):
+    def test_list_objects_no_prefix(self, local_remote_dir: tuple[str, str]):
         local, _ = local_remote_dir
         lc = LocalUploader(out=local)
 
@@ -618,7 +618,7 @@ class TestLocalUploader:
         expected = [os.path.join(test_dir, 'file1.txt'), os.path.join(test_dir, 'file2.txt')]
         assert (result == expected)
 
-    def test_list_objects_with_prefix(self, local_remote_dir: Tuple[str, str]):
+    def test_list_objects_with_prefix(self, local_remote_dir: tuple[str, str]):
         local, _ = local_remote_dir
         lc = LocalUploader(out=local)
 
