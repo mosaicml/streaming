@@ -427,6 +427,9 @@ class StreamingDataset(Array, IterableDataset):
             if epoch_size_value < 0:
                 raise ValueError(f'Epoch size cannot be negative. Received {epoch_size_value}.')
 
+        # Determine if we should be changing the seed every epoch
+        self.epoch_seed_change = self.shuffle and self.sampling_method == 'balanced'
+
         # Initialize torch dist ourselves, if necessary.
         destroy_dist = maybe_init_dist()
 
@@ -880,10 +883,11 @@ class StreamingDataset(Array, IterableDataset):
             samples_per_stream_shard = self.samples_per_shard[stream_shard_ids]
             # the number of items to choose from each stream, obtained during initialization
             stream_choose = self.streams[stream_id].choose
-            use_epoch = self.sampling_method == 'balanced'
+            # When shuffling is enabled, each epoch has a different rng.
+            # Otherwise, we keep the rng the same to keep the sample ordering deterministic.
             choose_per_stream_shard = get_sampling(samples_per_stream_shard, stream_choose,
                                                    self.sampling_granularity, self.shuffle_seed,
-                                                   epoch, use_epoch)
+                                                   epoch, self.epoch_seed_change)
 
             # Iterate over each shard of this stream.
             for shard_id, shard_samples, shard_choose in zip(stream_shard_ids,
