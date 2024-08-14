@@ -146,7 +146,7 @@ def generate_work_device_per_stream_batching(dataset: StreamingDataset, world: W
     max_device_batches_per_node += padding_max_device_batches
 
     # Shuffle seed may change with each epoch, which impacts the order of streams in global batches.
-    epoch_seed = dataset.shuffle_seed + epoch if dataset.shuffle else dataset.shuffle_seed
+    epoch_seed = dataset.shuffle_seed + epoch if dataset.epoch_seed_change else dataset.shuffle_seed
     epoch_rng = np.random.default_rng(epoch_seed)
 
     # Shuffle the device batch origin order for each node.

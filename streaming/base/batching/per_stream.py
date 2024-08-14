@@ -106,7 +106,7 @@ def generate_work_per_stream_batching(dataset: StreamingDataset, world: World, e
     all_partition_batches = np.concatenate(batches_from_partitions)
 
     # Shuffle seed may change with each epoch, which impacts the order of streams in global batches.
-    epoch_seed = dataset.shuffle_seed + epoch if dataset.shuffle else dataset.shuffle_seed
+    epoch_seed = dataset.shuffle_seed + epoch if dataset.epoch_seed_change else dataset.shuffle_seed
     epoch_rng = np.random.default_rng(epoch_seed)
 
     # stream_origins is an array that tells us which stream each batch is using.
