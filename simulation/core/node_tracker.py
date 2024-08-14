@@ -3,7 +3,7 @@
 
 """Class for tracking node information during simulation."""
 
-from typing import Optional, Tuple
+from typing import Optional
 
 import numpy as np
 from core.last_used_ordered_set import LastUsedOrderedSet

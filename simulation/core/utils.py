@@ -3,7 +3,6 @@
 
 """Peripheral functions for simulation functionality."""
 
-from typing import Tuple
 
 import numpy as np
 from core.sim_dataset import SimulationDataset
