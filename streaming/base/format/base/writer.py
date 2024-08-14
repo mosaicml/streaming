@@ -245,6 +245,15 @@ class Writer(ABC):
         """Flush cached samples to storage, creating a new shard."""
         raise NotImplementedError
 
+    def _check_event_set(self) -> None:
+        """Check if the event is set and raise an exception."""
+        if self.event.is_set():
+            # Shutdown the executor and cancel all the pending futures due to exception in one of
+            # the threads.
+            self.cancel_future_jobs()
+            raise Exception('One of the threads failed. Check other traceback for more ' +
+                            'details.')
+
     def write(self, sample: dict[str, Any]) -> None:
         """Write a sample.
 
@@ -253,12 +262,7 @@ class Writer(ABC):
         Args:
             sample (Dict[str, Any]): Sample dict.
         """
-        if self.event.is_set():
-            # Shutdown the executor and cancel all the pending futures due to exception in one of
-            # the threads.
-            self.cancel_future_jobs()
-            raise Exception('One of the threads failed. Check other traceback for more ' +
-                            'details.')
+        self._check_event_set()
         # Execute the task if there is no exception in any of the async threads.
         new_sample = self.encode_sample(sample)
         new_sample_size = len(new_sample) + self.extra_bytes_per_sample
@@ -272,11 +276,7 @@ class Writer(ABC):
         """Write the index, having written all the shards."""
         if self.new_samples:
             raise RuntimeError('Internal error: not all samples have been written.')
-        if self.event.is_set():
-            # Shutdown the executor and cancel all the pending futures due to exception in one of
-            # the threads.
-            self.cancel_future_jobs()
-            return
+        self._check_event_set()
         basename = get_index_basename()
         filename = os.path.join(self.local, basename)
         obj = {
@@ -350,11 +350,7 @@ class Writer(ABC):
             exc (BaseException, optional): Exc.
             traceback (TracebackType, optional): Traceback.
         """
-        if self.event.is_set():
-            # Shutdown the executor and cancel all the pending futures due to exception in one of
-            # the threads.
-            self.cancel_future_jobs()
-            return
+        self._check_event_set()
         self.finish()
 
 
@@ -422,11 +418,7 @@ class JointWriter(Writer):
         raise NotImplementedError
 
     def flush_shard(self) -> None:
-        if self.event.is_set():
-            # Shutdown the executor and cancel all the pending futures due to exception in one of
-            # the threads.
-            self.cancel_future_jobs()
-            return
+        self._check_event_set()
 
         raw_data_basename, zip_data_basename = self._name_next_shard()
         raw_data = self.encode_joint_shard()
@@ -509,11 +501,7 @@ class SplitWriter(Writer):
         raise NotImplementedError
 
     def flush_shard(self) -> None:
-        if self.event.is_set():
-            # Shutdown the executor and cancel all the pending futures due to exception in one of
-            # the threads.
-            self.cancel_future_jobs()
-            return
+        self._check_event_set()
 
         raw_data_basename, zip_data_basename = self._name_next_shard()
         raw_meta_basename, zip_meta_basename = self._name_next_shard('meta')
