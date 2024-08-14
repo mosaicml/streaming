@@ -9,7 +9,7 @@ from argparse import ArgumentParser, Namespace
 from collections import Counter
 from glob import glob
 from multiprocessing import Pool
-from typing import Dict, Iterator, List, Tuple
+from typing import Iterator
 
 from streaming.base import MDSWriter
 from streaming.base.util import get_list_arg
@@ -57,8 +57,8 @@ def parse_args() -> Namespace:
     return args.parse_args()
 
 
-def each_task(in_root: str, out_root: str, compression: str, hashes: List[str], size_limit: int,
-              in_files: List[str]) -> Iterator[Tuple[str, str, str, List[str], int]]:
+def each_task(in_root: str, out_root: str, compression: str, hashes: list[str], size_limit: int,
+              in_files: list[str]) -> Iterator[tuple[str, str, str, list[str], int]]:
     """Get the arg tuple corresponding to each JSONL input file to convert to streaming.
 
     Args:
@@ -79,7 +79,7 @@ def each_task(in_root: str, out_root: str, compression: str, hashes: List[str], 
         yield in_file, out_dir, compression, hashes, size_limit
 
 
-def file_to_dir(args: Tuple[str, str, str, List[str], int]) -> Dict[str, int]:
+def file_to_dir(args: tuple[str, str, str, list[str], int]) -> dict[str, int]:
     """Convert a JSONL input file into a directory of MDS shards.
 
     This is the unit of work executed by the process pool.

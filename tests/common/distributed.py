@@ -6,7 +6,7 @@ import inspect
 import logging
 import os
 import time
-from typing import Any, Dict, List
+from typing import Any
 
 import pytest
 import torch.distributed as dist
@@ -73,7 +73,7 @@ class DistributedTest:
         func_name = request.function.__name__
         return getattr(self, func_name)
 
-    def _get_test_kwargs(self, request: FixtureRequest) -> Dict[str, Any]:
+    def _get_test_kwargs(self, request: FixtureRequest) -> dict[str, Any]:
         """Get the test arguments.
 
         Args:
@@ -145,7 +145,7 @@ class DistributedTest:
             # Skip the test if there is a pytest skip marker
             pytest.skip(skip_msg.get())
 
-    def _monitor_processes(self, processes: List[Process]) -> None:
+    def _monitor_processes(self, processes: list[Process]) -> None:
         """Monitor all the process to ensure it finishes. If any process fails unexpectedly, then
         terminate the test execution.
 

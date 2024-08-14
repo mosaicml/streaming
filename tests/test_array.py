@@ -1,7 +1,7 @@
 # Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import List, Union
+from typing import Union
 
 import numpy as np
 import pytest
@@ -28,7 +28,7 @@ class Range(Array):
 def validate(
     np_arr: NDArray[np.int64],
     strmg_arr: Range,
-    i: Union[int, slice, List[int], NDArray[np.int64]],
+    i: Union[int, slice, list[int], NDArray[np.int64]],
 ):
     try:
         x = np_arr[i]
@@ -106,12 +106,12 @@ def slices():
     ]
 
 
-def test_specific_slice(np_arange: NDArray[np.int64], strmg_arange: Range, slices: List[slice]):
+def test_specific_slice(np_arange: NDArray[np.int64], strmg_arange: Range, slices: list[slice]):
     for i in slices:
         validate(np_arange, strmg_arange, i)
 
 
-def test_list_1d(np_arange: NDArray[np.int64], strmg_arange: Range, slices: List[slice]):
+def test_list_1d(np_arange: NDArray[np.int64], strmg_arange: Range, slices: list[slice]):
     for i in slices:
         i = strmg_arange._each_slice_index(i)
         i = list(i)
@@ -132,7 +132,7 @@ def test_list_3d(np_arange: NDArray[np.int64], strmg_arange: Range):
     assert strmg_arange[i.tolist()] == np_arange[i].tolist()
 
 
-def test_array_1d(np_arange: NDArray[np.int64], strmg_arange: Range, slices: List[slice]):
+def test_array_1d(np_arange: NDArray[np.int64], strmg_arange: Range, slices: list[slice]):
     for i in slices:
         i = strmg_arange._each_slice_index(i)
         i = list(i)

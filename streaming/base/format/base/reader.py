@@ -6,7 +6,7 @@
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict, Iterator, List, Optional, Set, Union
+from typing import Any, Iterator, Optional, Union
 
 from streaming.base.array import Array
 from streaming.base.util import bytes_to_int
@@ -25,7 +25,7 @@ class FileInfo(object):
     """
     basename: str
     bytes: int
-    hashes: Dict[str, str]
+    hashes: dict[str, str]
 
 
 class Reader(Array, ABC):
@@ -48,7 +48,7 @@ class Reader(Array, ABC):
         dirname: str,
         split: Optional[str],
         compression: Optional[str],
-        hashes: List[str],
+        hashes: list[str],
         samples: int,
         size_limit: Optional[Union[int, str]],
     ) -> None:
@@ -133,7 +133,7 @@ class Reader(Array, ABC):
         """
         return self._evict_raw() + self._evict_zip()
 
-    def set_up_local(self, listing: Set[str], safe_keep_zip: bool) -> int:
+    def set_up_local(self, listing: set[str], safe_keep_zip: bool) -> int:
         """Bring what shard files are present to a consistent state, returning whether present.
 
         Args:
@@ -284,7 +284,7 @@ class Reader(Array, ABC):
         return size
 
     @abstractmethod
-    def decode_sample(self, data: bytes) -> Dict[str, Any]:
+    def decode_sample(self, data: bytes) -> dict[str, Any]:
         """Decode a sample dict from bytes.
 
         Args:
@@ -307,7 +307,7 @@ class Reader(Array, ABC):
         """
         raise NotImplementedError
 
-    def get_item(self, idx: int) -> Dict[str, Any]:
+    def get_item(self, idx: int) -> dict[str, Any]:
         """Get the sample at the index.
 
         Args:
@@ -319,7 +319,7 @@ class Reader(Array, ABC):
         data = self.get_sample_data(idx)
         return self.decode_sample(data)
 
-    def __iter__(self) -> Iterator[Dict[str, Any]]:
+    def __iter__(self) -> Iterator[dict[str, Any]]:
         """Iterate over the samples of this shard.
 
         Returns:
@@ -349,7 +349,7 @@ class JointReader(Reader):
         dirname: str,
         split: Optional[str],
         compression: Optional[str],
-        hashes: List[str],
+        hashes: list[str],
         raw_data: FileInfo,
         samples: int,
         size_limit: Optional[Union[int, str]],
@@ -383,7 +383,7 @@ class SplitReader(Reader):
         dirname: str,
         split: Optional[str],
         compression: Optional[str],
-        hashes: List[str],
+        hashes: list[str],
         raw_data: FileInfo,
         raw_meta: FileInfo,
         samples: int,

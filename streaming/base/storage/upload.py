@@ -11,7 +11,7 @@ import sys
 import urllib.parse
 from enum import Enum
 from tempfile import mkdtemp
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, Optional, Union
 
 import tqdm
 
@@ -58,7 +58,7 @@ class CloudUploader:
 
     @classmethod
     def get(cls,
-            out: Union[str, Tuple[str, str]],
+            out: Union[str, tuple[str, str]],
             keep_local: bool = False,
             progress_bar: bool = False,
             retry: int = 2,
@@ -96,7 +96,7 @@ class CloudUploader:
         return getattr(sys.modules[__name__],
                        UPLOADERS[provider_prefix])(out, keep_local, progress_bar, retry, exist_ok)
 
-    def _validate(self, out: Union[str, Tuple[str, str]]) -> None:
+    def _validate(self, out: Union[str, tuple[str, str]]) -> None:
         """Validate the `out` argument.
 
         Args:
@@ -125,7 +125,7 @@ class CloudUploader:
             raise ValueError(f'Invalid Cloud provider prefix: {obj.scheme}.')
 
     def __init__(self,
-                 out: Union[str, Tuple[str, str]],
+                 out: Union[str, tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False,
                  retry: int = 2,
@@ -191,7 +191,7 @@ class CloudUploader:
         """
         raise NotImplementedError(f'{type(self).__name__}.upload_file is not implemented')
 
-    def list_objects(self, prefix: Optional[str] = None) -> Optional[List[str]]:
+    def list_objects(self, prefix: Optional[str] = None) -> Optional[list[str]]:
         """List all objects in the object store with the given prefix.
 
         Args:
@@ -234,7 +234,7 @@ class S3Uploader(CloudUploader):
     """
 
     def __init__(self,
-                 out: Union[str, Tuple[str, str]],
+                 out: Union[str, tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False,
                  retry: int = 2,
@@ -309,7 +309,7 @@ class S3Uploader(CloudUploader):
                               f'or check the bucket permission.',)
             raise error
 
-    def list_objects(self, prefix: Optional[str] = None) -> Optional[List[str]]:
+    def list_objects(self, prefix: Optional[str] = None) -> Optional[list[str]]:
         """List all objects in the S3 object store with the given prefix.
 
         Args:
@@ -355,7 +355,7 @@ class GCSUploader(CloudUploader):
     """
 
     def __init__(self,
-                 out: Union[str, Tuple[str, str]],
+                 out: Union[str, tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False,
                  retry: int = 2,
@@ -451,7 +451,7 @@ class GCSUploader(CloudUploader):
         elif self.authentication == GCSAuthentication.SERVICE_ACCOUNT:
             self.gcs_client.get_bucket(bucket_name)
 
-    def list_objects(self, prefix: Optional[str] = None) -> Optional[List[str]]:
+    def list_objects(self, prefix: Optional[str] = None) -> Optional[list[str]]:
         """List all objects in the GCS object store with the given prefix.
 
         Args:
@@ -503,7 +503,7 @@ class OCIUploader(CloudUploader):
     """
 
     def __init__(self,
-                 out: Union[str, Tuple[str, str]],
+                 out: Union[str, tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False,
                  retry: int = 2,
@@ -573,7 +573,7 @@ class OCIUploader(CloudUploader):
                               f'Check the bucket permission or create the bucket.',)
             raise error
 
-    def list_objects(self, prefix: Optional[str] = None) -> Optional[List[str]]:
+    def list_objects(self, prefix: Optional[str] = None) -> Optional[list[str]]:
         """List all objects in the OCI object store with the given prefix.
 
         Args:
@@ -714,7 +714,7 @@ class AzureUploader(CloudUploader):
     """
 
     def __init__(self,
-                 out: Union[str, Tuple[str, str]],
+                 out: Union[str, tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False,
                  retry: int = 2,
@@ -802,7 +802,7 @@ class AzureDataLakeUploader(CloudUploader):
     """
 
     def __init__(self,
-                 out: Union[str, Tuple[str, str]],
+                 out: Union[str, tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False,
                  retry: int = 2,
@@ -887,7 +887,7 @@ class DatabricksUploader(CloudUploader):
     """
 
     def __init__(self,
-                 out: Union[str, Tuple[str, str]],
+                 out: Union[str, tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False,
                  retry: int = 2,
@@ -926,7 +926,7 @@ class DatabricksUnityCatalogUploader(DatabricksUploader):
     """
 
     def __init__(self,
-                 out: Union[str, Tuple[str, str]],
+                 out: Union[str, tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False,
                  retry: int = 2,
@@ -983,7 +983,7 @@ class DBFSUploader(DatabricksUploader):
     """
 
     def __init__(self,
-                 out: Union[str, Tuple[str, str]],
+                 out: Union[str, tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False,
                  retry: int = 2,
@@ -1053,7 +1053,7 @@ class AlipanUploader(CloudUploader):
     """
 
     def __init__(self,
-                 out: Union[str, Tuple[str, str]],
+                 out: Union[str, tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False,
                  retry: int = 2,
@@ -1133,7 +1133,7 @@ class AlipanUploader(CloudUploader):
 
         _upload_file()
 
-    def list_objects(self, prefix: Optional[str] = None) -> List[str]:
+    def list_objects(self, prefix: Optional[str] = None) -> list[str]:
         """List all objects in the remote path with the given prefix.
 
         Args:
@@ -1184,7 +1184,7 @@ class LocalUploader(CloudUploader):
     """
 
     def __init__(self,
-                 out: Union[str, Tuple[str, str]],
+                 out: Union[str, tuple[str, str]],
                  keep_local: bool = False,
                  progress_bar: bool = False,
                  retry: int = 2,
@@ -1212,7 +1212,7 @@ class LocalUploader(CloudUploader):
 
         _upload_file()
 
-    def list_objects(self, prefix: Optional[str] = None) -> List[str]:
+    def list_objects(self, prefix: Optional[str] = None) -> list[str]:
         """List all objects locally with the given prefix.
 
         Args:

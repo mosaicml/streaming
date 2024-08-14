@@ -7,7 +7,7 @@ Please refer to the `ADE20K dataset <https://groups.csail.mit.edu/vision/dataset
 more details about this dataset.
 """
 
-from typing import Any, Callable, Optional, Tuple
+from typing import Any, Callable, Optional
 
 from streaming.base import StreamingDataset
 
@@ -120,7 +120,7 @@ class StreamingADE20K(StreamingDataset):
         self.transform = transform
         self.target_transform = target_transform
 
-    def get_item(self, idx: int) -> Tuple[Any, Any]:
+    def get_item(self, idx: int) -> tuple[Any, Any]:
         """Get sample by global index, blocking to load its shard if missing.
 
         Args:

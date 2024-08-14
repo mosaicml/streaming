@@ -10,7 +10,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 from matplotlib import pyplot as plt
 
-algo2color: Dict[str, Optional[str]] = {
+algo2color: dict[str, Optional[str]] = {
     'blake2b': 'purple',
     'blake2s': 'purple',
     'md5': 'green',
@@ -46,7 +46,7 @@ def parse_args() -> Namespace:
     return args.parse_args()
 
 
-def load(f: str) -> List[Tuple[str, int, float]]:
+def load(f: str) -> list[tuple[str, int, float]]:
     """Load data CSV.
 
     Args:
@@ -69,7 +69,7 @@ def load(f: str) -> List[Tuple[str, int, float]]:
     return rr
 
 
-def plot_hash_rates(data: List[Tuple[str, int, float]], algo2color: Dict[str, Optional[str]],
+def plot_hash_rates(data: list[tuple[str, int, float]], algo2color: dict[str, Optional[str]],
                     dpi: int, font_size: int, line_width: float, filename: str) -> None:
     """Plot hash rate by size.
 

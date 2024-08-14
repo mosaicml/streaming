@@ -8,7 +8,7 @@ import pickle
 from abc import ABC, abstractmethod
 from decimal import Decimal
 from io import BytesIO
-from typing import Any, Optional, Set, Tuple
+from typing import Any, Optional
 
 import numpy as np
 from numpy import typing as npt
@@ -145,7 +145,7 @@ class NDArray(Encoding):
     _value_dtype2int = {v: k for k, v in _int2value_dtype.items()}
 
     @classmethod
-    def _get_static_size(cls, dtype: Optional[str], shape: Optional[Tuple[int]]) -> Optional[int]:
+    def _get_static_size(cls, dtype: Optional[str], shape: Optional[tuple[int]]) -> Optional[int]:
         """Get the fixed size of the column in bytes, if applicable.
 
         Args:
@@ -159,7 +159,7 @@ class NDArray(Encoding):
             return None
         return int(np.prod(shape)) * getattr(np, dtype)().nbytes
 
-    def __init__(self, dtype: Optional[str] = None, shape: Optional[Tuple[int]] = None):
+    def __init__(self, dtype: Optional[str] = None, shape: Optional[tuple[int]] = None):
         if dtype is not None:
             assert dtype in self._value_dtype2int
         if shape is not None:
@@ -555,7 +555,7 @@ _encodings = {
 _unsafe_encodings = {'pkl'}
 
 
-def get_mds_encodings() -> Set[str]:
+def get_mds_encodings() -> set[str]:
     """List supported encodings.
 
     Returns:

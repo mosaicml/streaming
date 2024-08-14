@@ -16,7 +16,7 @@ from collections import OrderedDict
 from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
 from pathlib import Path
 from time import sleep, time
-from typing import Any, Callable, List, Sequence, Tuple, Type, TypeVar, Union, cast, overload
+from typing import Any, Callable, Sequence, TypeVar, Union, cast, overload
 
 import torch.distributed as dist
 
@@ -35,7 +35,7 @@ __all__ = [
 ]
 
 
-def get_list_arg(text: str) -> List[str]:
+def get_list_arg(text: str) -> list[str]:
     """Pass a list as a command-line flag.
 
     Args:
@@ -253,8 +253,8 @@ def merge_index(*args: Any, **kwargs: Any):
     raise ValueError(f'Invalid arguments to merge_index: {args}, {kwargs}')
 
 
-def _merge_index_from_list(index_file_urls: Sequence[Union[str, Tuple[str, str]]],
-                           out: Union[str, Tuple[str, str]],
+def _merge_index_from_list(index_file_urls: Sequence[Union[str, tuple[str, str]]],
+                           out: Union[str, tuple[str, str]],
                            keep_local: bool = True,
                            download_timeout: int = 60) -> None:
     """Merge index.json from a list of index files of MDS directories to create joined index.
@@ -372,7 +372,7 @@ def _not_merged_index(index_file_path: str, out: str):
     return os.path.dirname(index_file_path).strip('/') != prefix.strip('/')
 
 
-def _format_remote_index_files(remote: str, files: List[str]) -> List[str]:
+def _format_remote_index_files(remote: str, files: list[str]) -> list[str]:
     """Formats the remote index files by appending the remote URL scheme and netloc to each file.
 
     Args:
@@ -397,7 +397,7 @@ def _format_remote_index_files(remote: str, files: List[str]) -> List[str]:
     return remote_index_files
 
 
-def _merge_index_from_root(out: Union[str, Tuple[str, str]],
+def _merge_index_from_root(out: Union[str, tuple[str, str]],
                            keep_local: bool = True,
                            download_timeout: int = 60) -> None:
     """Merge index.json given the root of MDS dataset. Write merged index to the root folder.
@@ -450,7 +450,7 @@ def _merge_index_from_root(out: Union[str, Tuple[str, str]],
 
 @overload
 def retry(
-    exc_class: Union[Type[Exception], Sequence[Type[Exception]]] = ...,
+    exc_class: Union[type[Exception], Sequence[type[Exception]]] = ...,
     num_attempts: int = ...,
     initial_backoff: float = ...,
     max_jitter: float = ...,
@@ -467,7 +467,7 @@ def retry(exc_class: TCallable) -> TCallable:
 # error: Type "(TCallable@retry) -> TCallable@retry" cannot be assigned to type
 # "(func: Never) -> Never"
 def retry(  # type: ignore
-    exc_class: Union[TCallable, Type[Exception], Sequence[Type[Exception]]] = Exception,
+    exc_class: Union[TCallable, type[Exception], Sequence[type[Exception]]] = Exception,
     num_attempts: int = 3,
     initial_backoff: float = 1.0,
     max_jitter: float = 0.5,

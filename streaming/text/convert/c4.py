@@ -5,7 +5,7 @@
 
 import os
 from argparse import ArgumentParser, Namespace
-from typing import Any, Dict, Iterator
+from typing import Any, Iterator
 
 import datasets
 from datasets.arrow_dataset import Dataset
@@ -106,7 +106,7 @@ def get(split: str) -> IterableDataset:
     return ShardedC4()
 
 
-def each(dataset: Dataset, num_workers: int, batch_size: int) -> Iterator[Dict[str, Any]]:
+def each(dataset: Dataset, num_workers: int, batch_size: int) -> Iterator[dict[str, Any]]:
     """Iterate over each dataset sample.
 
     Args:

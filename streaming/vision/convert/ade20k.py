@@ -7,7 +7,7 @@ import os
 import random
 from argparse import ArgumentParser, Namespace
 from glob import glob
-from typing import Any, Dict, Iterable, List, Tuple
+from typing import Any, Iterable
 
 from tqdm import tqdm
 
@@ -74,7 +74,7 @@ def parse_args() -> Namespace:
     return args.parse_args()
 
 
-def get(in_root: str, split: str, shuffle: bool) -> List[Tuple[str, str, str]]:
+def get(in_root: str, split: str, shuffle: bool) -> list[tuple[str, str, str]]:
     """Collect the samples for this dataset split.
 
     Args:
@@ -120,7 +120,7 @@ def get(in_root: str, split: str, shuffle: bool) -> List[Tuple[str, str, str]]:
     return samples
 
 
-def each(samples: Iterable[Tuple[str, str, str]]) -> Iterable[Dict[str, Any]]:
+def each(samples: Iterable[tuple[str, str, str]]) -> Iterable[dict[str, Any]]:
     """Generator over each dataset sample.
 
     Args:

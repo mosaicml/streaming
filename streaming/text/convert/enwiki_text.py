@@ -5,7 +5,6 @@
 
 import os
 from argparse import ArgumentParser, Namespace
-from typing import List
 
 from tqdm import tqdm
 
@@ -66,8 +65,8 @@ def parse_args() -> Namespace:
     return args.parse_args()
 
 
-def process_split(in_root: str, out_root: str, compression: str, hashes: List[str],
-                  size_limit: int, progress_bar: int, leave: int, basenames: List[str],
+def process_split(in_root: str, out_root: str, compression: str, hashes: list[str],
+                  size_limit: int, progress_bar: int, leave: int, basenames: list[str],
                   split: str) -> None:
     """Process a dataset split.
 

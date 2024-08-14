@@ -5,7 +5,7 @@
 
 import json
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import numpy as np
 from torch.utils.data import Dataset
@@ -63,7 +63,7 @@ class LocalDataset(Array, Dataset):
         """
         return self.num_samples
 
-    def get_item(self, sample_id: int) -> Dict[str, Any]:
+    def get_item(self, sample_id: int) -> dict[str, Any]:
         """Get sample by global sample ID.
 
         Args:

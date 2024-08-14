@@ -4,7 +4,7 @@
 import logging
 import math
 import os
-from typing import Any, Tuple
+from typing import Any
 
 import numpy as np
 import pytest
@@ -18,14 +18,14 @@ logger = logging.getLogger(__name__)
 
 class TestMDSWriter:
 
-    def test_invalid_args(self, local_remote_dir: Tuple[str, str]):
+    def test_invalid_args(self, local_remote_dir: tuple[str, str]):
         local, _ = local_remote_dir
         dataset = SequenceDataset(100)
         columns = dict(zip(dataset.column_names, dataset.column_encodings))
         with pytest.raises(ValueError, match=f'.*Invalid Writer argument.*'):
             _ = MDSWriter(out=local, columns=columns, min_workers=1)
 
-    def test_max_size_limit(self, local_remote_dir: Tuple[str, str]):
+    def test_max_size_limit(self, local_remote_dir: tuple[str, str]):
         local, _ = local_remote_dir
         dataset = SequenceDataset(100)
         columns = dict(zip(dataset.column_names, dataset.column_encodings))
@@ -34,7 +34,7 @@ class TestMDSWriter:
 
     @pytest.mark.parametrize('num_samples', [100])
     @pytest.mark.parametrize('size_limit', [32])
-    def test_config(self, local_remote_dir: Tuple[str, str], num_samples: int,
+    def test_config(self, local_remote_dir: tuple[str, str], num_samples: int,
                     size_limit: int) -> None:
         local, _ = local_remote_dir
         dataset = SequenceDataset(num_samples)
@@ -58,7 +58,7 @@ class TestMDSWriter:
 
     @pytest.mark.parametrize('num_samples', [1000, 10000])
     @pytest.mark.parametrize('size_limit', [4096, 16_777_216])
-    def test_number_of_files(self, local_remote_dir: Tuple[str, str], num_samples: int,
+    def test_number_of_files(self, local_remote_dir: tuple[str, str], num_samples: int,
                              size_limit: int) -> None:
         local, _ = local_remote_dir
         dataset = SequenceDataset(num_samples)
@@ -101,7 +101,7 @@ class TestMDSWriter:
     @pytest.mark.parametrize('num_samples', [50000])
     @pytest.mark.parametrize('size_limit', [65_536])
     @pytest.mark.parametrize('seed', [1234])
-    def test_dataset_iter_determinism(self, local_remote_dir: Tuple[str, str], num_samples: int,
+    def test_dataset_iter_determinism(self, local_remote_dir: tuple[str, str], num_samples: int,
                                       size_limit: int, seed: int) -> None:
         compression = 'zstd:7'
         hashes = ['sha1', 'xxh3_64']
@@ -128,7 +128,7 @@ class TestMDSWriter:
         for before, after in zip(dataset, mds_dataset):
             assert before == after
 
-    def test_exist_ok(self, local_remote_dir: Tuple[str, str]) -> None:
+    def test_exist_ok(self, local_remote_dir: tuple[str, str]) -> None:
         num_samples = 1000
         size_limit = 4096
         local, _ = local_remote_dir
@@ -159,7 +159,7 @@ class TestMDSWriter:
 
 class TestJSONWriter:
 
-    def test_max_size_limit(self, local_remote_dir: Tuple[str, str]):
+    def test_max_size_limit(self, local_remote_dir: tuple[str, str]):
         local, _ = local_remote_dir
         dataset = SequenceDataset(100)
         columns = dict(zip(dataset.column_names, dataset.column_encodings))
@@ -168,7 +168,7 @@ class TestJSONWriter:
 
     @pytest.mark.parametrize('num_samples', [100])
     @pytest.mark.parametrize('size_limit', [32])
-    def test_config(self, local_remote_dir: Tuple[str, str], num_samples: int,
+    def test_config(self, local_remote_dir: tuple[str, str], num_samples: int,
                     size_limit: int) -> None:
         local, _ = local_remote_dir
         dataset = SequenceDataset(num_samples)
@@ -192,7 +192,7 @@ class TestJSONWriter:
     @pytest.mark.parametrize('num_samples', [50000])
     @pytest.mark.parametrize('size_limit', [65_536])
     @pytest.mark.parametrize('seed', [1234])
-    def test_dataset_iter_determinism(self, local_remote_dir: Tuple[str, str], num_samples: int,
+    def test_dataset_iter_determinism(self, local_remote_dir: tuple[str, str], num_samples: int,
                                       size_limit: int, seed: int) -> None:
         compression = 'zstd:7'
         hashes = ['sha1', 'xxh3_64']
@@ -219,7 +219,7 @@ class TestJSONWriter:
         for before, after in zip(dataset, mds_dataset):
             assert before == after
 
-    def test_exist_ok(self, local_remote_dir: Tuple[str, str]) -> None:
+    def test_exist_ok(self, local_remote_dir: tuple[str, str]) -> None:
         num_samples = 1000
         size_limit = 4096
         local, _ = local_remote_dir
@@ -250,7 +250,7 @@ class TestJSONWriter:
 
 class TestXSVWriter:
 
-    def test_max_size_limit(self, local_remote_dir: Tuple[str, str]):
+    def test_max_size_limit(self, local_remote_dir: tuple[str, str]):
         local, _ = local_remote_dir
         dataset = SequenceDataset(100)
         columns = dict(zip(dataset.column_names, dataset.column_encodings))
@@ -262,7 +262,7 @@ class TestXSVWriter:
     @pytest.mark.parametrize('size_limit', [32])
     @pytest.mark.parametrize(('writer', 'name'), [(XSVWriter, 'xsv'), (TSVWriter, 'tsv'),
                                                   (CSVWriter, 'csv')])
-    def test_config(self, local_remote_dir: Tuple[str, str], num_samples: int, size_limit: int,
+    def test_config(self, local_remote_dir: tuple[str, str], num_samples: int, size_limit: int,
                     writer: Any, name: str) -> None:
         local, _ = local_remote_dir
         dataset = SequenceDataset(num_samples)
@@ -298,7 +298,7 @@ class TestXSVWriter:
     @pytest.mark.parametrize('size_limit', [65_536])
     @pytest.mark.parametrize('seed', [1234])
     @pytest.mark.parametrize('writer', [XSVWriter, TSVWriter, CSVWriter])
-    def test_dataset_iter_determinism(self, local_remote_dir: Tuple[str, str], num_samples: int,
+    def test_dataset_iter_determinism(self, local_remote_dir: tuple[str, str], num_samples: int,
                                       size_limit: int, seed: int, writer: Any) -> None:
         compression = 'zstd:7'
         hashes = ['sha1', 'xxh3_64']
@@ -336,7 +336,7 @@ class TestXSVWriter:
             assert before == after
 
     @pytest.mark.parametrize('writer', [XSVWriter, TSVWriter, CSVWriter])
-    def test_exist_ok(self, local_remote_dir: Tuple[str, str], writer: Any) -> None:
+    def test_exist_ok(self, local_remote_dir: tuple[str, str], writer: Any) -> None:
         num_samples = 1000
         size_limit = 4096
         local, _ = local_remote_dir

@@ -3,7 +3,7 @@
 
 """Information about nodes, ranks, and workers."""
 
-from typing import Any, Dict, Tuple
+from typing import Any
 
 from torch.utils.data import get_worker_info
 from typing_extensions import Self
@@ -65,7 +65,7 @@ class World:
         self.is_leader = not worker
         self.is_local_leader = not self.worker_of_node
 
-    def to_json(self) -> Dict[str, Any]:
+    def to_json(self) -> dict[str, Any]:
         """Get a JSON version of this config.
 
         Returns:
@@ -74,7 +74,7 @@ class World:
         return dict(self.__dict__)
 
     @classmethod
-    def _get_worker_info(cls) -> Tuple[int, int]:
+    def _get_worker_info(cls) -> tuple[int, int]:
         """Get worker info, or default to 0 of 1.
 
         Returns:

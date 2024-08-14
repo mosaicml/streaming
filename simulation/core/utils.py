@@ -11,7 +11,7 @@ from core.sim_time import Time, TimeUnit
 from numpy.typing import NDArray
 
 
-def get_batches_epochs(dataset: SimulationDataset, max_duration: Time) -> Tuple[int, int, int]:
+def get_batches_epochs(dataset: SimulationDataset, max_duration: Time) -> tuple[int, int, int]:
     """Get batches per epoch, epochs, and total epochs from a Time object.
 
     Args:
@@ -128,7 +128,7 @@ def get_rolling_avg_throughput(step_times: NDArray, window: int = 10) -> NDArray
 
 
 def get_simulation_stats(step_times: NDArray, time_per_sample: float,
-                         device_batch_size: int) -> Tuple[int, float, int, int]:
+                         device_batch_size: int) -> tuple[int, float, int, int]:
     """Gets simulation stats for web UI.
 
     Args:

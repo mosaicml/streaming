@@ -54,7 +54,7 @@ def parse_args() -> Namespace:
     return args.parse_args()
 
 
-def fetch_dataset(data_root: str, num_samples: int) -> List[Dict[str, Any]]:
+def fetch_dataset(data_root: str, num_samples: int) -> list[dict[str, Any]]:
     """Fetch dataset to benchmark as JSONL.
 
     Args:
@@ -93,7 +93,7 @@ def fetch_dataset(data_root: str, num_samples: int) -> List[Dict[str, Any]]:
     return samples
 
 
-def arrow_write(samples: List[Dict[str, Any]], data_dir: str) -> None:
+def arrow_write(samples: list[dict[str, Any]], data_dir: str) -> None:
     """Serialize dataset in arrow format.
 
     Args:
@@ -105,7 +105,7 @@ def arrow_write(samples: List[Dict[str, Any]], data_dir: str) -> None:
     ds.save_to_disk(data_dir)
 
 
-def arrow_read_seq(dirname: str) -> Iterator[Dict[str, Any]]:
+def arrow_read_seq(dirname: str) -> Iterator[dict[str, Any]]:
     """Iterate an arrow dataset sequentially.
 
     Args:
@@ -119,7 +119,7 @@ def arrow_read_seq(dirname: str) -> Iterator[Dict[str, Any]]:
     yield from dataset.iter(batch_size=1)  # pyright: ignore
 
 
-def arrow_read_shuf(dirname: str) -> Iterator[Dict[str, Any]]:
+def arrow_read_shuf(dirname: str) -> Iterator[dict[str, Any]]:
     """Iterate an arrow dataset in shuffled order.
 
     Args:
@@ -133,7 +133,7 @@ def arrow_read_shuf(dirname: str) -> Iterator[Dict[str, Any]]:
     yield from dataset.shuffle().iter(batch_size=1)  # pyright: ignore
 
 
-def arrow_read_rand(dirname: str) -> Iterator[Dict[str, Any]]:
+def arrow_read_rand(dirname: str) -> Iterator[dict[str, Any]]:
     """Iterate an arrow dataset in random order.
 
     Args:
@@ -149,7 +149,7 @@ def arrow_read_rand(dirname: str) -> Iterator[Dict[str, Any]]:
         yield dataset[idx]  # pyright: ignore
 
 
-def mds_write(samples: List[Dict[str, Any]], data_dir: str) -> None:
+def mds_write(samples: list[dict[str, Any]], data_dir: str) -> None:
     """Serialize dataset in mds format.
 
     Args:
@@ -165,7 +165,7 @@ def mds_write(samples: List[Dict[str, Any]], data_dir: str) -> None:
             out.write(sample)
 
 
-def mds_read_seq(dirname: str) -> Iterator[Dict[str, Any]]:
+def mds_read_seq(dirname: str) -> Iterator[dict[str, Any]]:
     """Iterate an mds dataset sequentially.
 
     Args:
@@ -177,7 +177,7 @@ def mds_read_seq(dirname: str) -> Iterator[Dict[str, Any]]:
     yield from StreamingDataset(local=dirname)
 
 
-def mds_read_shuf(dirname: str) -> Iterator[Dict[str, Any]]:
+def mds_read_shuf(dirname: str) -> Iterator[dict[str, Any]]:
     """Iterate an mds dataset in shuffled order.
 
     Args:
@@ -189,7 +189,7 @@ def mds_read_shuf(dirname: str) -> Iterator[Dict[str, Any]]:
     yield from StreamingDataset(local=dirname, shuffle=True)
 
 
-def mds_read_rand(dirname: str) -> Iterator[Dict[str, Any]]:
+def mds_read_rand(dirname: str) -> Iterator[dict[str, Any]]:
     """Iterate an mds dataset in random order.
 
     Args:
@@ -204,7 +204,7 @@ def mds_read_rand(dirname: str) -> Iterator[Dict[str, Any]]:
         yield dataset[idx]
 
 
-def parquet_write(samples: List[Dict[str, Any]], data_dir: str) -> None:
+def parquet_write(samples: list[dict[str, Any]], data_dir: str) -> None:
     """Serialize dataset in parquet format.
 
     Args:
@@ -218,7 +218,7 @@ def parquet_write(samples: List[Dict[str, Any]], data_dir: str) -> None:
         x.to_parquet(f'{data_dir}/chunk_{i:06}.parquet')
 
 
-def parquet_read_seq(dirname: str) -> Iterator[Dict[str, Any]]:
+def parquet_read_seq(dirname: str) -> Iterator[dict[str, Any]]:
     """Iterate a parquet dataset sequentially.
 
     Args:
@@ -237,7 +237,7 @@ def parquet_read_seq(dirname: str) -> Iterator[Dict[str, Any]]:
 parquet_read_shuf = None
 
 
-def parquet_read_rand(dirname: str) -> Iterator[Dict[str, Any]]:
+def parquet_read_rand(dirname: str) -> Iterator[dict[str, Any]]:
     """Iterate a parquet dataset in random order.
 
     Args:
@@ -262,7 +262,7 @@ def parquet_read_rand(dirname: str) -> Iterator[Dict[str, Any]]:
         yield dict(df.iloc[j])
 
 
-def bench(read: Callable, dirname: str) -> List[float]:
+def bench(read: Callable, dirname: str) -> list[float]:
     """Benchmark iterating over a dataset.
 
     Args:

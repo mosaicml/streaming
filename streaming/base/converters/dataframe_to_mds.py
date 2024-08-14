@@ -7,7 +7,7 @@ import logging
 import os
 import shutil
 from collections.abc import Iterable
-from typing import Any, Callable, Dict, Iterable, Optional, Tuple
+from typing import Any, Callable, Iterable, Optional
 
 import pandas as pd
 
@@ -77,7 +77,7 @@ def is_json_compatible(data_type: Any):
 
 
 def infer_dataframe_schema(dataframe: DataFrame,
-                           user_defined_cols: Optional[Dict[str, Any]] = None) -> Optional[Dict]:
+                           user_defined_cols: Optional[dict[str, Any]] = None) -> Optional[dict]:
     """Retrieve schema to construct a dictionary or do sanity check for dataframe_to_mds.
 
     Args:
@@ -158,9 +158,9 @@ def infer_dataframe_schema(dataframe: DataFrame,
 
 def dataframeToMDS(dataframe: DataFrame,
                    merge_index: bool = True,
-                   mds_kwargs: Optional[Dict[str, Any]] = None,
+                   mds_kwargs: Optional[dict[str, Any]] = None,
                    udf_iterable: Optional[Callable] = None,
-                   udf_kwargs: Optional[Dict[str, Any]] = None) -> Tuple[str, str]:
+                   udf_kwargs: Optional[dict[str, Any]] = None) -> tuple[str, str]:
     """Deprecated API Signature.
 
     To be replaced by dataframe_to_mds
@@ -173,9 +173,9 @@ def dataframeToMDS(dataframe: DataFrame,
 
 def dataframe_to_mds(dataframe: DataFrame,
                      merge_index: bool = True,
-                     mds_kwargs: Optional[Dict[str, Any]] = None,
+                     mds_kwargs: Optional[dict[str, Any]] = None,
                      udf_iterable: Optional[Callable] = None,
-                     udf_kwargs: Optional[Dict[str, Any]] = None) -> Tuple[str, str]:
+                     udf_kwargs: Optional[dict[str, Any]] = None) -> tuple[str, str]:
     """Execute a spark dataframe to MDS conversion process.
 
     This method orchestrates the conversion of a spark dataframe into MDS format by processing the

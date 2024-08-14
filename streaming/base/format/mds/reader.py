@@ -5,7 +5,7 @@
 
 import os
 from copy import deepcopy
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 import numpy as np
 from typing_extensions import Self
@@ -40,11 +40,11 @@ class MDSReader(JointReader):
         self,
         dirname: str,
         split: Optional[str],
-        column_encodings: List[str],
-        column_names: List[str],
-        column_sizes: List[Optional[int]],
+        column_encodings: list[str],
+        column_names: list[str],
+        column_sizes: list[Optional[int]],
         compression: Optional[str],
-        hashes: List[str],
+        hashes: list[str],
         raw_data: FileInfo,
         samples: int,
         size_limit: Optional[Union[int, str]],
@@ -57,7 +57,7 @@ class MDSReader(JointReader):
         self.column_sizes = column_sizes
 
     @classmethod
-    def from_json(cls, dirname: str, split: Optional[str], obj: Dict[str, Any]) -> Self:
+    def from_json(cls, dirname: str, split: Optional[str], obj: dict[str, Any]) -> Self:
         """Initialize from JSON object.
 
         Args:
@@ -99,7 +99,7 @@ class MDSReader(JointReader):
                     raise ValueError(f'Column {name} contains an unsafe type: {encoding}. To ' +
                                      f'proceed anyway, set ``allow_unsafe_types=True``.')
 
-    def decode_sample(self, data: bytes) -> Dict[str, Any]:
+    def decode_sample(self, data: bytes) -> dict[str, Any]:
         """Decode a sample dict from bytes.
 
         Args:

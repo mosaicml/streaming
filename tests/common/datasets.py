@@ -1,7 +1,7 @@
 # Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import numpy as np
 
@@ -20,7 +20,7 @@ class SequenceDataset:
     def __init__(
         self,
         size: int = 100,
-        column_names: List[str] = ['id', 'sample'],
+        column_names: list[str] = ['id', 'sample'],
         offset: int = 0,
     ) -> None:
         self.size = size
@@ -33,7 +33,7 @@ class SequenceDataset:
     def __len__(self) -> int:
         return self.size
 
-    def __getitem__(self, index: int) -> Dict[str, Any]:
+    def __getitem__(self, index: int) -> dict[str, Any]:
         if index < self.size:
             return {
                 self.column_names[0]: f'{index:06}',
@@ -44,7 +44,7 @@ class SequenceDataset:
     def __iter__(self):
         return self
 
-    def __next__(self) -> Dict[str, Any]:
+    def __next__(self) -> dict[str, Any]:
         if self._index >= self.size:
             raise StopIteration
         id = f'{self._index:06}'
@@ -55,7 +55,7 @@ class SequenceDataset:
             self.column_names[1]: data,
         }
 
-    def get_sample_in_bytes(self, index: int) -> Dict[str, Any]:
+    def get_sample_in_bytes(self, index: int) -> dict[str, Any]:
         sample = self.__getitem__(index)
         sample[self.column_names[0]] = sample[self.column_names[0]].encode('utf-8')
         sample[self.column_names[1]] = np.int64(sample[self.column_names[1]]).tobytes()
@@ -82,7 +82,7 @@ class NumberAndSayDataset:
 
     def __init__(self,
                  size: int = 100,
-                 column_names: List[str] = ['number', 'words'],
+                 column_names: list[str] = ['number', 'words'],
                  seed: int = 987) -> None:
         self.size = size
         self.column_encodings = ['int', 'str']
@@ -94,7 +94,7 @@ class NumberAndSayDataset:
     def __len__(self) -> int:
         return self.size
 
-    def _say(self, i: int) -> List[str]:
+    def _say(self, i: int) -> list[str]:
         if i < 0:
             return ['negative'] + self._say(-i)
         elif i <= 19:
@@ -120,7 +120,7 @@ class NumberAndSayDataset:
     def __iter__(self):
         return self
 
-    def __next__(self) -> Dict[str, Any]:
+    def __next__(self) -> dict[str, Any]:
         if self._index >= self.size:
             raise StopIteration
         number = self._get_number()
@@ -143,11 +143,11 @@ class NumberAndSayDataset:
 
 def write_mds_dataset(
     out_root: str,
-    columns: Dict[str, str],
+    columns: dict[str, str],
     samples: Any,
     size_limit: int,
     compression: Optional[str] = None,
-    hashes: Optional[List[str]] = None,
+    hashes: Optional[list[str]] = None,
 ) -> None:
     with MDSWriter(out=out_root,
                    columns=columns,

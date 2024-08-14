@@ -4,7 +4,7 @@
 """:class:`MDSWriter` writes samples to ``.mds`` files that can be read by :class:`MDSReader`."""
 
 import json
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Optional, Union
 
 import numpy as np
 
@@ -55,11 +55,11 @@ class MDSWriter(JointWriter):
 
     def __init__(self,
                  *,
-                 columns: Dict[str, str],
-                 out: Union[str, Tuple[str, str]],
+                 columns: dict[str, str],
+                 out: Union[str, tuple[str, str]],
                  keep_local: bool = False,
                  compression: Optional[str] = None,
-                 hashes: Optional[List[str]] = None,
+                 hashes: Optional[list[str]] = None,
                  size_limit: Optional[Union[int, str]] = 1 << 26,
                  **kwargs: Any) -> None:
         super().__init__(out=out,
@@ -89,7 +89,7 @@ class MDSWriter(JointWriter):
         self.extra_bytes_per_shard = 4 + 4 + len(self.config_data)
         self._reset_cache()
 
-    def encode_sample(self, sample: Dict[str, Any]) -> bytes:
+    def encode_sample(self, sample: dict[str, Any]) -> bytes:
         """Encode a sample dict to bytes.
 
         Args:
@@ -116,7 +116,7 @@ class MDSWriter(JointWriter):
         body = b''.join(data)
         return head + body
 
-    def get_config(self) -> Dict[str, Any]:
+    def get_config(self) -> dict[str, Any]:
         """Get object describing shard-writing configuration.
 
         Returns:

@@ -7,7 +7,7 @@ This dataset is a colossal, cleaned version of Common Crawl's web crawl corpus a
 the `Common Crawl <https://commoncrawl.org>`_ dataset.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from transformers.models.auto.tokenization_auto import AutoTokenizer
 
@@ -130,7 +130,7 @@ class StreamingC4(StreamingDataset):
             # Some tokenizers (e.g. GPT2 tokenizer) have no padding token which causes bugs
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
-    def _tokenize(self, text_sample: Dict[str, Any]):
+    def _tokenize(self, text_sample: dict[str, Any]):
         """Apply the tokenizer to a sample.
 
         Args:

@@ -6,7 +6,7 @@
 import os
 from argparse import ArgumentParser, Namespace
 from glob import glob
-from typing import List, Optional, Set, Tuple
+from typing import Optional
 
 import numpy as np
 from PIL import Image
@@ -87,7 +87,7 @@ def parse_args() -> Namespace:
     return args.parse_args()
 
 
-def check_extensions(filenames: List[str], extensions: Set[str]) -> None:
+def check_extensions(filenames: list[str], extensions: set[str]) -> None:
     """Validate filename extensions.
 
     Args:
@@ -100,8 +100,8 @@ def check_extensions(filenames: List[str], extensions: Set[str]) -> None:
         assert ext.lower() in extensions
 
 
-def get_classes(filenames: List[str],
-                class_names: Optional[List[str]] = None) -> Tuple[List[int], List[str]]:
+def get_classes(filenames: list[str],
+                class_names: Optional[list[str]] = None) -> tuple[list[int], list[str]]:
     """Get the classes for a dataset split of sample image filenames.
 
     Args:

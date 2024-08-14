@@ -4,7 +4,7 @@
 import json
 import tempfile
 from decimal import Decimal
-from typing import Any, Tuple, Union
+from typing import Any, Union
 
 import numpy as np
 import pytest
@@ -99,7 +99,7 @@ class TestMDSEncodings:
         (1, 256, 1),
         (65536, 7, 1),
     ])
-    def test_ndarray_encode_decode(self, dtype_str: str, shape: Tuple[int]):
+    def test_ndarray_encode_decode(self, dtype_str: str, shape: tuple[int]):
         dtype = getattr(np, dtype_str)
         a = np.random.randint(0, 1000, shape).astype(dtype)
 

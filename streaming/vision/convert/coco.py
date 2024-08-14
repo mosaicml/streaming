@@ -6,7 +6,7 @@
 import json
 import os
 from argparse import ArgumentParser, Namespace
-from typing import Dict, Iterable
+from typing import Iterable
 
 import numpy as np
 import torch
@@ -153,7 +153,7 @@ class _COCODetection(Dataset):
         return img, img_id, (htot, wtot), bbox_sizes, bbox_labels
 
 
-def each(dataset: _COCODetection, shuffle: bool) -> Iterable[Dict[str, bytes]]:
+def each(dataset: _COCODetection, shuffle: bool) -> Iterable[dict[str, bytes]]:
     """Generator over each dataset sample.
 
     Args:
