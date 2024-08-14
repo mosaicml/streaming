@@ -5,7 +5,7 @@
 
 from argparse import ArgumentParser, Namespace
 from collections import defaultdict
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 import numpy as np
 from matplotlib import pyplot as plt

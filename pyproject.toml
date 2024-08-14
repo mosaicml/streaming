@@ -17,7 +17,8 @@ select = [
     "LOG",
     "PERF",
     "PLE",
-    "UP006"
+    "UP006",
+    "F401",
 ]
 extend-safe-fixes = [
     "UP006",

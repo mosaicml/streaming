@@ -5,7 +5,7 @@
 
 import logging
 import time
-from typing import Generator, Tuple, Union
+from typing import Generator, Union
 
 import numpy as np
 from core.node_tracker import NodeTracker
