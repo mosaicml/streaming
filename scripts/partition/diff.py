@@ -5,7 +5,6 @@
 
 from argparse import ArgumentParser, Namespace
 from time import time
-from typing import List
 
 import numpy as np
 from tqdm import tqdm

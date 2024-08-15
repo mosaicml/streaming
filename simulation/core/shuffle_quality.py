@@ -4,7 +4,6 @@
 """Determine shuffle quality of a run over a fixed number of samples."""
 
 import logging
-from typing import Tuple
 
 import numpy as np
 from core.utils import remove_padded_samples

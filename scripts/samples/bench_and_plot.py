@@ -9,7 +9,7 @@ from argparse import ArgumentParser, Namespace
 from contextlib import contextmanager
 from shutil import rmtree
 from time import time, time_ns
-from typing import Any, Callable, Dict, Iterator, List, Tuple
+from typing import Any, Callable, Iterator
 
 import numpy as np
 from matplotlib import pyplot as plt

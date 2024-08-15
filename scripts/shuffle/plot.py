@@ -4,7 +4,6 @@
 """Plot results of comparing streaming dataset shuffling algorithms."""
 
 from argparse import ArgumentParser, Namespace
-from typing import Dict, List, Tuple
 
 from matplotlib import pyplot as plt
 
