@@ -9,6 +9,10 @@ import boto3
 import pytest
 from moto import mock_aws
 
+from tests.common.utils import compressed_local_remote_dir  # pyright: ignore # noqa: F401
+from tests.common.utils import get_free_tcp_port  # pyright: ignore # noqa: F401
+from tests.common.utils import local_remote_dir  # pyright: ignore # noqa: F401
+
 MY_BUCKET = 'streaming-test-bucket'
 MY_PREFIX = 'train'
 GCS_URL = 'https://storage.googleapis.com'
