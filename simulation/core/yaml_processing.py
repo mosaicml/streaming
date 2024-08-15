@@ -3,7 +3,7 @@
 
 """Ingest yaml and create SimulationDataset."""
 
-from typing import Optional, Tuple
+from typing import Optional
 
 from core.sim_dataset import SimulationDataset
 from core.sim_time import Time, TimeUnit, ensure_time

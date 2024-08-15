@@ -25,7 +25,7 @@ from argparse import ArgumentParser, Namespace
 from glob import glob
 from shutil import rmtree
 from time import time
-from typing import Any, Callable, Dict, Iterator, List
+from typing import Any, Callable, Iterator
 
 import numpy as np
 import pandas as pd
