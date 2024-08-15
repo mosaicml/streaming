@@ -336,7 +336,7 @@ class Writer(ABC):
             self.event.set()
             # log exception; raising does not propagate to caller as this is called
             # from Future thread and would just be logged as an unexpected error
-            logger.error(f"Exception in writer thread: {exception}")
+            logger.error(f'Exception in writer thread: {exception}')
 
     def __enter__(self) -> Self:
         """Enter context manager.
