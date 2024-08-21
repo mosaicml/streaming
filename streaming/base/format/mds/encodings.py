@@ -532,12 +532,12 @@ class StrArray(Encoding):
 
         # Encode the length of the list of strings
         list_length = len(strings)
-        encoded_parts.append(list_length.to_bytes(4, byteorder='big'))
+        encoded_parts.append(list_length.to_bytes(4, byteorder='little'))
 
         for s in strings:
             # Encode each string
             encoded_str = s.encode('utf-8')  # Encode string to UTF-8 bytes
-            length_prefix = len(encoded_str).to_bytes(4, byteorder='big')  # Prefix with 4-byte length
+            length_prefix = len(encoded_str).to_bytes(4, byteorder='little')  # Prefix with 4-byte length
             encoded_parts.append(length_prefix + encoded_str)
 
         # Return the concatenated byte sequence
@@ -549,12 +549,12 @@ class StrArray(Encoding):
         decoded_strings = []
 
         # Decode the length of the list of strings
-        list_length = int.from_bytes(encoded_bytes[index:index+4], byteorder='big')
+        list_length = int.from_bytes(encoded_bytes[index:index+4], byteorder='little')
         index += 4
 
         for _ in range(list_length):
             # Decode the length of the next string
-            length = int.from_bytes(encoded_bytes[index:index+4], byteorder='big')
+            length = int.from_bytes(encoded_bytes[index:index+4], byteorder='little')
             index += 4
 
             # Extract and decode the string

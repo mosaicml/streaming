@@ -820,16 +820,11 @@ class DeltaDBSQLStream(Stream):
         basename = get_index_basename()
         filename = os.path.join(self.local, self.split, basename)
 
-        column_meta = sql_response['manifest']['schema']['columns']
-        column_names, column_encodings, column_sizes = [], [], []
-        self.columns = {}
-        for c in column_meta:
-            column_names.append(c['name'])
-            encoding = self.get_encode_format(c['type_text'])
-            print(f'c = {c}, encoding = {encoding}')
-            column_encodings.append(encoding)
-            column_sizes.append(None)
-            self.columns[c['name']] = encoding
+        column_meta = sorted([(c['name'], c['type_text'], None) for c in sql_response['manifest']['schema']['columns']], key=lambda x: x[0])
+        column_names = [c[0] for c in column_meta]
+        column_encodings = [self.get_encode_format(c[1]) for c in column_meta]
+        column_sizes = [c[2] for c in column_meta]
+        self.columns = dict(zip(column_names, column_encodings))
 
         total_shard_count = sql_response['manifest']['total_chunk_count']
 
