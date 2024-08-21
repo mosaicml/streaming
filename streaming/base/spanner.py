@@ -54,6 +54,6 @@ class Spanner:
             shard_start = self.shard_bounds[shard]
             shard_stop = self.shard_bounds[shard + 1]
             if shard_start <= index < shard_stop:
-                return shard, int(index - shard_start.item())
+                return shard, int(index - shard_start.item())  # pyright: ignore
 
         raise RuntimeError('Internal error: shards were indexed incorrectly')
