@@ -51,6 +51,7 @@ class Spanner:
 
         span = index // self.span_size
         for shard in self.spans[span]:
+            shard = int(shard)
             shard_start = self.shard_bounds[shard]
             shard_stop = self.shard_bounds[shard + 1]
             if shard_start <= index < shard_stop:
