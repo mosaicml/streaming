@@ -55,6 +55,17 @@ def get_dataset(name: str,
                 'schema': 'streaming',
             },
         },
+        'prompt_response_table_dbsql': {
+            'local': f'/tmp/test_prompt_response_table_05May1029',
+            'remote': 'SELECT * FROM main.streaming.prompt_response_table_normal_1000000_20000',
+            'num_samples': 1000000,
+            'class': StreamingDataset,
+            'kwargs': {
+                'warehouse_id': "7e083095329f3ca5",
+                'catalog': 'main',
+                'schema': 'streaming',
+            },
+        },
         'random_large_table': {
             'local': f'/tmp/test_random_large_table_05May1029',
             'remote': 'SELECT * FROM main.streaming.random_large_table',
@@ -62,6 +73,17 @@ def get_dataset(name: str,
             'class': StreamingDataset,
             'kwargs': {
                 'cluster_id': "0201-234512-tcp9nfat"
+            },
+        },
+        'large_liquid_test_table_08_07': {
+            'local': f'/tmp/test_liquid_test_table_05May1029',
+            'remote': 'SELECT ss_sold_date_sk, ss_sold_time_sk, ss_item_sk, ss_customer_sk, ss_cdemo_sk FROM auto_maintenance_bugbash.stella.large_liquid_test_table_08_07',
+            'num_samples': 100000,
+            'class': StreamingDataset,
+            'kwargs': {
+                'warehouse_id': "7e083095329f3ca5",
+                'catalog': 'auto_maintenance_bugbash',
+                'schema': 'stella',
             },
         },
         'reddit_table_sparkconnect': {
@@ -235,7 +257,9 @@ if __name__ == "__main__":
 # test_streaming_remote_dataset(name = 'reddit_table', split=None)
     # test_streaming_remote_dataset(name = 'reddit_table_dbsql', split=None)
     #test_streaming_remote_dataset(name = 'reddit_table_dbsql_cachelimit', split=None)
-    test_streaming_remote_dataset(name = 'coco_table_dbsql', split=None)
+    #test_streaming_remote_dataset(name = 'coco_table_dbsql', split=None)
+    #test_streaming_remote_dataset(name = 'large_liquid_test_table_08_07', split=None)
+    test_streaming_remote_dataset(name = 'prompt_response_table_dbsql', split=None)
 
 #    test_streaming_remote_dataset(name = 'debug_local', split=None)
 

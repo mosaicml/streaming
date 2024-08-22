@@ -778,7 +778,7 @@ class DeltaDBSQLStream(Stream):
             'long': 'int8',
         }
 
-    def refresh_statement_id(self, timeout=100):
+    def refresh_statement_id(self, timeout=3600):
         total_time = 0
         while total_time <= timeout:
             response = requests.post(self.base_url, headers=self.headers, json=self.data)
@@ -814,17 +814,30 @@ class DeltaDBSQLStream(Stream):
         Returns:
             `List[Reader]: Shard readers.
         """
+        from streaming.base.format.mds.encodings import (get_mds_encoded_size, get_mds_encodings,
+                                                         is_mds_encoding, mds_encode)
         sql_response = self.refresh_statement_id()
 
         # Local leader prepares the index file based on cloudfetch results
         basename = get_index_basename()
         filename = os.path.join(self.local, self.split, basename)
 
-        column_meta = sorted([(c['name'], c['type_text'], None) for c in sql_response['manifest']['schema']['columns']], key=lambda x: x[0])
-        column_names = [c[0] for c in column_meta]
-        column_encodings = [self.get_encode_format(c[1]) for c in column_meta]
-        column_sizes = [c[2] for c in column_meta]
-        self.columns = dict(zip(column_names, column_encodings))
+        self.columns = { c['name']:  self.get_encode_format(c['type_text']) for c in  sql_response['manifest']['schema']['columns'] }
+
+        column_names = []
+        column_encodings = []
+        column_sizes = []
+        for name in sorted(self.columns):
+            encoding = self.columns[name]
+            if not is_mds_encoding(encoding):
+                raise TypeError(f'MDSWriter passed column `{name}` with encoding `{encoding}` ' +
+                                f'is unsupported. Supported encodings are {get_mds_encodings()}')
+            size = get_mds_encoded_size(encoding)
+            column_names.append(name)
+            column_encodings.append(encoding)
+            column_sizes.append(size)
+
+        print(f'self.columns = {self.columns}')
 
         total_shard_count = sql_response['manifest']['total_chunk_count']
 
