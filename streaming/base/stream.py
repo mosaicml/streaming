@@ -708,7 +708,7 @@ class DeltaSCStream(Stream):
         return local
 
 
-class DeltaDBSQLStream(Stream):
+class DeltaDBSQLStreamOriginal(Stream):
 
     def __init__(self,
                  remote: Optional[str] = None,
@@ -951,3 +951,272 @@ class DeltaDBSQLStream(Stream):
 
         print('Download to local is done = ', local)
         return local
+
+
+class DeltaDBSQLStream(Stream):
+
+    def __init__(self,
+                 remote: Optional[str] = None,
+                 local: Optional[str] = None,
+                 split: Optional[str] = None,
+                 proportion: Optional[float] = None,
+                 repeat: Optional[float] = None,
+                 choose: Optional[int] = None,
+                 download_retry: Optional[int] = None,
+                 download_timeout: Optional[float] = None,
+                 validate_hash: Optional[str] = None,
+                 keep_zip: Optional[bool] = None,
+                 **kwargs: Any) -> None:
+        super().__init__(remote=remote,
+                         local=local,
+                         split=split,
+                         proportion=proportion,
+                         repeat=repeat,
+                         choose=choose,
+                         download_retry=download_retry,
+                         download_timeout=download_timeout,
+                         validate_hash=validate_hash,
+                         keep_zip=keep_zip)
+
+        warehouse_id = kwargs.get('warehouse_id', None)
+        host = kwargs.get('host', os.environ['DATABRICKS_HOST'])
+        token = kwargs.get('token', os.environ['DATABRICKS_TOKEN'])
+        catalog = kwargs.get('catalog', None)
+        schema = kwargs.get('schema', None)
+        use_cached_result = kwargs.get('use_cached_result', False)
+
+        if any([not warehouse_id, not host, not token, not catalog, not schema]):
+            raise TypeError(f"Need to specify warehouse_id, host, token catalog, schema, during initialization")
+
+        self.base_url = f"https://{host}/api/2.0/sql/statements/"
+        self.session_url = f"https://{host}/api/2.0/sql/sessions/"
+
+        self.headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+
+        self.data = {
+            "warehouse_id": warehouse_id,
+            "format": "ARROW_STREAM",
+            "disposition": "EXTERNAL_LINKS",
+            "statement": remote,
+            "wait_timeout": "5s", # cannot be less than 5 otherwise throws bad request error
+            "parameters": [],
+        }
+
+        if not use_cached_result:
+            # Create a session id
+            # Use session id in payload
+            # Fetch result via get status api
+            self.session_data = {
+                "warehouse_id": warehouse_id,
+                "catalog": catalog,
+                "schema": schema,
+                "session_confs": {"use_cached_result": "false"}
+            }
+            response = requests.post(self.session_url, headers=self.headers, json=self.session_data)
+            self.data['session_id'] = response.json()['session_id']
+
+
+        # From dbsql dtyps (lower case) to MDS encoded types
+        # https://docs.databricks.com/en/dev-tools/python-sql-connector.html
+        self.dtypes_mapping = {
+            'string' : 'str',
+            'bigint' : 'int64',
+            'array': 'ndarray',
+            'array<string>': 'str_array',
+            'binary': 'bytes',
+            'boolean': 'uint32',
+            'date': 'str',
+            'datetime.date': 'str',
+            'decimal': 'str_decimal',
+            'double' : 'float64',
+            'int': 'int',
+            'map': 'json',
+            'smallint': 'int16',
+            'struct': 'json',
+            'tinyint': 'int8',
+            'long': 'int8',
+        }
+
+    def polling(self, timeout: int = 3600):
+        total_time = 0
+        while total_time <= timeout:
+            response = requests.get(f"{self.base_url}/{self.statement_id}", headers=self.headers)
+            response.raise_for_status()
+            response_data = response.json()
+            query_status = response_data['status']['state']
+
+            if query_status == "SUCCEEDED":
+                save_dict_to_file(self.local, f'response_{int(time.time())}', response_data)
+                return response_data
+
+            print(f"Query status: {query_status}")
+            time.sleep(3)
+            total_time += 3
+        raise TimeoutError(f"Query execution failed with status: {query_status}")
+
+
+    def refresh_statement_id(self):
+        response = requests.post(self.base_url, headers=self.headers, json=self.data)
+        response.raise_for_status()
+        response_data = response.json()
+        self.statement_id = response_data['statement_id']
+
+    def get_encode_format(self, sql_fmt: str):
+        mds_fmt = self.dtypes_mapping.get(sql_fmt.lower(), None)
+        if not mds_fmt:
+            raise TypeError(f"{sql_fmt} is not supported by MDSWrite.")
+        return mds_fmt
+
+    def get_shards(self, world: World, allow_unsafe_types: bool) -> List[Reader]:
+        """Load this Stream's index, retrieving its shard readers.
+
+        Args:
+            world (World): Distributed context.
+            allow_unsafe_types (bool): If a shard contains Pickle, which allows arbitrary code
+                execution during deserialization, whether to keep going if ``True`` or raise an
+                error.
+
+        Returns:
+            `List[Reader]: Shard readers.
+        """
+        from streaming.base.format.mds.encodings import (get_mds_encoded_size, get_mds_encodings,
+                                                         is_mds_encoding, mds_encode)
+        self.refresh_statement_id()
+        sql_response = self.polling()
+
+        # Local leader prepares the index file based on cloudfetch results
+        basename = get_index_basename()
+        filename = os.path.join(self.local, self.split, basename)
+
+        self.columns = { c['name']:  self.get_encode_format(c['type_text']) for c in  sql_response['manifest']['schema']['columns'] }
+
+        column_names = []
+        column_encodings = []
+        column_sizes = []
+        for name in sorted(self.columns):
+            encoding = self.columns[name]
+            if not is_mds_encoding(encoding):
+                raise TypeError(f'MDSWriter passed column `{name}` with encoding `{encoding}` ' +
+                                f'is unsupported. Supported encodings are {get_mds_encodings()}')
+            size = get_mds_encoded_size(encoding)
+            column_names.append(name)
+            column_encodings.append(encoding)
+            column_sizes.append(size)
+
+        print(f'self.columns = {self.columns}')
+
+        total_shard_count = sql_response['manifest']['total_chunk_count']
+
+        if world.is_local_leader:
+
+            metadata = {
+                "version": 2,
+                "shards": []
+            }
+
+            for shard_id, shard_meta in enumerate(sql_response['manifest']['chunks']):
+                shard = {
+                    "column_encodings": column_encodings,
+                    "column_names": column_names,
+                    "column_sizes": column_sizes,
+                    "compression": None,
+                    "format": "mds",
+                    "hashes": ["sha1"],
+                    "raw_data": {
+                        "basename": f'shard.{shard_id:05}.mds',
+                        "bytes": shard_meta['byte_count'],
+                        "hashes": {}
+                    },
+                    "samples": shard_meta['row_count'],
+                    "size_limit": 67108864,
+                    "version": 2,
+                    "zip_data": None
+                }
+                metadata["shards"].append(shard)
+
+            with open(filename, 'w') as f:
+                json.dump(metadata, f, indent=4)
+        else:
+            wait_for_json_to_exist(
+                filename, TICK, self.download_timeout,
+                f'Index file {os.path.join(self.remote or "", self.split or "", basename)} ' +
+                f'-> {filename} took too long to download. Either increase the ' +
+                f'`download_timeout` value or check the other traceback.')
+
+        # Load the index.
+        try:
+            obj = json.load(open(filename))
+        except json.decoder.JSONDecodeError as error:
+            error.args = (f'Index file at {filename} is empty or corrupted. ' + error.args[0],)
+            raise error
+
+        # Version check.
+        if obj['version'] != 2:
+            raise ValueError(f'Unsupported streaming data version: {obj["version"]}. ' +
+                             f'Expected version 2.')
+
+        # Initialize shard readers according to the loaded info.
+        shards = []
+        for info in obj['shards']:
+            shard = reader_from_json(self.local, self.split, info)
+            shard.validate(allow_unsafe_types)
+            shards.append(shard)
+
+        return shards
+
+    def _make_request(self, url: str) -> requests.Response:
+        if random.random() < 0.0:  # make rhs > 0.0 for testing, so x% of the time return HTTPError
+            response = requests.Response()
+            response.status_code = 404
+            response.url = url
+            raise requests.exceptions.HTTPError(f"Manually raised HTTPError for testing purposes: {int(time.time())}", response=response)
+        else:
+            response = requests.get(url, headers=self.headers)
+            response.raise_for_status()
+            return response
+
+    def _download_file(self, from_basename: str, to_basename: Optional[str] = None) -> str:
+        """Safely download a file from remote to local cache.
+
+        Args:
+            from_basename (str): Source basename.
+            to_basename (str, optional): Destination basename, if different.
+
+        Returns:
+            str: Local cache filename.
+        """
+        from streaming import MDSWriter
+        def _fetch_and_convert(cloud_fetch_url: str, local_shard_path: str):
+            samples = pa.ipc.open_stream(requests.get(cloud_fetch_url).content).read_all().to_pylist()
+            with TemporaryDirectory() as temp_dir:
+                with MDSWriter(columns=self.columns, out=temp_dir, size_limit=None) as out:
+                    for sample in samples:
+                        out.write(sample)
+                temp_mds_filename = os.path.join(temp_dir, 'shard.00000.mds')
+                os.rename(temp_mds_filename, local_shard_path)
+
+        chunk_index = int(re.search(r'\d+', from_basename).group())
+        print('from_basename = ', from_basename)
+        print('chunk_index = ', chunk_index)
+
+        try:
+            url = f"{self.base_url}/{self.statement_id}/result/chunks/{chunk_index}"
+            response = self._make_request(url)
+        except Exception as e: # requests.exceptions.HTTPError as e:
+            print('Failed to download, refresh statement id and try again')
+            print('url = ', url)
+            print(e)
+            self.refresh_statement_id()
+            url = f"{self.base_url}/{self.statement_id}/result/chunks/{chunk_index}"
+            response = self._make_request(url)
+
+        cloud_fetch_url = response.json()['external_links'][0]['external_link']
+        local = os.path.join(self.local, self.split, from_basename)
+        retry(num_attempts=self.download_retry)(lambda: _fetch_and_convert(cloud_fetch_url, local))()
+
+        print('Download to local is done = ', local)
+        return local
+

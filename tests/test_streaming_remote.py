@@ -26,22 +26,15 @@ def get_dataset(name: str,
             'class': StreamingDataset,
             'kwargs': {},
         },
-        'dummy_table': {
+        'dummy_table_dbsql': {
             'local': f'/tmp/test_dummy_table_05May1029',
             'remote': 'SELECT * FROM main.streaming.dummy_cpt_table',
-            'num_samples': 20206,
+            'num_samples': 5,
             'class': StreamingDataset,
             'kwargs': {
-                'cluster_id': "0201-234512-tcp9nfat"
-            },
-        },
-        'random_cpt_table_sparkconnect': {
-            'local': f'/tmp/test_random_cpt_table_05May1029',
-            'remote': 'SELECT text FROM main.streaming.random_cpt_table',
-            'num_samples': 100000,
-            'class': StreamingDataset,
-            'kwargs': {
-                'cluster_id': "0201-234512-tcp9nfat"
+                'warehouse_id': "7e083095329f3ca5",
+                'catalog': 'main',
+                'schema': 'streaming',
             },
         },
         'random_cpt_table_dbsql': {
@@ -115,7 +108,7 @@ def get_dataset(name: str,
                 'warehouse_id': "89cf2c9b9f9cb3bc",
                 'catalog': 'main',
                 'schema': 'reddit',
-                'cache_limit': '100mb',
+                'cache_limit': '10gb',
             },
         },
         'wiki_table_dbsql_cachelimit': {
@@ -142,7 +135,7 @@ def get_dataset(name: str,
                 'schema': 'streaming',
                 # 'cache_limit': '100mb',
             },
-            'shuffle': True,
+            'shuffle': False,
         },
         'debug_local': {
             'local': f'/tmp/test_random_reddit_table_05May1029',
@@ -205,7 +198,7 @@ def test_streaming_remote_dataset(name: str, split: str) -> None:
 def test_streaming_remote_dataloader(name: str, split: str) -> None:
     # Build StreamingDataset
     build_start = time.time()
-    batch_size = 16
+    batch_size = 1
     expected_samples, dataset = get_dataset(name=name,
                                             split=split,
                                             shuffle=False,
@@ -213,7 +206,7 @@ def test_streaming_remote_dataloader(name: str, split: str) -> None:
 
 
     data_loader = StreamingDataLoader(dataset,
-                                      batch_size=16,
+                                      batch_size=batch_size,
                                       num_workers=4,
                                       prefetch_factor=None,
                                       #persistent_workers=True,
@@ -227,7 +220,7 @@ def test_streaming_remote_dataloader(name: str, split: str) -> None:
     rcvd_samples = 0
     iter_start = time.time()
 
-    for epcoh in range(3):
+    for epcoh in range(1):
         for batch_idx, data_dict in enumerate(data_loader):
             rcvd_samples += batch_size
 
@@ -250,21 +243,21 @@ def test_streaming_remote_dataloader(name: str, split: str) -> None:
 if __name__ == "__main__":
     from streaming.base.util import clean_stale_shared_memory
     clean_stale_shared_memory()
-#    test_streaming_remote_dataset(name = 'refinedweb', split=None)
-    # test_streaming_remote_dataset(name = 'dummy_table', split=None)
-#test_streaming_remote_dataset(name = 'random_cpt_table_dbsql', split=None)
-# test_streaming_remote_dataset(name = 'random_large_table', split=None)
-# test_streaming_remote_dataset(name = 'reddit_table', split=None)
-    # test_streaming_remote_dataset(name = 'reddit_table_dbsql', split=None)
+    #test_streaming_remote_dataset(name = 'refinedweb', split=None)
+    #test_streaming_remote_dataset(name = 'dummy_table_dbsql', split=None)
+    test_streaming_remote_dataset(name = 'random_cpt_table_dbsql', split=None)
+    #test_streaming_remote_dataset(name = 'random_large_table', split=None)
+    #test_streaming_remote_dataset(name = 'reddit_table', split=None)
+    #test_streaming_remote_dataset(name = 'reddit_table_dbsql', split=None)
     #test_streaming_remote_dataset(name = 'reddit_table_dbsql_cachelimit', split=None)
     #test_streaming_remote_dataset(name = 'coco_table_dbsql', split=None)
     #test_streaming_remote_dataset(name = 'large_liquid_test_table_08_07', split=None)
-    test_streaming_remote_dataset(name = 'prompt_response_table_dbsql', split=None)
-
-#    test_streaming_remote_dataset(name = 'debug_local', split=None)
+    #test_streaming_remote_dataset(name = 'prompt_response_table_dbsql', split=None)
+    #test_streaming_remote_dataset(name = 'debug_local', split=None)
 
     #test_streaming_remote_dataloader(name = 'refinedweb', split=None)
-   # test_streaming_remote_dataloader(name = 'random_cpt_table_dbsql', split=None)
-   # test_streaming_remote_dataloader(name = 'reddit_table_dbsql', split=None)
-    # test_streaming_remote_dataloader(name = 'wiki_table_dbsql_cachelimit', split=None)
+    #test_streaming_remote_dataloader(name = 'random_cpt_table_dbsql', split=None)
+    #test_streaming_remote_dataloader(name = 'reddit_table_dbsql', split=None)
+    #test_streaming_remote_dataloader(name = 'wiki_table_dbsql_cachelimit', split=None)
+    #test_streaming_remote_dataloader(name = 'coco_table_dbsql', split=None)
 
