@@ -983,7 +983,7 @@ class DeltaDBSQLStream(Stream):
         token = kwargs.get('token', os.environ['DATABRICKS_TOKEN'])
         catalog = kwargs.get('catalog', None)
         schema = kwargs.get('schema', None)
-        use_cached_result = kwargs.get('use_cached_result', False)
+        self.use_cached_result = kwargs.get('use_cached_result', False)
 
         if any([not warehouse_id, not host, not token, not catalog, not schema]):
             raise TypeError(f"Need to specify warehouse_id, host, token catalog, schema, during initialization")
@@ -996,7 +996,14 @@ class DeltaDBSQLStream(Stream):
             "Content-Type": "application/json"
         }
 
-        self.data = {
+        self.session_payload = {
+            "warehouse_id": warehouse_id,
+            "catalog": catalog,
+            "schema": schema,
+            "session_confs": {"use_cached_result": "false"}
+        }
+
+        self.payload = {
             "warehouse_id": warehouse_id,
             "format": "ARROW_STREAM",
             "disposition": "EXTERNAL_LINKS",
@@ -1004,20 +1011,6 @@ class DeltaDBSQLStream(Stream):
             "wait_timeout": "5s", # cannot be less than 5 otherwise throws bad request error
             "parameters": [],
         }
-
-        if not use_cached_result:
-            # Create a session id
-            # Use session id in payload
-            # Fetch result via get status api
-            self.session_data = {
-                "warehouse_id": warehouse_id,
-                "catalog": catalog,
-                "schema": schema,
-                "session_confs": {"use_cached_result": "false"}
-            }
-            response = requests.post(self.session_url, headers=self.headers, json=self.session_data)
-            self.data['session_id'] = response.json()['session_id']
-
 
         # From dbsql dtyps (lower case) to MDS encoded types
         # https://docs.databricks.com/en/dev-tools/python-sql-connector.html
@@ -1058,11 +1051,27 @@ class DeltaDBSQLStream(Stream):
         raise TimeoutError(f"Query execution failed with status: {query_status}")
 
 
-    def refresh_statement_id(self):
-        response = requests.post(self.base_url, headers=self.headers, json=self.data)
+    def refresh_statement_id(self, use_cached_result:bool=False):
+
+        boolean_string = "true" if use_cached_result else "false"
+        self.session_payload['session_confs']['use_cached_result'] = boolean_string
+
+        print(f"Set the session data to be {self.session_payload}")
+
+        # Create a session id
+        # Use session id in payload
+        # Fetch result via get status api
+        response = requests.post(self.session_url, headers=self.headers, json=self.session_payload)
+        self.payload['session_id'] = response.json()['session_id']
+
+        print(f"Set the payload to be {self.payload}")
+
+        response = requests.post(self.base_url, headers=self.headers, json=self.payload)
         response.raise_for_status()
         response_data = response.json()
         self.statement_id = response_data['statement_id']
+
+        return self.polling()
 
     def get_encode_format(self, sql_fmt: str):
         mds_fmt = self.dtypes_mapping.get(sql_fmt.lower(), None)
@@ -1084,8 +1093,8 @@ class DeltaDBSQLStream(Stream):
         """
         from streaming.base.format.mds.encodings import (get_mds_encoded_size, get_mds_encodings,
                                                          is_mds_encoding, mds_encode)
-        self.refresh_statement_id()
-        sql_response = self.polling()
+
+        sql_response = self.refresh_statement_id(self.use_cached_result)
 
         # Local leader prepares the index file based on cloudfetch results
         basename = get_index_basename()
@@ -1209,7 +1218,7 @@ class DeltaDBSQLStream(Stream):
             print('Failed to download, refresh statement id and try again')
             print('url = ', url)
             print(e)
-            self.refresh_statement_id()
+            self.refresh_statement_id(use_cached_result=True)
             url = f"{self.base_url}/{self.statement_id}/result/chunks/{chunk_index}"
             response = self._make_request(url)
 
