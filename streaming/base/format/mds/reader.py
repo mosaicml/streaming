@@ -134,11 +134,16 @@ class MDSReader(JointReader):
             bytes: Sample data.
         """
         filename = os.path.join(self.dirname, self.split, self.raw_data.basename)
+        print(f"Added Logs: shard filename: {filename}")
         offset = (1 + idx) * 4
+        print(f"Added Logs: header byte offset: {offset}")
         with open(filename, 'rb', 0) as fp:
             fp.seek(offset)
             pair = fp.read(8)
-            begin, end = np.frombuffer(pair, np.uint32)
+            print(f"Added Logs: read-out sample byte pair: {pair}")
+            deserialized = np.frombuffer(pair, np.uint32)
+            print(f"Added Logs: pair deserialized np array: {deserialized}")
+            begin, end = deserialized
             fp.seek(begin)
             data = fp.read(end - begin)
         if not data:
