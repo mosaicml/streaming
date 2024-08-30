@@ -1033,6 +1033,8 @@ class DeltaDBSQLStream(Stream):
             'long': 'int8',
         }
 
+        self.refresh_statement_id(self.use_cached_result)
+
     def polling(self, timeout: int = 3600):
         total_time = 0
         while total_time <= timeout:
@@ -1094,7 +1096,7 @@ class DeltaDBSQLStream(Stream):
         from streaming.base.format.mds.encodings import (get_mds_encoded_size, get_mds_encodings,
                                                          is_mds_encoding, mds_encode)
 
-        sql_response = self.refresh_statement_id(self.use_cached_result)
+        sql_response = self.refresh_statement_id(True)
 
         # Local leader prepares the index file based on cloudfetch results
         basename = get_index_basename()
@@ -1218,7 +1220,7 @@ class DeltaDBSQLStream(Stream):
             print('Failed to download, refresh statement id and try again')
             print('url = ', url)
             print(e)
-            self.refresh_statement_id(use_cached_result=True)
+            self.refresh_statement_id(True)
             url = f"{self.base_url}/{self.statement_id}/result/chunks/{chunk_index}"
             response = self._make_request(url)
 
