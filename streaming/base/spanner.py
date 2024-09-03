@@ -6,6 +6,7 @@
 import numpy as np
 from numpy.typing import NDArray
 
+
 class Spanner:
     """Given a list of shards, construct a mapping of global index to shard and relative index.
 
