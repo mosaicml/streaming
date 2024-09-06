@@ -708,7 +708,7 @@ class DeltaSCStream(Stream):
         return local
 
 
-class DeltaDBSQLStreamOriginal(Stream):
+class DeltaDBSQLStream(Stream):
 
     def __init__(self,
                  remote: Optional[str] = None,
@@ -953,7 +953,7 @@ class DeltaDBSQLStreamOriginal(Stream):
         return local
 
 
-class DeltaDBSQLStream(Stream):
+class DeltaDBSQLStreamSession(Stream):
 
     def __init__(self,
                  remote: Optional[str] = None,
