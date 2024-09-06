@@ -349,6 +349,8 @@ class StreamingDataset(Array, IterableDataset):
         self.allow_unsafe_types = allow_unsafe_types
         self.replication = replication
 
+        logger.warning('Using StreamingX:heterogeneous branch')
+
         # Initialize the World context.
         #   * This information is for the per-rank or per-worker process.
         #   * DataLoader worker processes may get a different worker ID and worker count than rank.
