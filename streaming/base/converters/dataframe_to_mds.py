@@ -19,9 +19,8 @@ try:
     from pyspark.sql.dataframe import DataFrame
     from pyspark.sql.types import (ArrayType, BinaryType, BooleanType, ByteType, DateType,
                                    DayTimeIntervalType, DecimalType, DoubleType, FloatType,
-                                   IntegerType, LongType, MapType, NullType, ShortType,
-                                   StringType, StructField, StructType, TimestampNTZType,
-                                   TimestampType)
+                                   IntegerType, LongType, MapType, NullType, ShortType, StringType,
+                                   StructField, StructType, TimestampNTZType, TimestampType)
 except ImportError as e:
     e.msg = get_import_exception_message(e.name, extra_deps='spark')  # pyright: ignore
     raise e
