@@ -510,6 +510,8 @@ class JSON(Encoding):
     """Store arbitrary data as JSON."""
 
     def encode(self, obj: Any) -> bytes:
+        if isinstance(obj, np.ndarray):
+            obj = obj.tolist()
         data = json.dumps(obj)
         self._is_valid(obj, data)
         return data.encode('utf-8')
