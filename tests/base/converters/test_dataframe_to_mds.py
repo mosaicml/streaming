@@ -418,11 +418,11 @@ class TestDataFrameToMDS:
                     ]), True), True)
         ])
 
-        schema_with_string_map_keys = StructType(
+        string_map_keys_schema = StructType(
             [StructField('map_field', MapType(StringType(), StringType()), nullable=True)])
 
         valid_schemas = [
-            message_schema, prompt_response_schema, combined_schema, schema_with_string_map_keys
+            message_schema, prompt_response_schema, combined_schema, string_map_keys_schema
         ]
 
         schema_with_binary = StructType([StructField('data', BinaryType(), nullable=True)])
