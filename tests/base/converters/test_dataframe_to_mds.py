@@ -428,7 +428,7 @@ class TestDataFrameToMDS:
         schema_with_binary = StructType([StructField('data', BinaryType(), nullable=True)])
 
         # Schema with MapType having non-string keys
-        schema_with_non_string_map_keys = StructType(
+        non_string_map_keys_schema = StructType(
             [StructField('map_field', MapType(BinaryType(), StringType()), nullable=True)])
 
         # Schema with DateType and TimestampType
@@ -438,7 +438,7 @@ class TestDataFrameToMDS:
         ])
 
         invalid_schemas = [
-            schema_with_binary, schema_with_non_string_map_keys, schema_with_date_and_timestamp
+            schema_with_binary, non_string_map_keys_schema, schema_with_date_and_timestamp
         ]
 
         for s in valid_schemas:
