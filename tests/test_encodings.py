@@ -286,6 +286,22 @@ class TestMDSEncodings:
         # Validate data content
         assert dec_data == data
 
+    @pytest.mark.parametrize('data', [np.array([1]), np.array(['foo']), np.array([{'foo': 1}])])
+    def test_json_encode_decode_ndarray(self, data: Any):
+        json_enc = mdsEnc.JSON()
+        assert json_enc.size is None
+
+        # Test encode
+        enc_data = json_enc.encode(data)
+        assert isinstance(enc_data, bytes)
+
+        # Test decode
+        dec_data = json_enc.decode(enc_data)
+        assert isinstance(dec_data, list)
+
+        # Validate data content
+        assert dec_data == data.tolist()
+
     def test_json_invalid_data(self):
         wrong_json_with_single_quotes = "{'name': 'streaming'}"
         with pytest.raises(json.JSONDecodeError):
