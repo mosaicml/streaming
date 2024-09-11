@@ -196,7 +196,7 @@ def test_streaming_remote_dataset(name: str, split: str) -> None:
     expected_samples, dataset = get_dataset(name=name,
                                             split=split,
                                             shuffle=False,
-                                            batch_size=16)
+                                            batch_size=1)
     build_end = time.time()
     build_dur = build_end - build_start
     print('Built dataset')
