@@ -16,6 +16,7 @@ from typing_extensions import Self
 
 from streaming.base.compression import decompress
 from streaming.base.constant import TICK
+import torch.distributed as dist
 from streaming.base.distributed import barrier, get_local_rank
 from streaming.base.format import FileInfo, Reader, get_index_basename, reader_from_json
 from streaming.base.hashing import get_hash
@@ -778,16 +779,48 @@ class DeltaDBSQLStream(Stream):
             'long': 'int8',
         }
 
-    def refresh_statement_id(self, timeout=3600):
+    def generate_statement_id_and_sync(self, world: World):
+        if dist.is_available() and dist.is_initialized():
+            if world.is_leader: # is_local_leader:
+                response = requests.post(self.base_url, headers=self.headers, json=self.data)
+                response.raise_for_status()
+                response_data = response.json()
+                self.statement_id = response_data['statement_id']
+                data = self.statement_id
+            else:
+                data = None
+
+            obj_list = [data]
+            dist.broadcast_object_list(obj_list, src=0)
+            self.statement_id = obj_list[0]
+            return
+
+        world_size = world.num_ranks
+        if world_size > 1:
+            raise RuntimeError(''.join([
+                f'The world_size({world_size}) > 1, but the distributed package is not available ',
+                'or has not been initialized. Please check you have initialized the distributed ',
+                'runtime and that PyTorch has been built with distributed support.'
+            ]))
+
+        response = requests.post(self.base_url, headers=self.headers, json=self.data)
+        response.raise_for_status()
+        response_data = response.json()
+        self.statement_id = response_data['statement_id']
+
+    def wait_for_query_result(self, timeout=3600):
+        if not self.statement_id:
+            raise ValueError(f"statement id is not set yet")
+
         total_time = 0
         while total_time <= timeout:
-            response = requests.post(self.base_url, headers=self.headers, json=self.data)
+            response = requests.get(f"{self.base_url}/{self.statement_id}", headers=self.headers)
             response.raise_for_status()
             response_data = response.json()
             query_status = response_data['status']['state']
 
             if query_status == "SUCCEEDED":
-                self.statement_id = response_data['statement_id']
+                #self.statement_id = response_data['statement_id']
                 save_dict_to_file(self.local, f'response_{int(time.time())}', response_data)
                 return response_data
 
@@ -816,7 +849,9 @@ class DeltaDBSQLStream(Stream):
         """
         from streaming.base.format.mds.encodings import (get_mds_encoded_size, get_mds_encodings,
                                                          is_mds_encoding, mds_encode)
-        sql_response = self.refresh_statement_id()
+        self.generate_statement_id_and_sync(world)
+
+        sql_response = self.wait_for_query_result()
 
         # Local leader prepares the index file based on cloudfetch results
         basename = get_index_basename()
@@ -841,7 +876,7 @@ class DeltaDBSQLStream(Stream):
 
         total_shard_count = sql_response['manifest']['total_chunk_count']
 
-        if world.is_local_leader:
+        if world.is_leader: # is_local_leader:
 
             metadata = {
                 "version": 2,
