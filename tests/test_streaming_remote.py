@@ -46,6 +46,7 @@ def get_dataset(name: str,
                 'warehouse_id': "7e083095329f3ca5",
                 'catalog': 'main',
                 'schema': 'streaming',
+                'use_cached_result': False,
             },
         },
         'prompt_response_table_dbsql': {
@@ -68,10 +69,10 @@ def get_dataset(name: str,
                 'cluster_id': "0201-234512-tcp9nfat"
             },
         },
-        'large_liquid_test_table_08_07': {
+        'large_liquid_test_table_08_07_dbsql': {
             'local': f'/tmp/test_liquid_test_table_05May1029',
-            'remote': 'SELECT ss_sold_date_sk, ss_sold_time_sk, ss_item_sk, ss_customer_sk, ss_cdemo_sk FROM auto_maintenance_bugbash.stella.large_liquid_test_table_08_07',
-            'num_samples': 100000,
+            'remote': 'SELECT * FROM auto_maintenance_bugbash.stella.large_liquid_test_table_08_07',
+            'num_samples': 89279077339,
             'class': StreamingDataset,
             'kwargs': {
                 'warehouse_id': "7e083095329f3ca5",
@@ -128,6 +129,32 @@ def get_dataset(name: str,
             'local': f'/tmp/test_coco_table_05May1029',
             'remote': 'SELECT data, captions FROM main.streaming.coco_with_meta_and_captions',
             'num_samples': 26688,
+            'class': StreamingDataset,
+            'kwargs': {
+                'warehouse_id': "89cf2c9b9f9cb3bc",
+                'catalog': 'main',
+                'schema': 'streaming',
+                # 'cache_limit': '100mb',
+            },
+            'shuffle': False,
+        },
+        'evesize_level1_dbsql': {
+            'local': f'/tmp/test_evesize_05May1029',
+            'remote': "SELECT prompt, response, class  FROM datasets.cody.evesize_level1_evolve_respond WHERE class = \'CODE\'",
+            'num_samples': 68784,
+            'class': StreamingDataset,
+            'kwargs': {
+                'warehouse_id': "89cf2c9b9f9cb3bc",
+                'catalog': 'datasets',
+                'schema': 'cody',
+                # 'cache_limit': '100mb',
+            },
+            'shuffle': False,
+        },
+        'evesize_level1_dbsql': {
+            'local': f'/tmp/test_evesize_05May1029',
+            'remote': "SELECT * FROM main.streaming.evesize_level1_evolve_response_sub VERSION AS OF 0",
+            'num_samples': 273044,
             'class': StreamingDataset,
             'kwargs': {
                 'warehouse_id': "89cf2c9b9f9cb3bc",
@@ -245,15 +272,16 @@ if __name__ == "__main__":
     clean_stale_shared_memory()
     #test_streaming_remote_dataset(name = 'refinedweb', split=None)
     #test_streaming_remote_dataset(name = 'dummy_table_dbsql', split=None)
-    test_streaming_remote_dataset(name = 'random_cpt_table_dbsql', split=None)
+    #test_streaming_remote_dataset(name = 'random_cpt_table_dbsql', split=None)
     #test_streaming_remote_dataset(name = 'random_large_table', split=None)
     #test_streaming_remote_dataset(name = 'reddit_table', split=None)
     #test_streaming_remote_dataset(name = 'reddit_table_dbsql', split=None)
     #test_streaming_remote_dataset(name = 'reddit_table_dbsql_cachelimit', split=None)
     #test_streaming_remote_dataset(name = 'coco_table_dbsql', split=None)
-    #test_streaming_remote_dataset(name = 'large_liquid_test_table_08_07', split=None)
+    #test_streaming_remote_dataset(name = 'large_liquid_test_table_08_07_dbsql', split=None)
     #test_streaming_remote_dataset(name = 'prompt_response_table_dbsql', split=None)
     #test_streaming_remote_dataset(name = 'debug_local', split=None)
+    test_streaming_remote_dataset(name = 'evesize_level1_dbsql', split=None)
 
     #test_streaming_remote_dataloader(name = 'refinedweb', split=None)
     #test_streaming_remote_dataloader(name = 'random_cpt_table_dbsql', split=None)
