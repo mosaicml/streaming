@@ -787,6 +787,7 @@ class DeltaDBSQLStream(Stream):
                 response_data = response.json()
                 self.statement_id = response_data['statement_id']
                 data = self.statement_id
+                print(f'I am here 1: {data}')
             else:
                 data = None
 
