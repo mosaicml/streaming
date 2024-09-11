@@ -268,8 +268,13 @@ def test_streaming_remote_dataloader(name: str, split: str) -> None:
 
 
 if __name__ == "__main__":
+    from composer.utils import dist as dist
+    from composer.utils import get_device
+    dist.initialize_dist(get_device(None))
+
     from streaming.base.util import clean_stale_shared_memory
     clean_stale_shared_memory()
+
     #test_streaming_remote_dataset(name = 'refinedweb', split=None)
     #test_streaming_remote_dataset(name = 'dummy_table_dbsql', split=None)
     #test_streaming_remote_dataset(name = 'random_cpt_table_dbsql', split=None)

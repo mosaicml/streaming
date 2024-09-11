@@ -735,7 +735,7 @@ class DeltaDBSQLStream(Stream):
                          keep_zip=keep_zip)
 
         warehouse_id = kwargs.get('warehouse_id', None)
-        host = kwargs.get('host', os.environ['DATABRICKS_HOST'])
+        host = kwargs.get('host', os.environ['DATABRICKS_HOST']).lstrip('https://')
         token = kwargs.get('token', os.environ['DATABRICKS_TOKEN'])
         catalog = kwargs.get('catalog', None)
         schema = kwargs.get('schema', None)
@@ -781,15 +781,17 @@ class DeltaDBSQLStream(Stream):
 
     def generate_statement_id_and_sync(self, world: World):
         if dist.is_available() and dist.is_initialized():
+            barrier()
+
             if world.is_leader: # is_local_leader:
                 response = requests.post(self.base_url, headers=self.headers, json=self.data)
                 response.raise_for_status()
                 response_data = response.json()
                 self.statement_id = response_data['statement_id']
                 data = self.statement_id
-                print(f'I am here 1: {data}')
             else:
                 data = None
+
 
             obj_list = [data]
             dist.broadcast_object_list(obj_list, src=0)
@@ -877,7 +879,7 @@ class DeltaDBSQLStream(Stream):
 
         total_shard_count = sql_response['manifest']['total_chunk_count']
 
-        if world.is_leader: # is_local_leader:
+        if world.is_local_leader:
 
             metadata = {
                 "version": 2,
