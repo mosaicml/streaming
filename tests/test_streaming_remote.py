@@ -294,8 +294,8 @@ if __name__ == "__main__":
     #test_streaming_remote_dataset(name = 'large_liquid_test_table_08_07_dbsql', split=None)
     #test_streaming_remote_dataset(name = 'prompt_response_table_dbsql', split=None)
     #test_streaming_remote_dataset(name = 'debug_local', split=None)
-    test_streaming_remote_dataset(name = 'evesize_level1_filter_dbsql', split=None)
-    #test_streaming_remote_dataset(name = 'evesize_level1_version_dbsql', split=None)
+    #test_streaming_remote_dataset(name = 'evesize_level1_filter_dbsql', split=None)
+    test_streaming_remote_dataset(name = 'evesize_level1_version_dbsql', split=None)
 
     #test_streaming_remote_dataloader(name = 'refinedweb', split=None)
     #test_streaming_remote_dataloader(name = 'random_cpt_table_dbsql', split=None)
