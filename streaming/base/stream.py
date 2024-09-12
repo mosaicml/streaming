@@ -976,12 +976,13 @@ class DeltaDBSQLStream(Stream):
             url = f"{self.base_url}/{self.statement_id}/result/chunks/{chunk_index}"
             response = self._make_request(url)
         except Exception as e: # requests.exceptions.HTTPError as e:
-            print('Failed to download, refresh statement id and try again')
+            print('Failed to download, I cannot refresh statement id and try again')
             print('url = ', url)
             print(e)
-            self.refresh_statement_id()
-            url = f"{self.base_url}/{self.statement_id}/result/chunks/{chunk_index}"
-            response = self._make_request(url)
+            raise TimeoutError('Check if the query results retention period of your workspace and make sure it is longer than the expected training period. For multi-node, we do not want to refresh and communicate statement id from worker processes.') from e
+            # self.refresh_statement_id()
+            #url = f"{self.base_url}/{self.statement_id}/result/chunks/{chunk_index}"
+            #response = self._make_request(url)
 
         cloud_fetch_url = response.json()['external_links'][0]['external_link']
         local = os.path.join(self.local, self.split, from_basename)

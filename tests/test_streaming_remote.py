@@ -197,10 +197,11 @@ def get_dataset(name: str,
 def test_streaming_remote_dataset(name: str, split: str) -> None:
     # Build StreamingDataset
     build_start = time.time()
+    batch_size = 1
     expected_samples, dataset = get_dataset(name=name,
                                             split=split,
                                             shuffle=False,
-                                            batch_size=1)
+                                            batch_size=batch_size)
     build_end = time.time()
     build_dur = build_end - build_start
     print('Built dataset')
@@ -246,7 +247,7 @@ def test_streaming_remote_dataloader(name: str, split: str) -> None:
                                       batch_size=batch_size,
                                       num_workers=4,
                                       prefetch_factor=None,
-                                      #persistent_workers=True,
+                                      persistent_workers=False,
                                       pin_memory=True,
                                       drop_last=True)
     build_end = time.time()
@@ -274,6 +275,13 @@ def test_streaming_remote_dataloader(name: str, split: str) -> None:
           f'samples_per_sec={samples_per_sec:.2f}')
 
     # Test all samples arrived
+    if dist.is_available() and dist.is_initialized() and get_world_size()>1:
+        rcvd_samples = torch.tensor(rcvd_samples, dtype=torch.int64).cuda()
+        dist.all_reduce(rcvd_samples, reduce_operation = 'SUM')
+        assert rcvd_samples.cpu() >= expected_samples
+        return
+
+    # Test all samples arrived
     assert rcvd_samples >= expected_samples
 
 
@@ -288,7 +296,7 @@ if __name__ == "__main__":
     #test_streaming_remote_dataset(name = 'random_cpt_table_dbsql', split=None)
     #test_streaming_remote_dataset(name = 'random_large_table', split=None)
     #test_streaming_remote_dataset(name = 'reddit_table', split=None)
-    test_streaming_remote_dataset(name = 'reddit_table_dbsql', split=None)
+    #test_streaming_remote_dataset(name = 'reddit_table_dbsql', split=None)
     #test_streaming_remote_dataset(name = 'reddit_table_dbsql_cachelimit', split=None)
     #test_streaming_remote_dataset(name = 'coco_table_dbsql', split=None)
     #test_streaming_remote_dataset(name = 'large_liquid_test_table_08_07_dbsql', split=None)
@@ -302,4 +310,5 @@ if __name__ == "__main__":
     #test_streaming_remote_dataloader(name = 'reddit_table_dbsql', split=None)
     #test_streaming_remote_dataloader(name = 'wiki_table_dbsql_cachelimit', split=None)
     #test_streaming_remote_dataloader(name = 'coco_table_dbsql', split=None)
+    test_streaming_remote_dataloader(name = 'evesize_level1_version_dbsql', split=None)
 
