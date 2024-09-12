@@ -11,6 +11,9 @@ from streaming.base import StreamingDataset, StreamingDataLoader
 from streaming.text import StreamingC4
 from streaming.vision import StreamingADE20K, StreamingCIFAR10, StreamingCOCO, StreamingImageNet
 
+from composer.utils import dist as dist
+from composer.utils import get_device
+import torch
 
 def get_dataset(name: str,
                 split: str,
@@ -220,6 +223,8 @@ def test_streaming_remote_dataset(name: str, split: str) -> None:
           f'samples_per_sec={samples_per_sec:.2f}')
 
     # Test all samples arrived
+    rcvd_samples = torch.tensor(rcvd_samples, dtype=torch.int64)
+    dist.all_reduce(rcvd_samples, reduce_operation = 'SUM')
     assert rcvd_samples >= expected_samples
 
 def test_streaming_remote_dataloader(name: str, split: str) -> None:
@@ -268,8 +273,6 @@ def test_streaming_remote_dataloader(name: str, split: str) -> None:
 
 
 if __name__ == "__main__":
-    from composer.utils import dist as dist
-    from composer.utils import get_device
     dist.initialize_dist(get_device(None))
 
     from streaming.base.util import clean_stale_shared_memory
