@@ -13,6 +13,7 @@ from streaming.vision import StreamingADE20K, StreamingCIFAR10, StreamingCOCO, S
 
 from composer.utils import dist as dist
 from composer.utils import get_device
+from composer.utils.dist import get_world_size
 import torch
 
 def get_dataset(name: str,
@@ -223,8 +224,12 @@ def test_streaming_remote_dataset(name: str, split: str) -> None:
           f'samples_per_sec={samples_per_sec:.2f}')
 
     # Test all samples arrived
-    rcvd_samples = torch.tensor(rcvd_samples, dtype=torch.int64)
-    dist.all_reduce(rcvd_samples, reduce_operation = 'SUM')
+    if dist.is_available() and dist.is_initialized() and get_world_size()>1:
+        rcvd_samples = torch.tensor(rcvd_samples, dtype=torch.int64).cuda()
+        dist.all_reduce(rcvd_samples, reduce_operation = 'SUM')
+        assert rcvd_samples.cpu() >= expected_samples
+        return
+
     assert rcvd_samples >= expected_samples
 
 def test_streaming_remote_dataloader(name: str, split: str) -> None:
