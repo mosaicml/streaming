@@ -245,7 +245,7 @@ def test_streaming_remote_dataloader(name: str, split: str) -> None:
 
     data_loader = StreamingDataLoader(dataset,
                                       batch_size=batch_size,
-                                      num_workers=0,
+                                      num_workers=4,
                                       prefetch_factor=None,
                                       persistent_workers=False,
                                       pin_memory=True,
@@ -310,5 +310,6 @@ if __name__ == "__main__":
     #test_streaming_remote_dataloader(name = 'reddit_table_dbsql', split=None)
     #test_streaming_remote_dataloader(name = 'wiki_table_dbsql_cachelimit', split=None)
     #test_streaming_remote_dataloader(name = 'coco_table_dbsql', split=None)
-    test_streaming_remote_dataloader(name = 'evesize_level1_version_dbsql', split=None)
+    #test_streaming_remote_dataloader(name = 'evesize_level1_version_dbsql', split=None)
+    test_streaming_remote_dataloader(name = 'reddit_table_dbsql', split=None)
 
