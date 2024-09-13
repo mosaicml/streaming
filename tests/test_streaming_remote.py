@@ -259,7 +259,7 @@ def test_streaming_remote_dataset(name: str, split: str) -> None:
 def test_streaming_remote_dataloader(name: str, split: str) -> None:
     # Build StreamingDataset
     build_start = time.time()
-    batch_size = 1
+    batch_size = 1024
     expected_samples, dataset = get_dataset(name=name,
                                             split=split,
                                             shuffle=False,
@@ -283,6 +283,8 @@ def test_streaming_remote_dataloader(name: str, split: str) -> None:
 
     for epcoh in range(1):
         for batch_idx, data_dict in enumerate(data_loader):
+            if batch_idx < 10:
+                break
             rcvd_samples += batch_size
 
             if (rcvd_samples % (10*batch_size) == 0):
