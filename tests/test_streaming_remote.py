@@ -220,7 +220,7 @@ def get_dataset(name: str,
 def test_streaming_remote_dataset(name: str, split: str) -> None:
     # Build StreamingDataset
     build_start = time.time()
-    batch_size = 64
+    batch_size = 1024
     expected_samples, dataset = get_dataset(name=name,
                                             split=split,
                                             shuffle=False,
