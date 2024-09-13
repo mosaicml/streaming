@@ -141,7 +141,7 @@ def get_dataset(name: str,
         },
         'main_streaming_wiki_table_dbsql': {
             'local': f'/tmp/test_wiki_table_volume_05May1029',
-            'remote': 'SELECT text FROM main.streaming.wiki_table'
+            'remote': 'SELECT text FROM main.streaming.wiki_table',
             'num_samples': 5823210,
             'class': StreamingDataset,
             'kwargs': {
@@ -336,5 +336,5 @@ if __name__ == "__main__":
     #test_streaming_remote_dataloader(name = 'wiki_table_dbsql_cachelimit', split=None)
     #test_streaming_remote_dataloader(name = 'coco_table_dbsql', split=None)
     #test_streaming_remote_dataloader(name = 'evesize_level1_version_dbsql', split=None)
-    test_streaming_remote_dataloader(name = 'reddit_table_dbsql', split=None)
+    #test_streaming_remote_dataloader(name = 'reddit_table_dbsql', split=None)
 
