@@ -129,6 +129,29 @@ def get_dataset(name: str,
             },
             'shuffle': True,
         },
+        'main_streaming_wiki_table_mds': {
+            'local': f'/tmp/test_wiki_table_volume_05May1029',
+            'remote': 'dbfs:/Volumes/main/streaming/xiaohan_zhang/delta-streaming-benchmarks-mds/wiki_table',
+            'num_samples': 5823210,
+            'class': StreamingDataset,
+            'kwargs': {
+                'cache_limit': '100gb',
+            },
+            'shuffle': True,
+        },
+        'main_streaming_wiki_table_dbsql': {
+            'local': f'/tmp/test_wiki_table_volume_05May1029',
+            'remote': 'SELECT text FROM main.streaming.wiki_table'
+            'num_samples': 5823210,
+            'class': StreamingDataset,
+            'kwargs': {
+                'warehouse_id': "89cf2c9b9f9cb3bc",
+                'catalog': 'main',
+                'schema': 'streaming',
+                'cache_limit': '100gb',
+            },
+            'shuffle': True,
+        },
         'coco_table_dbsql': {
             'local': f'/tmp/test_coco_table_05May1029',
             'remote': 'SELECT data, captions FROM main.streaming.coco_with_meta_and_captions',
@@ -304,6 +327,8 @@ if __name__ == "__main__":
     #test_streaming_remote_dataset(name = 'debug_local', split=None)
     #test_streaming_remote_dataset(name = 'evesize_level1_filter_dbsql', split=None)
     #test_streaming_remote_dataset(name = 'evesize_level1_version_dbsql', split=None)
+    test_streaming_remote_dataset(name = 'main_streaming_wiki_table_mds', split=None)
+    #test_streaming_remote_dataset(name = 'main_streaming_wiki_table_dbsql', split=None)
 
     #test_streaming_remote_dataloader(name = 'refinedweb', split=None)
     #test_streaming_remote_dataloader(name = 'random_cpt_table_dbsql', split=None)
