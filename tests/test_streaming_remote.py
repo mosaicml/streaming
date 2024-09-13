@@ -3,6 +3,7 @@
 
 import pathlib
 import time
+import itertools
 from typing import Any, Dict, Optional, Tuple
 
 #import pytest
@@ -282,9 +283,9 @@ def test_streaming_remote_dataloader(name: str, split: str) -> None:
     iter_start = time.time()
 
     for epcoh in range(1):
-        for batch_idx, data_dict in enumerate(data_loader):
-            if batch_idx < 10:
-                break
+        skip_batches = 5
+        for batch_idx, data_dict in enumerate(itertools.islice(data_loader, skip_batches, None)):
+        #for batch_idx, data_dict in enumerate(data_loader):
             rcvd_samples += batch_size
 
             if (rcvd_samples % (10*batch_size) == 0):
