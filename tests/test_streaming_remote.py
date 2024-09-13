@@ -245,7 +245,7 @@ def test_streaming_remote_dataloader(name: str, split: str) -> None:
 
     data_loader = StreamingDataLoader(dataset,
                                       batch_size=batch_size,
-                                      num_workers=4,
+                                      num_workers=8,
                                       prefetch_factor=None,
                                       persistent_workers=False,
                                       pin_memory=True,
