@@ -332,7 +332,9 @@ class StreamingDataset(Array, IterableDataset):
                  batching_method: str = 'random',
                  allow_unsafe_types: bool = False,
                  replication: Optional[int] = None,
-                 delta_kwargs: Optional[dict] = None,
+                 warehouse_id: Optional[str] = None,
+                 catalog: Optional[str] = None,
+                 schema: Optional[str] = None,
                  **kwargs: Any) -> None:
         # Global arguments (which do not live in Streams).
         self.predownload = predownload
@@ -448,6 +450,7 @@ class StreamingDataset(Array, IterableDataset):
             for stream in streams:
                 stream.apply_default(default)
         elif remote is not None and remote.startswith('SELECT'):
+            delta_kwargs = {'warehouse_id': warehouse_id, 'catalog': catalog, 'schema': schema}
             cluster_id = delta_kwargs.get('cluster_id', None)
             if not cluster_id:
                 default = DeltaDBSQLStream(remote=remote,
