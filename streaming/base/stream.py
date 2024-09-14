@@ -777,6 +777,7 @@ class DeltaDBSQLStream(Stream):
             'struct': 'json',
             'tinyint': 'int8',
             'long': 'int8',
+            'array<struct<content: string, role: string>>': 'json', # special for messages
         }
 
     def generate_statement_id_and_sync(self, world: World):
