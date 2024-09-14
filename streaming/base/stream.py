@@ -741,7 +741,7 @@ class DeltaDBSQLStream(Stream):
         schema = kwargs.get('schema', None)
 
         if any([not warehouse_id, not host, not token, not catalog, not schema]):
-            raise TypeError(f"Need to specify warehouse_id, host, token catalog, schema, during initialization")
+            raise TypeError(f"Need to specify warehouse_id, host, token catalog, schema, during initialization, but got {warehouse_id}, {host}, {token}, {catalog}, {schema}")
 
         self.base_url = f"https://{host}/api/2.0/sql/statements/"
         self.headers = {
