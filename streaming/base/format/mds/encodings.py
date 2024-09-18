@@ -566,6 +566,14 @@ class StrArray(Encoding):
 
         return decoded_strings
 
+class IntArray(NDArray):
+    """Store a list of integers."""
+
+    def encode(self, ints: list[int]) -> bytes:
+        return self.encode(np.array(ints, dtype=np.int32))
+
+    def decode(self, encoded_bytes: bytes) -> list(int):
+        return self.decode(encoded_bytes).tolist()
 
 # Encodings (name -> class).
 _encodings = {
@@ -588,6 +596,7 @@ _encodings = {
     'str_float': StrFloat,
     'str_decimal': StrDecimal,
     'str_array': StrArray,
+    'int_array': IntArray,
     'pil': PIL,
     'jpeg': JPEG,
     'png': PNG,

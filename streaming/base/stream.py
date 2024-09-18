@@ -765,7 +765,7 @@ class DeltaDBSQLStream(Stream):
             'bigint' : 'int64',
             'array': 'ndarray',
             'array<string>': 'str_array',
-            'array<int>': 'ndarray:int32',
+            'array<int>': 'int_array',
             'binary': 'bytes',
             'boolean': 'uint32',
             'date': 'str',
