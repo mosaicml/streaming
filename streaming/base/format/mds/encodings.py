@@ -572,7 +572,7 @@ class IntArray(NDArray):
     def encode(self, ints: list[int]) -> bytes:
         return self.encode(np.array(ints, dtype=np.int32))
 
-    def decode(self, encoded_bytes: bytes) -> list(int):
+    def decode(self, encoded_bytes: bytes) -> list[int]:
         return self.decode(encoded_bytes).tolist()
 
 # Encodings (name -> class).
