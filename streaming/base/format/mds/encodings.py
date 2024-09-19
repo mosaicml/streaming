@@ -16,6 +16,8 @@ from PIL import Image
 from PIL.JpegImagePlugin import JpegImageFile
 from typing_extensions import Self
 
+import struct
+
 __all__ = [
     'get_mds_encoded_size', 'get_mds_encodings', 'is_mds_encoding', 'mds_decode', 'mds_encode',
     'is_mds_encoding_safe'
@@ -566,14 +568,35 @@ class StrArray(Encoding):
 
         return decoded_strings
 
-class IntArray(NDArray):
-    """Store a list of integers."""
 
-    def encode(self, ints: list[int]) -> bytes:
-        return self.encode(np.array(ints, dtype=np.int32))
+class IntArray(Encoding):
+    """Store a list of int32 integers efficiently."""
 
-    def decode(self, encoded_bytes: bytes) -> list[int]:
-        return self.decode(encoded_bytes).tolist()
+    def encode(self, integers: Any) -> bytes:
+        # Pack the length of the list as an unsigned 4-byte integer
+        list_length = len(integers)
+        encoded = struct.pack('<I', list_length)
+
+        if integers:
+            # Pack all integers in the list as 4-byte signed integers
+            encoded += struct.pack(f'<{list_length}i', *integers)
+
+        return encoded
+
+    def decode(self, encoded_bytes: bytes) -> Any:
+        index = 0
+
+        # Unpack the length of the list
+        list_length = struct.unpack_from('<I', encoded_bytes, index)[0]
+        index += 4
+
+        integers = []
+        if list_length > 0:
+            int_bytes_length = 4 * list_length
+            integers = list(struct.unpack_from(f'<{list_length}i', encoded_bytes, index))
+
+        return integers
+
 
 # Encodings (name -> class).
 _encodings = {
