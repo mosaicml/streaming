@@ -583,7 +583,7 @@ class IntArray(Encoding):
 
         return encoded
 
-    def decode(self, encoded_bytes: bytes) -> Any:
+    def decode(self, encoded_bytes: bytes) -> npt.NDArray:
         index = 0
 
         # Unpack the length of the list
@@ -595,7 +595,7 @@ class IntArray(Encoding):
             int_bytes_length = 4 * list_length
             integers = list(struct.unpack_from(f'<{list_length}i', encoded_bytes, index))
 
-        return integers
+        return np.array(integers, dtype=np.int32)
 
 
 # Encodings (name -> class).
