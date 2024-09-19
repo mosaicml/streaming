@@ -192,6 +192,19 @@ def get_dataset(name: str,
             },
             'shuffle': False,
         },
+        'finance_more_like_dbsql': {
+            'local': f'/tmp/test_finance_more_like_05May1029',
+            'remote': "SELECT llama_3_1_tokens AS tokens FROM main.seanowen.finance_more_like",
+            'num_samples': 210463508,
+            'class': StreamingDataset,
+            'kwargs': {
+                'warehouse_id': "89cf2c9b9f9cb3bc",
+                'catalog': 'main',
+                'schema': 'seanowen',
+                # 'cache_limit': '100mb',
+            },
+            'shuffle': False,
+        },
         'debug_local': {
             'local': f'/tmp/test_random_reddit_table_05May1029',
             'remote': None,
@@ -329,9 +342,10 @@ if __name__ == "__main__":
     #test_streaming_remote_dataset(name = 'prompt_response_table_dbsql', split=None)
     #test_streaming_remote_dataset(name = 'debug_local', split=None)
     #test_streaming_remote_dataset(name = 'evesize_level1_filter_dbsql', split=None)
-    test_streaming_remote_dataset(name = 'evesize_level1_version_dbsql', split=None)
+    #test_streaming_remote_dataset(name = 'evesize_level1_version_dbsql', split=None)
     #test_streaming_remote_dataset(name = 'main_streaming_wiki_table_mds', split=None)
     #test_streaming_remote_dataset(name = 'main_streaming_wiki_table_dbsql', split=None)
+    test_streaming_remote_dataset(name = 'finance_more_like_dbsql', split=None)
 
     #test_streaming_remote_dataloader(name = 'refinedweb', split=None)
     #test_streaming_remote_dataloader(name = 'random_cpt_table_dbsql', split=None)
