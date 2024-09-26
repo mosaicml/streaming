@@ -63,19 +63,19 @@ install_requires = [
 extra_deps = {}
 
 extra_deps['dev'] = [
-    'datasets>=2.4.0,<3',
+    'datasets>=2.4.0,<4',
     'pyarrow>14.0.0',
     'docformatter>=1.4',
-    'jupyter==1.0.0',
+    'jupyter==1.1.1',
     'pre-commit>=2.18.1,<4',
-    'pytest==8.3.2',
+    'pytest==8.3.3',
     'pytest_codeblocks==0.17.0',
     'pytest-cov>=4,<6',
     'toml==0.10.2',
     'yamllint==1.35.1',
     'moto>=4.0,<6',
-    'fastapi==0.112.2',
-    'pydantic==2.8.2',
+    'fastapi==0.114.2',
+    'pydantic==2.9.2',
     'uvicorn==0.30.6',
     'pytest-split==0.9.0',
 ]
