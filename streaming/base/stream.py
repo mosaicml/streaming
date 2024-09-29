@@ -734,9 +734,14 @@ class DeltaDBSQLStream(Stream):
                          validate_hash=validate_hash,
                          keep_zip=keep_zip)
 
+        from databricks.sdk import WorkspaceClient
+        w = WorkspaceClient()
+        host = w.config.host.lstrip('https://')
+        token = w.config.token
+        #host = kwargs.get('host', os.environ['DATABRICKS_HOST']).lstrip('https://')
+        #token = kwargs.get('token', os.environ['DATABRICKS_TOKEN'])
+
         warehouse_id = kwargs.get('warehouse_id', None)
-        host = kwargs.get('host', os.environ['DATABRICKS_HOST']).lstrip('https://')
-        token = kwargs.get('token', os.environ['DATABRICKS_TOKEN'])
         catalog = kwargs.get('catalog', None)
         schema = kwargs.get('schema', None)
 
