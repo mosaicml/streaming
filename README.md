@@ -147,9 +147,9 @@ Getting started guides, examples, API references, and other useful information c
 
 We have end-to-end tutorials for training a model on:
 
-- [CIFAR-10](https://streaming.docs.mosaicml.com/en/stable/examples/cifar10.html)
-- [FaceSynthetics](https://streaming.docs.mosaicml.com/en/stable/examples/facesynthetics.html)
-- [SyntheticNLP](https://streaming.docs.mosaicml.com/en/stable/examples/synthetic_nlp.html)
+- [CIFAR-10](https://docs.mosaicml.com/projects/streaming/en/stable/how_to_guides/cifar10.html)
+- [FaceSynthetics](https://github.com/mosaicml/streaming/blob/main/examples/facesynthetics.ipynb)
+- [SyntheticNLP](https://docs.mosaicml.com/projects/streaming/en/stable/how_to_guides/synthetic_nlp.html)
 
 We also have starter code for the following popular datasets, which can be found in the `streaming` [directory](https://github.com/mosaicml/streaming/tree/main/streaming):
 
