@@ -1080,7 +1080,7 @@ class StreamingDataset(Array, IterableDataset):
             raise RuntimeError(f'Negative cache usage: {self.cache_usage}.')
 
     def _evict_coldest_shard(self) -> None:
-        """Evict the coldeset (i.e., least recently accessed) shard.
+        """Evict the coldest (i.e., least recently accessed) local shard.
 
         Assumes you hold ``__cache_filelock``, preventing anyone else from modifying the cache. We
         expect that shard deletions are very fast.
@@ -1089,15 +1089,16 @@ class StreamingDataset(Array, IterableDataset):
         """
         states = self._shard_states.numpy()
         access_times = self._shard_access_times.numpy()
-        # Filter indices to include only local shards
-        indices = np.where(states == 3)[0]
-        if indices.size == 0:
-            raise ValueError('Could not evict because no local shards.')
-        local_times = access_times[indices]
+        # Filter shard ids to include only local shards
+        local_shard_ids = np.where(states == _ShardState.LOCAL)[0]
+        if local_shard_ids.size == 0:
+            raise ValueError('Attempted shard eviction, but there are no shards present locally ' +
+                             'to evict. Your cache limit may be too low.')
+        local_shard_times = access_times[local_shard_ids]
         # Find local shard with oldest last access time
-        shard_id = indices[np.argmin(local_times)]
+        coldest_shard_id = local_shard_ids[np.argmin(local_shard_times)]
         # Evict that shard.
-        self._evict_shard(shard_id)
+        self._evict_shard(coldest_shard_id)
 
     def evict_shard(self, shard_id: int) -> None:
         """Evict the given shard.
