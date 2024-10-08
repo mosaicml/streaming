@@ -415,7 +415,7 @@ class StreamingDataset(Array, IterableDataset):
                           f'predownload to at-least batch_size.')
         elif self.predownload is None:
             logger.info(f'Because `predownload` was not specified, it will default to ' +
-                           f'8*batch_size if batch_size is not None, otherwise 64.')
+                        f'8*batch_size if batch_size is not None, otherwise 64.')
             self.predownload = 8 * self.batch_size if self.batch_size is not None else 64
 
         # Convert epoch size from string to int, if needed. Cannot be negative.
@@ -668,8 +668,8 @@ class StreamingDataset(Array, IterableDataset):
         if self.shuffle_block_size is None:
             if not world.worker_of_rank:
                 logger.info(f'Because `shuffle_block_size` was not specified, it will ' +
-                               f'default to max(4_000_000 // num_canonical_nodes, 1 << 18) if ' +
-                               f'num_canonical_nodes is not None, otherwise 262144.')
+                            f'default to max(4_000_000 // num_canonical_nodes, 1 << 18) if ' +
+                            f'num_canonical_nodes is not None, otherwise 262144.')
             self.shuffle_block_size = max(4_000_000 // self.num_canonical_nodes, 1 << 18) \
                 if self.num_canonical_nodes is not None else 1 << 18
 
@@ -694,10 +694,9 @@ class StreamingDataset(Array, IterableDataset):
                     self.num_canonical_nodes = 64 * world.num_nodes
                 else:
                     if not world.worker_of_rank:
-                        logger.info(
-                            f'Because `num_canonical_nodes` was not specified, and ' +
-                            f'`shuffle_algo` is {self.shuffle_algo}, it will default to ' +
-                            f'be equal to physical nodes.')
+                        logger.info(f'Because `num_canonical_nodes` was not specified, and ' +
+                                    f'`shuffle_algo` is {self.shuffle_algo}, it will default to ' +
+                                    f'be equal to physical nodes.')
                     self.num_canonical_nodes = world.num_nodes
             self._set_shuffle_block_size(world)
             return epoch, 0

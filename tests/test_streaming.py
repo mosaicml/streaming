@@ -1,12 +1,11 @@
 # Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-import logging
 import math
 import os
 import shutil
 from multiprocessing import Process
-from typing import Any, Callable
+from typing import Any
 
 import pytest
 from torch.utils.data import DataLoader
