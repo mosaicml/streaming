@@ -84,6 +84,7 @@ repos:
   - id: docformatter
     args: [--in-place, --wrap-summaries=99, --wrap-descriptions=99]
     exclude: "(tests)"
+    language: python
 - repo: https://github.com/adrienverge/yamllint.git
   rev: v1.28.0
   hooks:
