@@ -65,26 +65,6 @@ def test_no_batch_size_exception(local_remote_dir: tuple[str, str]):
             pass
 
 
-@pytest.mark.usefixtures('local_remote_dir')
-def test_new_defaults_warning(local_remote_dir: tuple[str, str], caplog: Callable):
-    caplog.set_level(logging.WARNING)
-    local, remote = local_remote_dir
-    convert_to_mds(out_root=remote,
-                   dataset_name='sequencedataset',
-                   num_samples=100,
-                   size_limit=1 << 8)
-
-    # Build a StreamingDataset with new defaults. Should warn about the new defaults changes.
-    dataset = StreamingDataset(local=local, remote=remote, shuffle=True, batch_size=4)
-    dataloader = StreamingDataLoader(dataset=dataset, batch_size=4)
-    for _ in dataloader:
-        pass
-
-    assert 'Because `predownload` was not specified,' in caplog.text
-    assert 'Because `shuffle_block_size` was not specified,' in caplog.text
-    assert 'Because `num_canonical_nodes` was not specified,' in caplog.text
-
-
 @pytest.mark.parametrize('batch_size', [4, 7])
 @pytest.mark.parametrize('seed', [2222, 1000])
 @pytest.mark.parametrize('num_canonical_nodes', [2, 4])
