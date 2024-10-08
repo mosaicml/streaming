@@ -84,7 +84,7 @@ dataset = StreamingDataset(
     ...
 )
 # Retrieves the number of unique samples -- no up or down sampling applied
-num_dataset_samples = dataset.size()
+num_dataset_samples = dataset.size
 # Will contain tuples of (stream id, shard id, sample id)
 stream_shard_sample_ids = []
 for global_sample_idx in range(num_dataset_samples):
