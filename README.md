@@ -43,6 +43,9 @@
     <a href="https://github.com/mosaicml/streaming/blob/main/LICENSE">
         <img alt="License" src="https://img.shields.io/badge/License-Apache%202.0-green.svg?logo=slack">
     </a>
+    <a href="https://gurubase.io/g/streaming">
+        <img alt="License" src="https://img.shields.io/badge/Gurubase-Ask%20Streaming%20Guru-006BFF">
+    </a>
 </p>
 <br />
 
