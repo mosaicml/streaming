@@ -203,7 +203,8 @@ def get_shm_prefix(streams_local: list[str],
                 shm = SharedMemory(name, False)
             except FileNotFoundError:
                 raise RuntimeError(f'Internal error: shared memory prefix was not registered by ' +
-                                   f'local leader')
+                                   f'local leader.' +
+                                   f'possibly specified different ``local`` from different ranks')
             their_locals, their_prefix_int = _unpack_locals(bytes(shm.buf))
             if streams_local == their_locals and prefix_int == their_prefix_int:
                 break
