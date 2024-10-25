@@ -112,6 +112,10 @@ def _check_and_find(streams_local: list[str], streams_remote: list[Union[str, No
             shm = SharedMemory(name, False)
         except FileNotFoundError:
             break
+        except PermissionError:
+            # When trying to attach to a shm file on shared cluster
+            # may run into permission issue, we need to keep search.
+            continue
         their_locals, _ = _unpack_locals(bytes(shm.buf))
         # Do not check for a conflicting local directories across existing shared memory if
         # remote directories are None. Get the next prefix.
@@ -205,6 +209,8 @@ def get_shm_prefix(streams_local: list[str],
                 raise RuntimeError(f'Internal error: shared memory prefix was not registered by ' +
                                    f'local leader. This may be because you specified ' +
                                    f'different ``local`` parameters from different ranks.')
+            except PermissionError:
+                continue
             their_locals, their_prefix_int = _unpack_locals(bytes(shm.buf))
             if streams_local == their_locals and prefix_int == their_prefix_int:
                 break
