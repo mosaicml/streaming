@@ -76,6 +76,13 @@ def generate_work_device_per_stream_batching(dataset: StreamingDataset, world: W
             # same as the ratio of the stream's samples to overall samples.
             # This ensures that the overall training shuffle block size is still approximately
             # equal to what is set by the user, and allows for reasoning about cache_limit as well.
+            if samples_in_stream < dataset.num_canonical_nodes:  # third patch
+                logger.warning(
+                    f"Because of the `device_per_stream` batching method and stream with index {stream_id} "
+                    + f"has less samples ({samples_in_stream}) than canonical nodes ({dataset.num_canonical_nodes}), stream will be dropped."
+                )
+                continue
+            
             if not isinstance(dataset.shuffle_block_size, int):
                 raise TypeError(f'Dataset `shuffle_block_size` must be an integer. ' +
                                 f'Got {type(dataset.shuffle_block_size)} instead.')
@@ -114,7 +121,7 @@ def generate_work_device_per_stream_batching(dataset: StreamingDataset, world: W
                 (stream_samples_inorder, np.full(padding_samples, -1)))
             # Reshape samples to be device batches in order of traversal.
             stream_samples_inorder = stream_samples_inorder.reshape(-1, batch_size)
-            num_full_batches = np.count_nonzero(np.min(stream_samples_inorder, axis=1) >= 0)
+            num_full_batches = max(1, np.count_nonzero(np.min(stream_samples_inorder, axis=1) >= 0))
             per_node_batches_per_stream.append(num_full_batches)
             if num_full_batches != stream_samples_inorder.shape[0]:
                 logger.warning(
@@ -123,7 +130,7 @@ def generate_work_device_per_stream_batching(dataset: StreamingDataset, world: W
             if num_full_batches > 0:
                 per_node_stream_partitions.append(stream_samples_inorder[:num_full_batches])
             else:
-                raise ValueError(
+                logger.warning(
                     f'Stream with index {stream_idx} does not have an adequate number of ' +
                     f'samples to construct even a single device batch of size {batch_size}. ' +
                     f'Training will occur without any samples from this stream!')

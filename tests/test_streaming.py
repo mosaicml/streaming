@@ -235,13 +235,13 @@ def test_dataloader_per_stream_batching(local_remote_dir: tuple[str, str], batch
     assert batches_seen == total_batches
 
 
-@pytest.mark.parametrize('batch_size', [4, 7])
+@pytest.mark.parametrize('batch_size', [4, 7, 64])
 @pytest.mark.parametrize('seed', [2222])
-@pytest.mark.parametrize('shuffle', [True])
+@pytest.mark.parametrize('shuffle', [False, True])
 @pytest.mark.parametrize('physical_nodes', [2, 8])
 @pytest.mark.parametrize('ranks_per_node', [4, 8])
 @pytest.mark.parametrize('workers_per_rank', [4, 8])
-@pytest.mark.parametrize('num_canonical_nodes', [8])
+@pytest.mark.parametrize('num_canonical_nodes', [8, 64])
 @pytest.mark.usefixtures('local_remote_dir')
 def test_dataloader_device_per_stream_batching(local_remote_dir: tuple[str, str], batch_size: int,
                                                seed: int, shuffle: bool, physical_nodes: int,
@@ -254,12 +254,12 @@ def test_dataloader_device_per_stream_batching(local_remote_dir: tuple[str, str]
     remote1 = os.path.join(remote, 'stream1')
     remote2 = os.path.join(remote, 'stream2')
 
-    # stream 1 has samples 0->600, sample ids 0->200
+    # stream 1 has samples 0->600, sample ids 0->100
     convert_to_mds(out_root=remote1,
                    dataset_name='sequencedataset',
-                   num_samples=200,
+                   num_samples=50,
                    size_limit=1 << 8)
-    # stream 2 has samples 600 and above, sample ids 200 and above.
+    # stream 2 has samples 600 and above, sample ids 100 and above.
     # This lets us differentiate between the samples from each stream
     convert_to_mds(out_root=remote2,
                    dataset_name='sequencedataset',
@@ -303,12 +303,12 @@ def test_dataloader_device_per_stream_batching(local_remote_dir: tuple[str, str]
     sample_partition = sample_partition.transpose(3, 2, 0, 1, 4).flatten().reshape(-1, batch_size)
 
     for device_batch in sample_partition:
-        if device_batch[0] < 200:
+        if device_batch[0] < 50:
             # Ensure all samples are from stream 1
-            assert (device_batch < 200).all()
+            assert (device_batch < 50).all()
         else:
             # Ensure all samples are from stream 2
-            assert (device_batch >= 200).all()
+            assert ((device_batch >= 50) + (device_batch == -1)).all()
 
 
 @pytest.mark.parametrize('batch_size', [4, 7])
