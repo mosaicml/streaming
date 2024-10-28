@@ -13,7 +13,7 @@ import pytest
 
 from streaming.base.constant import RESUME
 from streaming.base.shared.prefix import _get_path
-from streaming.base.storage.download import download_file
+from streaming.base.storage.download import CloudDownloader
 from streaming.base.storage.upload import CloudUploader
 from streaming.base.util import (bytes_to_int, clean_stale_shared_memory, get_list_arg,
                                  merge_index, number_abbrev_to_int, retry)
@@ -151,9 +151,9 @@ def integrity_check(out: Union[str, tuple[str, str]],
 
     with tempfile.TemporaryDirectory() as temp_dir:
         if cu.remote:
-            download_file(os.path.join(cu.remote, 'index.json'),
-                          os.path.join(temp_dir, 'index.json'),
-                          timeout=60)
+            CloudDownloader.direct_download(os.path.join(cu.remote, 'index.json'),
+                                            os.path.join(temp_dir, 'index.json'),
+                                            timeout=60)
             if expected_n_shard_files == -1:
                 expected_n_shard_files = get_expected(cu.remote)
             local_merged_index_path = os.path.join(temp_dir, 'index.json')

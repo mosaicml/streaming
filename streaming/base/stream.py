@@ -18,7 +18,7 @@ from streaming.base.constant import TICK
 from streaming.base.distributed import barrier, get_local_rank
 from streaming.base.format import FileInfo, Reader, get_index_basename, reader_from_json
 from streaming.base.hashing import get_hash
-from streaming.base.storage import download_file
+from streaming.base.storage import CloudDownloader
 from streaming.base.util import retry, wait_for_file_to_exist
 from streaming.base.world import World
 
@@ -161,6 +161,8 @@ class Stream:
         if keep_zip is not None:
             self.keep_zip = keep_zip
             self.safe_keep_zip = self.keep_zip or self.remote in {None, self.local}
+
+        self._downloader = CloudDownloader.get(remote)
 
     def _get_temporary_directory(self) -> str:
         """Construct a path to a temporary directory based on remote and split."""
@@ -309,7 +311,7 @@ class Stream:
 
         # Attempt to download, possibly repeating on failure.
         retry(num_attempts=self.download_retry)(
-            lambda: download_file(remote, local, self.download_timeout))()
+            lambda: self._downloader.download(remote, local, self.download_timeout))()
 
         return local
 

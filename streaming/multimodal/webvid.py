@@ -9,7 +9,7 @@ from typing import Any, Optional
 
 from streaming.base import StreamingDataset
 from streaming.base.dataset import TICK, _Iterator
-from streaming.base.storage import download_file
+from streaming.base.storage import CloudDownloader
 
 
 class StreamingInsideWebVid(StreamingDataset):
@@ -191,6 +191,8 @@ class StreamingOutsideGIWebVid(StreamingDataset):
         self.extra_local = extra_local
         self.extra_remote = extra_remote
 
+        self._extra_downloader = CloudDownloader.get(extra_remote)
+
     def get_item(self, idx: int) -> Any:
         """Get the sample at the index.
 
@@ -207,7 +209,7 @@ class StreamingOutsideGIWebVid(StreamingDataset):
             local = os.path.join(self.extra_local, rel_path)
             remote = os.path.join(self.extra_remote, rel_path)
             if not os.path.exists(local):
-                download_file(remote, local, self.download_timeout)
+                self._extra_downloader.download(remote, local, self.download_timeout)
             with open(local, 'rb') as fp:
                 content = fp.read()
             obj['content'] = content
@@ -322,6 +324,8 @@ class StreamingOutsideDTWebVid(StreamingDataset):
         self.extra_local = extra_local
         self.extra_remote = extra_remote
 
+        self._extra_downloader = CloudDownloader.get(extra_remote)
+
     def get_item(self, idx: int) -> Any:
         """Get the sample at the index.
 
@@ -338,7 +342,7 @@ class StreamingOutsideDTWebVid(StreamingDataset):
             local = os.path.join(self.extra_local, rel_path)
             remote = os.path.join(self.extra_remote, rel_path)
             if not os.path.exists(local):
-                download_file(remote, local, self.download_timeout)
+                self._extra_downloader.download(remote, local, self.download_timeout)
             with open(local, 'rb') as fp:
                 content = fp.read()
             obj['content'] = content
@@ -396,7 +400,7 @@ class StreamingOutsideDTWebVid(StreamingDataset):
                 local = os.path.join(self.extra_local, rel_path)
                 remote = os.path.join(self.extra_remote, rel_path)
                 if not os.path.exists(local):
-                    download_file(remote, local, self.download_timeout)
+                    self._extra_downloader.download(remote, local, self.download_timeout)
 
             # Step forward one sample.
             it.prepare_index += 1

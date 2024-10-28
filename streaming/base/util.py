@@ -276,7 +276,7 @@ def _merge_index_from_list(index_file_urls: Sequence[Union[str, tuple[str, str]]
         keep_local (bool): Keep local copy of the merged index file. Defaults to ``True``
         download_timeout (int): The allowed time for downloading each json file. Defaults to 60.
     """
-    from streaming.base.storage.download import download_file
+    from streaming.base.storage.download import CloudDownloader
     from streaming.base.storage.upload import CloudUploader
 
     if not index_file_urls or not out:
@@ -319,7 +319,7 @@ def _merge_index_from_list(index_file_urls: Sequence[Union[str, tuple[str, str]]
             dest = os.path.join(temp_root, path.lstrip('/'))
 
             try:
-                download_file(src, dest, download_timeout)
+                CloudDownloader.direct_download(src, dest, download_timeout)
             except Exception as ex:
                 raise RuntimeError(f'Failed to download index.json: {src} to {dest}') from ex
 
