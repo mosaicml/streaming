@@ -7,15 +7,16 @@ The prefix is used by all workers using this StreamingDataset of this training j
 prevent shared resources like shared memory from colliding.
 """
 
+import os
 from collections import Counter
+from tempfile import gettempdir
 from time import sleep
 from typing import Iterator, Union
 
-from tempfile import gettempdir
 import numpy as np
 from torch import distributed as dist
 
-from streaming.base.constant import LOCALS, TICK, SHM_TO_CLEAN
+from streaming.base.constant import LOCALS, SHM_TO_CLEAN, TICK
 from streaming.base.shared import SharedMemory
 from streaming.base.world import World
 
@@ -109,16 +110,23 @@ def _check_and_find(streams_local: list[str], streams_remote: list[Union[str, No
     prefix_int = 0
     for prefix_int in _each_prefix_int():
         name = _get_path(prefix_int, LOCALS)
+
+        # Check if any shared memory filelocks exist for the current prefix
+        try:
+            shared_memory_exists = any(
+                os.path.exists(os.path.join(gettempdir(), _get_path(prefix_int, shm_name)))
+                for shm_name in SHM_TO_CLEAN)
+            if shared_memory_exists:
+                continue
+        except PermissionError:
+            continue
+
+        # Attempt to access shared memory by name. Use prefix_int if files do not exist
         try:
             shm = SharedMemory(name, False)
         except PermissionError:
             continue
         except FileNotFoundError:
-            try:
-                if any([os.path.exists(os.path.join(gettempdir(), _get_path(prefix_int, shm_name))) for shm_name in SHM_TO_CLEAN]):
-                    continue
-            except PermissionError:
-                continue
             break
         their_locals, _ = _unpack_locals(bytes(shm.buf))
         # Do not check for a conflicting local directories across existing shared memory if
