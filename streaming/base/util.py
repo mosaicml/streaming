@@ -165,7 +165,6 @@ def number_abbrev_to_int(abbrev_str: Union[int, str]) -> int:
                 f'{list(units.keys())}.'
             ]))
 
-
 def clean_stale_shared_memory() -> None:
     """Clean up all the leaked shared memory.
 
@@ -184,9 +183,12 @@ def clean_stale_shared_memory() -> None:
                 try:
                     shm = BuiltinSharedMemory(name, True, 4)
                 except FileExistsError:
-                    shm = BuiltinSharedMemory(name, False, 4)
-                    leaked_shm = True
-                finally:
+                    try:
+                        shm = BuiltinSharedMemory(name, False, 4)
+                        leaked_shm = True
+                    except PermissionError:
+                        continue
+                if shm:
                     shm.close()  # pyright: ignore
                     shm.unlink()
             # Come out of loop if no leaked shared memory
