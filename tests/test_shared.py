@@ -1,19 +1,19 @@
 # Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+import os
+import tempfile
 from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
 
-import os
-import tempfile
 from streaming.base import StreamingDataset
 from streaming.base.shared import SharedArray, get_shm_prefix
 from streaming.base.shared.prefix import _check_and_find
+from streaming.base.util import clean_stale_shared_memory
 from streaming.base.world import World
 from tests.common.utils import convert_to_mds
-from streaming.base.util import clean_stale_shared_memory
 
 
 @pytest.mark.usefixtures('local_remote_dir')
