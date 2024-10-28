@@ -16,7 +16,7 @@ from typing import Iterator, Union
 import numpy as np
 from torch import distributed as dist
 
-from streaming.base.constant import LOCALS, SHM_TO_CLEAN, TICK
+from streaming.base.constant import BARRIER_FILELOCK, CACHE_FILELOCK, LOCALS, TICK
 from streaming.base.shared import SharedMemory
 from streaming.base.world import World
 
@@ -113,10 +113,10 @@ def _check_and_find(streams_local: list[str], streams_remote: list[Union[str, No
 
         # Check if any shared memory filelocks exist for the current prefix
         try:
-            shared_memory_exists = any(
-                os.path.exists(os.path.join(gettempdir(), _get_path(prefix_int, shm_name)))
-                for shm_name in SHM_TO_CLEAN)
-            if shared_memory_exists:
+            filelock_exists = any(
+                os.path.exists(os.path.join(gettempdir(), _get_path(prefix_int, filelock_name)))
+                for filelock_name in [BARRIER_FILELOCK, CACHE_FILELOCK])
+            if filelock_exists:
                 continue
         except PermissionError:
             continue
