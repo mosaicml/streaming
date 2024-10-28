@@ -6,10 +6,14 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
+import os
+import tempfile
 from streaming.base import StreamingDataset
 from streaming.base.shared import SharedArray, get_shm_prefix
+from streaming.base.shared.prefix import _check_and_find
 from streaming.base.world import World
 from tests.common.utils import convert_to_mds
+from streaming.base.util import clean_stale_shared_memory
 
 
 @pytest.mark.usefixtures('local_remote_dir')
@@ -157,3 +161,18 @@ def test_shared_array_size_is_integer(mock_shared_memory: MagicMock, dtype: type
     mock_shared_memory.assert_called_once()  # pyright: ignore
     size_arg = mock_shared_memory.call_args[1]['size']
     assert isinstance(size_arg, int), 'Size passed to SharedMemory is not an integer'
+
+
+def test_check_and_find_skips_filelock_conflict():
+    """Test _check_and_find skips prefix due to file lock conflict."""
+    clean_stale_shared_memory()
+
+    with patch('os.path.exists') as mock_exists, \
+         patch('multiprocessing.shared_memory.SharedMemory', side_effect=FileNotFoundError):
+        # Simulate that `/000000.barrier_filelock` exists, indicating a lock conflict
+        bf_path = os.path.join(tempfile.gettempdir(), '000000_barrier_filelock')
+        mock_exists.side_effect = lambda path: path == bf_path
+
+        # Expect _check_and_find to return 1 as the next available prefix
+        next_prefix = _check_and_find(['local_dir'], [None])
+        assert next_prefix == 1
