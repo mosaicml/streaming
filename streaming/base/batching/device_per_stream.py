@@ -87,7 +87,7 @@ def generate_work_device_per_stream_batching(dataset: StreamingDataset, world: W
             if not isinstance(dataset.shuffle_block_size, int):
                 raise TypeError(f'Dataset `shuffle_block_size` must be an integer. ' +
                                 f'Got {type(dataset.shuffle_block_size)} instead.')
-            shuffle_block_portion = int(dataset.shuffle_block_size * stream.proportion)
+            shuffle_block_portion = max(1, int(dataset.shuffle_block_size * stream.proportion))
             stream_shuffle = get_shuffle(dataset.shuffle_algo, shuffle_units,
                                          dataset.num_canonical_nodes, dataset.shuffle_seed, epoch,
                                          shuffle_block_portion)
@@ -122,8 +122,7 @@ def generate_work_device_per_stream_batching(dataset: StreamingDataset, world: W
                 (stream_samples_inorder, np.full(padding_samples, -1)))
             # Reshape samples to be device batches in order of traversal.
             stream_samples_inorder = stream_samples_inorder.reshape(-1, batch_size)
-            num_full_batches = max(1,
-                                   np.count_nonzero(np.min(stream_samples_inorder, axis=1) >= 0))
+            num_full_batches = np.count_nonzero(np.min(stream_samples_inorder, axis=1) >= 0)
             per_node_batches_per_stream.append(num_full_batches)
             if num_full_batches != stream_samples_inorder.shape[0]:
                 logger.warning(
