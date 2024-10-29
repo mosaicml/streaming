@@ -51,10 +51,11 @@ class CloudDownloader(abc.ABC):
             CloudDownloader: Downloader for the remote path.
 
         Raises:
-            ValueError: If the remote path is not provided or remote path is not supported.
+            ValueError: If the remote path is not supported.
         """
-        if not remote_dir:
-            raise ValueError('Remote path must be provided.')
+        if remote_dir is None:
+            # Return the default downloader, assuming that it exists
+            return DOWNLOADER_MAPPINGS['']()
 
         prefix = urllib.parse.urlparse(remote_dir).scheme
         if prefix == 'dbfs' and remote_dir.startswith('dbfs:/Volumes'):
@@ -93,6 +94,9 @@ class CloudDownloader(abc.ABC):
             ValueError: If the remote path does not contain the expected prefix or remote is
                 not provided.
         """
+        if os.path.exists(local):
+            return
+
         if not remote:
             raise ValueError(
                 'In the absence of local dataset, path to remote dataset must be provided')
@@ -838,6 +842,9 @@ def _register_cloud_downloader_subclasses() -> dict[str, type[CloudDownloader]]:
 
     for sub_class in sub_classes:
         downloader_mappings[sub_class.prefix()] = sub_class
+
+    if '' not in downloader_mappings:
+        raise ValueError('A default downloader with the prefix of an empty string is required.')
 
     return downloader_mappings
 
