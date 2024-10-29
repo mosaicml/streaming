@@ -135,6 +135,7 @@ def _check_and_find(streams_local: list[str], streams_remote: list[Union[str, No
             # Get the indices of the local directories which matches with the current
             # shared memory.
             matching_index = np.where(np.isin(streams_local, their_locals))[0]
+            print(f'{matching_index =}')
             if matching_index.size > 0:
                 for idx in matching_index:
                     # If there is a conflicting local directory for a non-None remote directory,
@@ -207,6 +208,7 @@ def get_shm_prefix(streams_local: list[str],
         data = _pack_locals(streams_local, prefix_int)
         shm = SharedMemory(name, True, len(data))
         shm.buf[:len(data)] = data
+        print(f'local_leader: {prefix_int=}')
 
     if dist.is_available() and dist.is_initialized():
         dist.barrier()
@@ -238,5 +240,5 @@ def get_shm_prefix(streams_local: list[str],
             their_locals, their_prefix_int = _unpack_locals(bytes(shm.buf))
             if streams_local == their_locals and prefix_int == their_prefix_int:
                 break
-
+        print(f'non-local_leader: {prefix_int=}')
     return prefix_int, shm  # pyright: ignore
