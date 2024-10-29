@@ -178,9 +178,14 @@ def test_check_and_find_skips_filelock_conflict():
         next_prefix = _check_and_find(['local_dir'], [None])
         assert next_prefix == 1
 
-@patch.object(streaming.base.shared.memory.SharedMemory, "__init__",
-    side_effect=[PermissionError("Mocked permission error"), FileNotFoundError("Mocked file not found error")])
+
+@patch.object(streaming.base.shared.memory.SharedMemory,
+              '__init__',
+              side_effect=[
+                  PermissionError('Mocked permission error'),
+                  FileNotFoundError('Mocked file not found error')
+              ])
 def test_shared_memory_permission_error(mock_shared_memory_class):
-    with patch('os.path.exists', return_value = False):
+    with patch('os.path.exists', return_value=False):
         next_prefix = _check_and_find(['local'], [None])
         assert next_prefix == 1
