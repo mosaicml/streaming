@@ -196,6 +196,14 @@ def clean_stale_shared_memory() -> None:
             if not leaked_shm:
                 break
 
+        for prefix_int in range(1000000):
+            for filelock in [BARRIER_FILELOCK, CACHE_FILELOCK]:
+                filename = os.path.join(tempfile.gettempdir(), _get_path(prefix_int, filelock))
+                try:
+                    shutil.rmtree(filename, ignore_errors=True)
+                except PermissionError:
+                    continue
+
     # Sync all ranks
     if dist.is_available() and dist.is_initialized():
         dist.barrier()
