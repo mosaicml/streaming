@@ -20,7 +20,7 @@ from typing import Any, Callable, Sequence, TypeVar, Union, cast, overload
 
 import torch.distributed as dist
 
-from streaming.base.constant import SHM_TO_CLEAN
+from streaming.base.constant import SHM_TO_CLEAN, BARRIER_FILELOCK, CACHE_FILELOCK
 from streaming.base.distributed import get_local_rank, maybe_init_dist
 from streaming.base.format.index import get_index_basename
 from streaming.base.shared.prefix import _get_path
