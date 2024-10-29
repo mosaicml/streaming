@@ -215,8 +215,21 @@ def get_shm_prefix(streams_local: list[str],
     if not world.is_local_leader:
         for prefix_int in _each_prefix_int():
             name = _get_path(prefix_int, LOCALS)
+            # Check if any shared memory filelocks exist for the current prefix
+            try:
+                filelock_exists = any(
+                    os.path.exists(os.path.join(gettempdir(), _get_path(prefix_int, filelock_name)))
+                    for filelock_name in [BARRIER_FILELOCK, CACHE_FILELOCK])
+                if filelock_exists:
+                    continue
+            except PermissionError:
+                continue
+
+            # Attempt to access shared memory by name. Use prefix_int if files do not exist
             try:
                 shm = SharedMemory(name, False)
+            except PermissionError:
+                continue
             except FileNotFoundError:
                 raise RuntimeError(f'Internal error: shared memory prefix was not registered by ' +
                                    f'local leader. This may be because you specified ' +
