@@ -41,11 +41,11 @@ class CloudDownloader(abc.ABC):
     """Download files from a remote storage to a local filesystem."""
 
     @classmethod
-    def get(cls, remote_dir: Optional[str]) -> 'CloudDownloader':
+    def get(cls, remote_dir: Optional[str] = None) -> 'CloudDownloader':
         """Get the downloader for the remote path.
 
         Args:
-            remote (str): Remote path.
+            remote (str | None): Remote path.
 
         Returns:
             CloudDownloader: Downloader for the remote path.
@@ -70,12 +70,13 @@ class CloudDownloader(abc.ABC):
         """Directly download a file from remote storage to local filesystem.
 
         Args:
-            remote (str): Remote path.
+            remote (str | None): Remote path.
             local (str): Local path.
             timeout (float): How long to wait for file to download before raising an exception.
 
         Raises:
-            ValueError: If the remote path is not provided or remote path is not supported.
+            ValueError: If the remote path is not provided while local does not exist or remote
+                path is not supported.
         """
         downloader = cls.get(remote)
         downloader.download(remote, local, timeout)
@@ -85,13 +86,13 @@ class CloudDownloader(abc.ABC):
         """Download a file from remote storage to local filesystem.
 
         Args:
-            remote (str): Remote path.
+            remote (str | None): Remote path.
             local (str): Local path.
             timeout (float): How long to wait for file to download before raising an exception.
 
         Raises:
             ValueError: If the remote path does not contain the expected prefix or remote is
-                not provided.
+                not provided while local does not exist.
         """
         if os.path.exists(local):
             return
