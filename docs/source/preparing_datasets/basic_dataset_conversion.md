@@ -7,13 +7,11 @@ This guide covers how to convert your raw data to MDS format using {class}`strea
 Use {class}`streaming.MDSWriter` to convert raw data to MDS format. MDSWriter is like a native file writer; instead of writing the content line by line, MDSWriter writes the data sample by sample. It writes the data into shard files in a sequential manner (for example, `shard.00000.mds`, then `shard.00001.mds`, and so on). Configure {class}`streaming.MDSWriter` according to your requirements with the parameters below:
 
 1. An `out` parameter is an output directory to save shard files. The `out` directory can be specified in three ways:
-
-- **Local path**: Shard files are stored locally.
-- **Remote path**: A local temporary directory is created to cache the shard files, and when shard creation is complete, they are uploaded to the remote location.
-- **`(local_dir, remote_dir)` tuple**: Shard files are saved in the specified `local_dir` and uploaded to `remote_dir`.
+ * **Local path**: Shard files are stored locally.
+ * **Remote path**: A local temporary directory is created to cache the shard files, and when shard creation is complete, they are uploaded to the remote location.
+ * **`(local_dir, remote_dir)` tuple**: Shard files are saved in the specified `local_dir` and uploaded to `remote_dir`.
 
 <!--pytest.mark.skip-->
-
 ```python
 out = '/local/data'
 out = 's3://bucket/data' # Will create a temporary local dir
@@ -24,39 +22,37 @@ out = ('/local/data', 'oci://bucket/data')
 
 3. A `column` parameter is a `dict` mapping a feature name or label name with a streaming supported encoding type. `MDSWriter` encodes your data to bytes, and at training time, data gets decoded back automatically to its original form. The `index.json` file stores `column` metadata for decoding. Supported encoding formats are:
 
-| Category           | Name                  | Class                                                                      | Notes                                                                                          |
-| ------------------ | --------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Encoding           | 'bytes'               | `Bytes`                                                                    | no-op encoding                                                                                 |
-| Encoding           | 'str'                 | `Str`                                                                      | stores in UTF-8                                                                                |
-| Encoding           | 'int'                 | `Int`                                                                      | Python `int`, uses `numpy.int64` for encoding                                                  |
-| Numpy Array        | 'ndarray:dtype:shape' | `NDArray(dtype: Optional[str] = None, shape: Optional[Tuple[int]] = None)` | uses `numpy.ndarray`                                                                           |
-| Numpy Unsigned Int | 'uint8'               | `UInt8`                                                                    | uses `numpy.uint8`                                                                             |
-| Numpy Unsigned Int | 'uint16'              | `UInt16`                                                                   | uses `numpy.uint16`                                                                            |
-| Numpy Unsigned Int | 'uint32'              | `Uint32`                                                                   | uses `numpy.uint32`                                                                            |
-| Numpy Unsigned Int | 'uint64'              | `Uint64`                                                                   | uses `numpy.uint64`                                                                            |
-| Numpy Signed Int   | 'int8'                | `Int8`                                                                     | uses `numpy.int8`                                                                              |
-| Numpy Signed Int   | 'int16'               | `Int16`                                                                    | uses `numpy.int16`                                                                             |
-| Numpy Signed Int   | 'int32'               | `Int32`                                                                    | uses `numpy.int32`                                                                             |
-| Numpy Signed Int   | 'int64'               | `Int64`                                                                    | uses `numpy.int64`                                                                             |
-| Numpy Float        | 'float16'             | `Float16`                                                                  | uses `numpy.float16`                                                                           |
-| Numpy Float        | 'float32'             | `Float32`                                                                  | uses `numpy.float32`                                                                           |
-| Numpy Float        | 'float64'             | `Float64`                                                                  | uses `numpy.float64`                                                                           |
-| Numerical String   | 'str_int'             | `StrInt`                                                                   | stores in UTF-8                                                                                |
-| Numerical String   | 'str_float'           | `StrFloat`                                                                 | stores in UTF-8                                                                                |
-| Numerical String   | 'str_decimal'         | `StrDecimal`                                                               | stores in UTF-8                                                                                |
-| Image              | 'pil'                 | `PIL`                                                                      | raw PIL image class ([link](<(https://pillow.readthedocs.io/en/stable/reference/Image.html)>)) |
-| Image              | 'jpeg:quality'        | `JPEG`                                                                     | PIL image as JPEG                                                                              |
-| Image              | 'png'                 | `PNG`                                                                      | PIL image as PNG                                                                               |
-| Pickle             | 'pkl'                 | `Pickle`                                                                   | arbitrary Python objects                                                                       |
-| JSON               | 'json'                | `JSON`                                                                     | arbitrary data as JSON                                                                         |
+| Category           | Name          | Class        | Notes                    |
+|--------------------|---------------|--------------|--------------------------|
+| Encoding           | 'bytes'       | `Bytes`      | no-op encoding           |
+| Encoding           | 'str'         | `Str`        | stores in UTF-8          |
+| Encoding           | 'int'         | `Int`        | Python `int`, uses `numpy.int64` for encoding       |
+| Numpy Array        | 'ndarray:dtype:shape'     | `NDArray(dtype: Optional[str] = None, shape: Optional[Tuple[int]] = None)`    | uses `numpy.ndarray`     |
+| Numpy Unsigned Int | 'uint8'       | `UInt8`      | uses `numpy.uint8`       |
+| Numpy Unsigned Int | 'uint16'      | `UInt16`     | uses `numpy.uint16`      |
+| Numpy Unsigned Int | 'uint32'      | `Uint32`     | uses `numpy.uint32`      |
+| Numpy Unsigned Int | 'uint64'      | `Uint64`     | uses  `numpy.uint64`     |
+| Numpy Signed Int   | 'int8'        | `Int8`       | uses  `numpy.int8`       |
+| Numpy Signed Int   | 'int16'       | `Int16`      | uses  `numpy.int16`      |
+| Numpy Signed Int   | 'int32'       | `Int32`      | uses  `numpy.int32`      |
+| Numpy Signed Int   | 'int64'       | `Int64`      | uses  `numpy.int64`      |
+| Numpy Float        | 'float16'     | `Float16`    | uses  `numpy.float16`    |
+| Numpy Float        | 'float32'     | `Float32`    | uses  `numpy.float32`    |
+| Numpy Float        | 'float64'     | `Float64`    | uses  `numpy.float64`    |
+| Numerical String   | 'str_int'     | `StrInt`     | stores in UTF-8          |
+| Numerical String   | 'str_float'   | `StrFloat`   | stores in UTF-8          |
+| Numerical String   | 'str_decimal' | `StrDecimal` | stores in UTF-8          |
+| Image              | 'pil'         | `PIL`        | raw PIL image class ([link]((https://pillow.readthedocs.io/en/stable/reference/Image.html)))            |
+| Image              | 'jpeg:quality'        | `JPEG`       | PIL image as JPEG, quality between 0 and 100        |
+| Image              | 'png'         | `PNG`        | PIL image as PNG         |
+| Pickle             | 'pkl'         | `Pickle`     | arbitrary Python objects |
+| JSON               | 'json'        | `JSON`       | arbitrary data as JSON   |
 
 Here's an example where the field `x` is an image, and `y` is a class label, as an integer.
-
 <!--pytest.mark.skip-->
-
 ```python
 column = {
-    'x': 'jpeg:95',
+    'x': 'jpeg:90',
     'y': 'int8',
 }
 ```
@@ -64,7 +60,6 @@ column = {
 If the data type you need is not listed in the above table, then you can write your own data type class with `encode` and `decode` methods in it and patch it inside streaming. For example, let's say, you wanted to add a `complex128` data type (64 bits each for real and imaginary parts):
 
 <!--pytest.mark.skip-->
-
 ```python
 import numpy as np
 from typing import Any
@@ -82,15 +77,13 @@ class Complex128(Encoding):
 _encodings['complex128'] = Complex128
 ```
 
-4. An optional shard `size_limit`, in bytes, for each _uncompressed_ shard file. This defaults to 67 MB. Specify this as a number of bytes, either directly as an `int`, or a human-readable suffix:
+4. An optional shard `size_limit`, in bytes, for each *uncompressed* shard file. This defaults to 67 MB. Specify this as a number of bytes, either directly as an `int`, or a human-readable suffix:
 
 <!--pytest.mark.skip-->
-
 ```python
 size_limit = 1024 # 1kB limit, as an int
 size_limit = '1kb' # 1kB limit, as a human-readable string
 ```
-
 Shard file size depends on the dataset size, but generally, too small of a shard size creates a ton of shard files and heavy network overheads, and too large of a shard size creates fewer shard files, but downloads are less balanced. A shard size of between 50-100MB works well in practice.
 
 5. An optional `compression` algorithm name (and level) if you would like to compress the shard files. This can reduce egress costs during training. StreamingDataset will uncompress shard files upon download during training. You can control whether to keep compressed shard files locally during training with the `keep_zip` flag -- more information [here](../dataset_configuration/shard_retrieval.md#Keeping-compressed-shards).
@@ -108,12 +101,10 @@ Supported compression algorithms:
 The compression algorithm to use, if any, is specified by passing `code` or `code:level` as a string. For example:
 
 <!--pytest.mark.skip-->
-
 ```python
 compression = 'zstd' # zstd, defaults to level 3.
 compression = 'zstd:9' # zstd, specifying level 9.
 ```
-
 The higher the level, the higher the compression ratio. However, using higher compression levels will impact the compression speed. In our experience, `zstd` is optimal over the time-size Pareto frontier. Compression is most beneficial for text, whereas it is less helpful for other modalities like images.
 
 6. An optional `hashes` list of algorithm names, used to verify data integrity. Hashes are saved in the `index.json` file. Hash verification during training is controlled with the `validate_hash` argument more information [here](../dataset_configuration/shard_retrieval.md#Hash-validation).
@@ -148,7 +139,6 @@ Available non-cryptographic hash functions:
 As an example:
 
 <!--pytest.mark.skip-->
-
 ```python
 hashes = ['sha256', 'xxh64']
 ```
@@ -182,41 +172,31 @@ class RandomClassificationDataset:
 ```
 
 Here, we write shards to a local directory. You can specify a remote path as well.
-
 <!--pytest-codeblocks:cont-->
-
 ```python
 output_dir = 'test_output_dir'
 ```
 
 Specify the column encoding types for each sample and label:
-
 <!--pytest-codeblocks:cont-->
-
 ```python
 columns = {'x': 'pkl', 'y': 'int64'}
 ```
 
 Optionally, specify a compression algorithm and level:
-
 <!--pytest-codeblocks:cont-->
-
 ```python
 compression = 'zstd:7' # compress shards with ZStandard, level 7
 ```
 
 Optionally, specify a list of hash algorithms for verification:
-
 <!--pytest-codeblocks:cont-->
-
 ```python
 hashes = ['sha1'] # Use only SHA1 hashing on each shard
 ```
 
 Optionally, provide a shard size limit, after which a new shard starts. In this small example, we use 10kb, but for production datasets 50-100MB is more appropriate.
-
 <!--pytest-codeblocks:cont-->
-
 ```python
 # Here we use a human-readable string, but we could also
 # pass in an int specifying the number of bytes.
@@ -224,9 +204,7 @@ limit = '10kb'
 ```
 
 It's time to call the {class}`streaming.MDSWriter` with the above initialized parameters and write the samples by iterating over a dataset.
-
 <!--pytest-codeblocks:cont-->
-
 ```python
 from streaming.base import MDSWriter
 
@@ -237,9 +215,7 @@ with MDSWriter(out=output_dir, columns=columns, compression=compression, hashes=
 ```
 
 Clean up after ourselves.
-
 <!--pytest-codeblocks:cont-->
-
 ```
 from shutil import rmtree
 
@@ -247,9 +223,7 @@ rmtree(output_dir)
 ```
 
 Once the dataset has been written, the output directory contains an index.json file that contains shard metadata, the shard files themselves. For example,
-
 <!--pytest.mark.skip-->
-
 ```bash
 dirname
 ├── index.json
@@ -260,7 +234,6 @@ dirname
 ## Example: Writing `ndarray`s to MDS format
 
 Here, we show how to write `ndarray`s to MDS format in three ways:
-
 1. dynamic shape and dtype
 2. dynamic shape but fixed dtype
 3. fixed shape and dtype
@@ -296,7 +269,6 @@ for i in range(dataset.num_samples):
 The streaming encoding type, as the value in the `columns` dict, should be `ndarray:dtype`. So in this example, it is `ndarray:int16`.
 
 <!--pytest-codeblocks:cont-->
-
 ```python
 # Write to MDS
 with MDSWriter(out='my_dataset2/',
@@ -321,7 +293,6 @@ for i in range(dataset.num_samples):
 The streaming encoding type, as the value in the `columns` dict, should be `ndarray:dtype:shape`. So in this example, it is `ndarray:int16:3,3,3`.
 
 <!--pytest-codeblocks:cont-->
-
 ```python
 # Write to MDS
 with MDSWriter(out='my_dataset3/',
@@ -342,7 +313,6 @@ for i in range(dataset.num_samples):
 We can see that the dataset is more efficiently serialized when we are more specific about array shape and datatype:
 
 <!--pytest-codeblocks:cont-->
-
 ```python
 import subprocess
 
@@ -357,9 +327,7 @@ subprocess.run(['du', '-sh', 'my_dataset3'])
 ```
 
 Clean up after ourselves.
-
 <!--pytest-codeblocks:cont-->
-
 ```python
 from shutil import rmtree
 
