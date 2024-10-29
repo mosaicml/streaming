@@ -11,6 +11,7 @@ import sys
 import urllib.parse
 from typing import Any, Optional
 
+from streaming.base.constant import DEFAULT_TIMEOUT
 from streaming.base.util import get_import_exception_message
 
 __all__ = [
@@ -38,7 +39,7 @@ Credentials. See also https://docs.mosaicml.com/projects/mcli/en/latest/resource
 
 
 class CloudDownloader(abc.ABC):
-    """Download files from a remote storage to a local filesystem."""
+    """Download files from remote storage to a local filesystem."""
 
     @classmethod
     def get(cls, remote_dir: Optional[str] = None) -> 'CloudDownloader':
@@ -54,7 +55,7 @@ class CloudDownloader(abc.ABC):
             ValueError: If the remote path is not supported.
         """
         if remote_dir is None:
-            return _DEFAULT_DOWNLOADER()
+            return _LOCAL_DOWNLOADER()
 
         prefix = urllib.parse.urlparse(remote_dir).scheme
         if prefix == 'dbfs' and remote_dir.startswith('dbfs:/Volumes'):
@@ -66,7 +67,10 @@ class CloudDownloader(abc.ABC):
         return DOWNLOADER_MAPPINGS[prefix]()
 
     @classmethod
-    def direct_download(cls, remote: Optional[str], local: str, timeout: float = 60.0) -> None:
+    def direct_download(cls,
+                        remote: Optional[str],
+                        local: str,
+                        timeout: float = DEFAULT_TIMEOUT) -> None:
         """Directly download a file from remote storage to local filesystem.
 
         Args:
@@ -82,7 +86,10 @@ class CloudDownloader(abc.ABC):
         downloader.download(remote, local, timeout)
         downloader.clean_up()
 
-    def download(self, remote: Optional[str], local: str, timeout: float = 60.0) -> None:
+    def download(self,
+                 remote: Optional[str],
+                 local: str,
+                 timeout: float = DEFAULT_TIMEOUT) -> None:
         """Download a file from remote storage to local filesystem.
 
         Args:
@@ -109,15 +116,15 @@ class CloudDownloader(abc.ABC):
         os.makedirs(local_dir, exist_ok=True)
 
         self._validate_remote_path(remote)
-        self._download_impl(remote, local, timeout)
+        self._download_file_impl(remote, local, timeout)
 
     @staticmethod
     @abc.abstractmethod
-    def prefix() -> str:
-        """Return the prefix of the downloader.
+    def _client_identifier() -> str:
+        """Return the client identifier for the downloader.
 
         Returns:
-            str: Prefix of the downloader.
+            str: Identifier of the client downloader. Can be a schema or prefix of the remote path.
         """
 
     @abc.abstractmethod
@@ -126,8 +133,8 @@ class CloudDownloader(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _download_impl(self, remote: str, local: str, timeout: float) -> None:
-        """Implementation of the download function.
+    def _download_file_impl(self, remote: str, local: str, timeout: float) -> None:
+        """Implementation of the download function for a file.
 
         Args:
             remote (str): Remote path.
@@ -145,10 +152,9 @@ class CloudDownloader(abc.ABC):
         Raises:
             ValueError: If the remote path does not contain the expected prefix.
         """
-        # Single slash because some protocols only use a single slash, not double
         url_scheme = urllib.parse.urlparse(remote).scheme
 
-        if url_scheme != self.prefix():
+        if url_scheme != self._client_identifier():
             raise ValueError(
                 f'Expected remote path to start with url scheme of `{url_scheme}`, got {remote}.')
 
@@ -167,11 +173,11 @@ class S3Downloader(CloudDownloader):
         ]
 
     @staticmethod
-    def prefix() -> str:
-        """Return the prefix of the downloader.
+    def _client_identifier() -> str:
+        """Return the client identifier for the downloader.
 
         Returns:
-            str: returns s3.
+            str: returns `s3`.
         """
         return 's3'
 
@@ -179,8 +185,8 @@ class S3Downloader(CloudDownloader):
         """Clean up the downloader when it is done being used."""
         self._s3_client = None
 
-    def _download_impl(self, remote: str, local: str, timeout: float) -> None:
-        """Implementation of the download function."""
+    def _download_file_impl(self, remote: str, local: str, timeout: float) -> None:
+        """Implementation of the download function for a file."""
         from boto3.s3.transfer import TransferConfig
         from botocore.exceptions import ClientError, NoCredentialsError
 
@@ -217,17 +223,17 @@ class S3Downloader(CloudDownloader):
                 raise e
             elif e.response['Error']['Code'] == '400':
                 # Recreate s3 client as public
-                # TODO(ethantang-db) not sure if this is the right way, can there be a bucket with
-                # a mixed amount of content that is both private and public? If so, then we might
-                # need two clients, one for public and one for private
+                # TODO(ethantang-db): There can be edge scenarios where the content requested
+                # lives in both a public and private bucket, or that the bucket contains both
+                # public and private contents. We DO NOT support this for now.
                 self._create_s3_client(unsigned=True, timeout=timeout)
-                self._download_impl(remote, local, timeout)
+                self._download_file_impl(remote, local, timeout)
             else:
                 raise e
         except Exception as e:
             raise e
 
-    def _create_s3_client(self, unsigned: bool = False, timeout: float = 60.0) -> Any:
+    def _create_s3_client(self, unsigned: bool = False, timeout: float = DEFAULT_TIMEOUT) -> Any:
         """Create an S3 client."""
         from boto3.session import Session
         from botocore import UNSIGNED
@@ -264,11 +270,11 @@ class SFTPDownloader(CloudDownloader):
         self._url: Optional[SplitResult] = None
 
     @staticmethod
-    def prefix() -> str:
-        """Return the prefix of the downloader.
+    def _client_identifier() -> str:
+        """Return the client identifier for the downloader.
 
         Returns:
-            str: returns sftp.
+            str: returns `sftp`.
         """
         return 'sftp'
 
@@ -278,8 +284,8 @@ class SFTPDownloader(CloudDownloader):
             self._ssh_client.close()
             self._ssh_client = None
 
-    def _download_impl(self, remote: str, local: str, timeout: float) -> None:
-        """Implementation of the download function."""
+    def _download_file_impl(self, remote: str, local: str, timeout: float) -> None:
+        """Implementation of the download function for a file."""
         url = urllib.parse.urlsplit(remote)
         local_tmp = local + '.tmp'
 
@@ -346,11 +352,11 @@ class GCSDownloader(CloudDownloader):
         self._gcs_client: Optional[Any | Client] = None
 
     @staticmethod
-    def prefix() -> str:
-        """Return the prefix of the downloader.
+    def _client_identifier() -> str:
+        """Return the client identifier for the downloader.
 
         Returns:
-            str: returns gs.
+            str: returns `gs`.
         """
         return 'gs'
 
@@ -358,8 +364,8 @@ class GCSDownloader(CloudDownloader):
         """Clean up the downloader when it is done being used."""
         self._gcs_client = None
 
-    def _download_impl(self, remote: str, local: str, timeout: float) -> None:
-        """Implementation of the download function."""
+    def _download_file_impl(self, remote: str, local: str, timeout: float) -> None:
+        """Implementation of the download function for a file."""
         from google.cloud.storage import Client
 
         if self._gcs_client is None:
@@ -420,11 +426,11 @@ class OCIDownloader(CloudDownloader):
         self._oci_client: Optional[oci.object_storage.ObjectStorageClient] = None
 
     @staticmethod
-    def prefix() -> str:
-        """Return the prefix of the downloader.
+    def _client_identifier() -> str:
+        """Return the client identifier for the downloader.
 
         Returns:
-            str: returns oci.
+            str: returns `oci`.
         """
         return 'oci'
 
@@ -432,8 +438,8 @@ class OCIDownloader(CloudDownloader):
         """Clean up the downloader when it is done being used."""
         self._oci_client = None
 
-    def _download_impl(self, remote: str, local: str, timeout: float) -> None:
-        """Implementation of the download function."""
+    def _download_file_impl(self, remote: str, local: str, timeout: float) -> None:
+        """Implementation of the download function for a file."""
         if self._oci_client is None:
             self._create_oci_client()
         assert self._oci_client is not None
@@ -466,11 +472,11 @@ class HFDownloader(CloudDownloader):
         super().__init__()
 
     @staticmethod
-    def prefix() -> str:
-        """Return the prefix of the downloader.
+    def _client_identifier() -> str:
+        """Return the client identifier for the downloader.
 
         Returns:
-            str: returns hf.
+            str: returns `hf`.
         """
         return 'hf'
 
@@ -478,8 +484,8 @@ class HFDownloader(CloudDownloader):
         """Clean up the downloader when it is done being used."""
         pass
 
-    def _download_impl(self, remote: str, local: str, timeout: float) -> None:
-        """Implementation of the download function."""
+    def _download_file_impl(self, remote: str, local: str, timeout: float) -> None:
+        """Implementation of the download function for a file."""
         from huggingface_hub import hf_hub_download
 
         _, _, _, repo_org, repo_name, path = remote.split('/', 5)
@@ -505,11 +511,11 @@ class AzureDownloader(CloudDownloader):
         self._azure_client: Optional[BlobServiceClient] = None
 
     @staticmethod
-    def prefix() -> str:
-        """Return the prefix of the downloader.
+    def _client_identifier() -> str:
+        """Return the client identifier for the downloader.
 
         Returns:
-            str: returns azure.
+            str: returns `azure`.
         """
         return 'azure'
 
@@ -517,8 +523,8 @@ class AzureDownloader(CloudDownloader):
         """Clean up the downloader when it is done being used."""
         self._azure_client = None
 
-    def _download_impl(self, remote: str, local: str, timeout: float) -> None:
-        """Implementation of the download function."""
+    def _download_file_impl(self, remote: str, local: str, timeout: float) -> None:
+        """Implementation of the download function for a file."""
         if self._azure_client is None:
             self._create_azure_client()
         assert self._azure_client is not None
@@ -555,11 +561,11 @@ class AzureDataLakeDownloader(CloudDownloader):
         self._azure_dl_client: Optional[DataLakeServiceClient] = None
 
     @staticmethod
-    def prefix() -> str:
-        """Return the prefix of the downloader.
+    def _client_identifier() -> str:
+        """Return the client identifier for the downloader.
 
         Returns:
-            str: returns adl.
+            str: returns `azure-dl`.
         """
         return 'azure-dl'
 
@@ -567,8 +573,8 @@ class AzureDataLakeDownloader(CloudDownloader):
         """Clean up the downloader when it is done being used."""
         self._azure_dl_client = None
 
-    def _download_impl(self, remote: str, local: str, timeout: float) -> None:
-        """Implementation of the download function."""
+    def _download_file_impl(self, remote: str, local: str, timeout: float) -> None:
+        """Implementation of the download function for a file."""
         from azure.core.exceptions import ResourceNotFoundError
 
         if self._azure_dl_client is None:
@@ -615,11 +621,11 @@ class DatabricksUnityCatalogDownloader(CloudDownloader):
         self._db_uc_client: Optional[WorkspaceClient] = None
 
     @staticmethod
-    def prefix() -> str:
-        """Return the prefix of the downloader.
+    def _client_identifier() -> str:
+        """Return the client identifier for the downloader.
 
         Returns:
-            str: returns dbfs-uc.
+            str: returns `dbfs-uc`.
         """
         return 'dbfs-uc'
 
@@ -636,8 +642,8 @@ class DatabricksUnityCatalogDownloader(CloudDownloader):
                 'Expected path prefix to be `dbfs:/Volumes` if it is a Databricks Unity ' +
                 f'Catalog, instead, got {provider_prefix} for remote={remote}.')
 
-    def _download_impl(self, remote: str, local: str, timeout: float) -> None:
-        """Implementation of the download function."""
+    def _download_file_impl(self, remote: str, local: str, timeout: float) -> None:
+        """Implementation of the download function for a file."""
         from databricks.sdk.core import DatabricksError
 
         if self._db_uc_client is None:
@@ -691,11 +697,11 @@ class DBFSDownloader(CloudDownloader):
         self._dbfs_client: Optional[WorkspaceClient] = None
 
     @staticmethod
-    def prefix() -> str:
-        """Return the prefix of the downloader.
+    def _client_identifier() -> str:
+        """Return the client identifier for the downloader.
 
         Returns:
-            str: returns dbfs.
+            str: returns `dbfs`.
         """
         return 'dbfs'
 
@@ -703,8 +709,8 @@ class DBFSDownloader(CloudDownloader):
         """Clean up the downloader when it is done being used."""
         self._dbfs_client = None
 
-    def _download_impl(self, remote: str, local: str, timeout: float) -> None:
-        """Implementation of the download function."""
+    def _download_file_impl(self, remote: str, local: str, timeout: float) -> None:
+        """Implementation of the download function for a file."""
         from databricks.sdk.core import DatabricksError
 
         if self._dbfs_client is None:
@@ -748,11 +754,11 @@ class AlipanDownloader(CloudDownloader):
         super().__init__()
 
     @staticmethod
-    def prefix() -> str:
-        """Return the prefix of the downloader.
+    def _client_identifier() -> str:
+        """Return the client identifier for the downloader.
 
         Returns:
-            str: returns alipan.
+            str: returns `alipan`.
         """
         return 'alipan'
 
@@ -760,8 +766,8 @@ class AlipanDownloader(CloudDownloader):
         """Clean up the downloader when it is done being used."""
         pass
 
-    def _download_impl(self, remote: str, local: str, timeout: float) -> None:
-        """Implementation of the download function."""
+    def _download_file_impl(self, remote: str, local: str, timeout: float) -> None:
+        """Implementation of the download function for a file."""
         from alipcs_py.alipcs import AliPCSApiMix
         from alipcs_py.commands.download import download_file
 
@@ -808,11 +814,11 @@ class LocalDownloader(CloudDownloader):
         super().__init__()
 
     @staticmethod
-    def prefix() -> str:
-        """Return the prefix of the downloader.
+    def _client_identifier() -> str:
+        """Return the client identifier for the downloader.
 
         Returns:
-            str: returns file.
+            str: returns `file`.
         """
         return ''
 
@@ -820,8 +826,8 @@ class LocalDownloader(CloudDownloader):
         """Clean up the downloader when it is done being used."""
         pass
 
-    def _download_impl(self, remote: str, local: str, timeout: float) -> None:
-        """Download a file from remote to local.
+    def _download_file_impl(self, remote: str, local: str, timeout: float) -> None:
+        """Download a file from remote path to local path.
 
         Args:
             remote (str): Remote path (local or unix filesystem).
@@ -841,10 +847,10 @@ def _register_cloud_downloader_subclasses() -> dict[str, type[CloudDownloader]]:
     downloader_mappings = {}
 
     for sub_class in sub_classes:
-        downloader_mappings[sub_class.prefix()] = sub_class
+        downloader_mappings[sub_class._client_identifier()] = sub_class
 
     return downloader_mappings
 
 
 DOWNLOADER_MAPPINGS = _register_cloud_downloader_subclasses()
-_DEFAULT_DOWNLOADER = LocalDownloader
+_LOCAL_DOWNLOADER = LocalDownloader

@@ -8,6 +8,7 @@ import time
 import urllib.parse
 from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
 from typing import Optional, Union
+from unittest.mock import Mock
 
 import pytest
 
@@ -309,9 +310,14 @@ def test_merge_index_from_root_local(local_remote_dir: tuple[str, str], n_partit
 def test_retry(with_args: bool):
     num_tries = 0
     return_after = 2
+    clean_up = Mock()
 
     if with_args:
-        decorator = retry(RuntimeError, num_attempts=3, initial_backoff=0.01, max_jitter=0.01)
+        decorator = retry(RuntimeError,
+                          clean_up_fn=clean_up,
+                          num_attempts=3,
+                          initial_backoff=0.01,
+                          max_jitter=0.01)
         return_after = 2
     else:
         decorator = retry
@@ -327,3 +333,6 @@ def test_retry(with_args: bool):
         return "Third time's a charm"
 
     assert flaky_function() == "Third time's a charm"
+
+    if with_args:
+        assert clean_up.call_count == 2

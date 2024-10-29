@@ -173,10 +173,11 @@ class TestGCSClient:
 
 class TestDatabricksUnityCatalog:
 
-    def test_invalid_prefix_from_db_uc(self, remote_local_file: Any):
+    @pytest.mark.parametrize('cloud_prefix', ['dbfs:/Volumess', 'dbfs:/Content'])
+    def test_invalid_prefix_from_db_uc(self, remote_local_file: Any, cloud_prefix: str):
         with tempfile.TemporaryDirectory() as tmp_dir:
             file_name = os.path.join(tmp_dir, 'file.txt')
-            mock_remote_filepath, _ = remote_local_file(cloud_prefix='dbfs:/Volumess',
+            mock_remote_filepath, _ = remote_local_file(cloud_prefix=cloud_prefix,
                                                         filename=file_name)
             with pytest.raises(Exception, match='Expected path prefix to be `dbfs:/Volumes`.*'):
                 downloader = DatabricksUnityCatalogDownloader()

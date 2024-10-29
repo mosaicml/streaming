@@ -31,3 +31,6 @@ CACHE_FILELOCK = 'cache_filelock'
 
 # Time to wait, in seconds.
 TICK = 0.007
+
+# Default timeout tie
+DEFAULT_TIMEOUT = 60.0

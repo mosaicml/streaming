@@ -16,7 +16,7 @@ from collections import OrderedDict
 from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
 from pathlib import Path
 from time import sleep, time
-from typing import Any, Callable, Sequence, TypeVar, Union, cast, overload
+from typing import Any, Callable, Optional, Sequence, TypeVar, Union, cast, overload
 
 import torch.distributed as dist
 
@@ -454,6 +454,7 @@ def _merge_index_from_root(out: Union[str, tuple[str, str]],
 @overload
 def retry(
     exc_class: Union[type[Exception], Sequence[type[Exception]]] = ...,
+    clean_up_fn: Optional[Callable[[], None]] = ...,
     num_attempts: int = ...,
     initial_backoff: float = ...,
     max_jitter: float = ...,
@@ -471,6 +472,7 @@ def retry(exc_class: TCallable) -> TCallable:
 # "(func: Never) -> Never"
 def retry(  # type: ignore
     exc_class: Union[TCallable, type[Exception], Sequence[type[Exception]]] = Exception,
+    clean_up_fn: Optional[Callable[[], None]] = None,
     num_attempts: int = 3,
     initial_backoff: float = 1.0,
     max_jitter: float = 0.5,
@@ -487,7 +489,10 @@ def retry(  # type: ignore
 
             num_tries = 0
 
-            @retry(RuntimeError, num_attempts=3, initial_backoff=0.1)
+            def clean_up():
+                print("cleaning up")
+
+            @retry(RuntimeError, clean_up_fn=clean_up, num_attempts=3, initial_backoff=0.1)
             def flaky_function():
                 global num_tries
                 if num_tries < 2:
@@ -499,11 +504,15 @@ def retry(  # type: ignore
 
     .. testoutput::
 
+        cleaning up
+        cleaning up
         Third time's a charm.
 
     Args:
         exc_class (Type[Exception] | Sequence[Type[Exception]]], optional): The exception class or
             classes to retry. Defaults to Exception.
+        clean_up_fn (Callable[[], None], optional): A function to call after each failed attempt
+            before retrying. Defaults to None.
         num_attempts (int, optional): The total number of attempts to make. Defaults to 3.
         initial_backoff (float, optional): The initial backoff, in seconds. Defaults to 1.0.
         max_jitter (float, optional): The maximum amount of random jitter to add. Defaults to 0.5.
@@ -523,6 +532,9 @@ def retry(  # type: ignore
                 try:
                     return func(*args, **kwargs)
                 except exc_class as e:
+                    if clean_up_fn is not None:
+                        clean_up_fn()
+
                     if i + 1 == num_attempts:
                         logger.debug(f'Attempt {i + 1}/{num_attempts} failed with: {e}')
                         raise e

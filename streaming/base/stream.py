@@ -310,7 +310,7 @@ class Stream:
         local = os.path.join(self.local, self.split, to_basename or from_basename)
 
         # Attempt to download, possibly repeating on failure.
-        retry(num_attempts=self.download_retry)(
+        retry(clean_up_fn=self._downloader.clean_up, num_attempts=self.download_retry)(
             lambda: self._downloader.download(remote, local, self.download_timeout))()
 
         return local
