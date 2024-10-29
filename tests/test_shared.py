@@ -8,9 +8,9 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-import streaming
 from streaming.base import StreamingDataset
 from streaming.base.shared import SharedArray, get_shm_prefix
+from streaming.base.shared.memory import SharedMemory
 from streaming.base.shared.prefix import _check_and_find
 from streaming.base.util import clean_stale_shared_memory
 from streaming.base.world import World
@@ -179,13 +179,13 @@ def test_check_and_find_skips_filelock_conflict():
         assert next_prefix == 1
 
 
-@patch.object(streaming.base.shared.memory.SharedMemory,
+@patch.object(SharedMemory,
               '__init__',
               side_effect=[
                   PermissionError('Mocked permission error'),
                   FileNotFoundError('Mocked file not found error')
               ])
-def test_shared_memory_permission_error(mock_shared_memory_class):
+def test_shared_memory_permission_error(mock_shared_memory_class: MagicMock):
     with patch('os.path.exists', return_value=False):
         next_prefix = _check_and_find(['local'], [None])
         assert next_prefix == 1
