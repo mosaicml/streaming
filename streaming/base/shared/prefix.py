@@ -218,7 +218,8 @@ def get_shm_prefix(streams_local: list[str],
             # Check if any shared memory filelocks exist for the current prefix
             try:
                 filelock_exists = any(
-                    os.path.exists(os.path.join(gettempdir(), _get_path(prefix_int, filelock_name)))
+                    os.path.exists(os.path.join(gettempdir(), _get_path(prefix_int,
+                                                                        filelock_name)))
                     for filelock_name in [BARRIER_FILELOCK, CACHE_FILELOCK])
                 if filelock_exists:
                     continue
