@@ -54,8 +54,7 @@ class CloudDownloader(abc.ABC):
             ValueError: If the remote path is not supported.
         """
         if remote_dir is None:
-            # Return the default downloader, assuming that it exists
-            return DOWNLOADER_MAPPINGS['']()
+            return _DEFAULT_DOWNLOADER()
 
         prefix = urllib.parse.urlparse(remote_dir).scheme
         if prefix == 'dbfs' and remote_dir.startswith('dbfs:/Volumes'):
@@ -843,10 +842,8 @@ def _register_cloud_downloader_subclasses() -> dict[str, type[CloudDownloader]]:
     for sub_class in sub_classes:
         downloader_mappings[sub_class.prefix()] = sub_class
 
-    if '' not in downloader_mappings:
-        raise ValueError('A default downloader with the prefix of an empty string is required.')
-
     return downloader_mappings
 
 
 DOWNLOADER_MAPPINGS = _register_cloud_downloader_subclasses()
+_DEFAULT_DOWNLOADER = LocalDownloader
