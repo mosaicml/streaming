@@ -221,7 +221,9 @@ def get_shm_prefix(streams_local: list[str],
     print(f'before first barrier, {world.rank=}')
 
     if dist.is_available() and dist.is_initialized():
+        print(f'before: in dist.avail 1 : {world.rank=}')
         dist.barrier()
+        print(f'after: in dist.avail 1 : {world.rank=}')
     print(f'after first barrier, {world.rank=}')
 
     # First, the local leader registers the first available shm prefix, recording its locals.
@@ -236,7 +238,9 @@ def get_shm_prefix(streams_local: list[str],
 
     print(f'{world.rank=}')
     if dist.is_available() and dist.is_initialized():
+        print(f'before: in dist.avail 2: {world.rank=}')
         dist.barrier()
+        print(f'after: in dist.avail 2: {world.rank=}')
 
     # Non-local leaders go next, searching for match.
     if not world.is_local_leader:
