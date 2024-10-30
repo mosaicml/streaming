@@ -77,6 +77,7 @@ class CloudDownloader(abc.ABC):
             remote (str | None): Remote path.
             local (str): Local path.
             timeout (float): How long to wait for file to download before raising an exception.
+                Defaults to ``60`` seconds.
 
         Raises:
             ValueError: If the remote path is not provided while local does not exist or remote
@@ -96,6 +97,7 @@ class CloudDownloader(abc.ABC):
             remote (str | None): Remote path.
             local (str): Local path.
             timeout (float): How long to wait for file to download before raising an exception.
+                Defaults to ``60`` seconds.
 
         Raises:
             ValueError: If the remote path does not contain the expected prefix or remote is
