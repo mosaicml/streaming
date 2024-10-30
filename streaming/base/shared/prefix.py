@@ -129,7 +129,6 @@ def _check_and_find(streams_local: list[str], streams_remote: list[Union[str, No
             continue
 
         # Attempt to access shared memory by name. Use prefix_int if files do not exist
-        consecutive_permission_errors = 0
         try:
             shm = SharedMemory(name, False)
         except PermissionError:
