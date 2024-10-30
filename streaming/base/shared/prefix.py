@@ -236,14 +236,14 @@ def get_shm_prefix(streams_local: list[str],
         their_locals, their_prefix_int = _unpack_locals(bytes(shm.buf))
         print(f"In world leader: {name=}, {their_locals=}, {their_prefix_int}, {data=}")
 
-    sleep(3)
+    #sleep(3)
     print(f'{world.rank=}')
     if dist.is_available() and dist.is_initialized():
         print(f'before: in dist.avail 2: {world.rank=}')
         dist.barrier()
         print(f'after: in dist.avail 2: {world.rank=}')
 
-    sleep(3)
+    #sleep(3)
 
     # Non-local leaders go next, searching for match.
     if not world.is_local_leader:
