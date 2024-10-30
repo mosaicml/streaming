@@ -136,28 +136,30 @@ def _check_and_find(streams_local: list[str], streams_remote: list[Union[str, No
         except FileNotFoundError:
             break
 
-        if shm_name == LOCALS:
-            their_locals, _ = _unpack_locals(bytes(shm.buf))
+        if shm_name != LOCALS:
+            continue
 
-            # Do not check for a conflicting local directories across existing shared memory if
-            # remote directories are None. Get the next prefix.
-            if any(streams_remote):
-                # Get the indices of the local directories which matches with the current
-                # shared memory.
-                matching_index = np.where(np.isin(streams_local, their_locals))[0]
-                if matching_index.size > 0:
-                    for idx in matching_index:
-                        # If there is a conflicting local directory for a non-None remote directory,
-                        # raise an exception.
-                        if streams_remote[idx] is not None:
-                            raise ValueError(
-                                f'Reused local directory: {streams_local} vs ' +
-                                f'{their_locals}. Provide a different one. If using ' +
-                                f'a unique local directory, try deleting the local directory and '
-                                +
-                                f'call `streaming.base.util.clean_stale_shared_memory()` only once '
-                                + f'in your script to clean up the stale shared memory before ' +
-                                f'instantiation of `StreamingDataset`.')
+        their_locals, _ = _unpack_locals(bytes(shm.buf))
+
+        # Do not check for a conflicting local directories across existing shared memory if
+        # remote directories are None. Get the next prefix.
+        if any(streams_remote):
+            # Get the indices of the local directories which matches with the current
+            # shared memory.
+            matching_index = np.where(np.isin(streams_local, their_locals))[0]
+            if matching_index.size > 0:
+                for idx in matching_index:
+                    # If there is a conflicting local directory for a non-None remote directory,
+                    # raise an exception.
+                    if streams_remote[idx] is not None:
+                        raise ValueError(
+                            f'Reused local directory: {streams_local} vs ' +
+                            f'{their_locals}. Provide a different one. If using ' +
+                            f'a unique local directory, try deleting the local directory and '
+                            +
+                            f'call `streaming.base.util.clean_stale_shared_memory()` only once '
+                            + f'in your script to clean up the stale shared memory before ' +
+                            f'instantiation of `StreamingDataset`.')
     return prefix_int
 
 
