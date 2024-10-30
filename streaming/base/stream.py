@@ -435,36 +435,28 @@ class Stream:
             `List[Reader]: Shard readers.
         """
         # Download the index file if it does not exist locally.
-        print('I am here 0')
         basename = get_index_basename()
         filename = os.path.join(self.local, self.split, basename)  # pyright: ignore
-        print('I am here 1')
         if not os.path.exists(filename):
             if world.is_local_leader:
-                print('I am here 2.1')
                 if self.remote:
                     # Downloads the `index.json` as `index.json.tmp` fully and then rename it to
                     # `index.json` since only one process downloads the `index.json` file while
                     # other processes wait for it to get downloaded. Hence, It avoids loading the
                     # in-progress downloading `index.json`.
-                    print('I am here 2.2')
                     tmp_filename = self._download_file(basename, basename + '.tmp')
-                    print('I am here 2.3')
                     os.rename(tmp_filename, filename)
-                    print('I am here 2.4')
                 else:
                     if not os.path.exists(filename):
                         raise RuntimeError(f'No `remote` provided, but local file {filename} ' +
                                            'does not exist either')
             else:
-                print('I am here 3')
                 wait_for_file_to_exist(
                     filename, TICK, self.download_timeout,
                     f'Index file {os.path.join(self.remote or "", self.split or "", basename)} ' +
                     f'-> {filename} took too long to download or failed to download. Either increase the '
                     + f'`download_timeout` value or check the local rank 0 traceback.')
 
-        print('I am here 4')
         # Load the index.
         try:
             obj = json.load(open(filename))
