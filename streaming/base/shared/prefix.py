@@ -104,12 +104,15 @@ def _check_and_find(streams_local: list[str], streams_remote: list[Union[str, No
     Args:
         streams_local (List[str]): Our local working directories.
         streams_remote (List[Union[str, None]]): Our remote working directories.
+        shm_name (str): The shared memory file name, e.g., LOCALS, BARRIER etc.
 
     Returns:
         int: Next available prefix int.
     """
     prefix_int = 0
+
     for prefix_int in _each_prefix_int():
+
         print(f'{shm_name=} - {prefix_int=}')
         temproot = gettempdir()
         print(f'{temproot=}')
@@ -126,6 +129,7 @@ def _check_and_find(streams_local: list[str], streams_remote: list[Union[str, No
             continue
 
         # Attempt to access shared memory by name. Use prefix_int if files do not exist
+        consecutive_permission_errors = 0
         try:
             shm = SharedMemory(name, False)
         except PermissionError:
@@ -169,6 +173,7 @@ def _check_and_find_retrying(streams_local: list[str], streams_remote: list[Unio
     Args:
         streams_local (List[str]): Our local working directories.
         streams_remote (List[Union[str, None]]): Our remote working directories.
+        shm_name (str): The shared memory file name, e.g., LOCALS, BARRIER etc.
         retry (int): Number of retries upon failure before raising an exception.
 
     Returns:
