@@ -16,7 +16,7 @@ from typing import Iterator, Union
 import numpy as np
 from torch import distributed as dist
 
-from streaming.base.constant import BARRIER_FILELOCK, CACHE_FILELOCK, SHM_TO_CLEAN, LOCALS, TICK
+from streaming.base.constant import BARRIER_FILELOCK, CACHE_FILELOCK, LOCALS, SHM_TO_CLEAN, TICK
 from streaming.base.shared import SharedMemory
 from streaming.base.world import World
 
@@ -93,10 +93,8 @@ def _check_self(streams_local: list[str]) -> None:
             f'Reused local directory: {duplicate_local_dirs}. Provide a different one.')
 
 
-def _check_and_find(streams_local: list[str],
-                    streams_remote: list[Union[str, None]],
-                    shm_name: str,
-                    local_leader: bool) -> int:
+def _check_and_find(streams_local: list[str], streams_remote: list[Union[str, None]],
+                    shm_name: str, local_leader: bool) -> int:
     """Find the next available prefix while checking existing local dirs for overlap.
 
     Local leader walks the existing shm prefixes starting from zero, verifying that there is no
@@ -116,8 +114,8 @@ def _check_and_find(streams_local: list[str],
 
         # Check if any shared memory filelocks exist for the current prefix
         try:
-            print(f"{prefix_int=}")
-            print(f"{os.path.exists!r}")
+            print(f'{prefix_int=}')
+            print(f'{os.path.exists!r}')
             filelock_exists = any(
                 os.path.exists(os.path.join(gettempdir(), _get_path(prefix_int, filelock_name)))
                 for filelock_name in [BARRIER_FILELOCK, CACHE_FILELOCK])
@@ -164,6 +162,7 @@ def _check_and_find(streams_local: list[str],
                             f'in your script to clean up the stale shared memory before ' +
                             f'instantiation of `StreamingDataset`.')
     return prefix_int
+
 
 def _check_and_find_retrying(streams_local: list[str], streams_remote: list[Union[str, None]],
                              shm_name: str, local_leader: bool, retry: int) -> int:
@@ -217,7 +216,13 @@ def get_shm_prefix(streams_local: list[str],
 
     # First, the local leader registers the first available shm prefix, recording its locals.
     if world.is_local_leader:
-        prefix_int = max([_check_and_find_retrying(streams_local, streams_remote, shm_name=shm_name, local_leader=True, retry=retry) for shm_name in SHM_TO_CLEAN])
+        prefix_int = max([
+            _check_and_find_retrying(streams_local,
+                                     streams_remote,
+                                     shm_name=shm_name,
+                                     local_leader=True,
+                                     retry=retry) for shm_name in SHM_TO_CLEAN
+        ])
         name = _get_path(prefix_int, LOCALS)
         data = _pack_locals(streams_local, prefix_int)
         shm = SharedMemory(name, True, len(data))
@@ -229,7 +234,13 @@ def get_shm_prefix(streams_local: list[str],
     # Non-local leaders go next, searching for match.
     if not world.is_local_leader:
         prefix_int = 0
-        prefix_int =  max([_check_and_find_retrying(streams_local, streams_remote, shm_name=shm_name, local_leader=False, retry=2) for shm_name in SHM_TO_CLEAN])
+        prefix_int = max([
+            _check_and_find_retrying(streams_local,
+                                     streams_remote,
+                                     shm_name=shm_name,
+                                     local_leader=False,
+                                     retry=2) for shm_name in SHM_TO_CLEAN
+        ])
         name = _get_path(prefix_int, LOCALS)
         shm = SharedMemory(name, False)
 
