@@ -231,7 +231,7 @@ def get_shm_prefix(streams_local: list[str],
         data = _pack_locals(streams_local, prefix_int)
         shm = SharedMemory(name, True, len(data))
         shm.buf[:len(data)] = data
-        their_locals, their_prefix_int = _unpack_locals(bytes(shm.buf))
+        # their_locals, their_prefix_int = _unpack_locals(bytes(shm.buf))
 
     print(f'{world.rank=}')
     if dist.is_available() and dist.is_initialized():
