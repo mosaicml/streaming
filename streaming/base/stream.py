@@ -444,18 +444,27 @@ class Stream:
                     # `index.json` since only one process downloads the `index.json` file while
                     # other processes wait for it to get downloaded. Hence, It avoids loading the
                     # in-progress downloading `index.json`.
+                    print(f"bigning debug local leader start download")
                     tmp_filename = self._download_file(basename, basename + '.tmp')
+                    print(f"bigning debug local leader done download")
                     os.rename(tmp_filename, filename)
+                    print(f"bigning debug local leader done rename")
                 else:
                     if not os.path.exists(filename):
                         raise RuntimeError(f'No `remote` provided, but local file {filename} ' +
                                            'does not exist either')
             else:
+                print(f"bigning debug non local leader start waiting")
                 wait_for_file_to_exist(
                     filename, TICK, self.download_timeout,
                     f'Index file {os.path.join(self.remote or "", self.split or "", basename)} ' +
                     f'-> {filename} took too long to download or failed to download. Either increase the '
                     + f'`download_timeout` value or check the local rank 0 traceback.')
+                if os.path.exists(filename):
+                    print(f"bigning debug exist")
+                else:
+                    print(f"bigning debug not exist")
+
 
         # Load the index.
         try:
