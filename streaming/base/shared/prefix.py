@@ -249,6 +249,7 @@ def get_shm_prefix(streams_local: list[str],
                                f'different ``local`` parameters from different ranks.')
 
         their_locals, their_prefix_int = _unpack_locals(bytes(shm.buf))
+        print(f"{streams_local=}, {their_locals=}, {prefix_int=}, {their_prefix_int}")
         if streams_local != their_locals or prefix_int != their_prefix_int:
             raise RuntimeError(f'Internal error: shared memory registered does not match ' +
                                f'local leader as streams_local or prefix_int not match.')
