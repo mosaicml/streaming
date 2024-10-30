@@ -218,6 +218,11 @@ def get_shm_prefix(streams_local: list[str],
         _check_and_find_retrying(streams_local, streams_remote, shm_name=shm_name, retry=retry)
         for shm_name in SHM_TO_CLEAN
     ])
+    print(f'before first barrier, {world.rank=}')
+
+    if dist.is_available() and dist.is_initialized():
+        dist.barrier()
+    print(f'after first barrier, {world.rank=}')
 
     # First, the local leader registers the first available shm prefix, recording its locals.
     if world.is_local_leader:
