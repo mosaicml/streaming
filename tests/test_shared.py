@@ -176,7 +176,7 @@ def test_check_and_find_skips_filelock_conflict():
         mock_exists.side_effect = lambda path: path == bf_path
 
         # Expect _check_and_find to return 1 as the next available prefix
-        next_prefix = _check_and_find(['local_dir'], [None], LOCALS, True)
+        next_prefix = _check_and_find(['local_dir'], [None], LOCALS)
         assert next_prefix == 1
 
 
@@ -188,5 +188,5 @@ def test_check_and_find_skips_filelock_conflict():
               ])
 def test_shared_memory_permission_error(mock_shared_memory_class: MagicMock):
     with patch('os.path.exists', return_value=False):
-        next_prefix = _check_and_find(['local'], [None], LOCALS, True)
+        next_prefix = _check_and_find(['local'], [None], LOCALS)
         assert next_prefix == 1
