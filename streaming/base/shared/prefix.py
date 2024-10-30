@@ -221,17 +221,20 @@ def get_shm_prefix(streams_local: list[str],
 
     # First, the local leader registers the first available shm prefix, recording its locals.
     if world.is_local_leader:
+        print(f'in local leader')
         name = _get_path(prefix_int, LOCALS)
         data = _pack_locals(streams_local, prefix_int)
         shm = SharedMemory(name, True, len(data))
         shm.buf[:len(data)] = data
         their_locals, their_prefix_int = _unpack_locals(bytes(shm.buf))
 
+    print(f'{world.rank=}')
     if dist.is_available() and dist.is_initialized():
         dist.barrier()
 
     # Non-local leaders go next, searching for match.
     if not world.is_local_leader:
+        print(f'in non local world leader')
         name = _get_path(prefix_int, LOCALS)
         try:
             shm = SharedMemory(name, False)
