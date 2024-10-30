@@ -14,6 +14,7 @@ from streaming.base.shared.memory import SharedMemory
 from streaming.base.shared.prefix import _check_and_find
 from streaming.base.util import clean_stale_shared_memory
 from streaming.base.world import World
+from streaming.base.constant import LOCALS
 from tests.common.utils import convert_to_mds
 
 
@@ -175,7 +176,7 @@ def test_check_and_find_skips_filelock_conflict():
         mock_exists.side_effect = lambda path: path == bf_path
 
         # Expect _check_and_find to return 1 as the next available prefix
-        next_prefix = _check_and_find(['local_dir'], [None])
+        next_prefix = _check_and_find(['local_dir'], [None], LOCALS, True)
         assert next_prefix == 1
 
 
@@ -187,5 +188,5 @@ def test_check_and_find_skips_filelock_conflict():
               ])
 def test_shared_memory_permission_error(mock_shared_memory_class: MagicMock):
     with patch('os.path.exists', return_value=False):
-        next_prefix = _check_and_find(['local'], [None])
+        next_prefix = _check_and_find(['local'], [None], LOCALS, True)
         assert next_prefix == 1
