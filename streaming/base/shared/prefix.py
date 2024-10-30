@@ -110,7 +110,7 @@ def _check_and_find(streams_local: list[str], streams_remote: list[Union[str, No
     """
     prefix_int = 0
     for prefix_int in _each_prefix_int():
-        name = _get_path(prefix_int, LOCALS)
+        name = _get_path(prefix_int, shm_name)
 
         # Check if any shared memory filelocks exist for the current prefix
         try:
@@ -130,7 +130,7 @@ def _check_and_find(streams_local: list[str], streams_remote: list[Union[str, No
         except PermissionError:
             continue
         except FileNotFoundError:
-            if not local_leader:
+            if not local_leader and shm_name == LOCALS:
                 raise RuntimeError(f'Internal error: shared memory prefix was not registered by ' +
                                    f'local leader. This may be because you specified ' +
                                    f'different ``local`` parameters from different ranks.')
@@ -239,7 +239,7 @@ def get_shm_prefix(streams_local: list[str],
                                      streams_remote,
                                      shm_name=shm_name,
                                      local_leader=False,
-                                     retry=2) for shm_name in SHM_TO_CLEAN
+                                     retry=1) for shm_name in SHM_TO_CLEAN
         ])
         name = _get_path(prefix_int, LOCALS)
         shm = SharedMemory(name, False)
