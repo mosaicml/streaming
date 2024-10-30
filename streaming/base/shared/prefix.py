@@ -232,7 +232,7 @@ def get_shm_prefix(streams_local: list[str],
         shm = SharedMemory(name, True, len(data))
         shm.buf[:len(data)] = data
         their_locals, their_prefix_int = _unpack_locals(bytes(shm.buf))
-        print(f"In world leader: {their_locals=}, {their_prefix_int}, {data=}")
+        print(f"In world leader: {name=}, {their_locals=}, {their_prefix_int}, {data=}")
 
     print(f'{world.rank=}')
     if dist.is_available() and dist.is_initialized():
@@ -250,7 +250,7 @@ def get_shm_prefix(streams_local: list[str],
                                f'different ``local`` parameters from different ranks.')
 
         their_locals, their_prefix_int = _unpack_locals(bytes(shm.buf))
-        print(f"{streams_local=}, {their_locals=}, {prefix_int=}, {their_prefix_int}")
+        print(f"{name=}, {streams_local=}, {their_locals=}, {prefix_int=}, {their_prefix_int}")
         if streams_local != their_locals or prefix_int != their_prefix_int:
             raise RuntimeError(f'Internal error: shared memory registered does not match ' +
                                f'local leader as streams_local or prefix_int not match.')
