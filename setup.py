@@ -8,13 +8,13 @@ import os
 import setuptools
 from setuptools import setup
 
-# Read the streaming version
-# Cannot import from `streaming.__version__` since that will not be available when building or installing the package
-with open(os.path.join(os.path.dirname(__file__), 'streaming', '_version.py')) as f:
+# Read the joshua version
+# Cannot import from `joshua.__version__` since that will not be available when building or installing the package
+with open(os.path.join(os.path.dirname(__file__), 'joshua', '_version.py')) as f:
     version_globals = {}
     version_locals = {}
     exec(f.read(), version_globals, version_locals)
-    streaming_version = version_locals['__version__']
+    joshua_version = version_locals['__version__']
 
 # Use repo README for PyPi description
 with open('README.md', 'r', encoding='utf-8') as fh:
@@ -133,24 +133,24 @@ extra_deps['testing'] = [
 
 extra_deps['all'] = sorted({dep for deps in extra_deps.values() for dep in deps})
 
-package_name = os.environ.get('MOSAIC_PACKAGE_NAME', 'mosaicml-streaming')
+package_name = os.environ.get('MOSAIC_PACKAGE_NAME', 'mosaicml-joshua')
 
-if package_name != 'mosaicml-streaming':
-    print(f'Building mosaicml-streaming as {package_name}')
+if package_name != 'mosaicml-joshua':
+    print(f'Building mosaicml-joshua as {package_name}')
 
 setup(
     name=package_name,
-    version=streaming_version,
+    version=joshua_version,
     author='MosaicML',
     author_email='team@mosaicml.com',
     description=
     'Streaming lets users create PyTorch compatible datasets that can be streamed from cloud-based object stores',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://github.com/mosaicml/streaming/',
+    url='https://github.com/mosaicml/joshua/',
     include_package_data=True,
     package_data={
-        'streaming': ['py.typed'],
+        'joshua': ['py.typed'],
     },
     packages=setuptools.find_packages(exclude=['tests*']),
     entry_points={

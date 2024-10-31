@@ -6,7 +6,7 @@
 from argparse import ArgumentParser, Namespace
 from time import time
 
-from streaming.base.partition import get_partitions
+from joshua.base.partition import get_partitions
 
 
 def parse_args() -> Namespace:

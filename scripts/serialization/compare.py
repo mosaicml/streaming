@@ -5,7 +5,7 @@
 
 Serialization methods compared:
 * Arrow https://arrow.apache.org/
-* MDS https://github.com/mosaicml/streaming
+* MDS https://github.com/mosaicml/joshua
 * Parquet https://parquet.apache.org/
 
 We generate datasets containing identical samples in each format, and compare the time it takes to
@@ -33,7 +33,7 @@ from datasets import Dataset, disable_caching, load_dataset, load_from_disk  # p
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
-from streaming import MDSWriter, StreamingDataset
+from joshua import MDSWriter, StreamingDataset
 
 disable_caching()
 
@@ -47,7 +47,7 @@ def parse_args() -> Namespace:
     args = ArgumentParser()
     args.add_argument('--data',
                       type=str,
-                      default='/tmp/streaming/perf_test/',
+                      default='/tmp/joshua/perf_test/',
                       help='Benchmarking datasets root directory')
     args.add_argument('--num_samples', type=int, default=200_000, help='Dataset size')
     args.add_argument('--out', type=str, default='plot.png', help='Path to output plot')
@@ -81,7 +81,7 @@ def fetch_dataset(data_root: str, num_samples: int) -> list[dict[str, Any]]:
             os.remove(filename)
 
     if not os.path.exists(filename):
-        dataset = load_dataset('the_pile', 'pubmed_central', split='train', streaming=True)
+        dataset = load_dataset('the_pile', 'pubmed_central', split='train', joshua=True)
         with open(filename, 'w') as out:
             for i, sample in tqdm(enumerate(dataset), total=num_samples, leave=False):
                 if i == num_samples:

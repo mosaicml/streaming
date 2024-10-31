@@ -17,7 +17,7 @@ A **shard** is a file, compatible with Streaming, that contains samples that are
 
 A **stream** is a collection of shard files.
 
-The diagram below shows how raw data samples are converted to MDS shards using {class}`streaming.MDSWriter` objects.
+The diagram below shows how raw data samples are converted to MDS shards using {class}`joshua.MDSWriter` objects.
 
 <img src="../_static/images/mds_writing.png" alt="MDS Writing" width="800"/>
 
@@ -83,7 +83,7 @@ A **worker** is a process on CPU that handles fetching shards and samples. Assig
 ### Start of training
 StreamingDataset downloads the `index.json` files for input streams, and uses the information they contain to partition samples across nodes, ranks, and workers. The diagram below shows this process:
 
-<img src="../_static/images/streaming_partitioning.png" alt="MDS Writing" width="800"/>
+<img src="../_static/images/joshua_partitioning.png" alt="MDS Writing" width="800"/>
 
 Let's understand what's happening here.
 
@@ -92,7 +92,7 @@ The `index.json` files and shards for multiple streams are stored in the cloud. 
 
 <img src="../_static/images/remote_streams.png" alt="Remote Streams" width="800"/>
 
-Below, we pass in a list of {class}`streaming.Stream` objects to a {class}`streaming.StreamingDataset`, and also specify the proportion of the overall dataset we want to take from each stream.
+Below, we pass in a list of {class}`joshua.Stream` objects to a {class}`joshua.StreamingDataset`, and also specify the proportion of the overall dataset we want to take from each stream.
 <!--pytest.mark.skip-->
 ```python
 # Stream 1 uses its own set of shard files and will be 1/4 of the training dataset.

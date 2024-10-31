@@ -7,8 +7,8 @@ import warnings
 import numpy as np
 import pytest
 
-from streaming.base.partition import get_partitions
-from streaming.base.world import World
+from joshua.base.partition import get_partitions
+from joshua.base.world import World
 
 
 @pytest.mark.parametrize('partition_algo', ['orig', 'relaxed'])

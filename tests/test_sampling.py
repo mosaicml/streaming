@@ -4,7 +4,7 @@
 import numpy as np
 import pytest
 
-from streaming.base.sampling import get_sampling
+from joshua.base.sampling import get_sampling
 
 
 @pytest.mark.parametrize('use_epoch', [True, False])

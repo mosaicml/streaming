@@ -11,11 +11,11 @@ from typing import Optional, Union
 
 import pytest
 
-from streaming.base.constant import RESUME
-from streaming.base.shared.prefix import _get_path
-from streaming.base.storage.download import download_file
-from streaming.base.storage.upload import CloudUploader
-from streaming.base.util import (bytes_to_int, clean_stale_shared_memory, get_list_arg,
+from joshua.base.constant import RESUME
+from joshua.base.shared.prefix import _get_path
+from joshua.base.storage.download import download_file
+from joshua.base.storage.upload import CloudUploader
+from joshua.base.util import (bytes_to_int, clean_stale_shared_memory, get_list_arg,
                                  merge_index, number_abbrev_to_int, retry)
 
 MY_PREFIX = 'train_' + str(time.time())
@@ -177,7 +177,7 @@ def integrity_check(out: Union[str, tuple[str, str]],
 @pytest.mark.parametrize('scheme', ['gs', 's3', 'oci', 'dbfs'])
 def test_format_remote_index_files(scheme: str):
     """Validate the format of remote index files."""
-    from streaming.base.util import _format_remote_index_files
+    from joshua.base.util import _format_remote_index_files
 
     if scheme == 'dbfs':
         remote = os.path.join('dbfs:/', 'Volumes')
@@ -215,7 +215,7 @@ def test_merge_index_from_list_local(local_remote_dir: tuple[str, str], keep_loc
     from pyspark.sql import SparkSession
     from pyspark.sql.types import DecimalType, IntegerType, StringType, StructField, StructType
 
-    from streaming.base.converters import dataframeToMDS
+    from joshua.base.converters import dataframeToMDS
 
     def not_merged_index(index_file_path: str, out: str):
         """Check if index_file_path is the merged index at folder out."""
@@ -282,7 +282,7 @@ def test_merge_index_from_root_local(local_remote_dir: tuple[str, str], n_partit
     from pyspark.sql import SparkSession
     from pyspark.sql.types import DecimalType, IntegerType, StringType, StructField, StructType
 
-    from streaming.base.converters import dataframeToMDS
+    from joshua.base.converters import dataframeToMDS
 
     out, _ = local_remote_dir
 

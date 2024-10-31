@@ -8,7 +8,7 @@ from argparse import ArgumentParser, Namespace
 
 import numpy as np
 
-from streaming.base.shuffle import algos, get_shuffle
+from joshua.base.shuffle import algos, get_shuffle
 
 
 def parse_args() -> Namespace:

@@ -39,7 +39,7 @@ Training is likely taking longer between epochs due to DataLoader workers not pe
 If this still does not address the issue, refer to the [performance tuning page](../distributed_training/performance_tuning.md).
 
 ### I'm not seeing deterministic resumption on my training runs. How can I enable this?
-To enable elastic determinism and resumption, you should be using the {class}`streaming.StreamingDataLoader` instead of the generic PyTorch DataLoader. You should also make sure you're passing in `batch_size` to StreamingDataset in addition to your DataLoader. Certain launchers, such as [Composer](https://github.com/mosaicml/composer), support deterministic resumption with StreamingDataset automatically. See the [resumption](../distributed_training/fast_resumption.md) page for more information.
+To enable elastic determinism and resumption, you should be using the {class}`joshua.StreamingDataLoader` instead of the generic PyTorch DataLoader. You should also make sure you're passing in `batch_size` to StreamingDataset in addition to your DataLoader. Certain launchers, such as [Composer](https://github.com/mosaicml/composer), support deterministic resumption with StreamingDataset automatically. See the [resumption](../distributed_training/fast_resumption.md) page for more information.
 
 ### Is it possible for each global or device batch to consist only of samples from one Stream?
 Yes. For global batches drawn from a single stream, use the `per_stream` batching method, and for device batches drawn from a single stream, use the `device_per_stream` batching method. More details are in the [batching methods](../dataset_configuration/mixing_data_sources.md#batching-methods) section.
@@ -48,7 +48,7 @@ Yes. For global batches drawn from a single stream, use the `per_stream` batchin
 Streaming uses shared memory to communicate between workers. These errors are indicative of stale shared memory, likely from a previous training run. To fix this, call `python` in your terminal and run the commands below:
 <!--pytest.mark.skip-->
 ```
->>> import streaming.base.util as util
+>>> import joshua.base.util as util
 >>> util.clean_stale_shared_memory()
 ```
 
@@ -99,4 +99,4 @@ for global_sample_idx in range(num_dataset_samples):
 ```
 
 ### Don't make your shard file size too large or small
-You can control the maximum file size of your shards with the `size_limit` argument to the `Writer` objects -- for example, in {class}`streaming.MDSWriter`. The default shard size is 67MB, and we see that 50-100MB shards work well across modalities and workloads. If shards are too small, then you will get too many download requests, and if shards are too large, then shard downloads become more expensive and harder to balance.
+You can control the maximum file size of your shards with the `size_limit` argument to the `Writer` objects -- for example, in {class}`joshua.MDSWriter`. The default shard size is 67MB, and we see that 50-100MB shards work well across modalities and workloads. If shards are too small, then you will get too many download requests, and if shards are too large, then shard downloads become more expensive and harder to balance.

@@ -10,7 +10,7 @@ from typing import Any, Optional
 
 import pytest
 
-from streaming import MDSWriter
+from joshua import MDSWriter
 
 from .datasets import NumberAndSayDataset, SequenceDataset
 

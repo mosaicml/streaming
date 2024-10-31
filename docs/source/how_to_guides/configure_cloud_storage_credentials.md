@@ -77,17 +77,17 @@ If the bucket you are accessing is a [Requester Pays](https://docs.aws.amazon.co
 ````{tabs}
 ```{code-tab} py
 import os
-os.environ['MOSAICML_STREAMING_AWS_REQUESTER_PAYS'] = 'streaming-bucket'
+os.environ['MOSAICML_STREAMING_AWS_REQUESTER_PAYS'] = 'joshua-bucket'
 
 # For more than one requester pays bucket
-os.environ['MOSAICML_STREAMING_AWS_REQUESTER_PAYS'] = 'streaming-bucket,another-bucket'
+os.environ['MOSAICML_STREAMING_AWS_REQUESTER_PAYS'] = 'joshua-bucket,another-bucket'
 ```
 
 ```{code-tab} sh
-export MOSAICML_STREAMING_AWS_REQUESTER_PAYS='streaming-bucket'
+export MOSAICML_STREAMING_AWS_REQUESTER_PAYS='joshua-bucket'
 
 # For more than one requester pays bucket
-export MOSAICML_STREAMING_AWS_REQUESTER_PAYS='streaming-bucket,another-bucket'
+export MOSAICML_STREAMING_AWS_REQUESTER_PAYS='joshua-bucket,another-bucket'
 ```
 ````
 
@@ -217,7 +217,7 @@ region=us-ashburn-1
 
 ```
 
-The key file (`~/.oci/oci_api_key.pem`) is a PEM file that would look like a typical RSA private key file. The streaming dataset authenticates the credentials by reading the `~/.oci/config` and `~/.oci/oci_api_key.pem`.
+The key file (`~/.oci/oci_api_key.pem`) is a PEM file that would look like a typical RSA private key file. The joshua dataset authenticates the credentials by reading the `~/.oci/config` and `~/.oci/oci_api_key.pem`.
 
 ## Azure Blob Storage and Azure DataLake
 

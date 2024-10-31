@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 from torch.utils.data import DataLoader
 
-from streaming import MDSWriter, StreamingDataset
+from joshua import MDSWriter, StreamingDataset
 from tests.common.utils import convert_to_mds
 
 

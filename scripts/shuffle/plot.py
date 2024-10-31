@@ -1,7 +1,7 @@
 # Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Plot results of comparing streaming dataset shuffling algorithms."""
+"""Plot results of comparing joshua dataset shuffling algorithms."""
 
 from argparse import ArgumentParser, Namespace
 
@@ -66,7 +66,7 @@ def load(filename: str) -> tuple[list[int], dict[str, list[float]]]:
 
 
 def main(args: Namespace) -> None:
-    """Plot results of comparing streaming dataset shuffling algorithms.
+    """Plot results of comparing joshua dataset shuffling algorithms.
 
     Args:
         args (Namespace): Command-line arguments.

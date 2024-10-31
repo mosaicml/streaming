@@ -3,7 +3,7 @@
 
 import pytest
 
-from streaming import MDSWriter, StreamingDataset
+from joshua import MDSWriter, StreamingDataset
 
 
 @pytest.mark.usefixtures('local_remote_dir')

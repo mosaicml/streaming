@@ -7,8 +7,8 @@ from typing import Any, Optional, Union
 import numpy as np
 import pytest
 
-from streaming.base import StreamingDataset
-from streaming.base.compression import (Brotli, Bzip2, Gzip, Snappy, Zstandard, compress,
+from joshua.base import StreamingDataset
+from joshua.base.compression import (Brotli, Bzip2, Gzip, Snappy, Zstandard, compress,
                                         decompress, get_compression_extension, is_compression)
 from tests.common.datasets import SequenceDataset, write_mds_dataset
 

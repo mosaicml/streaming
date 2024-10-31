@@ -9,7 +9,7 @@ Start training your model with Streaming in just a few steps!
     from PIL import Image
     from shutil import rmtree
     from uuid import uuid4
-    from streaming import MDSWriter
+    from joshua import MDSWriter
 
     # Local or remote directory path to store the output compressed files.
     out_root = 'dirname'
@@ -40,11 +40,11 @@ Start training your model with Streaming in just a few steps!
             out.write(sample)
     ```
 
-2. Replace the original {class}`torch.utils.data.IterableDataset` with your new {class}`streaming.StreamingDataset`. Point it to the dataset written out above, and specify the `batch_size` to StreamingDataset and the DataLoader.
+2. Replace the original {class}`torch.utils.data.IterableDataset` with your new {class}`joshua.StreamingDataset`. Point it to the dataset written out above, and specify the `batch_size` to StreamingDataset and the DataLoader.
     <!--pytest.mark.skip-->
     ```python
     from torch.utils.data import DataLoader
-    from streaming import StreamingDataset
+    from joshua import StreamingDataset
 
     # Remote directory where dataset is stored, from above
     remote_dir = 's3://path/to/dataset'
@@ -59,19 +59,19 @@ Start training your model with Streaming in just a few steps!
 
 That's it! For additional details on using Streaming, check out the [Main Concepts](main_concepts.md) page and [How-to Guides](../how_to_guides/cifar10.ipynb).
 
-We also have starter code for the following popular datasets, which can be found in the `streaming` [directory](https://github.com/mosaicml/streaming/tree/main/streaming):
+We also have starter code for the following popular datasets, which can be found in the `joshua` [directory](https://github.com/mosaicml/joshua/tree/main/joshua):
 
 | Dataset | Task | Read | Write |
 | --- | --- | --- | --- |
-| LAION-400M | Text and image | [Read](https://github.com/mosaicml/diffusion-benchmark/blob/main/data.py) | [Write](https://github.com/mosaicml/streaming/tree/main/streaming/multimodal/convert/laion/laion400m) |
-| WebVid | Text and video | [Read](https://github.com/mosaicml/streaming/blob/main/streaming/multimodal/webvid.py) | [Write](https://github.com/mosaicml/streaming/blob/main/streaming/multimodal/convert/webvid.py) |
-| C4 | Text | [Read](https://github.com/mosaicml/streaming/blob/main/streaming/text/c4.py) | [Write](https://github.com/mosaicml/streaming/blob/main/streaming/text/convert/c4.py) |
-| EnWiki | Text | [Read](https://github.com/mosaicml/streaming/blob/main/streaming/text/enwiki.py) | [Write](https://github.com/mosaicml/streaming/tree/main/streaming/text/convert/enwiki) |
-| Pile | Text | [Read](https://github.com/mosaicml/streaming/blob/main/streaming/text/pile.py) | [Write](https://github.com/mosaicml/streaming/blob/main/streaming/text/convert/pile.py)
-| ADE20K | Image segmentation | [Read](https://github.com/mosaicml/streaming/blob/main/streaming/vision/ade20k.py) | [Write](https://github.com/mosaicml/streaming/blob/main/streaming/vision/convert/ade20k.py)
-| CIFAR10 | Image classification | [Read](https://github.com/mosaicml/streaming/blob/main/streaming/vision/cifar10.py) | [Write](https://github.com/mosaicml/streaming/blob/main/streaming/vision/convert/cifar10.py) |
-| COCO | Image classification | [Read](https://github.com/mosaicml/streaming/blob/main/streaming/vision/coco.py) | [Write](https://github.com/mosaicml/streaming/blob/main/streaming/vision/convert/coco.py) |
-| ImageNet | Image classification | [Read](https://github.com/mosaicml/streaming/blob/main/streaming/vision/imagenet.py) | [Write](https://github.com/mosaicml/streaming/blob/main/streaming/vision/convert/imagenet.py) |
+| LAION-400M | Text and image | [Read](https://github.com/mosaicml/diffusion-benchmark/blob/main/data.py) | [Write](https://github.com/mosaicml/joshua/tree/main/joshua/multimodal/convert/laion/laion400m) |
+| WebVid | Text and video | [Read](https://github.com/mosaicml/joshua/blob/main/joshua/multimodal/webvid.py) | [Write](https://github.com/mosaicml/joshua/blob/main/joshua/multimodal/convert/webvid.py) |
+| C4 | Text | [Read](https://github.com/mosaicml/joshua/blob/main/joshua/text/c4.py) | [Write](https://github.com/mosaicml/joshua/blob/main/joshua/text/convert/c4.py) |
+| EnWiki | Text | [Read](https://github.com/mosaicml/joshua/blob/main/joshua/text/enwiki.py) | [Write](https://github.com/mosaicml/joshua/tree/main/joshua/text/convert/enwiki) |
+| Pile | Text | [Read](https://github.com/mosaicml/joshua/blob/main/joshua/text/pile.py) | [Write](https://github.com/mosaicml/joshua/blob/main/joshua/text/convert/pile.py)
+| ADE20K | Image segmentation | [Read](https://github.com/mosaicml/joshua/blob/main/joshua/vision/ade20k.py) | [Write](https://github.com/mosaicml/joshua/blob/main/joshua/vision/convert/ade20k.py)
+| CIFAR10 | Image classification | [Read](https://github.com/mosaicml/joshua/blob/main/joshua/vision/cifar10.py) | [Write](https://github.com/mosaicml/joshua/blob/main/joshua/vision/convert/cifar10.py) |
+| COCO | Image classification | [Read](https://github.com/mosaicml/joshua/blob/main/joshua/vision/coco.py) | [Write](https://github.com/mosaicml/joshua/blob/main/joshua/vision/convert/coco.py) |
+| ImageNet | Image classification | [Read](https://github.com/mosaicml/joshua/blob/main/joshua/vision/imagenet.py) | [Write](https://github.com/mosaicml/joshua/blob/main/joshua/vision/convert/imagenet.py) |
 
 **To start training on these datasets:**
 
@@ -81,14 +81,14 @@ For example:
 
 <!--pytest.mark.skip-->
 ```bash
-$ python -m streaming.multimodal.convert.webvid --in <CSV file> --out <MDS output directory>
+$ python -m joshua.multimodal.convert.webvid --in <CSV file> --out <MDS output directory>
 ```
 
 2. Import dataset class to start training the model.
 
 <!--pytest.mark.skip-->
 ```python
-from streaming.multimodal import StreamingInsideWebVid
+from joshua.multimodal import StreamingInsideWebVid
 dataset = StreamingInsideWebVid(local=local, remote=remote, batch_size=1, shuffle=True)
 ```
 

@@ -10,7 +10,7 @@ from core.sim_time import Time, TimeUnit, ensure_time
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
-from streaming.base import Stream
+from joshua.base import Stream
 
 
 def ingest_yaml(yaml_dict: Optional[dict] = None,
@@ -79,9 +79,9 @@ def ingest_yaml(yaml_dict: Optional[dict] = None,
         dataset = config['dataset']
         if 'train_dataset' in dataset:
             train_dataset = dataset['train_dataset']
-            if 'streaming_kwargs' in train_dataset:
-                # Merge streaming kwargs, if present, into train_dataset
-                train_dataset.update(train_dataset['streaming_kwargs'])
+            if 'joshua_kwargs' in train_dataset:
+                # Merge joshua kwargs, if present, into train_dataset
+                train_dataset.update(train_dataset['joshua_kwargs'])
             if 'dataloader_kwargs' in train_dataset and 'num_workers' in train_dataset[
                     'dataloader_kwargs']:
                 workers = train_dataset['dataloader_kwargs']['num_workers']
@@ -91,9 +91,9 @@ def ingest_yaml(yaml_dict: Optional[dict] = None,
             raise ValueError('train_dataset must be specified in the yaml file.')
     elif 'train_dataset' in config:
         train_dataset = config['train_dataset']
-        if 'streaming_kwargs' in train_dataset:
-            # Merge streaming kwargs, if present, into train_dataset
-            train_dataset.update(train_dataset['streaming_kwargs'])
+        if 'joshua_kwargs' in train_dataset:
+            # Merge joshua kwargs, if present, into train_dataset
+            train_dataset.update(train_dataset['joshua_kwargs'])
         if 'dataloader_kwargs' in train_dataset and 'num_workers' in train_dataset[
                 'dataloader_kwargs']:
             workers = train_dataset['dataloader_kwargs']['num_workers']

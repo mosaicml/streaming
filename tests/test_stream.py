@@ -10,8 +10,8 @@ from typing import Any, Optional
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
 
-from streaming import Stream, StreamingDataset
-from streaming.base.distributed import barrier
+from joshua import Stream, StreamingDataset
+from joshua.base.distributed import barrier
 from tests.common.utils import convert_to_mds
 
 

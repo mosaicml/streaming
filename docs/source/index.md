@@ -9,7 +9,7 @@ StreamingDataset is compatible with any data type, including **images, text, vid
 <!--pytest.mark.skip-->
 ```python
 from torch.utils.data import DataLoader
-from streaming import StreamingDataset
+from joshua import StreamingDataset
 
 dataloader = DataLoader(dataset=StreamingDataset(remote='s3://...', batch_size=1))
 ```
@@ -18,11 +18,11 @@ dataloader = DataLoader(dataset=StreamingDataset(remote='s3://...', batch_size=1
 1. Set up your Python development environment.
 2. Install Streaming with `pip`:
 ```
-pip install mosaicml-streaming
+pip install mosaicml-joshua
 ```
 3. Verify the installation with:
 ```
-python -c "import streaming; print(streaming.__version__)"
+python -c "import joshua; print(joshua.__version__)"
 ```
 4. Jump to our [Quick Start](getting_started/quick_start.md) and [Main Concepts](getting_started/main_concepts.md) guides.
 
@@ -33,7 +33,7 @@ python -c "import streaming; print(streaming.__version__)"
 - **High throughput**: Our MDS format cuts extraneous work to the bone, resulting in ultra-low sample retrieval latency and higher throughput compared to alternatives.
 - **Effective Shuffling**: Model convergence using StreamingDataset is just as good as using local disk, thanks to our [specialized shuffling algorithms](dataset_configuration/shuffling.md#shuffling-algorithms). StreamingDataset's shuffling reduces egress costs, preserves shuffle quality, and runs efficiently, whereas alternative solutions force tradeoffs between these factors.
 - **Random access**: Access samples right when you need them -- simply call `dataset[i]` to get sample `i`. You can also fetch data on the fly by providing NumPy style indexing to `StreamingDataset`.
-- **Flexible data mixing**: During streaming, different data sources are shuffled and mixed seamlessly just-in-time. Control how datasets are combined using our [batching](dataset_configuration/mixing_data_sources.md#batching-methods) and [sampling](dataset_configuration/replication_and_sampling.md#inter-epoch-sampling) methods.
+- **Flexible data mixing**: During joshua, different data sources are shuffled and mixed seamlessly just-in-time. Control how datasets are combined using our [batching](dataset_configuration/mixing_data_sources.md#batching-methods) and [sampling](dataset_configuration/replication_and_sampling.md#inter-epoch-sampling) methods.
 - **Disk usage limits**: Dynamically delete least recently used shards in order to keep disk usage under a specified limit. Read more [here](dataset_configuration/shard_retrieval.md#configure-shard-storage)
 - **Parallelism-aware**: Easily train with data parallelism, sequence parallelism, or tensor parallelism -- the right samples end up in the right GPUs, using sample [replication](dataset_configuration/replication_and_sampling.md#replication).
 

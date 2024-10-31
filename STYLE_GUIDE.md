@@ -142,10 +142,10 @@ so other contributors will know why this error was silenced.
 A public API, generally speaking, can be invoked by a user without a leading underscore in any portion of the path.
 The following are examples of public APIs:
 
-* Standalone functions in public modules (e.g. `streaming.base.distributed.get_world_size`)
-* Classes in public modules (e.g. `streaming.base.format.MDSWriter`)
-* Public methods in public classes (e.g. `streaming.base.format.MDSWriter.write`)
-* Public modules (e.g. `streaming.base.dataset`)
+* Standalone functions in public modules (e.g. `joshua.base.distributed.get_world_size`)
+* Classes in public modules (e.g. `joshua.base.format.MDSWriter`)
+* Public methods in public classes (e.g. `joshua.base.format.MDSWriter.write`)
+* Public modules (e.g. `joshua.base.dataset`)
 
 The following rules apply to public APIs:
 1. All public APIs must have a docstring (see the Documentation section below)
@@ -189,7 +189,7 @@ All imports in Streaming should be absolute -- that is, they do not begin with a
 1.  If a dependency is not core to Streaming (e.g. it is for a model, dataset, or some callbacks):
     1.  It must be specified in a entry of the `extra_deps` dictionary of [setup.py](setup.py).
         This dictionary groups dependencies that can be conditionally installed. An entry named `foo`
-        can be installed with `pip install 'mosaicml-streaming[foo]'`. For example, running `pip install 'mosaicml-streaming[docs]'`
+        can be installed with `pip install 'mosaicml-joshua[foo]'`. For example, running `pip install 'mosaicml-joshua[docs]'`
         will install everything in `install_requires`, along with `docs`.
     1.  It must also be specified in the `run_constrained` and the `test.requires` section.
     1.  If the dependency is core to Streaming, add the dependency to the `install_requires` section of
@@ -201,14 +201,14 @@ All public modules must define `__all__` to be the list of members that should b
 The variable is necessary to 1) limit what `from XXX import *` imports, and 2) ensure that the documentation only
 includes exported members, not unrelated re-imports.
 
-For example, from [streaming/base/dataset.py](streaming/base/dataset.py)
+For example, from [joshua/base/dataset.py](joshua/base/dataset.py)
 
 ```python
-"""The :class:`Dataset` class, used for building streaming iterable datasets."""
+"""The :class:`Dataset` class, used for building joshua iterable datasets."""
 from torch.utils.data import IterableDataset
 
-from streaming.base.format import reader_from_json
-from streaming.base.spanner import Spanner
+from joshua.base.format import reader_from_json
+from joshua.base.spanner import Spanner
 
 __all__ = ["Dataset"]  # export only the Dataset, not other imports like `Spanner` or `reader_from_json`
 
@@ -224,15 +224,15 @@ All public classes and functions should be added to the module's `__init__.py`.
 
 <!--pytest.mark.skip-->
 ```python
-from streaming.path.to.module.file import MyClass as MyClass
-from streaming.path.to.module.file import my_func as my_func
+from joshua.path.to.module.file import MyClass as MyClass
+from joshua.path.to.module.file import my_func as my_func
 ```
 
 If a file only contains public functions, then the following is also acceptable:
 
 <!--pytest.mark.skip-->
 ```python
-from streaming.path.to.module import my_file as my_file
+from joshua.path.to.module import my_file as my_file
 ```
 
 
@@ -326,8 +326,8 @@ In a terminal, run:
 
 <!--pytest.mark.skip-->
 ```bash
-source path/to/streaming_venv/bin/activate  # activate your streaming virtual env
-cd streaming/docs  # cd to the docs folder inside your streaming clone
+source path/to/joshua_venv/bin/activate  # activate your joshua virtual env
+cd joshua/docs  # cd to the docs folder inside your joshua clone
 make clean  # Cleans the artifacts and remove source/api_reference folder
 make html   # build the docs
 make host   # Run the docs locally
@@ -386,8 +386,8 @@ Assuming you already have a development install of Streaming (see these [instruc
 
 <!--pytest.mark.skip-->
 ```bash
-source path/to/streaming_venv/bin/activate  # activate your streaming virtual env
-cd streaming/docs  # cd to the docs folder inside your streaming clone
+source path/to/joshua_venv/bin/activate  # activate your joshua virtual env
+cd joshua/docs  # cd to the docs folder inside your joshua clone
 make clean  # Cleans the artifacts and remove source/api_reference folder
 make html  # the html build must be completed first to ensure all doctests are identified
 make doctest 2>/dev/null # For more verbosity, do not direct stderr to /dev/null

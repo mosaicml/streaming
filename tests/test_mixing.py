@@ -6,7 +6,7 @@ import os
 import numpy as np
 import pytest
 
-from streaming import MDSWriter, Stream, StreamingDataset
+from joshua import MDSWriter, Stream, StreamingDataset
 
 
 def walk(dataset: StreamingDataset) -> list[int]:

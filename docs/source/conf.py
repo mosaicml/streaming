@@ -35,7 +35,7 @@ from pypandoc.pandoc_download import download_pandoc
 from sphinx.ext.autodoc import ClassDocumenter, _
 from sphinx.writers.html5 import HTML5Translator
 
-import streaming
+import joshua
 
 if not shutil.which('pandoc'):
     # Install pandoc if it is not installed.
@@ -114,7 +114,7 @@ _COMMIT_SHA = _get_commit_sha()
 # Don't show notebook output in the docs
 nbsphinx_execute = 'never'
 
-notebook_path = 'mosaicml/streaming/blob/' + _COMMIT_SHA + '/{{ env.doc2path(env.docname, base=None) }}'
+notebook_path = 'mosaicml/joshua/blob/' + _COMMIT_SHA + '/{{ env.doc2path(env.docname, base=None) }}'
 
 # Include an "Open in Colab" link at the beginning of all notebooks
 nbsphinx_prolog = f"""
@@ -163,10 +163,10 @@ html_css_files = ['css/custom.css', 'https://cdn.jsdelivr.net/npm/@docsearch/css
 html_js_files = ['js/posthog.js']
 
 # MosaicML Streaming logo
-# html_logo = 'https://storage.googleapis.com/docs.mosaicml.com/images/streaming-logo-light-mode.png'
+# html_logo = 'https://storage.googleapis.com/docs.mosaicml.com/images/joshua-logo-light-mode.png'
 html_theme_options = {
-    'light_logo': 'images/streaming-logo-light-mode.png',
-    'dark_logo': 'images/streaming-logo-dark-mode.png',
+    'light_logo': 'images/joshua-logo-light-mode.png',
+    'dark_logo': 'images/joshua-logo-dark-mode.png',
     'light_css_variables': {
         'color-brand-primary': '#343434',
         'color-brand-content': '#343434',
@@ -376,20 +376,20 @@ def _auto_rst_for_module(module: types.ModuleType, exclude_members: List[Any]) -
 def _modules_to_rst() -> List[types.ModuleType]:
     """Return the list of modules for which to generate API reference rst files."""
     document_modules: List[types.Module] = [
-        streaming,
-        streaming.base.compression,
-        streaming.base.format,
-        streaming.base.hashing,
-        streaming.base.partition,
-        streaming.base.shared,
-        streaming.base.shuffle,
-        streaming.base.storage,
-        streaming.base.util,
-        streaming.base.world,
+        joshua,
+        joshua.base.compression,
+        joshua.base.format,
+        joshua.base.hashing,
+        joshua.base.partition,
+        joshua.base.shared,
+        joshua.base.shuffle,
+        joshua.base.storage,
+        joshua.base.util,
+        joshua.base.world,
     ]
-    exclude_modules: List[types.Module] = [streaming.base, streaming._version]
-    for name in streaming.__dict__:
-        obj = streaming.__dict__[name]
+    exclude_modules: List[types.Module] = [joshua.base, joshua._version]
+    for name in joshua.__dict__:
+        obj = joshua.__dict__[name]
         if isinstance(obj, types.ModuleType) and obj not in exclude_modules:
             document_modules.append(obj)
 
@@ -407,12 +407,12 @@ def _generate_rst_files_for_modules() -> None:
     # gather up modules to generate rst files for
     document_modules = _modules_to_rst()
 
-    # rip out types that are duplicated in top-level streaming module
-    streaming_imported_types = []
-    for name in streaming.__all__:
-        obj = streaming.__dict__[name]
+    # rip out types that are duplicated in top-level joshua module
+    joshua_imported_types = []
+    for name in joshua.__all__:
+        obj = joshua.__dict__[name]
         if not isinstance(obj, types.ModuleType):
-            streaming_imported_types.append(obj)
+            joshua_imported_types.append(obj)
 
     document_modules = sorted(document_modules, key=lambda x: x.__name__)
     os.makedirs(module_rst_save_dir, exist_ok=True)
@@ -424,8 +424,8 @@ def _generate_rst_files_for_modules() -> None:
         # types, so we get a ``WARNING: duplicate object description`` if we
         # don't exclude it
         exclude_members = [torch.optim.lr_scheduler._LRScheduler]
-        if module is not streaming:
-            exclude_members += streaming_imported_types
+        if module is not joshua:
+            exclude_members += joshua_imported_types
 
         content = _auto_rst_for_module(module, exclude_members=exclude_members)
 
@@ -501,7 +501,7 @@ class PatchedHTMLTranslator(HTML5Translator):
             if 'refid' not in node and (
                     not any(node['refuri'].startswith(x)
                             for x in ('/', 'https://docs.mosaicml.com', '#')) or
-                    node['refuri'].startswith('https://streaming.docs.mosaicml.com') or
+                    node['refuri'].startswith('https://joshua.docs.mosaicml.com') or
                     node['refuri'].startswith('https://docs.mosaicml.com/projects/yahp')):
                 # If there's a refid, or the refuri starts with a non-external uri scheme, then it's an internal
                 # (hardcoded) link, so don't open that in a new tab

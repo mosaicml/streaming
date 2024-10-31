@@ -8,13 +8,13 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-from streaming.base import StreamingDataset
-from streaming.base.constant import LOCALS
-from streaming.base.shared import SharedArray, get_shm_prefix
-from streaming.base.shared.memory import SharedMemory
-from streaming.base.shared.prefix import _check_and_find
-from streaming.base.util import clean_stale_shared_memory
-from streaming.base.world import World
+from joshua.base import StreamingDataset
+from joshua.base.constant import LOCALS
+from joshua.base.shared import SharedArray, get_shm_prefix
+from joshua.base.shared.memory import SharedMemory
+from joshua.base.shared.prefix import _check_and_find
+from joshua.base.util import clean_stale_shared_memory
+from joshua.base.world import World
 from tests.common.utils import convert_to_mds
 
 
@@ -157,7 +157,7 @@ def test_state_dict_too_large(local_remote_dir: tuple[str, str]):
 
 
 @pytest.mark.parametrize('dtype', [np.int32, np.int64, np.float32, np.float64])
-@patch('streaming.base.shared.array.SharedMemory')
+@patch('joshua.base.shared.array.SharedMemory')
 def test_shared_array_size_is_integer(mock_shared_memory: MagicMock, dtype: type[np.dtype]):
     SharedArray(3, dtype=dtype, name='test_shared_array')
     mock_shared_memory.assert_called_once()  # pyright: ignore

@@ -1,6 +1,6 @@
 # Shard Retrieval
 
-Shards are downloaded on the fly during training and samples are retrieved from them. You can configure {class}`streaming.StreamingDataset`'s shard retrieval to meet your training job's needs. For more information about shard retrieval during distributed model training, refer to the [main concepts page](../getting_started/main_concepts.md#distributed-model-training).
+Shards are downloaded on the fly during training and samples are retrieved from them. You can configure {class}`joshua.StreamingDataset`'s shard retrieval to meet your training job's needs. For more information about shard retrieval during distributed model training, refer to the [main concepts page](../getting_started/main_concepts.md#distributed-model-training).
 
 ## Loading datasets
 
@@ -35,7 +35,7 @@ dataset = StreamingDataset(
 
 ### Multiple streams
 
-If using multiple data sources, specify the `remote` and/or `local` paths for each one in a separate {class}`streaming.Stream` object, and pass those to StreamingDataset's `streams` argument. An example can be found [here](../getting_started/main_concepts.md#Remote-data-streams).
+If using multiple data sources, specify the `remote` and/or `local` paths for each one in a separate {class}`joshua.Stream` object, and pass those to StreamingDataset's `streams` argument. An example can be found [here](../getting_started/main_concepts.md#Remote-data-streams).
 
 ### Hash Validation
 

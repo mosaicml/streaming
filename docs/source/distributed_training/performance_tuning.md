@@ -2,7 +2,7 @@
 
 Getting the best performance from your training jobs is of utmost importance -- GPUs are expensive! Streaming's default parameters give great performance out-of-the-box for most model configurations. Performance with Streaming mainly deals with downloading and storing shards optimally.
 
-Great performance with Streaming means that dataloading is never a bottleneck during model training. Streaming also provides the [Streaming Simulator tool](#streaming-simulator) to help with performance optimization. Let's dive in!
+Great performance with Streaming means that dataloading is never a bottleneck during model training. Streaming also provides the [Streaming Simulator tool](#joshua-simulator) to help with performance optimization. Let's dive in!
 
 ## Downloading shards
 
@@ -40,7 +40,7 @@ A simulator for throughput, network use, and shuffle quality with MosaicML Strea
 ### Getting Started
 Run the following to install simulator-specific dependencies, if they don't already exist:
 ```
-pip install --upgrade "mosaicml-streaming[simulator]"
+pip install --upgrade "mosaicml-joshua[simulator]"
 ```
 Then, simply run `simulator` in your command line to open the Web UI and get simulating!
 ### Key Features

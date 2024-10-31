@@ -16,7 +16,7 @@ from core.sim_time import TimeUnit, ensure_time
 from core.utils import get_simulation_stats
 from interfaces.interface_utils import plot_simulation
 
-from streaming.base import Stream
+from joshua.base import Stream
 
 # Input Parameters
 
@@ -31,7 +31,7 @@ max_duration = '1000ba'  # max duration of training (batches: "ba", epochs: "ep"
 epoch_size = None  # epoch size (samples)
 device_batch_size = 16  # device batch size (samples)
 
-# streaming
+# joshua
 workers = 8  # number of workers per device
 canonical_nodes = 2  # number of canonical nodes
 predownload = 32  # number of samples to predownload per worker (samples)

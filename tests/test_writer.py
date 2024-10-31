@@ -9,7 +9,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-from streaming import CSVWriter, JSONWriter, MDSWriter, StreamingDataset, TSVWriter, XSVWriter
+from joshua import CSVWriter, JSONWriter, MDSWriter, StreamingDataset, TSVWriter, XSVWriter
 from tests.common.datasets import NumberAndSayDataset, SequenceDataset
 from tests.common.utils import get_config_in_bytes
 

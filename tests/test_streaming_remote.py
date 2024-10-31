@@ -7,9 +7,9 @@ from typing import Any, Optional
 
 import pytest
 
-from streaming.base import StreamingDataset
-from streaming.text import StreamingC4
-from streaming.vision import StreamingADE20K, StreamingCIFAR10, StreamingCOCO, StreamingImageNet
+from joshua.base import StreamingDataset
+from joshua.text import StreamingC4
+from joshua.vision import StreamingADE20K, StreamingCIFAR10, StreamingCOCO, StreamingImageNet
 
 
 def get_dataset(name: str,
@@ -69,8 +69,8 @@ def get_dataset(name: str,
             'class': StreamingCIFAR10,
             'kwargs': {},
         },
-        'test_streaming_upload': {
-            'remote': 's3://streaming-upload-test-bucket/',
+        'test_joshua_upload': {
+            'remote': 's3://joshua-upload-test-bucket/',
             'num_samples': {
                 'all': 0,
             },
@@ -103,7 +103,7 @@ def get_dataset(name: str,
     'c4',
 ])
 @pytest.mark.parametrize('split', ['val'])
-def test_streaming_remote_dataset(tmp_path: pathlib.Path, name: str, split: str) -> None:
+def test_joshua_remote_dataset(tmp_path: pathlib.Path, name: str, split: str) -> None:
     # Build StreamingDataset
     build_start = time.time()
     expected_samples, dataset = get_dataset(name=name,

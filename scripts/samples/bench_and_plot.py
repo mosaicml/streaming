@@ -17,7 +17,7 @@ from matplotlib.ticker import ScalarFormatter
 from numpy.typing import DTypeLike, NDArray
 from tqdm import trange
 
-from streaming import CSVWriter, JSONWriter, MDSWriter, StreamingDataset
+from joshua import CSVWriter, JSONWriter, MDSWriter, StreamingDataset
 
 
 def parse_args() -> Namespace:

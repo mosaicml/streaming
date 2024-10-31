@@ -12,7 +12,7 @@ import numpy as np
 import pytest
 from numpy.typing import NDArray
 
-from streaming.base import StreamingDataset
+from joshua.base import StreamingDataset
 from tests.common.utils import convert_to_mds, copy_all_files
 
 logger = logging.getLogger(__name__)

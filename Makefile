@@ -4,7 +4,7 @@ PYTEST ?= pytest  # Pytest command
 PYRIGHT ?= pyright  # Pyright command. Pyright must be installed seperately -- e.g. `node install -g pyright`
 EXTRA_ARGS ?=  # extra arguments for pytest
 
-dirs := streaming tests docs
+dirs := joshua tests docs
 
 # this only checks for style & pyright, makes no code changes
 lint:
@@ -20,7 +20,7 @@ style:
 	$(PYTHON) -m docformatter -ri $(dirs)
 
 longlines:
-	find streaming tests -type f -name "*.py" | xargs grep -x '.\{100,\}'
+	find joshua tests -type f -name "*.py" | xargs grep -x '.\{100,\}'
 
 test:
 	$(PYTHON) -m $(PYTEST) $(EXTRA_ARGS)

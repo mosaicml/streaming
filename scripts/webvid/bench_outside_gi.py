@@ -8,7 +8,7 @@ from time import time
 
 import numpy as np
 
-from streaming.multimodal.webvid import StreamingOutsideGIWebVid
+from joshua.multimodal.webvid import StreamingOutsideGIWebVid
 
 
 def parse_args() -> Namespace:

@@ -6,8 +6,8 @@ from tempfile import TemporaryDirectory
 import torch
 from torch.utils.data import DataLoader
 
-from streaming import MDSWriter
-from streaming.base.local import LocalDataset
+from joshua import MDSWriter
+from joshua.base.local import LocalDataset
 
 
 def test_local_dataset():

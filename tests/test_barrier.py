@@ -11,7 +11,7 @@ from typing import Any
 
 import pytest
 
-from streaming.base.shared import SharedArray, SharedBarrier
+from joshua.base.shared import SharedArray, SharedBarrier
 
 
 class TestSharedBarrier:

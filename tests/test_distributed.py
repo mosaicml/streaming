@@ -12,8 +12,8 @@ import pytest
 import torch.distributed as dist
 from torch.utils.data import DataLoader
 
-import streaming.base.distributed as ms_dist
-from streaming.base import StreamingDataset
+import joshua.base.distributed as ms_dist
+from joshua.base import StreamingDataset
 from tests.common.datasets import SequenceDataset, write_mds_dataset
 from tests.common.distributed import DistributedTest
 

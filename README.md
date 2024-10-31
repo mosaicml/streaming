@@ -1,49 +1,49 @@
 <br />
 <p align="center">
-    <a href="https://github.com/mosaicml/streaming#gh-light-mode-only" class="only-light">
-      <img src="./docs/source/_static/images/streaming-logo-light-mode.png" width="50%"/>
+    <a href="https://github.com/mosaicml/joshua#gh-light-mode-only" class="only-light">
+      <img src="./docs/source/_static/images/joshua-logo-light-mode.png" width="50%"/>
     </a>
     <!--pypi website does not support dark mode and does not understand GitHub tag. Hence, it renders both the images.
     The below tag is being used to remove the dark mode image on pypi website.-->
     <!-- SETUPTOOLS_LONG_DESCRIPTION_HIDE_BEGIN -->
-    <a href="https://github.com/mosaicml/streaming#gh-dark-mode-only" class="only-dark">
-      <img src="./docs/source/_static/images/streaming-logo-dark-mode.png" width="50%"/>
+    <a href="https://github.com/mosaicml/joshua#gh-dark-mode-only" class="only-dark">
+      <img src="./docs/source/_static/images/joshua-logo-dark-mode.png" width="50%"/>
     </a>
     <!-- SETUPTOOLS_LONG_DESCRIPTION_HIDE_END -->
 </p>
 
-<h2><p align="center">Fast, accurate streaming of training data from cloud storage</p></h2>
+<h2><p align="center">Fast, accurate joshua of training data from cloud storage</p></h2>
 
 <h4><p align='center'>
 <a href="https://www.mosaicml.com">[Website]</a>
-- <a href="https://streaming.docs.mosaicml.com/en/latest/getting_started/user_guide.html">[Getting Started]</a>
-- <a href="https://streaming.docs.mosaicml.com/">[Docs]
+- <a href="https://joshua.docs.mosaicml.com/en/latest/getting_started/user_guide.html">[Getting Started]</a>
+- <a href="https://joshua.docs.mosaicml.com/">[Docs]
 - <a href="https://www.databricks.com/company/careers/open-positions?department=Mosaic%20AI&location=all">[We're Hiring!]</a>
 </p></h4>
 
 <p align="center">
-    <a href="https://pypi.org/project/mosaicml-streaming/">
-        <img alt="PyPi Version" src="https://img.shields.io/pypi/pyversions/mosaicml-streaming">
+    <a href="https://pypi.org/project/mosaicml-joshua/">
+        <img alt="PyPi Version" src="https://img.shields.io/pypi/pyversions/mosaicml-joshua">
     </a>
-    <a href="https://pypi.org/project/mosaicml-streaming/">
-        <img alt="PyPi Package Version" src="https://img.shields.io/pypi/v/mosaicml-streaming">
+    <a href="https://pypi.org/project/mosaicml-joshua/">
+        <img alt="PyPi Package Version" src="https://img.shields.io/pypi/v/mosaicml-joshua">
     </a>
-    <a href="https://github.com/mosaicml/streaming/actions?query=workflow%3ATest">
-        <img alt="Unit test" src="https://github.com/mosaicml/streaming/actions/workflows/pytest.yaml/badge.svg">
+    <a href="https://github.com/mosaicml/joshua/actions?query=workflow%3ATest">
+        <img alt="Unit test" src="https://github.com/mosaicml/joshua/actions/workflows/pytest.yaml/badge.svg">
     </a>
-    <a href="https://pepy.tech/project/mosaicml-streaming/">
-        <img alt="PyPi Downloads" src="https://static.pepy.tech/personalized-badge/mosaicml-streaming?period=month&units=international_system&left_color=grey&right_color=blue&left_text=Downloads/month">
+    <a href="https://pepy.tech/project/mosaicml-joshua/">
+        <img alt="PyPi Downloads" src="https://static.pepy.tech/personalized-badge/mosaicml-joshua?period=month&units=international_system&left_color=grey&right_color=blue&left_text=Downloads/month">
     </a>
-    <a href="https://streaming.docs.mosaicml.com">
-        <img alt="Documentation" src="https://readthedocs.org/projects/streaming/badge/?version=stable">
+    <a href="https://joshua.docs.mosaicml.com">
+        <img alt="Documentation" src="https://readthedocs.org/projects/joshua/badge/?version=stable">
     </a>
     <a href="https://dub.sh/mcomm">
         <img alt="Chat @ Slack" src="https://img.shields.io/badge/slack-chat-2eb67d.svg?logo=slack">
     </a>
-    <a href="https://github.com/mosaicml/streaming/blob/main/LICENSE">
+    <a href="https://github.com/mosaicml/joshua/blob/main/LICENSE">
         <img alt="License" src="https://img.shields.io/badge/License-Apache%202.0-green.svg?logo=slack">
     </a>
-    <a href="https://gurubase.io/g/streaming">
+    <a href="https://gurubase.io/g/joshua">
         <img alt="License" src="https://img.shields.io/badge/Gurubase-Ask%20Streaming%20Guru-006BFF">
     </a>
 </p>
@@ -53,7 +53,7 @@
 
 We built StreamingDataset to make training on large datasets from cloud storage as fast, cheap, and scalable as possible.
 
-It’s specially designed for multi-node, distributed training for large models—maximizing correctness guarantees, performance, and ease of use. Now, you can efficiently train anywhere, independent of your training data location. Just stream in the data you need, when you need it. To learn more about why we built StreamingDataset, read our [announcement blog](https://www.mosaicml.com/blog/mosaicml-streamingdataset).
+It’s specially designed for multi-node, distributed training for large models—maximizing correctness guarantees, performance, and ease of use. Now, you can efficiently train anywhere, independent of your training data location. Just stream in the data you need, when you need it. To learn more about why we built StreamingDataset, read our [announcement blog](https://www.mosaicml.com/blog/mosaicml-joshuadataset).
 
 StreamingDataset is compatible with any data type, including **images, text, video, and multimodal data**.
 
@@ -69,14 +69,14 @@ Streaming can be installed with `pip`:
 
 <!--pytest.mark.skip-->
 ```bash
-pip install mosaicml-streaming
+pip install mosaicml-joshua
 ```
 
 ## 🏁 Quick Start
 
 ### 1. Prepare Your Data
 
-Convert your raw dataset into one of our supported streaming formats:
+Convert your raw dataset into one of our supported joshua formats:
 
 - MDS (Mosaic Data Shard) format which can encode and decode any Python object
 - CSV / TSV
@@ -86,7 +86,7 @@ Convert your raw dataset into one of our supported streaming formats:
 ```python
 import numpy as np
 from PIL import Image
-from streaming import MDSWriter
+from joshua import MDSWriter
 
 # Local or remote directory in which to store the compressed output files
 data_dir = 'path-to-dataset'
@@ -112,7 +112,7 @@ with MDSWriter(out=data_dir, columns=columns, compression=compression) as out:
 
 ### 2. Upload Your Data to Cloud Storage
 
-Upload your streaming dataset to the cloud storage of your choice ([AWS](https://aws.amazon.com/s3/), [OCI](https://www.oracle.com/cloud/storage/object-storage/), or [GCP](https://cloud.google.com/storage)). Below is one example of uploading a directory to an S3 bucket using the [AWS CLI](https://aws.amazon.com/cli/).
+Upload your joshua dataset to the cloud storage of your choice ([AWS](https://aws.amazon.com/s3/), [OCI](https://www.oracle.com/cloud/storage/object-storage/), or [GCP](https://cloud.google.com/storage)). Below is one example of uploading a directory to an S3 bucket using the [AWS CLI](https://aws.amazon.com/cli/).
 
 <!--pytest.mark.skip-->
 ```bash
@@ -124,7 +124,7 @@ $ aws s3 cp --recursive path-to-dataset s3://my-bucket/path-to-dataset
 <!--pytest.mark.skip-->
 ```python
 from torch.utils.data import DataLoader
-from streaming import StreamingDataset
+from joshua import StreamingDataset
 
 # Remote path where full dataset is persistently stored
 remote = 's3://my-bucket/path-to-dataset'
@@ -132,7 +132,7 @@ remote = 's3://my-bucket/path-to-dataset'
 # Local working dir where dataset is cached during operation
 local = '/tmp/path-to-dataset'
 
-# Create streaming dataset
+# Create joshua dataset
 dataset = StreamingDataset(local=local, remote=remote, shuffle=True)
 
 # Let's see what is in sample #1337...
@@ -146,27 +146,27 @@ dataloader = DataLoader(dataset)
 
 ### 📚 What next?
 
-Getting started guides, examples, API references, and other useful information can be found in our [docs](https://streaming.docs.mosaicml.com/).
+Getting started guides, examples, API references, and other useful information can be found in our [docs](https://joshua.docs.mosaicml.com/).
 
 We have end-to-end tutorials for training a model on:
 
-- [CIFAR-10](https://docs.mosaicml.com/projects/streaming/en/stable/how_to_guides/cifar10.html)
-- [FaceSynthetics](https://github.com/mosaicml/streaming/blob/main/examples/facesynthetics.ipynb)
-- [SyntheticNLP](https://docs.mosaicml.com/projects/streaming/en/stable/how_to_guides/synthetic_nlp.html)
+- [CIFAR-10](https://docs.mosaicml.com/projects/joshua/en/stable/how_to_guides/cifar10.html)
+- [FaceSynthetics](https://github.com/mosaicml/joshua/blob/main/examples/facesynthetics.ipynb)
+- [SyntheticNLP](https://docs.mosaicml.com/projects/joshua/en/stable/how_to_guides/synthetic_nlp.html)
 
-We also have starter code for the following popular datasets, which can be found in the `streaming` [directory](https://github.com/mosaicml/streaming/tree/main/streaming):
+We also have starter code for the following popular datasets, which can be found in the `joshua` [directory](https://github.com/mosaicml/joshua/tree/main/joshua):
 
 | Dataset | Task | Read | Write |
 | --- | --- | --- | --- |
-| LAION-400M | Text and image | [Read](https://github.com/mosaicml/diffusion-benchmark/blob/main/data.py) | [Write](https://github.com/mosaicml/streaming/tree/main/streaming/multimodal/convert/laion/laion400m) |
-| WebVid | Text and video | [Read](https://github.com/mosaicml/streaming/blob/main/streaming/multimodal/webvid.py) | [Write](https://github.com/mosaicml/streaming/blob/main/streaming/multimodal/convert/webvid.py) |
-| C4 | Text | [Read](https://github.com/mosaicml/streaming/blob/main/streaming/text/c4.py) | [Write](https://github.com/mosaicml/streaming/blob/main/streaming/text/convert/c4.py) |
-| EnWiki | Text | [Read](https://github.com/mosaicml/streaming/blob/main/streaming/text/enwiki.py) | [Write](https://github.com/mosaicml/streaming/tree/main/streaming/text/convert/enwiki) |
-| Pile | Text | [Read](https://github.com/mosaicml/streaming/blob/main/streaming/text/pile.py) | [Write](https://github.com/mosaicml/streaming/blob/main/streaming/text/convert/pile.py)
-| ADE20K | Image segmentation | [Read](https://github.com/mosaicml/streaming/blob/main/streaming/vision/ade20k.py) | [Write](https://github.com/mosaicml/streaming/blob/main/streaming/vision/convert/ade20k.py)
-| CIFAR10 | Image classification | [Read](https://github.com/mosaicml/streaming/blob/main/streaming/vision/cifar10.py) | [Write](https://github.com/mosaicml/streaming/blob/main/streaming/vision/convert/cifar10.py) |
-| COCO | Image classification | [Read](https://github.com/mosaicml/streaming/blob/main/streaming/vision/coco.py) | [Write](https://github.com/mosaicml/streaming/blob/main/streaming/vision/convert/coco.py) |
-| ImageNet | Image classification | [Read](https://github.com/mosaicml/streaming/blob/main/streaming/vision/imagenet.py) | [Write](https://github.com/mosaicml/streaming/blob/main/streaming/vision/convert/imagenet.py) |
+| LAION-400M | Text and image | [Read](https://github.com/mosaicml/diffusion-benchmark/blob/main/data.py) | [Write](https://github.com/mosaicml/joshua/tree/main/joshua/multimodal/convert/laion/laion400m) |
+| WebVid | Text and video | [Read](https://github.com/mosaicml/joshua/blob/main/joshua/multimodal/webvid.py) | [Write](https://github.com/mosaicml/joshua/blob/main/joshua/multimodal/convert/webvid.py) |
+| C4 | Text | [Read](https://github.com/mosaicml/joshua/blob/main/joshua/text/c4.py) | [Write](https://github.com/mosaicml/joshua/blob/main/joshua/text/convert/c4.py) |
+| EnWiki | Text | [Read](https://github.com/mosaicml/joshua/blob/main/joshua/text/enwiki.py) | [Write](https://github.com/mosaicml/joshua/tree/main/joshua/text/convert/enwiki) |
+| Pile | Text | [Read](https://github.com/mosaicml/joshua/blob/main/joshua/text/pile.py) | [Write](https://github.com/mosaicml/joshua/blob/main/joshua/text/convert/pile.py)
+| ADE20K | Image segmentation | [Read](https://github.com/mosaicml/joshua/blob/main/joshua/vision/ade20k.py) | [Write](https://github.com/mosaicml/joshua/blob/main/joshua/vision/convert/ade20k.py)
+| CIFAR10 | Image classification | [Read](https://github.com/mosaicml/joshua/blob/main/joshua/vision/cifar10.py) | [Write](https://github.com/mosaicml/joshua/blob/main/joshua/vision/convert/cifar10.py) |
+| COCO | Image classification | [Read](https://github.com/mosaicml/joshua/blob/main/joshua/vision/coco.py) | [Write](https://github.com/mosaicml/joshua/blob/main/joshua/vision/convert/coco.py) |
+| ImageNet | Image classification | [Read](https://github.com/mosaicml/joshua/blob/main/joshua/vision/imagenet.py) | [Write](https://github.com/mosaicml/joshua/blob/main/joshua/vision/convert/imagenet.py) |
 
 **To start training on these datasets:**
 
@@ -176,14 +176,14 @@ For example:
 
 <!--pytest.mark.skip-->
 ```bash
-$ python -m streaming.multimodal.convert.webvid --in <CSV file> --out <MDS output directory>
+$ python -m joshua.multimodal.convert.webvid --in <CSV file> --out <MDS output directory>
 ```
 
 2. Import dataset class to start training the model.
 
 <!--pytest.mark.skip-->
 ```python
-from streaming.multimodal import StreamingInsideWebVid
+from joshua.multimodal import StreamingInsideWebVid
 dataset = StreamingInsideWebVid(local=local, remote=remote, shuffle=True)
 ```
 
@@ -193,7 +193,7 @@ dataset = StreamingInsideWebVid(local=local, remote=remote, shuffle=True)
 
 ## Seamless data mixing
 
-Easily experiment with dataset mixtures with [`Stream`](https://docs.mosaicml.com/projects/streaming/en/latest/api_reference/generated/streaming.Stream.html#stream). Dataset sampling can be controlled in relative (proportion) or absolute (repeat or samples terms). During streaming, the different datasets are streamed, shuffled, and mixed seamlessly just-in-time.
+Easily experiment with dataset mixtures with [`Stream`](https://docs.mosaicml.com/projects/joshua/en/latest/api_reference/generated/joshua.Stream.html#stream). Dataset sampling can be controlled in relative (proportion) or absolute (repeat or samples terms). During joshua, the different datasets are streamed, shuffled, and mixed seamlessly just-in-time.
 
 ```
 # mix C4, github code, and internal datasets
@@ -302,7 +302,7 @@ Here are some projects and experiments that used StreamingDataset. Got something
 
 We welcome any contributions, pull requests, or issues.
 
-To start contributing, see our [Contributing](https://github.com/mosaicml/streaming/blob/main/CONTRIBUTING.md) page.
+To start contributing, see our [Contributing](https://github.com/mosaicml/joshua/blob/main/CONTRIBUTING.md) page.
 
 P.S.: [We're hiring](https://mosaicml.com/jobs)!
 
@@ -315,10 +315,10 @@ If you like this project, give us a star **⭐** and check out our other project
 # ✍️ Citation
 
 ```
-@misc{mosaicml2022streaming,
+@misc{mosaicml2022joshua,
     author = {The Mosaic ML Team},
-    title = {streaming},
+    title = {joshua},
     year = {2022},
-    howpublished = {\url{<https://github.com/mosaicml/streaming/>}},
+    howpublished = {\url{<https://github.com/mosaicml/joshua/>}},
 }
 ```

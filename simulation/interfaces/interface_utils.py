@@ -14,7 +14,7 @@ import numpy as np
 from core.utils import get_rolling_avg_throughput
 from numpy.typing import NDArray
 
-from streaming.base.util import number_abbrev_to_int
+from joshua.base.util import number_abbrev_to_int
 
 
 def plot_simulation(step_times: NDArray, step_downloads: NDArray, window: int = 10):

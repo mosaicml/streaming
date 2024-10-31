@@ -16,7 +16,7 @@ from core.utils import get_simulation_stats
 from core.yaml_processing import create_simulation_dataset, ingest_yaml
 from interfaces.interface_utils import plot_simulation
 
-from streaming.base.util import bytes_to_int
+from joshua.base.util import bytes_to_int
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Simulate your training yaml from the command \

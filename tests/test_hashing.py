@@ -6,8 +6,8 @@ from typing import Any, Optional
 
 import pytest
 
-import streaming.base.hashing as shash
-from streaming.base import StreamingDataset
+import joshua.base.hashing as shash
+from joshua.base import StreamingDataset
 from tests.common.utils import convert_to_mds
 
 logger = logging.getLogger(__name__)

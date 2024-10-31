@@ -11,9 +11,9 @@ import pytest
 from numpy.typing import NDArray
 from PIL import Image
 
-import streaming.base.format.json.encodings as jsonEnc
-import streaming.base.format.mds.encodings as mdsEnc
-import streaming.base.format.xsv.encodings as xsvEnc
+import joshua.base.format.json.encodings as jsonEnc
+import joshua.base.format.mds.encodings as mdsEnc
+import joshua.base.format.xsv.encodings as xsvEnc
 
 
 class TestMDSEncodings:
@@ -34,7 +34,7 @@ class TestMDSEncodings:
             _ = byte_enc.encode(data)
 
     @pytest.mark.parametrize(('data', 'encode_data'),
-                             [('99', b'99'), ('streaming dataset', b'streaming dataset')])
+                             [('99', b'99'), ('joshua dataset', b'joshua dataset')])
     def test_str_encode_decode(self, data: str, encode_data: bytes):
         str_enc = mdsEnc.Str()
         assert str_enc.size is None
@@ -254,7 +254,7 @@ class TestMDSEncodings:
             png_enc = mdsEnc.PNG()
             _ = png_enc.encode(data)
 
-    @pytest.mark.parametrize('data', [25, 'streaming', np.array(7)])
+    @pytest.mark.parametrize('data', [25, 'joshua', np.array(7)])
     def test_pickle_encode_decode(self, data: Any):
         pkl_enc = mdsEnc.Pickle()
         assert pkl_enc.size is None
@@ -270,7 +270,7 @@ class TestMDSEncodings:
         # Validate data content
         assert dec_data == data
 
-    @pytest.mark.parametrize('data', [25, 'streaming', {'alpha': 1, 'beta': 2}])
+    @pytest.mark.parametrize('data', [25, 'joshua', {'alpha': 1, 'beta': 2}])
     def test_json_encode_decode(self, data: Any):
         json_enc = mdsEnc.JSON()
         assert json_enc.size is None
@@ -303,7 +303,7 @@ class TestMDSEncodings:
         assert dec_data == data.tolist()
 
     def test_json_invalid_data(self):
-        wrong_json_with_single_quotes = "{'name': 'streaming'}"
+        wrong_json_with_single_quotes = "{'name': 'joshua'}"
         with pytest.raises(json.JSONDecodeError):
             json_enc = mdsEnc.JSON()
             json_enc._is_valid(wrong_json_with_single_quotes, wrong_json_with_single_quotes)
@@ -545,7 +545,7 @@ class TestMDSEncodings:
 class TestXSVEncodings:
 
     @pytest.mark.parametrize(('data', 'encode_data'), [('99', '99'),
-                                                       ('streaming dataset', 'streaming dataset')])
+                                                       ('joshua dataset', 'joshua dataset')])
     def test_str_encode_decode(self, data: str, encode_data: str):
         str_enc = xsvEnc.Str()
 
@@ -559,7 +559,7 @@ class TestXSVEncodings:
         assert isinstance(dec_data, str)
         assert dec_data == data
 
-    @pytest.mark.parametrize('data', [99, b'streaming dataset', 123.45])
+    @pytest.mark.parametrize('data', [99, b'joshua dataset', 123.45])
     def test_str_encode_invalid_data(self, data: Any):
         with pytest.raises(Exception):
             str_enc = xsvEnc.Str()
@@ -579,7 +579,7 @@ class TestXSVEncodings:
         assert isinstance(dec_data, int)
         assert dec_data == data
 
-    @pytest.mark.parametrize('data', ['99', b'streaming dataset', 123.45])
+    @pytest.mark.parametrize('data', ['99', b'joshua dataset', 123.45])
     def test_int_encode_invalid_data(self, data: Any):
         with pytest.raises(Exception):
             int_enc = xsvEnc.Int()
@@ -599,7 +599,7 @@ class TestXSVEncodings:
         assert isinstance(dec_data, float)
         assert dec_data == data
 
-    @pytest.mark.parametrize('data', ['99', b'streaming dataset', 12])
+    @pytest.mark.parametrize('data', ['99', b'joshua dataset', 12])
     def test_float_encode_invalid_data(self, data: Any):
         with pytest.raises(Exception):
             float_enc = xsvEnc.Float()

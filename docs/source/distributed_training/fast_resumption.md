@@ -4,13 +4,13 @@ Being resistant to timeouts, hardware failures, or other errors is crucial to ef
 
 ## Saving and loading state
 
-To get fast, deterministic mid-epoch resumption, **make sure to use the {class}`streaming.StreamingDataLoader` object**. StreamingDataLoader works in conjunction with StreamingDataset to save and load dataset state. It works exactly like a normal PyTorch DataLoader.
+To get fast, deterministic mid-epoch resumption, **make sure to use the {class}`joshua.StreamingDataLoader` object**. StreamingDataLoader works in conjunction with StreamingDataset to save and load dataset state. It works exactly like a normal PyTorch DataLoader.
 
 When checkpointing, simply call the `state_dict` method of `StreamingDataLoader` and save it along with your checkpoint. Then, when resuming, call `load_state_dict` with the saved state, and you'll be running in no time. Here's an example:
 <!--pytest.mark.skip-->
 ```python
-from streaming import StreamingDataset
-from streaming import StreamingDataLoader
+from joshua import StreamingDataset
+from joshua import StreamingDataLoader
 
 dataset = StreamingDataset(local='/tmp/cache', remote='s3://remote/dataset', batch_size=1)
 dataloader = StreamingDataLoader(dataset, batch_size=1)

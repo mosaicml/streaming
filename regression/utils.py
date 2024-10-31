@@ -8,7 +8,7 @@ import os
 import urllib.parse
 from typing import Any
 
-from streaming import Stream
+from joshua import Stream
 
 logger = logging.getLogger(__name__)
 
@@ -51,8 +51,8 @@ def get_stream_params(kwargs: dict[str, str]) -> list[dict[str, Any]]:
     return stream_params
 
 
-def get_streaming_dataset_params(kwargs: dict[str, str]) -> dict[str, Any]:
-    """Get the streaming dataset parameters from command-line arguments.
+def get_joshua_dataset_params(kwargs: dict[str, str]) -> dict[str, Any]:
+    """Get the joshua dataset parameters from command-line arguments.
 
     Args:
         kwargs (dict[str, str]): Command-line arguments.

@@ -10,10 +10,10 @@ from typing import Any
 import pytest
 from torch.utils.data import DataLoader
 
-from streaming.base import Stream, StreamingDataLoader, StreamingDataset
-from streaming.base.batching import generate_work
-from streaming.base.util import clean_stale_shared_memory
-from streaming.base.world import World
+from joshua.base import Stream, StreamingDataLoader, StreamingDataset
+from joshua.base.batching import generate_work
+from joshua.base.util import clean_stale_shared_memory
+from joshua.base.world import World
 from tests.common.utils import convert_to_mds
 
 
@@ -905,7 +905,7 @@ def test_dataloader_sample_order(local_remote_dir: Any, batch_size: int, seed: i
 @pytest.mark.parametrize('num_workers', [0, 4])
 @pytest.mark.parametrize('num_canonical_nodes', [1])
 @pytest.mark.usefixtures('local_remote_dir')
-def test_streamingdataloader_mid_epoch_resumption(local_remote_dir: Any, batch_size: int,
+def test_joshuadataloader_mid_epoch_resumption(local_remote_dir: Any, batch_size: int,
                                                   seed: int, shuffle: bool, num_workers: int,
                                                   num_canonical_nodes: int):
     remote_dir, local_dir = local_remote_dir

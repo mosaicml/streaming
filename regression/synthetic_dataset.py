@@ -14,7 +14,7 @@ import numpy as np
 import torch
 from utils import delete_gcs, delete_oci, delete_s3, get_kwargs, get_writer_params
 
-from streaming.base import MDSWriter
+from joshua.base import MDSWriter
 
 _DATASET_MAP = {
     'sequencedataset': 'SequenceDataset',

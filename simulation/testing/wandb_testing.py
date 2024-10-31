@@ -21,14 +21,14 @@ from core.sim_dataset import SimulationDataset
 from core.sim_time import TimeUnit, ensure_time
 from numpy.typing import NDArray
 
-from streaming.base import Stream
+from joshua.base import Stream
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 api = wandb.Api()
 
-project_id = 'mosaic-ml/streaming-shuffling-algo'
+project_id = 'mosaic-ml/joshua-shuffling-algo'
 project_runs = api.runs(path=project_id, per_page=300)
 project_runs_list = [run.id for run in project_runs]
 skip = 0

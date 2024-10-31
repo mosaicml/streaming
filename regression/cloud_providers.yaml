@@ -1,10 +1,10 @@
-name: streaming-regression-test-cloud-providers
+name: joshua-regression-test-cloud-providers
 compute:
   gpus: 8  # Number of GPUs to use
   # cluster: TODO # Name of the cluster to use for this run
 command: |-
-  pip uninstall -y mosaicml-streaming
-  cd streaming
+  pip uninstall -y mosaicml-joshua
+  cd joshua
   pip install -e '.[dev]'
   python regression/synthetic_dataset.py --create --name imagedataset --out $GCS_URL --size_limit 4194304 # 4mb
   composer -n 2 regression/iterate_data.py --remote $GCS_URL --validate-files
@@ -26,6 +26,6 @@ scheduling:
   priority: medium
 integrations:
 - integration_type: git_repo
-  git_repo: mosaicml/streaming
+  git_repo: mosaicml/joshua
   git_branch: main
   ssh_clone: false

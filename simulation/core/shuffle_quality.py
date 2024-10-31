@@ -9,8 +9,8 @@ import numpy as np
 from core.utils import remove_padded_samples
 from numpy.typing import NDArray
 
-from streaming.base.partition.orig import get_partitions_orig
-from streaming.base.shuffle import get_shuffle
+from joshua.base.partition.orig import get_partitions_orig
+from joshua.base.shuffle import get_shuffle
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)

@@ -9,7 +9,7 @@ Let's see when and how to use these features.
 
 ## Replication
 
-Training with Tensor Parallelism (TP) or Sequence Parallelism (SP) requires multiple devices to see the same sample of data. The `replication` parameter of {class}`streaming.StreamingDataset`, controls how many consecutive devices will see the same samples in each batch. For example, if `replication` is set to 4 for a training job with 16 GPUs, devices 0 through 3 will see the same samples, devices 4 through 7 will see the same samples, and so on.
+Training with Tensor Parallelism (TP) or Sequence Parallelism (SP) requires multiple devices to see the same sample of data. The `replication` parameter of {class}`joshua.StreamingDataset`, controls how many consecutive devices will see the same samples in each batch. For example, if `replication` is set to 4 for a training job with 16 GPUs, devices 0 through 3 will see the same samples, devices 4 through 7 will see the same samples, and so on.
 <!--pytest.mark.skip-->
 ```python
 dataset = StreamingDataset(

@@ -3,7 +3,7 @@
 
 """Contains info about the nodes, ranks, and workers of the run for simulation purposes."""
 
-from streaming.base.world import World
+from joshua.base.world import World
 
 
 class SimulationWorld(World):

@@ -27,7 +27,7 @@ def simulate(
     generator: bool = False
 ) -> Generator[Union[tuple[int, float, int], tuple[float, int], tuple[NDArray, NDArray, float,
                                                                       int]], None, None]:
-    """Simulates step time and downloads using streaming for the specified input parameters.
+    """Simulates step time and downloads using joshua for the specified input parameters.
 
     At each training step, the simulation does the following:
        * gets the shards containing the current batch's samples.
@@ -70,7 +70,7 @@ def simulate(
     # Get batches, epochs, total batches from dataset and provided time info.
     batches_per_epoch, epochs, total_batches = get_batches_epochs(dataset, max_duration)
 
-    # Retrieve streaming and dataset information from SimulationDataset.
+    # Retrieve joshua and dataset information from SimulationDataset.
     physical_nodes = dataset.get_nodes()
     devices = dataset.get_devices()
     workers = dataset.get_workers()

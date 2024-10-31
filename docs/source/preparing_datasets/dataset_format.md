@@ -5,24 +5,24 @@
 To use StreamingDataset, one must convert raw data into one of our supported serialized dataset formats. With massive datasets, our serialization format choices are critical to the ultimate observed performance of the system. For deep learning models, we need extremely low latency cold random access of individual samples granularity to ensure that dataloading is not a bottleneck to training.
 
 StreamingDataset is compatible with any data type, including **images**, **text**, **video**, and **multimodal** data. StreamingDataset supports the following formats:
- * MDS (Mosaic Data Shard, most performant), through {class}`streaming.MDSWriter`
- * CSV/TSV, through {class}`streaming.CSVWriter` or {class}`streaming.TSVWriter`
- * JSONL, through {class}`streaming.JSONWriter`
+ * MDS (Mosaic Data Shard, most performant), through {class}`joshua.MDSWriter`
+ * CSV/TSV, through {class}`joshua.CSVWriter` or {class}`joshua.TSVWriter`
+ * JSONL, through {class}`joshua.JSONWriter`
 
 These formats can encode and decode most Python objects.
 
-For a high-level explanation of how dataset writing works, check out the [main concepts](../getting_started/main_concepts.md#Dataset-conversion) page. The [Dataset Conversion Guide](basic_dataset_conversion_guide.md) shows how to use the {class}`streaming.MDSWriter` to convert your raw data to supported file formats. For large datasets, use the [Parallel Dataset Conversion](parallel_dataset_conversion.ipynb) guide.
+For a high-level explanation of how dataset writing works, check out the [main concepts](../getting_started/main_concepts.md#Dataset-conversion) page. The [Dataset Conversion Guide](basic_dataset_conversion_guide.md) shows how to use the {class}`joshua.MDSWriter` to convert your raw data to supported file formats. For large datasets, use the [Parallel Dataset Conversion](parallel_dataset_conversion.ipynb) guide.
 
 
 ## Formats
 ### 1. MDS
-Mosaic Data Shard (MDS) is our most performant file format for fast sample random-access, and stores data in serialized tabular form. A single sample is a dictionary of key/value pairs where the key is the column name, and the value is the sample's entry for that column. Use {class}`streaming.MDSWriter` for MDS.
+Mosaic Data Shard (MDS) is our most performant file format for fast sample random-access, and stores data in serialized tabular form. A single sample is a dictionary of key/value pairs where the key is the column name, and the value is the sample's entry for that column. Use {class}`joshua.MDSWriter` for MDS.
 
 ### 2. CSV/TSV
-CSV/TSV, or more generally XSV, is a plaintext tabular data format consisting of delimiter-separated values. For convenience, we have added two named sub-types which you will recognize as CSV (comma-delimited) and TSV (tab-delimited). To create datasets in these formats, use streaming.XSVWriter, streaming.CSVWriter, or streaming.TSVWriter.
+CSV/TSV, or more generally XSV, is a plaintext tabular data format consisting of delimiter-separated values. For convenience, we have added two named sub-types which you will recognize as CSV (comma-delimited) and TSV (tab-delimited). To create datasets in these formats, use joshua.XSVWriter, joshua.CSVWriter, or joshua.TSVWriter.
 
 ### 3. JSONL
-JSONL is a simple and popular dataset format in which each sample is a JSON dict terminated by a newline. Use {class}`streaming.JSONWriter` for JSONL.
+JSONL is a simple and popular dataset format in which each sample is a JSON dict terminated by a newline. Use {class}`joshua.JSONWriter` for JSONL.
 
 ## Metadata
 

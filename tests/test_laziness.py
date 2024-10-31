@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from streaming import MDSWriter, StreamingDataset
+from joshua import MDSWriter, StreamingDataset
 
 
 def one(remote: str, local: str):

@@ -1,10 +1,10 @@
 # Basic Dataset Conversion
 
-This guide covers how to convert your raw data to MDS format using {class}`streaming.MDSWriter`. Writing to other supported shard formats is very similar. Read more about dataset shard formats in the [Dataset Format](dataset_format.md) guide. For a high-level explanation of how dataset writing works, check out the [main concepts](../getting_started/main_concepts.md#Dataset-conversion) page.
+This guide covers how to convert your raw data to MDS format using {class}`joshua.MDSWriter`. Writing to other supported shard formats is very similar. Read more about dataset shard formats in the [Dataset Format](dataset_format.md) guide. For a high-level explanation of how dataset writing works, check out the [main concepts](../getting_started/main_concepts.md#Dataset-conversion) page.
 
 ## Configuring dataset writing
 
-Use {class}`streaming.MDSWriter` to convert raw data to MDS format. MDSWriter is like a native file writer; instead of writing the content line by line, MDSWriter writes the data sample by sample. It writes the data into shard files in a sequential manner (for example, `shard.00000.mds`, then `shard.00001.mds`, and so on). Configure {class}`streaming.MDSWriter` according to your requirements with the parameters below:
+Use {class}`joshua.MDSWriter` to convert raw data to MDS format. MDSWriter is like a native file writer; instead of writing the content line by line, MDSWriter writes the data sample by sample. It writes the data into shard files in a sequential manner (for example, `shard.00000.mds`, then `shard.00001.mds`, and so on). Configure {class}`joshua.MDSWriter` according to your requirements with the parameters below:
 
 1. An `out` parameter is an output directory to save shard files. The `out` directory can be specified in three ways:
  * **Local path**: Shard files are stored locally.
@@ -20,7 +20,7 @@ out = ('/local/data', 'oci://bucket/data')
 
 2. The optional `keep_local` parameter controls if you would like to keep the shard files locally after they have been uploaded to a remote cloud location. To save local disk space, this defaults to `False`.
 
-3. A `column` parameter is a `dict` mapping a feature name or label name with a streaming supported encoding type. `MDSWriter` encodes your data to bytes, and at training time, data gets decoded back automatically to its original form. The `index.json` file stores `column` metadata for decoding. Supported encoding formats are:
+3. A `column` parameter is a `dict` mapping a feature name or label name with a joshua supported encoding type. `MDSWriter` encodes your data to bytes, and at training time, data gets decoded back automatically to its original form. The `index.json` file stores `column` metadata for decoding. Supported encoding formats are:
 
 | Category           | Name          | Class        | Notes                    |
 |--------------------|---------------|--------------|--------------------------|
@@ -57,14 +57,14 @@ column = {
 }
 ```
 
-If the data type you need is not listed in the above table, then you can write your own data type class with `encode` and `decode` methods in it and patch it inside streaming. For example, let's say, you wanted to add a `complex128` data type (64 bits each for real and imaginary parts):
+If the data type you need is not listed in the above table, then you can write your own data type class with `encode` and `decode` methods in it and patch it inside joshua. For example, let's say, you wanted to add a `complex128` data type (64 bits each for real and imaginary parts):
 
 <!--pytest.mark.skip-->
 ```python
 import numpy as np
 from typing import Any
 
-from streaming.base.format.mds.encodings import Encoding, _encodings
+from joshua.base.format.mds.encodings import Encoding, _encodings
 
 class Complex128(Encoding):
 
@@ -203,10 +203,10 @@ Optionally, provide a shard size limit, after which a new shard starts. In this 
 limit = '10kb'
 ```
 
-It's time to call the {class}`streaming.MDSWriter` with the above initialized parameters and write the samples by iterating over a dataset.
+It's time to call the {class}`joshua.MDSWriter` with the above initialized parameters and write the samples by iterating over a dataset.
 <!--pytest-codeblocks:cont-->
 ```python
-from streaming.base import MDSWriter
+from joshua.base import MDSWriter
 
 dataset = RandomClassificationDataset()
 with MDSWriter(out=output_dir, columns=columns, compression=compression, hashes=hashes, size_limit=limit) as out:
@@ -242,11 +242,11 @@ Serializing ndarrays with fixed dtype and shape is more efficient than fixed dty
 
 ### Dynamic shape, dynamic dtype
 
-The streaming encoding type, as the value in the `columns` dict, should simply be `ndarray`.
+The joshua encoding type, as the value in the `columns` dict, should simply be `ndarray`.
 
 ```python
 import numpy as np
-from streaming.base import MDSWriter, StreamingDataset
+from joshua.base import MDSWriter, StreamingDataset
 # Write to MDS
 with MDSWriter(out='my_dataset1/',
                columns={'my_array': 'ndarray'}) as out:
@@ -266,7 +266,7 @@ for i in range(dataset.num_samples):
 
 ### Dynamic shape, fixed dtype
 
-The streaming encoding type, as the value in the `columns` dict, should be `ndarray:dtype`. So in this example, it is `ndarray:int16`.
+The joshua encoding type, as the value in the `columns` dict, should be `ndarray:dtype`. So in this example, it is `ndarray:int16`.
 
 <!--pytest-codeblocks:cont-->
 ```python
@@ -290,7 +290,7 @@ for i in range(dataset.num_samples):
 
 ### Fixed shape, fixed dtype
 
-The streaming encoding type, as the value in the `columns` dict, should be `ndarray:dtype:shape`. So in this example, it is `ndarray:int16:3,3,3`.
+The joshua encoding type, as the value in the `columns` dict, should be `ndarray:dtype:shape`. So in this example, it is `ndarray:int16:3,3,3`.
 
 <!--pytest-codeblocks:cont-->
 ```python

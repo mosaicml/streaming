@@ -5,7 +5,7 @@ from typing import Any, Optional
 
 import numpy as np
 
-from streaming.base import MDSWriter
+from joshua.base import MDSWriter
 
 
 class SequenceDataset:

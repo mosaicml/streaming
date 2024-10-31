@@ -1,7 +1,7 @@
 # Copyright 2022-2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Create a streaming dataset from toy data with various options for regression testing."""
+"""Create a joshua dataset from toy data with various options for regression testing."""
 
 import logging
 import os
@@ -14,10 +14,10 @@ import torch
 from torch import distributed as dist
 from torch.utils.data import DataLoader
 from utils import (compare_sample_order, get_dataloader_params, get_kwargs,
-                   get_streaming_dataset_params)
+                   get_joshua_dataset_params)
 
-from streaming import StreamingDataset
-from streaming.base.distributed import (all_gather, barrier, get_rank, get_world_size,
+from joshua import StreamingDataset
+from joshua.base.distributed import (all_gather, barrier, get_rank, get_world_size,
                                         maybe_init_dist)
 
 logger = logging.getLogger(__name__)
@@ -103,7 +103,7 @@ def main(args: Namespace, kwargs: dict[str, str]) -> None:
         # Initialize torch dist ourselves, if necessary.
         destroy_dist = maybe_init_dist()
 
-    dataset_params = get_streaming_dataset_params(kwargs)
+    dataset_params = get_joshua_dataset_params(kwargs)
     dataloader_params = get_dataloader_params(kwargs)
     dataset = StreamingDataset(**dataset_params)
     dataloader = DataLoader(dataset=dataset, **dataloader_params)

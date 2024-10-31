@@ -11,7 +11,7 @@ from typing import Callable
 import numpy as np
 from numpy.typing import NDArray
 
-from streaming.base.shuffle import (get_shuffle_naive, get_shuffle_py1b, get_shuffle_py1s,
+from joshua.base.shuffle import (get_shuffle_naive, get_shuffle_py1b, get_shuffle_py1s,
                                     get_shuffle_py2s)
 
 
@@ -135,7 +135,7 @@ def get_shard_sizes(dataset_size: int, samples_per_shard: float) -> NDArray[np.i
 
 
 def main(args: Namespace) -> None:
-    """Benchmark streaming dataset shuffling methods.
+    """Benchmark joshua dataset shuffling methods.
 
     Args:
         args (Namespace): Command-line arguments.

@@ -13,7 +13,7 @@ from pyspark.sql.types import (ArrayType, BinaryType, ByteType, DateType, Decima
                                FloatType, IntegerType, LongType, MapType, ShortType, StringType,
                                StructField, StructType, TimestampType)
 
-from streaming.base.converters import dataframe_to_mds, infer_dataframe_schema, is_json_compatible
+from joshua.base.converters import dataframe_to_mds, infer_dataframe_schema, is_json_compatible
 
 os.environ[
     'OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'  # set to yes to all fork process in spark calls

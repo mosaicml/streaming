@@ -9,8 +9,8 @@ from time import time
 
 import numpy as np
 
-from streaming.base.partition import get_partitions
-from streaming.base.shuffle import get_shuffle
+from joshua.base.partition import get_partitions
+from joshua.base.shuffle import get_shuffle
 
 
 def parse_args() -> Namespace:
@@ -24,7 +24,7 @@ def parse_args() -> Namespace:
                       '--index',
                       type=str,
                       required=True,
-                      help='Path to a streaming dataset index file')
+                      help='Path to a joshua dataset index file')
     args.add_argument('-a',
                       '--partition_algo',
                       type=str,

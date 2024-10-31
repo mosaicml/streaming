@@ -28,7 +28,7 @@ from interfaces.interface_utils import get_train_dataset_params
 from interfaces.widgets import (display_shuffle_quality_graph, display_simulation_stats,
                                 get_line_chart, param_inputs)
 
-from streaming.base.util import bytes_to_int, number_abbrev_to_int
+from joshua.base.util import bytes_to_int, number_abbrev_to_int
 
 # set up page
 st.set_page_config(layout='wide')
@@ -214,7 +214,7 @@ def get_input_params_initial(physical_nodes: int, devices: int, workers: int,
         input_params['devices'] = devices
         input_params['time_per_sample'] = time_per_sample
         input_params['node_network_bandwidth'] = node_internet_bandwidth
-        # streaming input_params
+        # joshua input_params
         input_params['workers'] = workers
         input_params['canonical_nodes'] = dataset.get_num_canonical_nodes()
         input_params['predownload'] = dataset.get_predownload()

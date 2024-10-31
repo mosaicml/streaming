@@ -9,7 +9,7 @@ from time import time
 import numpy as np
 from tqdm import tqdm
 
-from streaming.base.partition import get_partitions
+from joshua.base.partition import get_partitions
 
 
 def parse_args() -> Namespace:

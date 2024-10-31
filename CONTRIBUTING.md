@@ -2,7 +2,7 @@
 
 Thanks for considering contributing to Streaming!
 
-Issues tagged with [good first issue](https://github.com/mosaicml/streaming/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) are great options to start contributing.
+Issues tagged with [good first issue](https://github.com/mosaicml/joshua/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) are great options to start contributing.
 
 If you have questions, join us on [Slack](https://dub.sh/mcomm) -- we'll be happy to help you!
 
@@ -35,22 +35,22 @@ pre-commit install
 
 To submit a contribution:
 
-1\. Fork a copy of the [Streaming](https://github.com/mosaicml/streaming) library to your own account.
+1\. Fork a copy of the [Streaming](https://github.com/mosaicml/joshua) library to your own account.
 
 2\. Clone your fork locally and add the mosaicml repo as a remote repository:
 
 <!--pytest.mark.skip-->
 ```bash
-git clone git@github.com:<github_id>/streaming.git
-cd streaming
-git remote add upstream https://github.com/mosaicml/streaming.git
+git clone git@github.com:<github_id>/joshua.git
+cd joshua
+git remote add upstream https://github.com/mosaicml/joshua.git
 ```
 
 3\. Create a branch and make your proposed changes.
 
 <!--pytest.mark.skip-->
 ```bash
-cd streaming
+cd joshua
 git checkout -b cool-new-feature
 ```
 
@@ -69,7 +69,7 @@ pre-commit run --all-files
 
 <!--pytest.mark.skip-->
 ```bash
-ulimit -n unlimited # Workaround: To overcome 'Too many open files' issues since streaming uses atexit handler to close file descriptor at the end.
+ulimit -n unlimited # Workaround: To overcome 'Too many open files' issues since joshua uses atexit handler to close file descriptor at the end.
 
 pytest -vv -s . # run all the unittests
 cd docs && make clean && make doctest # run doctests
@@ -88,7 +88,7 @@ make host   # open the output link in a browser.
 See the [Makefile](/Makefile) for more information.
 
 
-7\. When you are ready, submit a pull request into the streaming repository!
+7\. When you are ready, submit a pull request into the joshua repository!
 <!--pytest.mark.skip-->
 ```bash
 git commit -m "cool feature"    # Add relevant commit message

@@ -13,7 +13,7 @@ from tests.common.utils import compressed_local_remote_dir  # pyright: ignore # 
 from tests.common.utils import get_free_tcp_port  # pyright: ignore # noqa: F401
 from tests.common.utils import local_remote_dir  # pyright: ignore # noqa: F401
 
-MY_BUCKET = 'streaming-test-bucket'
+MY_BUCKET = 'joshua-test-bucket'
 MY_PREFIX = 'train'
 GCS_URL = 'https://storage.googleapis.com'
 R2_URL = 'https://r2.cloudflarestorage.com'
@@ -74,7 +74,7 @@ def s3_test(s3_client: Any, bucket_name: str):
 def test_list_s3_buckets():
     client = boto3.client('s3', region_name='us-east-1')
     buckets = client.list_buckets()
-    assert buckets['Buckets'][0]['Name'] == 'streaming-test-bucket'
+    assert buckets['Buckets'][0]['Name'] == 'joshua-test-bucket'
 
 
 @pytest.fixture(scope='session', autouse=True)
