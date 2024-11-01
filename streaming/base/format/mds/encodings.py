@@ -467,12 +467,14 @@ class JPEG(Encoding):
     """Store PIL image as JPEG. Optionally specify quality."""
 
     def __init__(self, quality: int = 75):
+        if not isinstance(quality, int):
+            raise ValueError('JPEG quality must be an integer')
         if not (0 <= quality <= 100):
             raise ValueError('JPEG quality must be between 0 and 100')
         self.quality = quality
 
     @classmethod
-    def from_str(cls, text: str) -> Self:
+    def from_str(cls, config: str) -> Self:
         """Parse this encoding from string.
 
         Args:
@@ -481,17 +483,10 @@ class JPEG(Encoding):
         Returns:
             Self: The initialized Encoding.
         """
-        args = text.split(':') if text else []
-        if len(args) not in {0, 1}:
-            raise ValueError('JPEG encoding string must have 0 or 1 arguments')
-        if len(args) == 1:
-            try:
-                quality = int(args[0])
-            except ValueError:
-                raise ValueError('JPEG quality must be an integer between 0 and 100')
+        if config == '':
+            return cls()
         else:
-            quality = 75
-        return cls(quality)
+            return cls(int(config))
 
     def encode(self, obj: Image.Image) -> bytes:
         self._validate(obj, Image.Image)
