@@ -59,8 +59,8 @@ class CloudDownloader(abc.ABC):
         """
         if remote_dir is None:
             return _LOCAL_DOWNLOADER()
-        
-        logger.info("Acquiring downloader client for remote directory %s", remote_dir)
+
+        logger.info('Acquiring downloader client for remote directory %s', remote_dir)
 
         prefix = urllib.parse.urlparse(remote_dir).scheme
         if prefix == 'dbfs' and remote_dir.startswith('dbfs:/Volumes'):
