@@ -113,9 +113,6 @@ def _check_and_find(streams_local: list[str], streams_remote: list[Union[str, No
 
     for prefix_int in _each_prefix_int():
 
-        print(f'{shm_name=} - {prefix_int=}')
-        temproot = gettempdir()
-        print(f'{temproot=}')
         name = _get_path(prefix_int, shm_name)
 
         # Check if any shared memory filelocks exist for the current prefix
@@ -218,36 +215,23 @@ def get_shm_prefix(streams_local: list[str],
         _check_and_find_retrying(streams_local, streams_remote, shm_name=shm_name, retry=retry)
         for shm_name in SHM_TO_CLEAN
     ])
-    print(f'before first barrier, {world.rank=}')
 
     if dist.is_available() and dist.is_initialized():
-        print(f'before: in dist.avail 1 : {world.rank=}')
         dist.barrier()
-        print(f'after: in dist.avail 1 : {world.rank=}')
-    print(f'after first barrier, {world.rank=}')
 
     # First, the local leader registers the first available shm prefix, recording its locals.
     if world.is_local_leader:
-        print(f'in local leader')
         name = _get_path(prefix_int, LOCALS)
         data = _pack_locals(streams_local, prefix_int)
         shm = SharedMemory(name, True, len(data))
         shm.buf[:len(data)] = data
         their_locals, their_prefix_int = _unpack_locals(bytes(shm.buf))
-        print(f"In world leader: {name=}, {their_locals=}, {their_prefix_int}, {data=}")
 
-    sleep(3)
-    print(f'{world.rank=}')
     if dist.is_available() and dist.is_initialized():
-        print(f'before: in dist.avail 2: {world.rank=}')
         dist.barrier()
-        print(f'after: in dist.avail 2: {world.rank=}')
-
-    #sleep(3)
 
     # Non-local leaders go next, searching for match.
     if not world.is_local_leader:
-        print(f'in non local world leader')
         name = _get_path(prefix_int, LOCALS)
         try:
             shm = SharedMemory(name, False)
@@ -257,7 +241,6 @@ def get_shm_prefix(streams_local: list[str],
                                f'different ``local`` parameters from different ranks.')
 
         their_locals, their_prefix_int = _unpack_locals(bytes(shm.buf))
-        print(f"{name=}, {streams_local=}, {their_locals=}, {prefix_int=}, {their_prefix_int}")
         if streams_local != their_locals or prefix_int != their_prefix_int:
             raise RuntimeError(f'Internal error: shared memory registered does not match ' +
                                f'local leader as streams_local or prefix_int not match.')

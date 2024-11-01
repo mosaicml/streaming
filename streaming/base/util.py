@@ -175,11 +175,9 @@ def clean_stale_shared_memory() -> None:
     # Initialize torch.distributed ourselves, if necessary.
     destroy_dist = maybe_init_dist()
 
-    print('I am here')
     # Perform clean up on local rank 0
     if get_local_rank() == 0:
         for prefix_int in range(1000000):
-            print(f'shm -- {prefix_int=}')
             leaked_shm = False
             for shm_name in SHM_TO_CLEAN:
                 name = _get_path(prefix_int, shm_name)
