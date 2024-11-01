@@ -3,4 +3,4 @@
 
 """The Streaming Version."""
 
-__version__ = '0.10.0.dev2'
+__version__ = '0.10.0.dev0'
