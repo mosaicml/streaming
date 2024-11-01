@@ -152,10 +152,9 @@ def _check_and_find(streams_local: list[str], streams_remote: list[Union[str, No
                         raise ValueError(
                             f'Reused local directory: {streams_local} vs ' +
                             f'{their_locals}. Provide a different one. If using ' +
-                            f'a unique local directory, try deleting the local directory and '
-                            +
-                            f'call `streaming.base.util.clean_stale_shared_memory()` only once '
-                            + f'in your script to clean up the stale shared memory before ' +
+                            f'a unique local directory, try deleting the local directory and ' +
+                            f'call `streaming.base.util.clean_stale_shared_memory()` only once ' +
+                            f'in your script to clean up the stale shared memory before ' +
                             f'instantiation of `StreamingDataset`.')
     return prefix_int
 
