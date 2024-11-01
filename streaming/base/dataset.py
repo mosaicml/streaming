@@ -526,7 +526,7 @@ class StreamingDataset(Array, IterableDataset):
         ]
         self._shm_prefix_int, self._locals_shm = get_shm_prefix(streams_local, streams_remote,
                                                                 self._unique_rank_world)
-        self._filelock_root = os.path.join(gettempdir(), 'streaming')
+        self._filelock_root = gettempdir()
         os.makedirs(self._filelock_root, exist_ok=True)
 
         # Create the shared memory-backed barrier, without its lock, which is unpickleable.
