@@ -243,5 +243,5 @@ def get_shm_prefix(streams_local: list[str],
             raise RuntimeError(f'Internal error: shared memory registered does not match ' +
                                f'local leader as streams_local or prefix_int not match. ' +
                                f'local leader: {their_locals} and {their_prefix_int}. ' +
-                               f'expected: {streams_locall} and {prefix_int}.')
+                               f'expected: {streams_local} and {prefix_int}.')
     return prefix_int, shm  # pyright: ignore
