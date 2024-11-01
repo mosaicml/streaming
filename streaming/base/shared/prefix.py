@@ -224,7 +224,6 @@ def get_shm_prefix(streams_local: list[str],
         data = _pack_locals(streams_local, prefix_int)
         shm = SharedMemory(name, True, len(data))
         shm.buf[:len(data)] = data
-        their_locals, their_prefix_int = _unpack_locals(bytes(shm.buf))
 
     if dist.is_available() and dist.is_initialized():
         dist.barrier()
@@ -235,12 +234,14 @@ def get_shm_prefix(streams_local: list[str],
         try:
             shm = SharedMemory(name, False)
         except FileNotFoundError:
-            raise RuntimeError(f'Internal error: shared memory prefix was not registered by ' +
-                               f'local leader. This may be because you specified ' +
+            raise RuntimeError(f'Internal error: shared memory prefix={prefix_int} was not ' +
+                               f'registered by local leader. This may be because you specified ' +
                                f'different ``local`` parameters from different ranks.')
 
         their_locals, their_prefix_int = _unpack_locals(bytes(shm.buf))
         if streams_local != their_locals or prefix_int != their_prefix_int:
             raise RuntimeError(f'Internal error: shared memory registered does not match ' +
-                               f'local leader as streams_local or prefix_int not match.')
+                               f'local leader as streams_local or prefix_int not match. ' +
+                               f'local leader: {their_locals} and {their_prefix_int}. ' +
+                               f'expected: {streams_locall} and {prefix_int}.')
     return prefix_int, shm  # pyright: ignore
