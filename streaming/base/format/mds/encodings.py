@@ -464,10 +464,11 @@ class PIL(Encoding):
 
 
 class JPEG(Encoding):
-    """Store PIL image as JPEG."""
+    """Store PIL image as JPEG. Optionally specify quality."""
 
     def __init__(self, quality: int = 75):
-        assert 0 <= quality <= 100
+        if not (0 <= quality <= 100):
+            raise ValueError('JPEG quality must be between 0 and 100')
         self.quality = quality
 
     @classmethod
@@ -481,9 +482,13 @@ class JPEG(Encoding):
             Self: The initialized Encoding.
         """
         args = text.split(':') if text else []
-        assert len(args) in {0, 1}
+        if len(args) not in {0, 1}:
+            raise ValueError('JPEG encoding string must have 0 or 1 arguments')
         if len(args) == 1:
-            quality = int(args[0])
+            try:
+                quality = int(args[0])
+            except ValueError:
+                raise ValueError('JPEG quality must be an integer between 0 and 100')
         else:
             quality = 75
         return cls(quality)
