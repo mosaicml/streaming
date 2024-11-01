@@ -63,21 +63,21 @@ install_requires = [
 extra_deps = {}
 
 extra_deps['dev'] = [
-    'datasets>=2.4.0,<3',
+    'datasets>=2.4.0,<4',
     'pyarrow>14.0.0',
     'docformatter>=1.4',
-    'jupyter==1.0.0',
+    'jupyter==1.1.1',
     'pre-commit>=2.18.1,<4',
-    'pytest==8.3.2',
+    'pytest==8.3.3',
     'pytest_codeblocks==0.17.0',
     'pytest-cov>=4,<6',
     'toml==0.10.2',
     'yamllint==1.35.1',
     'moto>=4.0,<6',
-    'fastapi==0.112.0',
-    'pydantic==2.8.2',
-    'uvicorn==0.30.5',
-    'pytest-split==0.9.0',
+    'fastapi==0.115.4',
+    'pydantic==2.9.2',
+    'uvicorn==0.32.0',
+    'pytest-split==0.10.0',
 ]
 
 extra_deps['docs'] = [
@@ -124,7 +124,7 @@ extra_deps['alipan'] = [
 ]
 
 extra_deps['hf'] = [
-    'huggingface_hub>=0.23.4,<0.25',
+    'huggingface_hub>=0.23.4,<0.27',
 ]
 
 extra_deps['testing'] = [

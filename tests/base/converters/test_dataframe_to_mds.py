@@ -418,13 +418,18 @@ class TestDataFrameToMDS:
                     ]), True), True)
         ])
 
-        valid_schemas = [message_schema, prompt_response_schema, combined_schema]
+        string_map_keys_schema = StructType(
+            [StructField('map_field', MapType(StringType(), StringType()), nullable=True)])
+
+        valid_schemas = [
+            message_schema, prompt_response_schema, combined_schema, string_map_keys_schema
+        ]
 
         schema_with_binary = StructType([StructField('data', BinaryType(), nullable=True)])
 
         # Schema with MapType having non-string keys
-        schema_with_non_string_map_keys = StructType(
-            [StructField('map_field', MapType(IntegerType(), StringType()), nullable=True)])
+        non_string_map_keys_schema = StructType(
+            [StructField('map_field', MapType(BinaryType(), StringType()), nullable=True)])
 
         # Schema with DateType and TimestampType
         schema_with_date_and_timestamp = StructType([
@@ -433,14 +438,14 @@ class TestDataFrameToMDS:
         ])
 
         invalid_schemas = [
-            schema_with_binary, schema_with_non_string_map_keys, schema_with_date_and_timestamp
+            schema_with_binary, non_string_map_keys_schema, schema_with_date_and_timestamp
         ]
 
         for s in valid_schemas:
-            assert is_json_compatible(s)
+            assert is_json_compatible(s), str(s)
 
         for s in invalid_schemas:
-            assert not is_json_compatible(s)
+            assert not is_json_compatible(s), str(s)
 
     def test_complex_schema(self,
                             complex_dataframe: Any,

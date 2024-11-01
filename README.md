@@ -1,13 +1,13 @@
 <br />
 <p align="center">
     <a href="https://github.com/mosaicml/streaming#gh-light-mode-only" class="only-light">
-      <img src="https://storage.googleapis.com/docs.mosaicml.com/images/streaming-logo-light-mode.png" width="50%"/>
+      <img src="./docs/source/_static/images/streaming-logo-light-mode.png" width="50%"/>
     </a>
     <!--pypi website does not support dark mode and does not understand GitHub tag. Hence, it renders both the images.
     The below tag is being used to remove the dark mode image on pypi website.-->
     <!-- SETUPTOOLS_LONG_DESCRIPTION_HIDE_BEGIN -->
     <a href="https://github.com/mosaicml/streaming#gh-dark-mode-only" class="only-dark">
-      <img src="https://storage.googleapis.com/docs.mosaicml.com/images/streaming-logo-dark-mode.png" width="50%"/>
+      <img src="./docs/source/_static/images/streaming-logo-dark-mode.png" width="50%"/>
     </a>
     <!-- SETUPTOOLS_LONG_DESCRIPTION_HIDE_END -->
 </p>
@@ -42,6 +42,9 @@
     </a>
     <a href="https://github.com/mosaicml/streaming/blob/main/LICENSE">
         <img alt="License" src="https://img.shields.io/badge/License-Apache%202.0-green.svg?logo=slack">
+    </a>
+    <a href="https://gurubase.io/g/streaming">
+        <img alt="License" src="https://img.shields.io/badge/Gurubase-Ask%20Streaming%20Guru-006BFF">
     </a>
 </p>
 <br />
@@ -147,9 +150,9 @@ Getting started guides, examples, API references, and other useful information c
 
 We have end-to-end tutorials for training a model on:
 
-- [CIFAR-10](https://streaming.docs.mosaicml.com/en/stable/examples/cifar10.html)
-- [FaceSynthetics](https://streaming.docs.mosaicml.com/en/stable/examples/facesynthetics.html)
-- [SyntheticNLP](https://streaming.docs.mosaicml.com/en/stable/examples/synthetic_nlp.html)
+- [CIFAR-10](https://docs.mosaicml.com/projects/streaming/en/stable/how_to_guides/cifar10.html)
+- [FaceSynthetics](https://github.com/mosaicml/streaming/blob/main/examples/facesynthetics.ipynb)
+- [SyntheticNLP](https://docs.mosaicml.com/projects/streaming/en/stable/how_to_guides/synthetic_nlp.html)
 
 We also have starter code for the following popular datasets, which can be found in the `streaming` [directory](https://github.com/mosaicml/streaming/tree/main/streaming):
 

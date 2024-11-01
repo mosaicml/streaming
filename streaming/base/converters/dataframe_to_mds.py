@@ -19,7 +19,7 @@ try:
     from pyspark.sql.dataframe import DataFrame
     from pyspark.sql.types import (ArrayType, BinaryType, BooleanType, ByteType, DateType,
                                    DayTimeIntervalType, DecimalType, DoubleType, FloatType,
-                                   IntegerType, LongType, NullType, ShortType, StringType,
+                                   IntegerType, LongType, MapType, NullType, ShortType, StringType,
                                    StructField, StructType, TimestampNTZType, TimestampType)
 except ImportError as e:
     e.msg = get_import_exception_message(e.name, extra_deps='spark')  # pyright: ignore
@@ -70,6 +70,8 @@ def is_json_compatible(data_type: Any):
         return all(is_json_compatible(field.dataType) for field in data_type.fields)
     elif isinstance(data_type, ArrayType):
         return is_json_compatible(data_type.elementType)
+    elif isinstance(data_type, MapType):
+        return is_json_compatible(data_type.keyType) and is_json_compatible(data_type.valueType)
     elif isinstance(data_type, (StringType, IntegerType, FloatType, BooleanType, NullType)):
         return True
     else:
