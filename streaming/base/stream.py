@@ -448,13 +448,13 @@ class Stream:
                     tmp_filename = self._download_file(basename, basename + '.tmp')
                     print(f"bigning debug local leader done download")
                     os.rename(tmp_filename, filename)
-                    print(f"bigning debug local leader done rename")
+                    print(f"bigning debug local leader done rename, {filename}")
                 else:
                     if not os.path.exists(filename):
                         raise RuntimeError(f'No `remote` provided, but local file {filename} ' +
                                            'does not exist either')
             else:
-                print(f"bigning debug non local leader start waiting")
+                print(f"bigning debug non local leader start waiting {filename}")
                 wait_for_file_to_exist(
                     filename, TICK, self.download_timeout,
                     f'Index file {os.path.join(self.remote or "", self.split or "", basename)} ' +
