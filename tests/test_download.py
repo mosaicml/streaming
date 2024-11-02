@@ -19,13 +19,14 @@ from streaming.base.storage.download import (AlipanDownloader, AzureDataLakeDown
 from tests.conftest import GCS_URL, MY_BUCKET, R2_URL
 
 MY_PREFIX = 'train'
+TEST_FILE = 'file.txt'
 
 
 @pytest.fixture(scope='function')
 def remote_local_file() -> Any:
     """Creates a temporary directory and then deletes it when the calling function is done."""
 
-    def _method(cloud_prefix: str = '', filename: str = 'file.txt') -> tuple[str, str]:
+    def _method(cloud_prefix: str = '', filename: str = TEST_FILE) -> tuple[str, str]:
         try:
             mock_local_dir = tempfile.TemporaryDirectory()
             mock_local_filepath = os.path.join(mock_local_dir.name, filename)
@@ -114,15 +115,14 @@ class TestGCSClient:
     @pytest.mark.usefixtures('gcs_hmac_client', 'gcs_test', 'remote_local_file')
     def test_download_from_gcs(self, remote_local_file: Any):
         with tempfile.TemporaryDirectory() as tmp_dir:
-            file_name = 'file.txt'
-            tmp = os.path.join(tmp_dir, file_name)
-            mock_remote_filepath, _ = remote_local_file(cloud_prefix='gs://', filename=file_name)
+            tmp = os.path.join(tmp_dir, TEST_FILE)
+            mock_remote_filepath, _ = remote_local_file(cloud_prefix='gs://', filename=TEST_FILE)
             client = boto3.client('s3',
                                   region_name='us-east-1',
                                   endpoint_url=GCS_URL,
                                   aws_access_key_id=os.environ['GCS_KEY'],
                                   aws_secret_access_key=os.environ['GCS_SECRET'])
-            client.put_object(Bucket=MY_BUCKET, Key=os.path.join(MY_PREFIX, file_name), Body='')
+            client.put_object(Bucket=MY_BUCKET, Key=os.path.join(MY_PREFIX, TEST_FILE), Body='')
             downloader = GCSDownloader()
             downloader.download(mock_remote_filepath, tmp)
             assert os.path.isfile(tmp)
@@ -176,10 +176,48 @@ class TestDatabricksUnityCatalog:
     @pytest.mark.parametrize('cloud_prefix', ['dbfs:/Volumess', 'dbfs:/Content'])
     def test_invalid_prefix_from_db_uc(self, remote_local_file: Any, cloud_prefix: str):
         with tempfile.TemporaryDirectory() as tmp_dir:
-            file_name = os.path.join(tmp_dir, 'file.txt')
-            mock_remote_filepath, _ = remote_local_file(cloud_prefix=cloud_prefix,
-                                                        filename=file_name)
+            file_name = os.path.join(tmp_dir, TEST_FILE)
+            mock_remote_filepath, _ = remote_local_file(cloud_prefix=cloud_prefix)
             with pytest.raises(Exception, match='Expected path prefix to be `dbfs:/Volumes`.*'):
+                downloader = DatabricksUnityCatalogDownloader()
+                downloader.download(mock_remote_filepath, file_name)
+
+    @patch('databricks.sdk.WorkspaceClient', autospec=True)
+    def test_databricks_error_file_not_found(self, workspace_client_mock: Mock,
+                                             remote_local_file: Any):
+        from databricks.sdk.core import DatabricksError
+        workspace_client_mock_instance = workspace_client_mock.return_value
+        workspace_client_mock_instance.files = Mock()
+        workspace_client_mock_instance.files.download = Mock()
+        download_return_val = workspace_client_mock_instance.files.download.return_value
+        download_return_val.contents = Mock()
+        download_return_val.contents.__enter__ = Mock(
+            side_effect=DatabricksError('Error', error_code='NOT_FOUND'))
+        download_return_val.contents.__exit__ = Mock()
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            file_name = os.path.join(tmp_dir, TEST_FILE)
+            mock_remote_filepath, _ = remote_local_file(cloud_prefix='dbfs:/Volumes')
+            with pytest.raises(FileNotFoundError):
+                downloader = DatabricksUnityCatalogDownloader()
+                downloader.download(mock_remote_filepath, file_name)
+
+    @patch('databricks.sdk.WorkspaceClient', autospec=True)
+    def test_databricks_error(self, workspace_client_mock: Mock, remote_local_file: Any):
+        from databricks.sdk.core import DatabricksError
+        workspace_client_mock_instance = workspace_client_mock.return_value
+        workspace_client_mock_instance.files = Mock()
+        workspace_client_mock_instance.files.download = Mock()
+        download_return_val = workspace_client_mock_instance.files.download.return_value
+        download_return_val.contents = Mock()
+        download_return_val.contents.__enter__ = Mock(
+            side_effect=DatabricksError('Error', error_code='REQUEST_LIMIT_EXCEEDED'))
+        download_return_val.contents.__exit__ = Mock()
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            file_name = os.path.join(tmp_dir, TEST_FILE)
+            mock_remote_filepath, _ = remote_local_file(cloud_prefix='dbfs:/Volumes')
+            with pytest.raises(DatabricksError):
                 downloader = DatabricksUnityCatalogDownloader()
                 downloader.download(mock_remote_filepath, file_name)
 
@@ -188,8 +226,8 @@ class TestDatabricksFileSystem:
 
     def test_invalid_prefix_from_dbfs(self, remote_local_file: Any):
         with tempfile.TemporaryDirectory() as tmp_dir:
-            file_name = os.path.join(tmp_dir, 'file.txt')
-            mock_remote_filepath, _ = remote_local_file(cloud_prefix='dbfsx:/', filename=file_name)
+            file_name = os.path.join(tmp_dir, TEST_FILE)
+            mock_remote_filepath, _ = remote_local_file(cloud_prefix='dbfsx:/')
             with pytest.raises(Exception, match='Expected remote path to start with.*'):
                 downloader = DBFSDownloader()
                 downloader.download(mock_remote_filepath, file_name)
@@ -198,9 +236,8 @@ class TestDatabricksFileSystem:
 def test_download_from_local():
     mock_remote_dir = tempfile.TemporaryDirectory()
     mock_local_dir = tempfile.TemporaryDirectory()
-    file_name = 'file.txt'
-    mock_remote_file = os.path.join(mock_remote_dir.name, file_name)
-    mock_local_file = os.path.join(mock_local_dir.name, file_name)
+    mock_remote_file = os.path.join(mock_remote_dir.name, TEST_FILE)
+    mock_local_file = os.path.join(mock_local_dir.name, TEST_FILE)
     # Creates a new empty file
     with open(mock_remote_file, 'w') as _:
         pass

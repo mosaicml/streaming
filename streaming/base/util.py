@@ -490,7 +490,7 @@ def retry(  # type: ignore
             num_tries = 0
 
             def clean_up():
-                print("cleaning up")
+                # Do clean up stuff here
 
             @retry(RuntimeError, clean_up_fn=clean_up, num_attempts=3, initial_backoff=0.1)
             def flaky_function():
