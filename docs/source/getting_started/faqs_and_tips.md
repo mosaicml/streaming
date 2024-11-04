@@ -58,6 +58,8 @@ The `epoch_size` attribute of StreamingDataset is the number of samples per epoc
 ### What's the difference between `StreamingDataset` vs. datasets vs. streams?
 `StreamingDataset` is the dataset class. It can take in multiple streams, which are just data sources. It combines these streams into a single dataset. `StreamingDataset` does not *stream* data, as continuous bytes; instead, it downloads shard files to enable a continuous flow of samples into the training job. `StreamingDataset` is an `IterableDataset` as opposed to a map-style dataset -- samples are retrieved as needed.
 
+### I wrapped my streaming dataloader with HuggingFace's `accelerate` dataloader wrapper and my run is hanging, what should I do?
+When using HF `accelerate` with `streaming` for training, do not wrap the dataloader as this will cause the run to fail.
 
 ## 🤓 Helpful Tips
 
