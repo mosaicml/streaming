@@ -26,7 +26,7 @@ from torch.utils.data import IterableDataset
 from streaming.base.array import Array
 from streaming.base.batching import generate_work
 from streaming.base.constant import (BARRIER, BARRIER_FILELOCK, CACHE_FILELOCK, CACHE_USAGE,
-                                     EPOCH_DATA, EPOCH_SHAPE, NEXT_EPOCH, RESUME,
+                                     DEFAULT_TIMEOUT, EPOCH_DATA, EPOCH_SHAPE, NEXT_EPOCH, RESUME,
                                      SHARD_ACCESS_TIMES, SHARD_STATES, TICK)
 from streaming.base.distributed import maybe_init_dist
 from streaming.base.format import get_index_basename
@@ -314,7 +314,7 @@ class StreamingDataset(Array, IterableDataset):
                  local: Optional[str] = None,
                  split: Optional[str] = None,
                  download_retry: int = 2,
-                 download_timeout: float = 60,
+                 download_timeout: float = DEFAULT_TIMEOUT,
                  validate_hash: Optional[str] = None,
                  keep_zip: bool = False,
                  epoch_size: Optional[Union[int, str]] = None,
