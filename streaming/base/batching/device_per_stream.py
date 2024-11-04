@@ -76,7 +76,7 @@ def generate_work_device_per_stream_batching(dataset: StreamingDataset, world: W
             # same as the ratio of the stream's samples to overall samples.
             # This ensures that the overall training shuffle block size is still approximately
             # equal to what is set by the user, and allows for reasoning about cache_limit as well.
-            if samples_in_stream < dataset.num_canonical_nodes:  # third patch
+            if samples_in_stream < dataset.num_canonical_nodes:
                 logger.warning(
                     f'Because of the `device_per_stream` batching method and stream with index {stream_id} '
                     +
