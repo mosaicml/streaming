@@ -70,7 +70,7 @@ extra_deps['dev'] = [
     'pre-commit>=2.18.1,<4',
     'pytest==8.3.3',
     'pytest_codeblocks==0.17.0',
-    'pytest-cov>=4,<6',
+    'pytest-cov>=4,<7',
     'toml==0.10.2',
     'yamllint==1.35.1',
     'moto>=4.0,<6',
