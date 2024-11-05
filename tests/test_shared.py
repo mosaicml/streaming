@@ -190,3 +190,16 @@ def test_shared_memory_permission_error(mock_shared_memory_class: MagicMock):
     with patch('os.path.exists', return_value=False):
         next_prefix = _check_and_find(['local'], [None], LOCALS)
         assert next_prefix == 1
+
+
+@pytest.mark.usefixtures('local_remote_dir')
+def test_shared_memory_infinity_exception(local_remote_dir: tuple[str, str]):
+    local, remote = local_remote_dir
+    with patch('os.path.exists', return_value=True):
+        with pytest.raises(ValueError, match='prefix_int exceeds .*clean up TMPDIR.'):
+            _, _ = get_shm_prefix(streams_local=[local],
+                                  streams_remote=[remote],
+                                  world=World.detect())
+
+
+
