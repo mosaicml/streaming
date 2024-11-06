@@ -16,7 +16,8 @@ from typing import Iterator, Union
 import numpy as np
 from torch import distributed as dist
 
-from streaming.base.constant import BARRIER_FILELOCK, CACHE_FILELOCK, LOCALS, SHM_TO_CLEAN, TICK, MAX_PREFIX_INT
+from streaming.base.constant import (BARRIER_FILELOCK, CACHE_FILELOCK, LOCALS, MAX_PREFIX_INT,
+                                     SHM_TO_CLEAN, TICK)
 from streaming.base.shared import SharedMemory
 from streaming.base.world import World
 
@@ -114,10 +115,9 @@ def _check_and_find(streams_local: list[str], streams_remote: list[Union[str, No
     for prefix_int in _each_prefix_int():
 
         if prefix_int >= MAX_PREFIX_INT:
-            raise ValueError(f"prefix_int exceeds {MAX_PREFIX_INT}. This may happen " +
-                             f"when you mock os.path.exists or os.stat so the filelock " +
-                             f"checks always returns ``True`` " +
-                             f"you need to clean up TMPDIR.")
+            raise ValueError(f'prefix_int exceeds {MAX_PREFIX_INT}. This may happen ' +
+                             f'when you mock os.path.exists or os.stat so the filelock ' +
+                             f'checks always returns ``True`` ' + f'you need to clean up TMPDIR.')
 
         name = _get_path(prefix_int, shm_name)
 

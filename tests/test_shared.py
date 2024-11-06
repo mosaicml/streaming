@@ -200,6 +200,3 @@ def test_shared_memory_infinity_exception(local_remote_dir: tuple[str, str]):
             _, _ = get_shm_prefix(streams_local=[local],
                                   streams_remote=[remote],
                                   world=World.detect())
-
-
-
