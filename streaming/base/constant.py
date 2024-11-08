@@ -31,3 +31,6 @@ CACHE_FILELOCK = 'cache_filelock'
 
 # Time to wait, in seconds.
 TICK = 0.007
+
+# Default download timeout
+DEFAULT_TIMEOUT = 60.0
