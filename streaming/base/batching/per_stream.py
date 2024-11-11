@@ -98,9 +98,9 @@ def generate_work_per_stream_batching(dataset: StreamingDataset, world: World, e
         if num_full_batches > 0:
             batches_from_partitions.append(global_batches_inorder[:num_full_batches])
         else:
-            logger.warning(f'Stream with index {stream_idx} does not have an adequate number of ' +
-                           f'samples to construct a complete global batch. Training will occur ' +
-                           f'without any samples from this stream!')
+            raise ValueError(f'Stream with index {stream_idx} does not have an adequate number ' +
+                             f'of samples to construct a complete global batch. Training will ' +
+                             f'occur without any samples from this stream.')
 
     # Combine all global batches from all streams into one array.
     all_partition_batches = np.concatenate(batches_from_partitions)
