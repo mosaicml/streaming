@@ -80,6 +80,11 @@ def generate_work_device_per_stream_batching(dataset: StreamingDataset, world: W
                 raise TypeError(f'Dataset `shuffle_block_size` must be an integer. ' +
                                 f'Got {type(dataset.shuffle_block_size)} instead.')
             shuffle_block_portion = int(dataset.shuffle_block_size * stream.proportion)
+            if shuffle_block_portion == 0:
+                raise ValueError(f'Samples from stream {stream_id} are not being used. Please ' +
+                                 f'either increase the `shuffle_block_size` from ' +
+                                 f'{dataset.shuffle_block_size}, or increase the stream ' +
+                                 f'proportion from {stream.proportion}.')
             stream_shuffle = get_shuffle(dataset.shuffle_algo, shuffle_units,
                                          dataset.num_canonical_nodes, dataset.shuffle_seed, epoch,
                                          shuffle_block_portion)
