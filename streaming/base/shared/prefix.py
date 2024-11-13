@@ -116,7 +116,7 @@ def _check_and_find(streams_local: list[str], streams_remote: list[Union[str, No
 
         if prefix_int >= MAX_PREFIX_INT:
             raise ValueError(f'prefix_int exceeds {MAX_PREFIX_INT}. This may happen ' +
-                             f'when you mock os.path.exists or os.stat so the filelock ' +
+                             f'when you mock os.path.exists or os.stat functions so the filelock ' +
                              f'checks always returns ``True`` ' + f'you need to clean up TMPDIR.')
 
         name = _get_path(prefix_int, shm_name)
