@@ -258,7 +258,7 @@ class NDArray(Encoding):
             parts.append(part)
         else:
             if obj.shape != self.shape:
-                raise ValueError('Wrong shape: expected {self.shape}, got {obj.shape}.')
+                raise ValueError(f'Wrong shape: expected {self.shape}, got {obj.shape}.')
 
         # Encode the array values.
         part = obj.tobytes()
