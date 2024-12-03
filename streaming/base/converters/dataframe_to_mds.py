@@ -158,21 +158,6 @@ def infer_dataframe_schema(dataframe: DataFrame,
     return schema_dict
 
 
-def dataframeToMDS(dataframe: DataFrame,
-                   merge_index: bool = True,
-                   mds_kwargs: Optional[dict[str, Any]] = None,
-                   udf_iterable: Optional[Callable] = None,
-                   udf_kwargs: Optional[dict[str, Any]] = None) -> tuple[str, str]:
-    """Deprecated API Signature.
-
-    To be replaced by dataframe_to_mds
-    """
-    logger.warning(
-        'The DataframeToMDS signature has been deprecated and will be removed in Streaming 0.8. ' +
-        'Use dataframe_to_mds with the same arguments going forward')
-    return dataframe_to_mds(dataframe, merge_index, mds_kwargs, udf_iterable, udf_kwargs)
-
-
 def dataframe_to_mds(dataframe: DataFrame,
                      merge_index: bool = True,
                      mds_kwargs: Optional[dict[str, Any]] = None,
@@ -227,7 +212,8 @@ def dataframe_to_mds(dataframe: DataFrame,
             kwargs = {}
 
         if merge_index:
-            kwargs['keep_local'] = True  # need to keep workers' locals to do merge
+            # need to keep workers' locals to do merge
+            kwargs['keep_local'] = True
 
         with MDSWriter(**kwargs) as mds_writer:
             for pdf in iterator:

@@ -22,9 +22,10 @@ mark_times = [
 
 algo_colors = {
     'naive': 'black',
+    'py1e': 'green',
+    'py1br': 'orange',
     'py2s': 'purple',
     'py1s': 'red',
-    'py1b': 'orange',
 }
 
 

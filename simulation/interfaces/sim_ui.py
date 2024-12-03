@@ -3,12 +3,9 @@
 
 """Simulator web UI using streamlit."""
 
+import math
 import os.path
 import sys
-
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
-import math
 from concurrent.futures import ProcessPoolExecutor
 from io import StringIO
 from typing import Union
@@ -30,6 +27,8 @@ from interfaces.widgets import (display_shuffle_quality_graph, display_simulatio
 
 from streaming.base.util import bytes_to_int, number_abbrev_to_int
 
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
 # set up page
 st.set_page_config(layout='wide')
 col1, space, col2 = st.columns((10, 1, 6))
@@ -45,7 +44,7 @@ sim_stats = col2.empty()
 col2.text('')
 shuffle_quality_plot = col2.empty()
 throughput_window = 10
-shuffle_quality_algos = ['naive', 'py1b', 'py1br', 'py1e', 'py1s', 'py2s', 'none']
+shuffle_quality_algos = ['naive', 'py1e', 'py1br', 'py1s', 'py2s', 'none']
 
 
 def submit_jobs(shuffle_quality: bool, dataset: SimulationDataset, time_per_sample: float,
@@ -94,7 +93,7 @@ def submit_jobs(shuffle_quality: bool, dataset: SimulationDataset, time_per_samp
             device_batch_size = input_params['device_batch_size']
             shuffle_block_size = number_abbrev_to_int(input_params['shuffle_block_size']) \
                 if input_params['shuffle_block_size'] is not None \
-                    else dataset.get_shuffle_block_size()
+                else dataset.get_shuffle_block_size()
             samples_per_shard = dataset.get_avg_samples_per_shard()
             epoch_size = dataset.get_epoch_size()
             if epoch_size > 100_000_000:
@@ -162,7 +161,7 @@ def submit_jobs(shuffle_quality: bool, dataset: SimulationDataset, time_per_samp
 
                 # If applicable, check if the shuffle quality tasks are finished, and graph.
                 if shuffle_quality and all(f.done() for f in futures) \
-                    and not shuffle_quality_graphed:
+                        and not shuffle_quality_graphed:
                     display_shuffle_quality_graph(futures, shuffle_quality_plot)
                     shuffle_quality_graphed = True
 
@@ -246,7 +245,7 @@ if use_yaml:
         string_yaml = StringIO(uploaded_yaml.getvalue().decode('utf-8')).read()
         dict_yaml = yaml.safe_load(string_yaml)
         total_devices, workers, max_duration, global_batch_size, train_dataset = \
-        ingest_yaml(yaml_dict=dict_yaml)
+            ingest_yaml(yaml_dict=dict_yaml)
         # Check which parameters we still need to ask for.
         col1.write('The parameters below were not found in your yaml file. Enter them here:')
         physical_nodes = col1.number_input(
@@ -337,7 +336,8 @@ if use_yaml:
                 # Get the rest of the needed params from the new inputs
                 physical_nodes = input_params['physical_nodes']
                 devices = input_params['devices']
-                global_batch_size = input_params['device_batch_size'] * devices * physical_nodes
+                global_batch_size = input_params['device_batch_size'] * \
+                    devices * physical_nodes
                 workers = input_params['workers']
                 max_duration = input_params['max_duration']
                 time_per_sample = input_params['time_per_sample']
@@ -398,7 +398,8 @@ else:
         # Get the rest of the needed params from the new inputs
         physical_nodes = input_params['physical_nodes']
         devices = input_params['devices']
-        global_batch_size = input_params['device_batch_size'] * devices * physical_nodes
+        global_batch_size = input_params['device_batch_size'] * \
+            devices * physical_nodes
         workers = input_params['workers']
         max_duration = input_params['max_duration']
         time_per_sample = input_params['time_per_sample']

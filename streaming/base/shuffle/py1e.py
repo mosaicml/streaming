@@ -3,9 +3,9 @@
 
 """Shuffling algorithm that shuffles by randomly placing shard samples in expanded ranges.
 
-This algorithm has more balanced downloading and a lower minimum cache limit than ``py1b`` and
-``py1br``, but also slightly lower shuffle quality. The range the samples from each shard can cover
-is determined by ``shuffle_block_size``.
+This algorithm has more balanced downloading and a lower minimum cache limit than ``py1br``, but
+also slightly lower shuffle quality. The range the samples from each shard can cover is determined
+by ``shuffle_block_size``.
 """
 
 import warnings

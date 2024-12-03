@@ -6,8 +6,6 @@
 import os.path
 import sys
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
 import humanize
 from core.create_index import create_stream_index
 from core.main import simulate
@@ -18,6 +16,8 @@ from interfaces.interface_utils import plot_simulation
 
 from streaming.base import Stream
 
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
 # Input Parameters
 
 # dataset
@@ -27,7 +27,8 @@ avg_raw_shard_size = 67092639  # average shard size (bytes)
 avg_zip_shard_size = 15000000  # average compressed shard size (bytes)
 
 # training
-max_duration = '1000ba'  # max duration of training (batches: "ba", epochs: "ep")
+# max duration of training (batches: "ba", epochs: "ep")
+max_duration = '1000ba'
 epoch_size = None  # epoch size (samples)
 device_batch_size = 16  # device batch size (samples)
 
@@ -37,7 +38,7 @@ canonical_nodes = 2  # number of canonical nodes
 predownload = 32  # number of samples to predownload per worker (samples)
 cache_limit = None  # cache limit (bytes)
 shuffle = True  # whether to shuffle dataset
-shuffle_algo = 'py1b'  # shuffling algorithm
+shuffle_algo = 'py1e'  # shuffling algorithm
 shuffle_block_size = 16000000  # shuffling block size (samples)
 seed = 17  # random seed
 
@@ -87,7 +88,8 @@ global_batch_size = device_batch_size * devices * physical_nodes
 # Display simulation stats
 total_batches = len(step_times)
 all_throughput_drops, warmup_time, warmup_step, post_warmup_throughput_drops = \
-    get_simulation_stats(step_times, time_per_sample, global_batch_size//(physical_nodes*devices))
+    get_simulation_stats(step_times, time_per_sample,
+                         global_batch_size//(physical_nodes*devices))
 print('\nSimulation Stats:')
 print(f'Minimum cache limit needed: {humanize.naturalsize(min_cache_limit)}')
 if cache_limit is not None and cache_limit < min_cache_limit:
@@ -102,12 +104,12 @@ elif post_warmup_throughput_drops:
     # display warning if post-warmup throughput drops are more than 10% of the run.
     print(
         '⚠️ This configuration experiences some downloading-related slowdowns even after warmup.')
-print('{0} steps, or {1:.1f}% of all steps, waited for shard downloads.'\
-      .format(all_throughput_drops, 100 * all_throughput_drops / (total_batches)))
+print('{0} steps, or {1:.1f}% of all steps, waited for shard downloads.'.format(
+    all_throughput_drops, 100 * all_throughput_drops / (total_batches)))
 if warmup_step != total_batches:
     # only display post-warmup throughput drop info if we actually ended the warmup period (i.e. we hit peak throughput at some point)
-    print('There were {} steps that waited for shard downloads after the warmup period.'\
-          .format(post_warmup_throughput_drops))
+    print('There were {} steps that waited for shard downloads after the warmup period.'.format(
+        post_warmup_throughput_drops))
 print('Estimated time to first batch: {0:.2f} s'.format(startup_time))
 print('Estimated warmup time: {0:.2f} s'.format(warmup_time))
 
