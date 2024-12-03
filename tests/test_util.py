@@ -216,7 +216,7 @@ def test_merge_index_from_list_local(local_remote_dir: tuple[str, str], keep_loc
     from pyspark.sql import SparkSession
     from pyspark.sql.types import DecimalType, IntegerType, StringType, StructField, StructType
 
-    from streaming.base.converters import dataframeToMDS
+    from streaming.base.converters import dataframe_to_mds
 
     def not_merged_index(index_file_path: str, out: str):
         """Check if index_file_path is the merged index at folder out."""
@@ -237,7 +237,7 @@ def test_merge_index_from_list_local(local_remote_dir: tuple[str, str], keep_loc
             (3, 'Charlie', Decimal('987.65'))]
     df = spark.createDataFrame(data=data, schema=schema).repartition(3)
     mds_kwargs = {'out': mds_out, 'columns': {'id': 'int32', 'name': 'str'}, 'keep_local': True}
-    dataframeToMDS(df, merge_index=False, mds_kwargs=mds_kwargs)
+    dataframe_to_mds(df, merge_index=False, mds_kwargs=mds_kwargs)
 
     local_cu = CloudUploader.get(local, exist_ok=True, keep_local=True)
     local_index_files = [
@@ -283,7 +283,7 @@ def test_merge_index_from_root_local(local_remote_dir: tuple[str, str], n_partit
     from pyspark.sql import SparkSession
     from pyspark.sql.types import DecimalType, IntegerType, StringType, StructField, StructType
 
-    from streaming.base.converters import dataframeToMDS
+    from streaming.base.converters import dataframe_to_mds
 
     out, _ = local_remote_dir
 
@@ -301,7 +301,7 @@ def test_merge_index_from_root_local(local_remote_dir: tuple[str, str], n_partit
 
     mds_kwargs = {'out': out, 'columns': {'id': 'int32', 'name': 'str'}, 'keep_local': keep_local}
 
-    mds_path, _ = dataframeToMDS(df, merge_index=False, mds_kwargs=mds_kwargs)
+    mds_path, _ = dataframe_to_mds(df, merge_index=False, mds_kwargs=mds_kwargs)
     merge_index(mds_path, keep_local=keep_local)
     integrity_check(mds_path, keep_local=keep_local)
 

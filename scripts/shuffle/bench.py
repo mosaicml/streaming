@@ -11,8 +11,8 @@ from typing import Callable
 import numpy as np
 from numpy.typing import NDArray
 
-from streaming.base.shuffle import (get_shuffle_naive, get_shuffle_py1b, get_shuffle_py1s,
-                                    get_shuffle_py2s)
+from streaming.base.shuffle import (get_shuffle_naive, get_shuffle_py1br, get_shuffle_py1e,
+                                    get_shuffle_py1s, get_shuffle_py2s)
 
 
 def parse_args() -> Namespace:
@@ -140,8 +140,8 @@ def main(args: Namespace) -> None:
     Args:
         args (Namespace): Command-line arguments.
     """
-    names = 'naive', 'py2s', 'py1s', 'py1b'
-    get_shuffles = get_shuffle_naive, get_shuffle_py2s, get_shuffle_py1s, get_shuffle_py1b
+    names = 'naive', 'py1e', 'py1br', 'py2s', 'py1s'
+    get_shuffles = get_shuffle_naive, get_shuffle_py1e, get_shuffle_py1br, get_shuffle_py2s, get_shuffle_py1s
 
     if args.algos:
         algos = args.algos.split(',') if args.algos else []

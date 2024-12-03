@@ -46,7 +46,7 @@ command: |-
   rm -rf /tmp/local_dataset/
 
   composer -n 8 regression/iterate_data.py --remote /tmp/streaming_dataset_gz/ --local /tmp/local_dataset/ \
-    --shuffle_algo py1b --shuffle_seed 12 --shuffle_block_size 10000
+    --shuffle_algo py1e --shuffle_seed 12 --shuffle_block_size 10000
   rm -rf /tmp/local_dataset/
 
 image: mosaicml/composer:latest

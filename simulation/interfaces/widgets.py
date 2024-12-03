@@ -5,9 +5,6 @@
 
 import os.path
 import sys
-
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
 from concurrent.futures import Future
 from typing import Optional
 
@@ -21,6 +18,8 @@ from numpy.typing import NDArray
 from streamlit.delta_generator import DeltaGenerator
 
 from streaming.base.util import bytes_to_int
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 
 def get_line_chart(data: pd.DataFrame,
@@ -293,13 +292,13 @@ def param_inputs(component: DeltaGenerator, input_params: dict, defaults: dict =
     shuffle = col_r.checkbox(label='shuffle',
                              value=True if 'shuffle' not in defaults else defaults['shuffle'],
                              help='whether or not to shuffle the samples for this run.')
-    shuffle_algo='py1e' if len(defaults) == 0 or 'shuffle_algo' not in defaults \
+    shuffle_algo = 'py1e' if len(defaults) == 0 or 'shuffle_algo' not in defaults \
         else defaults['shuffle_algo']
-    shuffle_block_size=None if len(defaults) == 0 or 'shuffle_block_size' not in defaults \
+    shuffle_block_size = None if len(defaults) == 0 or 'shuffle_block_size' not in defaults \
         else defaults['shuffle_block_size']
     seed = 42 if len(defaults) == 0 or 'seed' not in defaults else defaults['seed']
     if shuffle:
-        algos = ['py1e', 'py1br', 'py1b', 'py1s', 'py2s', 'naive']
+        algos = ['py1e', 'py1br', 'py1s', 'py2s', 'naive']
         default_index = 0
         if 'shuffle_algo' in defaults:
             default_index = algos.index(defaults['shuffle_algo'])
@@ -313,7 +312,7 @@ def param_inputs(component: DeltaGenerator, input_params: dict, defaults: dict =
             'shuffle block size (samples)',
             value='None'
             if 'shuffle_block_size' not in defaults else defaults['shuffle_block_size'],
-            help='shuffle block size for this run. used in the `py1b`, `py1br`, and `py1e` \
+            help='shuffle block size for this run. used in the `py1e` and `py1br` \
                 shuffling algorithms, samples in blocks of `shuffle_block_size` are randomly \
                 shuffled inside each bucket of shards (aka canonical node).')
         seed = col_r.number_input('shuffle seed',

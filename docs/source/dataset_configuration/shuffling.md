@@ -7,7 +7,7 @@ Shuffling is important for model convergence during training, but can be computa
 | `shuffle` | `bool` | `False` | turn shuffling on or off |
 | `shuffle_algo` | `str` | `'py1e'` | which shuffling algorithm to use |
 | `shuffle_seed` | `int` | `9176` | all randomness in StreamingDataset is derived from this seed |
-| `shuffle_block_size` | `int` | `max(4000000/num_canonical_nodes, 1<<18)` | Number of samples to shuffle at a time, only used by py1b, py1br, and py1e algorithms |
+| `shuffle_block_size` | `int` | `max(4000000/num_canonical_nodes, 1<<18)` | Number of samples to shuffle at a time, only used by py1br and py1e algorithms |
 | `num_canonical_nodes` | `int` | # of physical nodes | Number of sample buckets. Controls shuffling in py1s and py2s algorithms |
 
 ## How Shuffling Works
@@ -34,7 +34,7 @@ The `shuffle_algo` can be set to one of five choices, each with different tradeo
 
 ### Shuffle-block-based algorithms
 
-If your dataset has not been pre-shuffled, or you are using multiple streams, you should use a shuffle-block-based algorithm. The `py1e`, `py1br`, and `py1b` shuffles use the `shuffle_block_size` parameter, which determines how many samples within each canonical node are shuffled at once. You should set `shuffle_block_size` to be larger than the number of samples in a single shard (usually, at least 10x) for a high quality shuffle.
+If your dataset has not been pre-shuffled, or you are using multiple streams, you should use a shuffle-block-based algorithm. The `py1e` and `py1br`shuffles use the `shuffle_block_size` parameter, which determines how many samples within each canonical node are shuffled at once. You should set `shuffle_block_size` to be larger than the number of samples in a single shard (usually, at least 10x) for a high quality shuffle.
 
 #### `'py1e'` (default)
 
@@ -42,7 +42,7 @@ Samples from each shard are spread out across a range of maximum size `shuffle_b
 
 <img src="../_static/images/py1e.png" alt="py1e shuffle" width="800"/>
 
-This algorithm provides great shuffle quality, just like `py1br` and `py1b`, while also reducing the maximum needed cache limit and better balancing shard downloads. StreamingDataset defaults to using this shuffling algorithm.
+This algorithm provides great shuffle quality, just like `py1br`, while also reducing the maximum needed cache limit and better balancing shard downloads. StreamingDataset defaults to using this shuffling algorithm.
 
 #### `'py1br'`
 
@@ -50,11 +50,7 @@ Samples within each canonical node are shuffled in blocks of size `shuffle_block
 
 <img src="../_static/images/py1b_py1br.png" alt="py1br shuffle" width="800"/>
 
-This algorithm is a more download-optimal version of `py1b`, which is being deprecated.
-
-#### `'py1b'`
-
-This algorithm is very similar to `py1br`, without randomizing shuffle block sizes, resulting in suboptimal download performance. It will soon be deprecated -- please use `py1e` or `py1br` instead.
+This algorithm is a more download-optimal version of the now-deprecated `py1b`.
 
 ### Intra-shard shuffle algorithms
 

@@ -33,8 +33,8 @@ def parse_args() -> Namespace:
     args.add_argument('-s',
                       '--shuffle_algo',
                       type=str,
-                      default='py1b',
-                      help='Shuffling algorithm (naive, py1b, py1s, py2s)')
+                      default='py1e',
+                      help='Shuffling algorithm (naive, py1e, py1br, py1s, py2s)')
     args.add_argument('-z',
                       '--shuffle_block_size',
                       type=int,

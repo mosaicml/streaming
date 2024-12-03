@@ -5,8 +5,8 @@ from typing import Callable
 
 import numpy as np
 
-from streaming.base.shuffle import (get_shuffle_py1b, get_shuffle_py1br, get_shuffle_py1e,
-                                    get_shuffle_py1s, get_shuffle_py2s)
+from streaming.base.shuffle import (get_shuffle_py1br, get_shuffle_py1e, get_shuffle_py1s,
+                                    get_shuffle_py2s)
 
 
 def check(get_shuffle: Callable) -> None:
@@ -40,10 +40,6 @@ def check(get_shuffle: Callable) -> None:
                 # make sure all other epochs are the same as epoch 0.
                 for i in range(1, len(parts)):
                     assert parts[0] == parts[i]
-
-
-def test_shuffle_py1b():
-    check(get_shuffle_py1b)
 
 
 def test_shuffle_py1br():
