@@ -6,11 +6,11 @@
 from typing import Optional
 
 import numpy as np
-from core.last_used_ordered_set import LastUsedOrderedSet
-from core.utils import remove_padded_samples
 from numpy.typing import NDArray
 from sortedcollections import OrderedSet
 
+from simulation.core.last_used_ordered_set import LastUsedOrderedSet
+from simulation.core.utils import remove_padded_samples
 from streaming.base.spanner import Spanner
 
 

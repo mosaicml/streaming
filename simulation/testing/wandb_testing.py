@@ -3,24 +3,20 @@
 
 """Test simulation results against run results from a wandb project."""
 
-import os.path
-import sys
-
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
 import logging
 import os
+import os.path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import wandb
-from core.create_index import create_stream_index
-from core.main import simulate
-from core.sim_dataset import SimulationDataset
-from core.sim_time import TimeUnit, ensure_time
 from numpy.typing import NDArray
 
+from simulation.core.create_index import create_stream_index
+from simulation.core.main import simulate
+from simulation.core.sim_dataset import SimulationDataset
+from simulation.core.sim_time import TimeUnit, ensure_time
 from streaming.base import Stream
 
 logger = logging.getLogger(__name__)

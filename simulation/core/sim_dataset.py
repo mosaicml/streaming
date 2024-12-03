@@ -12,10 +12,10 @@ from math import ceil
 from typing import Optional, Sequence, Union
 
 import numpy as np
-from core.sim_spanner import SimulationSpanner
-from core.sim_world import SimulationWorld
 from numpy.typing import NDArray
 
+from simulation.core.sim_spanner import SimulationSpanner
+from simulation.core.sim_world import SimulationWorld
 from streaming.base import Stream, StreamingDataset
 from streaming.base.batching import generate_work
 from streaming.base.format import get_index_basename

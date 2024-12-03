@@ -4,19 +4,16 @@
 """Script for simulating training downloads and throughput, and displaying results."""
 
 import os.path
-import sys
 
 import humanize
-from core.create_index import create_stream_index
-from core.main import simulate
-from core.sim_dataset import SimulationDataset
-from core.sim_time import TimeUnit, ensure_time
-from core.utils import get_simulation_stats
-from interfaces.interface_utils import plot_simulation
 
+from simulation.core.create_index import create_stream_index
+from simulation.core.main import simulate
+from simulation.core.sim_dataset import SimulationDataset
+from simulation.core.sim_time import TimeUnit, ensure_time
+from simulation.core.utils import get_simulation_stats
+from simulation.interfaces.interface_utils import plot_simulation
 from streaming.base import Stream
-
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 # Input Parameters
 
