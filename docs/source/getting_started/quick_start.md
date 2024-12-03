@@ -7,7 +7,6 @@ Start training your model with Streaming in just a few steps!
     ```python
     import numpy as np
     from PIL import Image
-    from shutil import rmtree
     from uuid import uuid4
     from streaming import MDSWriter
 
