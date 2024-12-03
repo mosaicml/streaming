@@ -1,7 +1,7 @@
 # several pytest settings
 PYTHON ?= python  # Python command
 PYTEST ?= pytest  # Pytest command
-PYRIGHT ?= pyright  # Pyright command. Pyright must be installed seperately -- e.g. `node install -g pyright`
+PYRIGHT ?= pyright  # Pyright command. Pyright must be installed separately -- e.g. `node install -g pyright`
 EXTRA_ARGS ?=  # extra arguments for pytest
 
 dirs := streaming tests docs

@@ -23,7 +23,7 @@ $$L = 2 \cdot S \cdot \lceil\frac{C}{P}\rceil $$
 
 Where $L$ is the required minimum cache limit per node, in MB, $S$ is the average shard size, in MB, $C$ is the number of canonical nodes (see [here](../dataset_configuration/shuffling.md#how-shuffling-works) and [here](../distributed_training/elastic_determinism.md#requirements)), and $P$ is the number of physical nodes. This is because only a single shard, plus a potentially predownloaded subsequent shard, needs to be resident per canonical node to make progress during training.
 
-If using a shuffle-block-based algorithm such as [`'py1e'`](../dataset_configuration/shuffling.md#py1e-default) or [`'py1br'`](../dataset_configuration/shuffling.md#py1br), the required minumum cache limit per node will be approximately:
+If using a shuffle-block-based algorithm such as [`'py1e'`](../dataset_configuration/shuffling.md#py1e-default) or [`'py1br'`](../dataset_configuration/shuffling.md#py1br), the required minimum cache limit per node will be approximately:
 
 $$L = k \cdot S \lceil \frac{B}{Q} \rceil \cdot \lceil\frac{C}{P}\rceil $$
 

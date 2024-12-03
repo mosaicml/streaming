@@ -115,7 +115,7 @@ def generate_work_stratified_batching(dataset: StreamingDataset, world: World, e
                 f'Number of samples for stream {stream_id} is {batch_portion} because the portion '
                 +
                 f'of this stream in the global batch, which is of size {global_batch_size}, is ' +
-                f'too low. Please increase the global batch size or increase the porportion of ' +
+                f'too low. Please increase the global batch size or increase the proportion of ' +
                 f'total samples that come from stream {stream_id}.')
 
     # We now merge the partitions from each stream to get our final partition over all
