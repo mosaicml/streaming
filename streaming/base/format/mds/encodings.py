@@ -464,7 +464,29 @@ class PIL(Encoding):
 
 
 class JPEG(Encoding):
-    """Store PIL image as JPEG."""
+    """Store PIL image as JPEG. Optionally specify quality."""
+
+    def __init__(self, quality: int = 75):
+        if not isinstance(quality, int):
+            raise ValueError('JPEG quality must be an integer')
+        if not (0 <= quality <= 100):
+            raise ValueError('JPEG quality must be between 0 and 100')
+        self.quality = quality
+
+    @classmethod
+    def from_str(cls, config: str) -> Self:
+        """Parse this encoding from string.
+
+        Args:
+            text (str): The string to parse.
+
+        Returns:
+            Self: The initialized Encoding.
+        """
+        if config == '':
+            return cls()
+        else:
+            return cls(int(config))
 
     def encode(self, obj: Image.Image) -> bytes:
         self._validate(obj, Image.Image)
@@ -474,7 +496,7 @@ class JPEG(Encoding):
                 return f.read()
         else:
             out = BytesIO()
-            obj.save(out, format='JPEG')
+            obj.save(out, format='JPEG', quality=self.quality)
             return out.getvalue()
 
     def decode(self, data: bytes) -> Image.Image:
