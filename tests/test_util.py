@@ -105,8 +105,7 @@ def test_number_abbrev_to_int():
 
 
 def test_number_abbrev_to_int_Exception():
-    input_data = ['', '12kbb', '27mxb', '79bk',
-                  '79bb', '79 b    m', 'p 64', '64p']
+    input_data = ['', '12kbb', '27mxb', '79bk', '79bb', '79 b    m', 'p 64', '64p']
     for value in input_data:
         with pytest.raises(ValueError, match=f'Unsupported value/suffix.*'):
             _ = number_abbrev_to_int(value)
@@ -154,8 +153,7 @@ def integrity_check(out: Union[str, tuple[str, str]],
     with tempfile.TemporaryDirectory() as temp_dir:
         if cu.remote:
             CloudDownloader.direct_download(os.path.join(cu.remote, 'index.json'),
-                                            os.path.join(
-                                                temp_dir, 'index.json'),
+                                            os.path.join(temp_dir, 'index.json'),
                                             timeout=60)
             if expected_n_shard_files == -1:
                 expected_n_shard_files = get_expected(cu.remote)
@@ -173,8 +171,7 @@ def integrity_check(out: Union[str, tuple[str, str]],
             local_merged_index_path
         ), f'{local_merged_index_path} does not exist when keep_local is {keep_local}'
         merged_index = json.load(open(local_merged_index_path, 'r'))
-        n_shard_files = len({b['raw_data']['basename']
-                            for b in merged_index['shards']})
+        n_shard_files = len({b['raw_data']['basename'] for b in merged_index['shards']})
         assert n_shard_files == expected_n_shard_files, f'expected {expected_n_shard_files} shard files but got {n_shard_files}'
 
 
@@ -239,8 +236,7 @@ def test_merge_index_from_list_local(local_remote_dir: tuple[str, str], keep_loc
     data = [(1, 'Alice', Decimal('123.45')), (2, 'Bob', Decimal('67.89')),
             (3, 'Charlie', Decimal('987.65'))]
     df = spark.createDataFrame(data=data, schema=schema).repartition(3)
-    mds_kwargs = {'out': mds_out, 'columns': {
-        'id': 'int32', 'name': 'str'}, 'keep_local': True}
+    mds_kwargs = {'out': mds_out, 'columns': {'id': 'int32', 'name': 'str'}, 'keep_local': True}
     dataframe_to_mds(df, merge_index=False, mds_kwargs=mds_kwargs)
 
     local_cu = CloudUploader.get(local, exist_ok=True, keep_local=True)
@@ -268,8 +264,7 @@ def test_merge_index_from_list_local(local_remote_dir: tuple[str, str], keep_loc
 
     if index_file_urls_pattern == 3:
         remote_index_files = [
-            os.path.join(scheme, MY_BUCKET[scheme],
-                         MY_PREFIX, os.path.basename(o))
+            os.path.join(scheme, MY_BUCKET[scheme], MY_PREFIX, os.path.basename(o))
             for o in local_index_files
             if o.endswith('.json') and not_merged_index(o, local)
         ]
@@ -302,14 +297,11 @@ def test_merge_index_from_root_local(local_remote_dir: tuple[str, str], n_partit
     data = [(1, 'Alice', Decimal('123.45')), (2, 'Bob', Decimal('67.89')),
             (3, 'Charlie', Decimal('987.65'))]
 
-    df = spark.createDataFrame(
-        data=data, schema=schema).repartition(n_partitions)
+    df = spark.createDataFrame(data=data, schema=schema).repartition(n_partitions)
 
-    mds_kwargs = {'out': out, 'columns': {
-        'id': 'int32', 'name': 'str'}, 'keep_local': keep_local}
+    mds_kwargs = {'out': out, 'columns': {'id': 'int32', 'name': 'str'}, 'keep_local': keep_local}
 
-    mds_path, _ = dataframe_to_mds(
-        df, merge_index=False, mds_kwargs=mds_kwargs)
+    mds_path, _ = dataframe_to_mds(df, merge_index=False, mds_kwargs=mds_kwargs)
     merge_index(mds_path, keep_local=keep_local)
     integrity_check(mds_path, keep_local=keep_local)
 

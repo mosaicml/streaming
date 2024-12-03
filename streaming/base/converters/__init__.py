@@ -6,6 +6,4 @@
 from streaming.base.converters.dataframe_to_mds import (SPARK_TO_MDS, dataframe_to_mds,
                                                         infer_dataframe_schema, is_json_compatible)
 
-__all__ = [
-    'dataframe_to_mds', 'SPARK_TO_MDS', 'infer_dataframe_schema', 'is_json_compatible'
-]
+__all__ = ['dataframe_to_mds', 'SPARK_TO_MDS', 'infer_dataframe_schema', 'is_json_compatible']
