@@ -34,3 +34,6 @@ TICK = 0.007
 
 # Default download timeout
 DEFAULT_TIMEOUT = 60.0
+
+# Maximum prefix integers
+MAX_PREFIX_INT = 1000
