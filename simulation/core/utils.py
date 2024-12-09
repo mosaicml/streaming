@@ -4,9 +4,10 @@
 """Peripheral functions for simulation functionality."""
 
 import numpy as np
-from core.sim_dataset import SimulationDataset
-from core.sim_time import Time, TimeUnit
 from numpy.typing import NDArray
+
+from simulation.core.sim_dataset import SimulationDataset
+from simulation.core.sim_time import Time, TimeUnit
 
 
 def get_batches_epochs(dataset: SimulationDataset, max_duration: Time) -> tuple[int, int, int]:

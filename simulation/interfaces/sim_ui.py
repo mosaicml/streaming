@@ -5,7 +5,6 @@
 
 import math
 import os.path
-import sys
 from concurrent.futures import ProcessPoolExecutor
 from io import StringIO
 from typing import Union
@@ -14,20 +13,18 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 import yaml
-from core.create_index import create_stream_index
-from core.main import simulate
-from core.shuffle_quality import analyze_shuffle_quality_entropy
-from core.sim_dataset import SimulationDataset
-from core.sim_time import Time
-from core.utils import get_total_batches
-from core.yaml_processing import create_simulation_dataset, ingest_yaml
-from interfaces.interface_utils import get_train_dataset_params
-from interfaces.widgets import (display_shuffle_quality_graph, display_simulation_stats,
-                                get_line_chart, param_inputs)
 
+from simulation.core.create_index import create_stream_index
+from simulation.core.main import simulate
+from simulation.core.shuffle_quality import analyze_shuffle_quality_entropy
+from simulation.core.sim_dataset import SimulationDataset
+from simulation.core.sim_time import Time
+from simulation.core.utils import get_total_batches
+from simulation.core.yaml_processing import create_simulation_dataset, ingest_yaml
+from simulation.interfaces.interface_utils import get_train_dataset_params
+from simulation.interfaces.widgets import (display_shuffle_quality_graph, display_simulation_stats,
+                                           get_line_chart, param_inputs)
 from streaming.base.util import bytes_to_int, number_abbrev_to_int
-
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 # set up page
 st.set_page_config(layout='wide')

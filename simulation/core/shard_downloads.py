@@ -6,8 +6,9 @@
 from typing import Optional
 
 import numpy as np
-from core.node_tracker import NodeTracker
 from numpy.typing import NDArray
+
+from simulation.core.node_tracker import NodeTracker
 
 
 def simulate_shard_downloads(node: NodeTracker,

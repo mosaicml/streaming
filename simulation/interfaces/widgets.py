@@ -3,8 +3,6 @@
 
 """Streamlit widgets for simulation web UI."""
 
-import os.path
-import sys
 from concurrent.futures import Future
 from typing import Optional
 
@@ -12,14 +10,12 @@ import altair as alt
 import humanize
 import pandas as pd
 import streamlit as st
-from core.sim_time import TimeUnit, ensure_time
-from core.utils import get_simulation_stats
 from numpy.typing import NDArray
 from streamlit.delta_generator import DeltaGenerator
 
+from simulation.core.sim_time import TimeUnit, ensure_time
+from simulation.core.utils import get_simulation_stats
 from streaming.base.util import bytes_to_int
-
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 
 def get_line_chart(data: pd.DataFrame,
