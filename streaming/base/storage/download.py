@@ -261,7 +261,7 @@ class S3Downloader(CloudDownloader):
                                            config=config,
                                            endpoint_url=os.environ.get('S3_ENDPOINT_URL'))
 
-    def __getstate__(self):
+    def __getstate__(self) -> dict:
         state = self.__dict__.copy()
         state['_s3_client'] = None  # Exclude _s3_client from being pickled
         return state
