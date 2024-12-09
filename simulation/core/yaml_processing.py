@@ -5,11 +5,11 @@
 
 from typing import Optional
 
-from core.sim_dataset import SimulationDataset
-from core.sim_time import Time, TimeUnit, ensure_time
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
+from simulation.core.sim_dataset import SimulationDataset
+from simulation.core.sim_time import Time, TimeUnit, ensure_time
 from streaming.base import Stream
 
 
