@@ -261,6 +261,15 @@ class S3Downloader(CloudDownloader):
                                            config=config,
                                            endpoint_url=os.environ.get('S3_ENDPOINT_URL'))
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state['_s3_client'] = None  # Exclude _s3_client from being pickled
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self._s3_client = None  # Ensure _s3_client is reset after unpickling
+
 
 class SFTPDownloader(CloudDownloader):
     """Download files from SFTP to local filesystem."""
