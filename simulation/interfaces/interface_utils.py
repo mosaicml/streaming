@@ -11,9 +11,9 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from typing import Optional
 
 import numpy as np
-from core.utils import get_rolling_avg_throughput
 from numpy.typing import NDArray
 
+from simulation.core.utils import get_rolling_avg_throughput
 from streaming.base.util import number_abbrev_to_int
 
 
