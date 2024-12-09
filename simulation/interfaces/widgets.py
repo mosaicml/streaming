@@ -89,9 +89,9 @@ def stream_entry(component: DeltaGenerator,
     on = component.toggle('use `index.json`', key=str(key) + 'toggle') if add_stream else None
     if on or not add_stream:
         path = component.text_input(
-            'path to `index.json`',
-            value='/absolute/path/to/index.json' if defaults is None else defaults['path'],
-            help='path to the `index.json` file for this stream. \
+            'path to directory containing `index.json`',
+            value='/absolute/path/to/dir/' if defaults is None else defaults['path'],
+            help='path to the directory containing the `index.json` file for this stream. \
                                 the `index.json` file contains information about the shards in \
                                 your dataset.',
             key=str(key) + 'path',
