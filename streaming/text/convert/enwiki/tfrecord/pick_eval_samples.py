@@ -1,4 +1,4 @@
-"""Script for picking certain number of sampels.
+"""Script for picking certain number of samples.
 """
 
 import argparse

@@ -237,7 +237,7 @@ def bench(args: Namespace, bench_name: str, desc: str, generate: Callable,
         args (Namespace): Command-line arguments.
         bench_name (str): What to call this benchmark.
         desc (str): Brief description of the data.
-        generate (Callable): Method to genereate the dataset.
+        generate (Callable): Method to generate the dataset.
         formats (List[str]): List of shard formats to benchmark this data in.
     """
     print(f'Bench: {bench_name}')
@@ -373,7 +373,7 @@ def bench(args: Namespace, bench_name: str, desc: str, generate: Callable,
             y *= args.plot_bins
             y = y.astype(np.int64)
 
-            # Truncate the higest ``args.truncate_highest_frac`` timings because they get further
+            # Truncate the highest ``args.truncate_highest_frac`` timings because they get further
             # and further spaced as you ascend, which would ruin the plot.
             y = y[np.nonzero(y < args.plot_bins)[0]]
 
