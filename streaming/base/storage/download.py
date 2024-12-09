@@ -266,7 +266,7 @@ class S3Downloader(CloudDownloader):
         state['_s3_client'] = None  # Exclude _s3_client from being pickled
         return state
 
-    def __setstate__(self, state):
+    def __setstate__(self, state: dict):
         self.__dict__.update(state)
         self._s3_client = None  # Ensure _s3_client is reset after unpickling
 
