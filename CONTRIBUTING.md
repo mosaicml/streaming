@@ -75,7 +75,7 @@ pytest -vv -s . # run all the unittests
 cd docs && make clean && make doctest # run doctests
 ```
 
-6\. [Optional] Compile and visualize the documentation locally. If you have a documentation changes, running the below commands is mandatory.
+6\. [Optional] Compile and visualize the documentation locally. If you have documentation changes, running the below commands is mandatory.
 
 <!--pytest.mark.skip-->
 ```bash
