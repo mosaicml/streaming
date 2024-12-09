@@ -16,7 +16,7 @@
 
 <h4><p align='center'>
 <a href="https://www.mosaicml.com">[Website]</a>
-- <a href="https://streaming.docs.mosaicml.com/en/latest/getting_started/user_guide.html">[Getting Started]</a>
+- <a href="https://docs.mosaicml.com/projects/streaming/en/latest/getting_started/quick_start.html">[Quick Start]</a>
 - <a href="https://streaming.docs.mosaicml.com/">[Docs]
 - <a href="https://www.databricks.com/company/careers/open-positions?department=Mosaic%20AI&location=all">[We're Hiring!]</a>
 </p></h4>
@@ -195,7 +195,8 @@ dataset = StreamingInsideWebVid(local=local, remote=remote, shuffle=True)
 
 Easily experiment with dataset mixtures with [`Stream`](https://docs.mosaicml.com/projects/streaming/en/latest/api_reference/generated/streaming.Stream.html#stream). Dataset sampling can be controlled in relative (proportion) or absolute (repeat or samples terms). During streaming, the different datasets are streamed, shuffled, and mixed seamlessly just-in-time.
 
-```
+<!--pytest.mark.skip-->
+```python
 # mix C4, github code, and internal datasets
 streams = [
   Stream(remote='s3://datasets/c4', proportion=0.4),
