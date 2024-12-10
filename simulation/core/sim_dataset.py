@@ -135,6 +135,29 @@ class SimulationDataset(StreamingDataset):
         # Time how long it takes for StreamingDataset instantiation
         t0 = time.time()
 
+        super().__init__(streams=streams,
+                         remote=remote,
+                         local=local,
+                         split=split,
+                         download_retry=download_retry,
+                         download_timeout=download_timeout,
+                         validate_hash=validate_hash,
+                         keep_zip=keep_zip,
+                         epoch_size=epoch_size,
+                         predownload=predownload,
+                         cache_limit=cache_limit,
+                         partition_algo=partition_algo,
+                         num_canonical_nodes=num_canonical_nodes,
+                         batch_size=batch_size,
+                         shuffle=shuffle,
+                         shuffle_algo=shuffle_algo,
+                         shuffle_seed=shuffle_seed,
+                         shuffle_block_size=shuffle_block_size,
+                         sampling_method=sampling_method,
+                         sampling_granularity=sampling_granularity,
+                         batching_method=batching_method,
+                         allow_unsafe_types=allow_unsafe_types)
+
         # Global arguments (which do not live in Streams).
         self.nodes = nodes
         self.devices = devices
