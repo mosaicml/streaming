@@ -512,7 +512,7 @@ def test_stratified_batching_Exception(local_remote_dir: tuple[str, str], stream
 
     with pytest.raises(ValueError, match=f'Number of samples for stream*'):
         # When we iterate through the dataloader, the samples will be partitioned.
-        # This should thow ValueError since stream 2 is too small to be included in each batch.
+        # This should throw ValueError since stream 2 is too small to be included in each batch.
         for _ in dataloader:
             continue
 

@@ -11,7 +11,7 @@ import shutil
 
 
 def parse_args() -> Namespace:
-    """Parse commmand-line arguments.
+    """Parse command-line arguments.
 
     Returns:
         Namespace: Command-line arguments.
