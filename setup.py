@@ -129,7 +129,7 @@ extra_deps['hf'] = [
 ]
 
 extra_deps['testing'] = [
-    'mosaicml-cli>=0.5.25,<0.7',
+    'mosaicml-cli>=0.5.25,<0.8',
 ]
 
 extra_deps['all'] = sorted({dep for deps in extra_deps.values() for dep in deps})
