@@ -201,6 +201,9 @@ class SimulationDataset(StreamingDataset):
             if epoch_size_value < 0:
                 raise ValueError(f'Epoch size cannot be negative. Received {epoch_size_value}.')
 
+        # Determine if we should be changing the seed every epoch
+        self.epoch_seed_change = self.shuffle and self.sampling_method == 'balanced'
+
         # Initialize the Stream defaults and normalize to a list of Streams.
         if streams:
             default = {
