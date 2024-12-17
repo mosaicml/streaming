@@ -246,9 +246,11 @@ class S3Downloader(CloudDownloader):
         from botocore import UNSIGNED
         from botocore.config import Config
 
-        retries = {
+        retries: dict[str, Any] = {
             'mode': 'adaptive',
         }
+        if (max_attempts := os.environ.get('MOSAICML_STREAMING_AWS_MAX_ATTEMPTS')) is not None:
+            retries['max_attempts'] = int(max_attempts)
         if unsigned:
             # Client will be using unsigned mode in which public
             # resources can be accessed without credentials
