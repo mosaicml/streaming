@@ -9,7 +9,7 @@ from typing import Any, Dict, Iterator
 
 import datasets
 from datasets.arrow_dataset import Dataset
-from torch.utils.data import DataLoader, IterableDataset, get_worker_info
+from paddle.io import DataLoader, IterableDataset, get_worker_info
 from tqdm import tqdm
 
 from streaming.base import MDSWriter

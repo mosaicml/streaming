@@ -9,9 +9,9 @@ from argparse import ArgumentParser, Namespace
 from typing import Dict, Iterable
 
 import numpy as np
-import torch
+import paddle
 from PIL import Image
-from torch.utils.data import Dataset
+from paddle.io import Dataset
 from tqdm import tqdm
 
 from streaming.base import MDSWriter
@@ -147,8 +147,8 @@ class _COCODetection(Dataset):
             bbox_sizes.append(bbox_size)
             bbox_labels.append(bbox_label)
 
-        bbox_sizes = torch.tensor(bbox_sizes)
-        bbox_labels = torch.tensor(bbox_labels)
+        bbox_sizes = paddle.to_tensor(bbox_sizes)
+        bbox_labels = paddle.to_tensor(bbox_labels)
 
         return img, img_id, (htot, wtot), bbox_sizes, bbox_labels
 

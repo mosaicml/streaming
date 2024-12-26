@@ -5,7 +5,7 @@
 
 from typing import Any, Dict, Tuple
 
-from torch.utils.data import get_worker_info
+from paddle.io import get_worker_info
 from typing_extensions import Self
 
 from streaming.base import distributed as dist

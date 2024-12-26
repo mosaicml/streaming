@@ -6,13 +6,13 @@
 import os
 from typing import List, TypeVar, cast
 
-import torch.distributed as dist
+import paddle.distributed as dist
 
 TObj = TypeVar('TObj')
 
-import torch
-from torch import Tensor
-from torch import distributed as dist
+import paddle
+from paddle import Tensor
+from paddle import distributed as dist
 
 __all__ = [
     'all_gather', 'barrier', 'broadcast', 'get_rank', 'get_local_rank', 'get_local_world_size',
@@ -26,8 +26,8 @@ def get_rank() -> int:
     Returns:
         int: The rank.
     """
-    return int(os.environ.get('RANK', 0))
-
+    return dist.get_rank()
+    # return int(os.environ.get('RANK', 0))
 
 def get_world_size() -> int:
     """Returns the world size, which is the number of processes participating in this training run.
@@ -35,7 +35,8 @@ def get_world_size() -> int:
     Returns:
         int: The world size.
     """
-    return int(os.environ.get('WORLD_SIZE', 1))
+    return dist.get_world_size()
+    # return int(os.environ.get('WORLD_SIZE', 1))
 
 
 def get_local_rank() -> int:
@@ -44,7 +45,8 @@ def get_local_rank() -> int:
     Returns:
         int: The local rank.
     """
-    return int(os.environ.get('LOCAL_RANK', 0))
+    return dist.ParallelEnv().local_rank
+    # return int(os.environ.get('LOCAL_RANK', 0))
 
 
 def get_local_world_size() -> int:
@@ -53,7 +55,8 @@ def get_local_world_size() -> int:
     Returns:
         int: The local world size.
     """
-    return int(os.environ.get('LOCAL_WORLD_SIZE', 1))
+    return int(os.environ.get('PADDLE_LOCAL_SIZE', 1))
+    # return int(os.environ.get('LOCAL_WORLD_SIZE', 1))
 
 
 def barrier() -> None:
@@ -121,9 +124,9 @@ def maybe_init_dist() -> bool:
     """
     if get_world_size() == 1 or not dist.is_available() or dist.is_initialized():
         return False
-    if torch.cuda.is_available() and dist.is_nccl_available():
-        backend = 'nccl'
-    else:
-        backend = 'gloo'
-    dist.init_process_group(backend=backend, rank=get_rank(), world_size=get_world_size())
+    # if torch.cuda.is_available() and dist.is_nccl_available():
+    #     backend = 'nccl'
+    # else:
+    #     backend = 'gloo'
+    dist.init_process_group()
     return True

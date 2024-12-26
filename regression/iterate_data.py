@@ -10,9 +10,9 @@ import urllib.parse
 from argparse import ArgumentParser, Namespace
 from typing import Union
 
-import torch
-from torch import distributed as dist
-from torch.utils.data import DataLoader
+import paddle
+from paddle import distributed as dist
+from paddle.io import DataLoader
 from utils import (compare_sample_order, get_dataloader_params, get_kwargs,
                    get_streaming_dataset_params)
 
@@ -119,14 +119,14 @@ def main(args: Namespace, kwargs: dict[str, str]) -> None:
                 elif 'number' in batch:
                     key = 'number'
                 samples = [int(sample) for sample in batch[key]]
-                samples = torch.Tensor(samples).to(dtype=torch.int64)
+                samples = paddle.to_tensor(samples).to(dtype=paddle.int64)
                 # Only gather if more than 1 gpu
                 if destroy_dist:
                     obj_gather_list = [
-                        torch.zeros(len(samples), dtype=torch.int64).cuda(get_rank())
+                        paddle.zeros([len(samples)], dtype=paddle.int64) #.cuda(get_rank())
                         for _ in range(get_world_size())
                     ]
-                    all_gather(obj_gather_list, samples.cuda(get_rank()))
+                    all_gather(obj_gather_list, samples) # .cuda(get_rank())
                     barrier()
                 else:
                     obj_gather_list = [samples]

@@ -9,8 +9,8 @@ from unittest import mock
 
 import numpy as np
 import pytest
-import torch.distributed as dist
-from torch.utils.data import DataLoader
+import paddle.distributed as dist
+from paddle.io import DataLoader
 
 import streaming.base.distributed as ms_dist
 from streaming.base import StreamingDataset

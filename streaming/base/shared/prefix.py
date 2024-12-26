@@ -12,7 +12,7 @@ from time import sleep
 from typing import Iterator, List, Tuple, Union
 
 import numpy as np
-from torch import distributed as dist
+from paddle import distributed as dist
 
 from streaming.base.constant import LOCALS, TICK
 from streaming.base.shared import SharedMemory

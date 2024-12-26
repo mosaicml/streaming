@@ -46,6 +46,15 @@
 </p>
 <br />
 
+
+# PaddlePaddle Runs
+
+```
+cd paddle_run
+bash main.sh
+```
+
+
 # 👋 Welcome
 
 We built StreamingDataset to make training on large datasets from cloud storage as fast, cheap, and scalable as possible.
@@ -120,7 +129,7 @@ $ aws s3 cp --recursive path-to-dataset s3://my-bucket/path-to-dataset
 
 <!--pytest.mark.skip-->
 ```python
-from torch.utils.data import DataLoader
+from paddle.io import DataLoader
 from streaming import StreamingDataset
 
 # Remote path where full dataset is persistently stored

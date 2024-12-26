@@ -9,11 +9,11 @@ import time
 from typing import Any, Dict, List
 
 import pytest
-import torch.distributed as dist
-import torch.multiprocessing as mp
+import paddle.distributed as dist
+import multiprocessing as mp
 from _pytest.fixtures import FixtureRequest
 from _pytest.outcomes import Skipped
-from torch.multiprocessing import Process
+from multiprocessing import Process
 
 from .utils import get_free_tcp_port
 
@@ -197,7 +197,7 @@ class DistributedTest:
                 PYTHONUNBUFFERED='1',
         ):
             # Initializes the default distributed process group
-            dist.init_process_group(backend=self.__backend, rank=global_rank, world_size=num_procs)
+            dist.init_parallel_env()
             # Synchronizes all processes
             dist.barrier()
 

@@ -18,7 +18,7 @@ from pathlib import Path
 from time import sleep, time
 from typing import Any, Callable, List, Sequence, Tuple, Type, TypeVar, Union, cast, overload
 
-import torch.distributed as dist
+import paddle.distributed as dist
 
 from streaming.base.constant import SHM_TO_CLEAN
 from streaming.base.distributed import get_local_rank, maybe_init_dist

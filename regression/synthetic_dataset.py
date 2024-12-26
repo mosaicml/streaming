@@ -11,7 +11,7 @@ from argparse import ArgumentParser, Namespace
 from typing import Any, Sequence
 
 import numpy as np
-import torch
+import paddle
 from utils import delete_gcs, delete_oci, delete_s3, get_kwargs, get_writer_params
 
 from streaming.base import MDSWriter
@@ -189,7 +189,7 @@ class ImageDataset:
     def __getitem__(self, index: int) -> dict[str, Any]:
         if index < self.num_samples:
             return {
-                self.column_names[0]: torch.randn(self.num_samples, *self.shape),
+                self.column_names[0]: paddle.randn([self.num_samples, *self.shape]),
             }
         raise IndexError(f'Index {index} out of bound for size {self.num_samples}')
 
@@ -199,7 +199,7 @@ class ImageDataset:
     def __next__(self) -> dict[str, Any]:
         if self._index >= self.num_samples:
             raise StopIteration
-        x = torch.randn(self.num_samples, *self.shape)
+        x = paddle.randn([self.num_samples, *self.shape])
         self._index += 1
         return {
             self.column_names[0]: x,
@@ -212,7 +212,7 @@ class ImageDataset:
     @seed.setter
     def seed(self, value: int) -> None:
         self._seed = value  # pyright: ignore
-        torch.manual_seed(self._seed)
+        paddle.seed(self._seed)
 
 
 def get_dataset_params(kwargs: dict[str, str]) -> dict[str, Any]:

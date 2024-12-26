@@ -8,7 +8,7 @@ import os
 from typing import Any, Dict, Optional
 
 import numpy as np
-from torch.utils.data import Dataset
+from paddle.io import Dataset
 
 from streaming.base.array import Array
 from streaming.base.format import get_index_basename, reader_from_json

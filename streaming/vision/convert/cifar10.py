@@ -5,7 +5,7 @@
 
 from argparse import ArgumentParser, Namespace
 
-from torchvision.datasets import CIFAR10
+from paddle.vision.datasets import Cifar10
 
 from streaming.base.util import get_list_arg
 from streaming.vision.convert.base import convert_image_class_dataset
@@ -79,7 +79,7 @@ def main(args: Namespace) -> None:
     splits = get_list_arg(args.splits)
     hashes = get_list_arg(args.hashes)
     for split in splits:
-        dataset = CIFAR10(root=args.in_root, train=(split == 'train'), download=True)
+        dataset = Cifar10(root=args.in_root, train=(split == 'train'), download=True)
         convert_image_class_dataset(dataset, args.out_root, split, args.compression, hashes,
                                     args.size_limit, args.progress_bar, args.leave, 'pil')
 

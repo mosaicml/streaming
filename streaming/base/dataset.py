@@ -20,8 +20,8 @@ from typing import Any, Dict, Iterator, Optional, Sequence, Tuple, Union
 import numpy as np
 from filelock import FileLock
 from numpy.typing import NDArray
-from torch import distributed as dist
-from torch.utils.data import IterableDataset
+from paddle import distributed as dist
+from paddle.io import IterableDataset
 
 from streaming.base.array import Array
 from streaming.base.batching import generate_work
@@ -420,6 +420,7 @@ class StreamingDataset(Array, IterableDataset):
                            f'max(batch_size, 256 * batch_size // num_canonical_nodes).')
             self.predownload = 8 * self.batch_size if self.batch_size is not None else 64
 
+        #import pdb; pdb.set_trace()
         # Convert epoch size from string to int, if needed. Cannot be negative.
         epoch_size_value = None
         if epoch_size:
@@ -469,6 +470,8 @@ class StreamingDataset(Array, IterableDataset):
         self.shards_per_stream = np.zeros(self.num_streams, np.int64)
         self.sample_offset_per_stream = np.zeros(self.num_streams, np.int64)
         self.samples_per_stream = np.zeros(self.num_streams, np.int64)
+
+        #import pdb; pdb.set_trace()
         for stream_id, stream in enumerate(self.streams):
             stream_shards = stream.get_shards(self._unique_rank_world, self.allow_unsafe_types)
             num_stream_samples = sum(map(len, stream_shards))

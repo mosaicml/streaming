@@ -5,8 +5,8 @@
 
 from typing import Any, Callable, Optional, Tuple
 
-from torchvision.datasets import VisionDataset
-from torchvision.transforms.functional import to_tensor
+# from torchvision.datasets import VisionDataset
+from paddle.vision.transforms import to_tensor
 
 from streaming.base import StreamingDataset
 
@@ -46,7 +46,7 @@ class StandardTransform:
         return x, y
 
 
-class StreamingVisionDataset(StreamingDataset, VisionDataset):
+class StreamingVisionDataset(StreamingDataset):
     """A streaming, iterable, torchvision VisionDataset.
 
     Args:

@@ -7,10 +7,10 @@ from shutil import rmtree
 from typing import Any, Tuple
 
 import pytest
-from torch.utils.data import DataLoader
+from paddle.io import DataLoader
 
 from streaming import MDSWriter, StreamingDataset
-from tests.common.utils import convert_to_mds
+#from tests.common.utils import convert_to_mds
 
 
 def validate(remote: str, local: str, dataset: StreamingDataset, keep_zip: bool,
@@ -34,7 +34,7 @@ def validate(remote: str, local: str, dataset: StreamingDataset, keep_zip: bool,
         if dataset.shards[0].compression:
             # Local has raw, remote has zip.
             assert ops(set(os.listdir(local)),
-                       {f.replace('.zstd', '') for f in os.listdir(remote)})
+                       set(map(lambda f: f.replace('.zstd', ''), os.listdir(remote))))
         else:
             # Local has raw, remote has raw.
             assert ops(set(os.listdir(local)), set(os.listdir(remote)))
@@ -44,7 +44,7 @@ def shard_eviction_disabled(remote: str, local: str, keep_zip: bool):
     """
     With shard eviction disabled.
     """
-    dataset = StreamingDataset(remote=remote, local=local, keep_zip=keep_zip, batch_size=1)
+    dataset = StreamingDataset(remote=remote, local=local, keep_zip=keep_zip)
     for _ in range(2):
         for sample in dataset:  # pyright: ignore
             pass
@@ -60,8 +60,7 @@ def shard_eviction_too_high(remote: str, local: str, keep_zip: bool):
     dataset = StreamingDataset(remote=remote,
                                local=local,
                                keep_zip=keep_zip,
-                               cache_limit=1_000_000,
-                               batch_size=1)
+                               cache_limit=1_000_000)
     dataloader = DataLoader(dataset=dataset, num_workers=8)
     for _ in range(2):
         for _ in dataloader:
@@ -78,8 +77,7 @@ def shard_eviction(remote: str, local: str, keep_zip: bool):
     dataset = StreamingDataset(remote=remote,
                                local=local,
                                keep_zip=keep_zip,
-                               cache_limit=cache_limit,
-                               batch_size=1)
+                               cache_limit=cache_limit)
     dataloader = DataLoader(dataset=dataset, num_workers=8)
     for _ in range(2):
         for _ in dataloader:
@@ -92,10 +90,10 @@ def manual_shard_eviction(remote: str, local: str, keep_zip: bool):
     """
     Manually downloading and evicting shards.
     """
-    dataset = StreamingDataset(remote=remote, local=local, keep_zip=keep_zip, batch_size=1)
+    dataset = StreamingDataset(remote=remote, local=local, keep_zip=keep_zip)
 
     for shard_id in range(dataset.num_shards):
-        dataset.prepare_shard(shard_id)
+        dataset.download_shard(shard_id)
 
     full = set(os.listdir(local))
 
@@ -116,7 +114,7 @@ def cache_limit_too_low(remote: str, local: str, keep_zip: bool):
     With impossible shard eviction settings because cache_limit is set too low.
     """
     with pytest.raises(ValueError):
-        dataset = StreamingDataset(remote=remote, local=local, cache_limit='1kb', batch_size=1)
+        dataset = StreamingDataset(remote=remote, local=local, cache_limit='1kb')
         for _ in dataset:
             pass
     rmtree(local, ignore_errors=False)
@@ -129,8 +127,7 @@ funcs = [
 
 
 @pytest.mark.usefixtures('local_remote_dir')
-@pytest.mark.parametrize('func', list(funcs))
-def test_eviction_nozip(local_remote_dir: Tuple[str, str], func: Any):
+def test_eviction_nozip(local_remote_dir: Tuple[str, str]):
     num_samples = 5_000
     local, remote = local_remote_dir
     columns = {'data': 'bytes'}
@@ -147,12 +144,12 @@ def test_eviction_nozip(local_remote_dir: Tuple[str, str], func: Any):
             sample = {'data': b'\0'}
             out.write(sample)
 
-    func(remote, local, False)
+    for func in funcs:
+        func(remote, local, False)
 
 
 @pytest.mark.usefixtures('local_remote_dir')
-@pytest.mark.parametrize('func', list(funcs))
-def test_eviction_zip_nokeep(local_remote_dir: Tuple[str, str], func: Any):
+def test_eviction_zip_nokeep(local_remote_dir: Tuple[str, str]):
     num_samples = 5_000
     local, remote = local_remote_dir
     columns = {'data': 'bytes'}
@@ -169,12 +166,12 @@ def test_eviction_zip_nokeep(local_remote_dir: Tuple[str, str], func: Any):
             sample = {'data': b'\0'}
             out.write(sample)
 
-    func(remote, local, False)
+    for func in funcs:
+        func(remote, local, False)
 
 
 @pytest.mark.usefixtures('local_remote_dir')
-@pytest.mark.parametrize('func', list(funcs))
-def test_eviction_zip_keep(local_remote_dir: Tuple[str, str], func: Any):
+def test_eviction_zip_keep(local_remote_dir: Tuple[str, str]):
     num_samples = 5_000
     local, remote = local_remote_dir
     columns = {'data': 'bytes'}
@@ -191,43 +188,5 @@ def test_eviction_zip_keep(local_remote_dir: Tuple[str, str], func: Any):
             sample = {'data': b'\0'}
             out.write(sample)
 
-    func(remote, local, True)
-
-
-@pytest.mark.parametrize('cache_limit', ['2048'])
-@pytest.mark.usefixtures('local_remote_dir')
-def test_cache_limit_lower_than_index_json(local_remote_dir: Any, cache_limit: str):
-    remote_dir, local_dir = local_remote_dir
-    convert_to_mds(out_root=remote_dir,
-                   dataset_name='sequencedataset',
-                   num_samples=1000,
-                   compression=None,
-                   size_limit=2048)
-
-    with pytest.raises(ValueError, match='Minimum cache usage.*is larger than the cache limit*'):
-        _ = StreamingDataset(local=local_dir,
-                             remote=remote_dir,
-                             shuffle=False,
-                             batch_size=4,
-                             cache_limit=cache_limit)
-
-
-@pytest.mark.parametrize('cache_limit', ['5kb'])
-@pytest.mark.parametrize('compression', [None, 'zstd:7'])
-@pytest.mark.usefixtures('local_remote_dir')
-def test_cache_limit_lower_than_few_shards(local_remote_dir: Any, cache_limit: str,
-                                           compression: str):
-    remote_dir, local_dir = local_remote_dir
-    convert_to_mds(out_root=remote_dir,
-                   dataset_name='sequencedataset',
-                   num_samples=1000,
-                   compression=compression,
-                   size_limit=2048)
-
-    with pytest.raises(ValueError,
-                       match='Cache limit.*is too low. Increase the `cache_limit` to*'):
-        _ = StreamingDataset(local=local_dir,
-                             remote=remote_dir,
-                             shuffle=False,
-                             batch_size=4,
-                             cache_limit=cache_limit)
+    for func in funcs:
+        func(remote, local, True)

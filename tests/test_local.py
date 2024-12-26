@@ -3,8 +3,8 @@
 
 from tempfile import TemporaryDirectory
 
-import torch
-from torch.utils.data import DataLoader
+import paddle
+from paddle.io import DataLoader
 
 from streaming import MDSWriter
 from streaming.base.local import LocalDataset
@@ -35,4 +35,4 @@ def test_local_dataloader():
         dataset = LocalDataset(dirname)
         loader = DataLoader(dataset, batch_size=1)
         for sample_id, batch in enumerate(loader):
-            assert batch['value'] == torch.tensor([sample_id])
+            assert batch['value'] == paddle.to_tensor([sample_id])

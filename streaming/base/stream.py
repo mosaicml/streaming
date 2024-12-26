@@ -456,6 +456,7 @@ class Stream:
                     f'-> {filename} took too long to download. Either increase the ' +
                     f'`download_timeout` value or check the other traceback.')
 
+        #import pdb; pdb.set_trace()
         # Load the index.
         try:
             obj = json.load(open(filename))

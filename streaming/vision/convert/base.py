@@ -7,7 +7,7 @@ import os
 from typing import List, Optional
 
 import numpy as np
-from torch.utils.data import Dataset
+from paddle.io import Dataset
 from tqdm import tqdm
 
 from streaming.base import MDSWriter
