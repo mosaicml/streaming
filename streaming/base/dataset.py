@@ -34,7 +34,8 @@ from streaming.base.sampling import get_sampling
 from streaming.base.shared import (SharedArray, SharedBarrier, SharedMemory, SharedScalar,
                                    _get_path, get_shm_prefix)
 from streaming.base.spanner import Spanner
-from streaming.base.stream import Stream
+from streaming.base.registry_utils import construct_from_registry
+from streaming.base.stream import Stream, streams_registry
 from streaming.base.util import bytes_to_int, number_abbrev_to_int
 from streaming.base.world import World
 
@@ -334,7 +335,8 @@ class StreamingDataset(Array, IterableDataset):
                  shuffle_block_size: Optional[int] = None,
                  batching_method: str = 'random',
                  allow_unsafe_types: bool = False,
-                 replication: Optional[int] = None) -> None:
+                 replication: Optional[int] = None,
+                 **kwargs: Any) -> None:
         # Global arguments (which do not live in Streams).
         self.predownload = predownload
         self.cache_limit = cache_limit
@@ -438,13 +440,26 @@ class StreamingDataset(Array, IterableDataset):
             for stream in streams:
                 stream.apply_default(default)
         else:
-            default = Stream(remote=remote,
-                             local=local,
-                             split=split,
-                             download_retry=download_retry,
-                             download_timeout=download_timeout,
-                             validate_hash=validate_hash,
-                             keep_zip=keep_zip)
+            kwargs = {
+                'remote': remote,
+                'local': local,
+                'split': split,
+                'download_retry': download_retry,
+                'download_timeout': download_timeout,
+                'validate_hash': validate_hash,
+                'keep_zip': keep_zip,
+                **kwargs,
+            }
+
+            default = construct_from_registry(
+                name='stream',
+                registry=streams_registry,
+                partial_function=False,
+                pre_validation_function=None,
+                post_validation_function=None,
+                kwargs=kwargs,
+            )
+
             streams = [default]
 
         # Validate the stream weighting scheme (relative or absolute) to catch errors before we go

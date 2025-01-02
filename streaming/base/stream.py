@@ -21,7 +21,7 @@ from streaming.base.hashing import get_hash
 from streaming.base.storage import CloudDownloader
 from streaming.base.util import retry, wait_for_file_to_exist
 from streaming.base.world import World
-
+from streaming.base.registry_utils import create_registry
 
 class Stream:
     """A dataset, or sub-dataset if mixing, from which we stream/cache samples.
@@ -507,3 +507,10 @@ class Stream:
         """
         filename = os.path.join(self.local, self.split, get_index_basename())
         return os.stat(filename).st_size
+
+streams_registry = create_registry('streaming', 'streams_registry',
+                         generic_type=type[Stream],
+                         entry_points=True,
+                         description="The streams registry is used for registering Stream classes.")
+
+streams_registry.register('stream', func=Stream)
