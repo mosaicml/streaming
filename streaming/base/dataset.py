@@ -451,6 +451,7 @@ class StreamingDataset(Array, IterableDataset):
                 **kwargs,
             }
 
+            # Construct a Stream instance using registry-based construction
             default = construct_from_registry(
                 name='stream',
                 registry=streams_registry,

@@ -12,6 +12,8 @@ from _pytest.monkeypatch import MonkeyPatch
 
 from streaming import Stream, StreamingDataset
 from streaming.base.distributed import barrier
+from streaming.base.registry_utils import construct_from_registry
+from streaming.base.stream import streams_registry
 from tests.common.utils import convert_to_mds
 
 
@@ -69,3 +71,26 @@ def test_missing_index_json_local(local_remote_dir: Any):
     stream = Stream(remote=None, local=remote_dir)
     with pytest.raises(RuntimeError, match='No `remote` provided, but local file.*'):
         _ = StreamingDataset(streams=[stream], batch_size=1)
+
+
+def test_construct_stream_from_registry():
+    remote = 'remote_dir'
+    local = tempfile.mkdtemp()
+
+    kwargs = {
+        'remote': remote,
+        'local': local,
+    }
+
+    stream_instance = construct_from_registry(
+        'stream',
+        streams_registry,
+        partial_function=False,
+        kwargs=kwargs,
+    )
+
+    assert isinstance(stream_instance, Stream)
+    assert remote == stream_instance.remote
+    assert local == stream_instance.local
+
+    shutil.rmtree(local, ignore_errors=True)
