@@ -1,6 +1,8 @@
 # Copyright 2024 MosaicML Streaming authors
 # SPDX-License-Identifier: Apache-2.0
 
+"""Wrapper of catalogue.Registry, copied from llm-foundry."""
+
 import copy
 import functools
 import importlib.util

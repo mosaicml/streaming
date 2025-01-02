@@ -30,11 +30,11 @@ from streaming.base.constant import (BARRIER, BARRIER_FILELOCK, CACHE_FILELOCK, 
                                      SHARD_ACCESS_TIMES, SHARD_STATES, TICK)
 from streaming.base.distributed import maybe_init_dist
 from streaming.base.format import get_index_basename
+from streaming.base.registry_utils import construct_from_registry
 from streaming.base.sampling import get_sampling
 from streaming.base.shared import (SharedArray, SharedBarrier, SharedMemory, SharedScalar,
                                    _get_path, get_shm_prefix)
 from streaming.base.spanner import Spanner
-from streaming.base.registry_utils import construct_from_registry
 from streaming.base.stream import Stream, streams_registry
 from streaming.base.util import bytes_to_int, number_abbrev_to_int
 from streaming.base.world import World
