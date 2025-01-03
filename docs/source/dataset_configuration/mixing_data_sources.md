@@ -11,12 +11,14 @@ It is possible, though not recommended, for streams to have different schemas.
 ### Registering a custom Stream implementation
 You can also customize the implementation of a `Stream`. To modify the behavior of a `Stream` that is used in a `StreamingDataset`, you can subclass `Stream`, and register the subclass as shown in the below example without forking the library.
 
+<!--pytest.mark.skip-->
 ```python
 from streaming.base.stream import streams_registry
 from streaming.base.registry_utils import construct_from_registry
 
 class MyStream(Stream):
     # your implementation goes here
+    pass
 
 # Register your custom stream class as 'stream'
 streams_registry.register('stream', func=MyStream)
