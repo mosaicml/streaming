@@ -94,3 +94,52 @@ def test_construct_stream_from_registry():
     assert local == stream_instance.local
 
     shutil.rmtree(local, ignore_errors=True)
+
+
+def test_construct_stream_from_registry_local_is_none():
+    remote = 'remote_dir'
+
+    kwargs = {
+        'remote': remote,
+        'local': None,
+    }
+
+    remote_hash = hashlib.blake2s(remote.encode('utf-8'), digest_size=16).hexdigest()
+    local = os.path.join(tempfile.gettempdir(), remote_hash) + '/'
+    shutil.rmtree(local, ignore_errors=True)
+    barrier()
+
+    stream_instance = construct_from_registry(
+        'stream',
+        streams_registry,
+        partial_function=False,
+        kwargs=kwargs,
+    )
+
+    assert isinstance(stream_instance, Stream)
+    assert remote == stream_instance.remote
+    assert local == stream_instance.local
+
+    shutil.rmtree(local, ignore_errors=True)
+
+
+def test_construct_stream_from_registry_remote_is_none():
+    local = tempfile.mkdtemp()
+
+    kwargs = {
+        'remote': None,
+        'local': local,
+    }
+
+    stream_instance = construct_from_registry(
+        'stream',
+        streams_registry,
+        partial_function=False,
+        kwargs=kwargs,
+    )
+
+    assert isinstance(stream_instance, Stream)
+    assert None == stream_instance.remote
+    assert local == stream_instance.local
+
+    shutil.rmtree(local, ignore_errors=True)
