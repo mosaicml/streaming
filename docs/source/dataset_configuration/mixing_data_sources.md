@@ -8,6 +8,30 @@ A stream is a data source, as a collection of shard files (or set of subdirector
 
 It is possible, though not recommended, for streams to have different schemas.
 
+### Registering a custom Stream implementation
+You can also customize the implementation of a `Stream`. To modify the behavior of a `Stream` that is used in a `StreamingDataset`, you can subclass `Stream`, and register the subclass as shown in the below example without forking the library.
+
+```python
+from streaming.base.stream import streams_registry
+from streaming.base.registry_utils import construct_from_registry
+
+class MyStream(Stream):
+    # your implementation goes here
+
+# Register your custom stream class as 'stream'
+streams_registry.register('stream', func=MyStream)
+
+# StreamingDataset creates a stream instance from the streams_registry
+stream = construct_from_registry(
+    'stream',
+    streams_registry,
+    partial_function=False,
+    kwargs={'remote': remote, 'local': local}
+)
+```
+
+See more methods for registering custom Stream classes in [this README section of LLM Foundry](https://github.com/mosaicml/llm-foundry/tree/3269c7399add8ca30842edbeb83d0c82f7906726?tab=readme-ov-file#how-to-register).
+
 ## Configuring the data mix
 The `proportion`, `repeat`, or `choose` arguments to `Stream` are used to configure different dataset mixing schemes. Only one of them may be set at a time, and all streams must use the same mixing scheme (e.g., Stream A with `proportion` and Stream B with `choose` are incompatible).
 - **`proportion`**: Specifies how to sample this Stream relative to other Streams.

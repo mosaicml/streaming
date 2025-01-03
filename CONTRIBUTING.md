@@ -79,8 +79,8 @@ cd docs && make clean && make doctest # run doctests
 
 <!--pytest.mark.skip-->
 ```bash
-cd docs
 pip install -e '.[docs]'
+cd docs
 make clean && make html
 make host   # open the output link in a browser.
 ```
