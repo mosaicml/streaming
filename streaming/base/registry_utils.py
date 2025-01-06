@@ -28,10 +28,7 @@ CallableBoundT = TypeVar('CallableBoundT', bound=Callable[..., Any])
 
 
 class TypedRegistry(catalogue.Registry, Generic[T]):
-    """A thin wrapper around catalogue.Registry to add static typing and.
-
-    descriptions.
-    """
+    """A thin wrapper around catalogue.Registry to add static typing and descriptions."""
 
     def __init__(
         self,
@@ -82,7 +79,7 @@ def create_registry(
     """Create a new registry.
 
     Args:
-        namespace (str): The namespace, e.g. "llmfoundry.loggers"
+        namespace (str): The namespace, e.g. "streaming.streams_registry"
         generic_type (Type[S]): The type of the registry.
         entry_points (bool): Accept registered functions from entry points.
         description (str): A description of the registry.

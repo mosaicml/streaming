@@ -73,14 +73,19 @@ def test_missing_index_json_local(local_remote_dir: Any):
         _ = StreamingDataset(streams=[stream], batch_size=1)
 
 
-def test_construct_stream_from_registry():
-    remote = 'remote_dir'
-    local = tempfile.mkdtemp()
-
+@pytest.mark.parametrize('remote, local', [('remote_dir', tempfile.mkdtemp()),
+                                           ('remote_dir', None), (None, tempfile.mkdtemp())])
+def test_construct_stream_from_registry(remote: Any, local: Any):
     kwargs = {
         'remote': remote,
         'local': local,
     }
+
+    if local is None:
+        remote_hash = hashlib.blake2s(remote.encode('utf-8'), digest_size=16).hexdigest()
+        local = os.path.join(tempfile.gettempdir(), remote_hash) + '/'
+        shutil.rmtree(local, ignore_errors=True)
+        barrier()
 
     stream_instance = construct_from_registry(
         'stream',
@@ -91,55 +96,6 @@ def test_construct_stream_from_registry():
 
     assert isinstance(stream_instance, Stream)
     assert remote == stream_instance.remote
-    assert local == stream_instance.local
-
-    shutil.rmtree(local, ignore_errors=True)
-
-
-def test_construct_stream_from_registry_local_is_none():
-    remote = 'remote_dir'
-
-    kwargs = {
-        'remote': remote,
-        'local': None,
-    }
-
-    remote_hash = hashlib.blake2s(remote.encode('utf-8'), digest_size=16).hexdigest()
-    local = os.path.join(tempfile.gettempdir(), remote_hash) + '/'
-    shutil.rmtree(local, ignore_errors=True)
-    barrier()
-
-    stream_instance = construct_from_registry(
-        'stream',
-        streams_registry,
-        partial_function=False,
-        kwargs=kwargs,
-    )
-
-    assert isinstance(stream_instance, Stream)
-    assert remote == stream_instance.remote
-    assert local == stream_instance.local
-
-    shutil.rmtree(local, ignore_errors=True)
-
-
-def test_construct_stream_from_registry_remote_is_none():
-    local = tempfile.mkdtemp()
-
-    kwargs = {
-        'remote': None,
-        'local': local,
-    }
-
-    stream_instance = construct_from_registry(
-        'stream',
-        streams_registry,
-        partial_function=False,
-        kwargs=kwargs,
-    )
-
-    assert isinstance(stream_instance, Stream)
-    assert None == stream_instance.remote
     assert local == stream_instance.local
 
     shutil.rmtree(local, ignore_errors=True)
