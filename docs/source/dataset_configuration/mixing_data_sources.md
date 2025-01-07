@@ -29,6 +29,7 @@ dataset = StreamingDataset(
     remote='s3://some/path',
     local='/local/path',
     stream_name='my_stream',
+    stream_config={'arg1': 'val1'},
 )
 ```
 

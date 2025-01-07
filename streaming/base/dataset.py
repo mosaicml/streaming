@@ -311,7 +311,7 @@ class StreamingDataset(Array, IterableDataset):
             devices need to see the same partition of the dataset. Defaults to ``None``.
         stream_name (str): The name of the Stream to use which is registered in streams_registry.
             Defaults to ``stream``.
-        kwargs (any): Additional arguments to pass to the Stream constructor.
+        stream_config (dict[str, any]): Additional arguments to pass to the Stream constructor.
     """
 
     def __init__(self,
@@ -340,7 +340,7 @@ class StreamingDataset(Array, IterableDataset):
                  allow_unsafe_types: bool = False,
                  replication: Optional[int] = None,
                  stream_name: str = 'stream',
-                 **kwargs: Any) -> None:
+                 stream_config: Optional[dict[str, Any]] = None) -> None:
         # Global arguments (which do not live in Streams).
         self.predownload = predownload
         self.cache_limit = cache_limit
@@ -444,7 +444,8 @@ class StreamingDataset(Array, IterableDataset):
             for stream in streams:
                 stream.apply_default(default)
         else:
-            kwargs = {
+            stream_config = stream_config or {}
+            stream_config.update({
                 'remote': remote,
                 'local': local,
                 'split': split,
@@ -452,8 +453,7 @@ class StreamingDataset(Array, IterableDataset):
                 'download_timeout': download_timeout,
                 'validate_hash': validate_hash,
                 'keep_zip': keep_zip,
-                **kwargs,
-            }
+            })
 
             # Construct a Stream instance using registry-based construction
             default = construct_from_registry(
@@ -462,7 +462,7 @@ class StreamingDataset(Array, IterableDataset):
                 partial_function=False,
                 pre_validation_function=None,
                 post_validation_function=None,
-                kwargs=kwargs,
+                kwargs=stream_config,
             )
 
             streams = [default]

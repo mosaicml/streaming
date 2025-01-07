@@ -1098,10 +1098,14 @@ def test_custom_stream_name_and_kwargs(local_remote_dir: tuple[str, str]):
 
     streams_registry.register('custom_stream', func=CustomStream)
 
-    dataset = StreamingDataset(local=local_dir,
-                               remote=remote_dir,
-                               stream_name='custom_stream',
-                               custom_arg=100)
+    dataset = StreamingDataset(
+        local=local_dir,
+        remote=remote_dir,
+        stream_name='custom_stream',
+        stream_config={
+            'custom_arg': 100,
+        },
+    )
 
     assert len(dataset.streams) == 1
     assert isinstance(dataset.streams[0], CustomStream)
