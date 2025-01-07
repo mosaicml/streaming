@@ -311,7 +311,7 @@ class StreamingDataset(Array, IterableDataset):
             devices need to see the same partition of the dataset. Defaults to ``None``.
         stream_name (str): The name of the Stream to use which is registered in streams_registry.
             Defaults to ``stream``.
-        stream_config (dict[str, any]): Additional arguments to pass to the Stream constructor.
+        stream_config (dict[str, Any]): Additional arguments to pass to the Stream constructor.
     """
 
     def __init__(self,
