@@ -5,13 +5,14 @@ import math
 import os
 import shutil
 from multiprocessing import Process
-from typing import Any
+from typing import Any, Optional
 
 import pytest
 from torch.utils.data import DataLoader
 
 from streaming.base import Stream, StreamingDataLoader, StreamingDataset
 from streaming.base.batching import generate_work
+from streaming.base.stream import streams_registry
 from streaming.base.util import clean_stale_shared_memory
 from streaming.base.world import World
 from tests.common.utils import convert_to_mds
@@ -1053,3 +1054,59 @@ def test_same_local_diff_remote(local_remote_dir: tuple[str, str]):
     # Build StreamingDataset
     with pytest.raises(ValueError, match='Reused local directory.*vs.*Provide a different one.'):
         _ = StreamingDataset(local=local_0, remote=remote_1, batch_size=2, num_canonical_nodes=1)
+
+
+@pytest.mark.usefixtures('local_remote_dir')
+def test_custom_stream_name_and_kwargs(local_remote_dir: tuple[str, str]):
+    remote_dir, local_dir = local_remote_dir
+    convert_to_mds(out_root=remote_dir,
+                   dataset_name='sequencedataset',
+                   num_samples=117,
+                   size_limit=1 << 8)
+
+    class CustomStream(Stream):
+
+        def __init__(
+            self,
+            *,
+            remote: Optional[str] = None,
+            local: Optional[str] = None,
+            split: Optional[str] = None,
+            proportion: Optional[float] = None,
+            repeat: Optional[float] = None,
+            choose: Optional[int] = None,
+            download_retry: Optional[int] = None,
+            download_timeout: Optional[float] = None,
+            validate_hash: Optional[str] = None,
+            keep_zip: Optional[bool] = None,
+            **kwargs: Any,
+        ):
+            super().__init__(
+                remote=remote,
+                local=local,
+                split=split,
+                proportion=proportion,
+                repeat=repeat,
+                choose=choose,
+                download_retry=download_retry,
+                download_timeout=download_timeout,
+                validate_hash=validate_hash,
+                keep_zip=keep_zip,
+            )
+
+            self.custom_arg = kwargs['custom_arg']
+
+    streams_registry.register('custom_stream', func=CustomStream)
+
+    dataset = StreamingDataset(
+        local=local_dir,
+        remote=remote_dir,
+        stream_name='custom_stream',
+        stream_config={
+            'custom_arg': 100,
+        },
+    )
+
+    assert len(dataset.streams) == 1
+    assert isinstance(dataset.streams[0], CustomStream)
+    assert dataset.streams[0].custom_arg == 100

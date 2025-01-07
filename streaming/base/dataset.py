@@ -30,11 +30,12 @@ from streaming.base.constant import (BARRIER, BARRIER_FILELOCK, CACHE_FILELOCK, 
                                      SHARD_ACCESS_TIMES, SHARD_STATES, TICK)
 from streaming.base.distributed import maybe_init_dist
 from streaming.base.format import get_index_basename
+from streaming.base.registry_utils import construct_from_registry
 from streaming.base.sampling import get_sampling
 from streaming.base.shared import (SharedArray, SharedBarrier, SharedMemory, SharedScalar,
                                    _get_path, get_shm_prefix)
 from streaming.base.spanner import Spanner
-from streaming.base.stream import Stream
+from streaming.base.stream import Stream, streams_registry
 from streaming.base.util import bytes_to_int, number_abbrev_to_int
 from streaming.base.world import World
 
@@ -308,6 +309,9 @@ class StreamingDataset(Array, IterableDataset):
         replication (int, optional): Determines how many consecutive devices will receive the same
             samples. Useful for training with tensor or sequence parallelism, where multiple
             devices need to see the same partition of the dataset. Defaults to ``None``.
+        stream_name (str): The name of the Stream to use which is registered in streams_registry.
+            Defaults to ``stream``.
+        stream_config (dict[str, Any]): Additional arguments to pass to the Stream constructor.
     """
 
     def __init__(self,
@@ -334,7 +338,9 @@ class StreamingDataset(Array, IterableDataset):
                  shuffle_block_size: Optional[int] = None,
                  batching_method: str = 'random',
                  allow_unsafe_types: bool = False,
-                 replication: Optional[int] = None) -> None:
+                 replication: Optional[int] = None,
+                 stream_name: str = 'stream',
+                 stream_config: Optional[dict[str, Any]] = None) -> None:
         # Global arguments (which do not live in Streams).
         self.predownload = predownload
         self.cache_limit = cache_limit
@@ -438,13 +444,27 @@ class StreamingDataset(Array, IterableDataset):
             for stream in streams:
                 stream.apply_default(default)
         else:
-            default = Stream(remote=remote,
-                             local=local,
-                             split=split,
-                             download_retry=download_retry,
-                             download_timeout=download_timeout,
-                             validate_hash=validate_hash,
-                             keep_zip=keep_zip)
+            stream_config = stream_config or {}
+            stream_config.update({
+                'remote': remote,
+                'local': local,
+                'split': split,
+                'download_retry': download_retry,
+                'download_timeout': download_timeout,
+                'validate_hash': validate_hash,
+                'keep_zip': keep_zip,
+            })
+
+            # Construct a Stream instance using registry-based construction
+            default = construct_from_registry(
+                name=stream_name,
+                registry=streams_registry,
+                partial_function=False,
+                pre_validation_function=None,
+                post_validation_function=None,
+                kwargs=stream_config,
+            )
+
             streams = [default]
 
         # Validate the stream weighting scheme (relative or absolute) to catch errors before we go

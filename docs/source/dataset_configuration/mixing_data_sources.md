@@ -1,3 +1,5 @@
+from matplotlib.artist import kwdoc
+
 # Mixing Datasets
 
 Training a model often requires combining data from multiple different sources. Streaming makes combining these data sources, or streams, easy and configurable. See the [main concepts page](../getting_started/main_concepts.md#distributed-model-training) for a high-level view of distributed training with multiple streams.
@@ -7,6 +9,31 @@ Training a model often requires combining data from multiple different sources. 
 A stream is a data source, as a collection of shard files (or set of subdirectories containing shard files). Shard files can optionally be compressed. Streams are represented by the {class}`streaming.Stream` object. Similar to {class}`streaming.StreamingDataset` itself, a `Stream` object can take in `remote` and `local` paths -- see [here](../getting_started/main_concepts.md#remote-data-streams) for an example.
 
 It is possible, though not recommended, for streams to have different schemas.
+
+### Registering a custom Stream implementation
+You can also customize the implementation of a `Stream`. To modify the behavior of a `Stream` that is used in a `StreamingDataset`, you can subclass `Stream`, and register the subclass as shown in the below example without forking the library.
+
+<!--pytest.mark.skip-->
+```python
+from streaming.base.stream import streams_registry
+
+class MyStream(Stream):
+    # your implementation goes here
+    pass
+
+# Register your custom stream class as 'my_stream'
+streams_registry.register('my_stream', func=MyStream)
+
+# StreamingDataset creates a MyStream object when 'my_stream' is passed as a stream_name
+dataset = StreamingDataset(
+    remote='s3://some/path',
+    local='/local/path',
+    stream_name='my_stream',
+    stream_config={'arg1': 'val1'},
+)
+```
+
+See more methods for registering custom Stream classes in [this README section of LLM Foundry](https://github.com/mosaicml/llm-foundry/tree/3269c7399add8ca30842edbeb83d0c82f7906726?tab=readme-ov-file#how-to-register).
 
 ## Configuring the data mix
 The `proportion`, `repeat`, or `choose` arguments to `Stream` are used to configure different dataset mixing schemes. Only one of them may be set at a time, and all streams must use the same mixing scheme (e.g., Stream A with `proportion` and Stream B with `choose` are incompatible).
