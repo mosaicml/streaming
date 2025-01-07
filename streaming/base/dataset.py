@@ -309,6 +309,9 @@ class StreamingDataset(Array, IterableDataset):
         replication (int, optional): Determines how many consecutive devices will receive the same
             samples. Useful for training with tensor or sequence parallelism, where multiple
             devices need to see the same partition of the dataset. Defaults to ``None``.
+        stream_name (str): The name of the Stream to use which is registered in streams_registry.
+            Defaults to ``stream``.
+        kwargs (any): Additional arguments to pass to the Stream constructor.
     """
 
     def __init__(self,
@@ -336,6 +339,7 @@ class StreamingDataset(Array, IterableDataset):
                  batching_method: str = 'random',
                  allow_unsafe_types: bool = False,
                  replication: Optional[int] = None,
+                 stream_name: str = 'stream',
                  **kwargs: Any) -> None:
         # Global arguments (which do not live in Streams).
         self.predownload = predownload
@@ -453,7 +457,7 @@ class StreamingDataset(Array, IterableDataset):
 
             # Construct a Stream instance using registry-based construction
             default = construct_from_registry(
-                name='stream',
+                name=stream_name,
                 registry=streams_registry,
                 partial_function=False,
                 pre_validation_function=None,

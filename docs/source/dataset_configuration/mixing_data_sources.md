@@ -1,3 +1,5 @@
+from matplotlib.artist import kwdoc
+
 # Mixing Datasets
 
 Training a model often requires combining data from multiple different sources. Streaming makes combining these data sources, or streams, easy and configurable. See the [main concepts page](../getting_started/main_concepts.md#distributed-model-training) for a high-level view of distributed training with multiple streams.
@@ -14,21 +16,19 @@ You can also customize the implementation of a `Stream`. To modify the behavior 
 <!--pytest.mark.skip-->
 ```python
 from streaming.base.stream import streams_registry
-from streaming.base.registry_utils import construct_from_registry
 
 class MyStream(Stream):
     # your implementation goes here
     pass
 
-# Register your custom stream class as 'stream'
-streams_registry.register('stream', func=MyStream)
+# Register your custom stream class as 'my_stream'
+streams_registry.register('my_stream', func=MyStream)
 
-# StreamingDataset creates a stream instance from the streams_registry
-stream = construct_from_registry(
-    'stream',
-    streams_registry,
-    partial_function=False,
-    kwargs={'remote': remote, 'local': local}
+# StreamingDataset creates a MyStream object when 'my_stream' is passed as a stream_name
+dataset = StreamingDataset(
+    remote='s3://some/path',
+    local='/local/path',
+    stream_name='my_stream',
 )
 ```
 
