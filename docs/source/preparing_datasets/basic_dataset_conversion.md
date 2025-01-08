@@ -43,7 +43,7 @@ out = ('/local/data', 'oci://bucket/data')
 | Numerical String   | 'str_float'   | `StrFloat`   | stores in UTF-8          |
 | Numerical String   | 'str_decimal' | `StrDecimal` | stores in UTF-8          |
 | Image              | 'pil'         | `PIL`        | raw PIL image class ([link]((https://pillow.readthedocs.io/en/stable/reference/Image.html)))            |
-| Image              | 'jpeg'        | `JPEG`       | PIL image as JPEG        |
+| Image              | 'jpeg:quality'        | `JPEG`       | PIL image as JPEG, quality between 0 and 100        |
 | Image              | 'png'         | `PNG`        | PIL image as PNG         |
 | Pickle             | 'pkl'         | `Pickle`     | arbitrary Python objects |
 | JSON               | 'json'        | `JSON`       | arbitrary data as JSON   |
@@ -52,7 +52,7 @@ Here's an example where the field `x` is an image, and `y` is a class label, as 
 <!--pytest.mark.skip-->
 ```python
 column = {
-    'x': 'jpeg',
+    'x': 'jpeg:90',
     'y': 'int8',
 }
 ```
