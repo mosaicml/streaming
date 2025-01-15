@@ -195,6 +195,30 @@ class TestMDSEncodings:
         assert isinstance(dec_data, Image.Image)
 
     @pytest.mark.parametrize('mode', ['L', 'RGB'])
+    def test_jpeg_encode_decode_with_quality(self, mode: str):
+        jpeg_enc = mdsEnc.JPEG(quality=50)
+        assert jpeg_enc.size is None
+
+        # Creating the (32 x 32) NumPy Array with random values
+        np_data = np.random.randint(255, size=(32, 32), dtype=np.uint32)
+        # Default image mode of PIL Image is 'I'
+        img = Image.fromarray(np_data).convert(mode)
+
+        # Test encode
+        enc_data = jpeg_enc.encode(img)
+        assert isinstance(enc_data, bytes)
+
+        # Test decode
+        dec_data = jpeg_enc.decode(enc_data)
+        dec_data = dec_data.convert('I')
+        assert isinstance(dec_data, Image.Image)
+    
+    @pytest.mark.parametrize('quality', [-1, 101, 'foo'])
+    def test_jpeg_encode_decode_with_quality_invalid(self, quality: Any):
+        with pytest.raises(ValueError):
+            mdsEnc.JPEG(quality=quality)
+
+    @pytest.mark.parametrize('mode', ['L', 'RGB'])
     def test_jpegfile_encode_decode(self, mode: str):
         jpeg_enc = mdsEnc.JPEG()
         assert jpeg_enc.size is None
@@ -224,6 +248,7 @@ class TestMDSEncodings:
         with pytest.raises(AttributeError):
             jpeg_enc = mdsEnc.JPEG()
             _ = jpeg_enc.encode(data)
+    
 
     @pytest.mark.parametrize('mode', ['I', 'L', 'RGB'])
     def test_png_encode_decode(self, mode: str):
