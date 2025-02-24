@@ -468,14 +468,19 @@ class JPEG(Encoding):
 
     def encode(self, obj: Image.Image) -> bytes:
         self._validate(obj, Image.Image)
-        if isinstance(obj, JpegImageFile) and hasattr(obj, 'filename'):
-            # read the source file to prevent lossy re-encoding
-            with open(obj.filename, 'rb') as f:
-                return f.read()
-        else:
-            out = BytesIO()
-            obj.save(out, format='JPEG')
-            return out.getvalue()
+
+        if isinstance(obj, JpegImageFile) and hasattr(obj, 'filename') and obj.filename:
+            try:
+                with open(obj.filename, 'rb') as f:
+                    return f.read()
+            except FileNotFoundError:
+                # If filename exists but file is missing, fallback to in-memory encoding
+                pass
+
+        # Default to in-memory encoding to prevent errors
+        out = BytesIO()
+        obj.save(out, format='JPEG')
+        return out.getvalue()
 
     def decode(self, data: bytes) -> Image.Image:
         inp = BytesIO(data)
