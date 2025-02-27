@@ -543,13 +543,6 @@ class JPEGArray(Encoding):
     """
 
     def encode(self, obj: Sequence[bytearray]) -> bytes:
-        if not isinstance(obj, Sequence):
-            raise TypeError(f'expected sequence, got {type(obj)}')
-
-        for byts in obj:
-            if not isinstance(byts, bytearray):
-                raise TypeError(f'expected bytearray, got {type(byts)}')
-
         image_byte_sizes: list[int] = [len(curr) for curr in obj]
         n_images_as_bytes: bytes = np.uint32(len(obj)).tobytes()
         image_byte_sizes_array: npt.NDArray = np.uint32(image_byte_sizes)  # pyright: ignore
