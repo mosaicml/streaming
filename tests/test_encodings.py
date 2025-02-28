@@ -586,7 +586,7 @@ class TestMDSEncodings:
         floats = {'float16', 'float32', 'float64', 'str_float', 'str_decimal'}
         scalars = uints | ints | floats
         expected_encodings = {
-            'int', 'bytes', 'json', 'ndarray', 'png', 'jpeg', 'jpeg_array', 'str', 'pil', 'pkl'
+            'int', 'bytes', 'json', 'ndarray', 'png', 'jpeg', 'jpeg_array', 'jpegarray', 'str', 'pil', 'pkl'
         } | scalars
         enc = mdsEnc.get_mds_encodings()
         assert len(enc) == len(expected_encodings)

@@ -603,6 +603,7 @@ _encodings = {
     'pil': PIL,
     'jpeg': JPEG,
     'jpeg_array': JPEGArray,
+    'jpegarray': JPEGArray,
     'png': PNG,
     'pkl': Pickle,
     'json': JSON,
