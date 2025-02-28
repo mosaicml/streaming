@@ -4,6 +4,7 @@
 import json
 import tempfile
 from decimal import Decimal
+import os
 from typing import Any, Union
 
 import numpy as np
@@ -490,9 +491,10 @@ class TestMDSEncodings:
         ints = {'int8', 'int16', 'int32', 'int64', 'str_int'}
         floats = {'float16', 'float32', 'float64', 'str_float', 'str_decimal'}
         scalars = uints | ints | floats
+        lists = {'list[pil]', 'list[jpeg]', 'list[png]',}
         expected_encodings = {
             'int', 'bytes', 'json', 'ndarray', 'png', 'jpeg', 'str', 'pil', 'pkl'
-        } | scalars
+        } | scalars | lists
         enc = mdsEnc.get_mds_encodings()
         assert len(enc) == len(expected_encodings)
         assert enc == expected_encodings
@@ -692,3 +694,54 @@ class TestJSONEncodings:
     def test_is_json_encoded(self, enc_name: str, data: Any, expected_output: bool):
         is_supported = jsonEnc.is_json_encoded(enc_name, data)
         assert is_supported is expected_output
+
+
+class TestImageListEncoding:
+
+    @pytest.mark.parametrize('mode', ['L', 'RGB'])
+    @pytest.mark.parametrize('num_images', [1, 5])
+    @pytest.mark.parametrize('format', ['JPEG', 'PNG', 'PIL'])
+    def test_jpeg_array_encode_decode(self, num_images: int, mode: str, format: str):
+        """Test encoding and decoding a sequence of images using JPEGArray."""
+
+        list_encoder = {
+            'JPEG': mdsEnc.JPEGList(), 'PNG': mdsEnc.PNGList(), 'PIL': mdsEnc.PILList()}[format]
+
+        # Generate multiple images
+        images = []
+
+        for _ in range(num_images):
+            width = np.random.randint(20, 50)
+            height = np.random.randint(20, 50)
+            size = {'RGB': (width, height, 3), 'L': (width, height)}[mode]
+            np_data = np.random.randint(0, 255, size=size, dtype=np.uint8)
+            img = Image.fromarray(np_data).convert(mode)  # pyright: ignore
+            images.append(img)
+
+        # Encode
+        encoded_data = list_encoder.encode(images)
+        assert isinstance(encoded_data, bytes)
+
+        # Decode
+        decoded_images = list_encoder.decode(encoded_data)
+        assert len(decoded_images) == num_images
+
+        # Validate decoded images
+        for orig, dec in zip(images, decoded_images):
+            assert isinstance(dec, Image.Image)
+            assert dec.mode == orig.mode
+            assert dec.size == orig.size
+
+    @pytest.mark.parametrize('invalid_data', [b'invalid', 123, None, Image.new('RGB', (32, 32))])
+    def test_jpeg_array_encode_invalid_data(self, invalid_data: Any):
+        """Test that invalid inputs raise errors during encoding."""
+        jpeg_array_enc = mdsEnc.JPEGList()
+        with pytest.raises(AttributeError):
+            jpeg_array_enc.encode(invalid_data)
+
+    @pytest.mark.parametrize('corrupt_data', [b'\x00\x00\x00\x05', b'\x01\x02\x03'])
+    def test_jpeg_array_decode_invalid_data(self, corrupt_data: bytes):
+        """Test that corrupted or invalid encoded data raises errors during decoding."""
+        jpeg_array_enc = mdsEnc.JPEGList()
+        with pytest.raises(Exception):
+            jpeg_array_enc.decode(corrupt_data)
