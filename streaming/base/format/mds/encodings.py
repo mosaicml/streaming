@@ -8,7 +8,8 @@ import pickle
 from abc import ABC, abstractmethod
 from decimal import Decimal
 from io import BytesIO
-from typing import Any, Optional
+from itertools import chain
+from typing import Any, Iterator, Optional, Sequence
 
 import numpy as np
 from numpy import typing as npt
@@ -532,6 +533,53 @@ class JSON(Encoding):
             raise
 
 
+class JPEGArray(Encoding):
+    """encode a list of images as a byte sequence.
+
+    Format:
+        number of images: as the top 4 bytes as a np.uint32
+        sizes of image bytes: following 4 * n_images bytes as np.uint32
+        images: as JPEG bytes concatenated
+    """
+
+    def encode(self, obj: Sequence[bytearray]) -> bytes:
+        image_byte_sizes: list[int] = [len(curr) for curr in obj]
+        n_images_as_bytes: bytes = np.uint32(len(obj)).tobytes()
+        image_byte_sizes_array: npt.NDArray = np.uint32(image_byte_sizes)  # pyright: ignore
+        image_byte_sizes_as_bytes: bytes = image_byte_sizes_array.tobytes()
+        bytes_iterables: Iterator[bytes] = chain([n_images_as_bytes], [image_byte_sizes_as_bytes],
+                                                 obj)
+        return b''.join(bytes_iterables)
+
+    def decode(self, data: bytes) -> list[Image.Image]:
+        # top 4 bytes are np.uint32 size of how many images there are
+        if len(data) < 4:
+            raise ValueError('Input data is too short to contain valid jpeg arrays')
+
+        n_images: int = np.frombuffer(data[:4], dtype=np.uint32)[0]
+
+        if n_images <= 0:
+            raise ValueError('Negative number of images decoded')
+
+        image_bytes_offset = 4 + 4 * n_images
+
+        if len(data) < image_bytes_offset:
+            raise ValueError('Data is too short w.r.t the number of images decoded')
+
+        n_bytes_per_image: Sequence[int] = np.frombuffer(data[4:image_bytes_offset],
+                                                         dtype=np.uint32).tolist()
+        offsets = [image_bytes_offset]
+        for n_bytes in n_bytes_per_image:
+            offsets.append(offsets[-1] + n_bytes)
+
+        result: list[Image.Image] = []
+        for lo, hi in zip(offsets, offsets[1:]):
+            bytes_for_img: bytes = data[lo:hi]
+            decoded = JPEG().decode(bytes_for_img)
+            result.append(decoded)
+        return result
+
+
 # Encodings (name -> class).
 _encodings = {
     'bytes': Bytes,
@@ -554,6 +602,8 @@ _encodings = {
     'str_decimal': StrDecimal,
     'pil': PIL,
     'jpeg': JPEG,
+    'jpeg_array': JPEGArray,
+    'jpegarray': JPEGArray,
     'png': PNG,
     'pkl': Pickle,
     'json': JSON,
