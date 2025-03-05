@@ -533,6 +533,76 @@ class JSON(Encoding):
             raise
 
 
+class List(Encoding):
+    """Store a list of the same objects."""
+
+    @abstractmethod
+    def underlying_encoder(self) -> Encoding:
+        """Get the encoding of the list elements.
+
+        Returns:
+            Encoding: The encoding of the list elements.
+        """
+        raise NotImplementedError
+
+    def encode(self, obj: list) -> bytes:
+        self._validate(obj, list)
+        underlying_encoder = self.underlying_encoder()
+
+        placeholder = np.uint32(0x0).tobytes()  # a placeholder uint for future features
+        num_elements_bytes = np.uint32(len(obj)).tobytes()
+
+        element_size = []
+        encoded_elements = []
+        for element in obj:
+            encoded_element = underlying_encoder.encode(element)
+            encoded_elements.append(encoded_element)
+            element_size.append(len(encoded_element))
+
+        element_size_bytes = np.array(element_size, np.uint32).tobytes()
+        bytes_iterable = chain([placeholder], [num_elements_bytes], [element_size_bytes],
+                               encoded_elements)
+        return b''.join(bytes_iterable)
+
+    def decode(self, data: bytes) -> list:
+        index = 4  # the first 4 bytes are a placeholder
+        num_elements = np.frombuffer(data[index:index + 4], np.uint32)[0]
+
+        index += 4
+        element_sizes = np.frombuffer(data[index:index + 4 * num_elements], np.uint32)
+
+        index += 4 * num_elements
+        underlying_encoder = self.underlying_encoder()
+        elements = []
+        for size in element_sizes:
+            element = underlying_encoder.decode(data[index:index + size])
+            elements.append(element)
+            index += size
+
+        return elements
+
+
+class PILList(List):
+    """Store a list of PIL images."""
+
+    def underlying_encoder(self) -> Encoding:
+        return PIL()
+
+
+class JPEGList(List):
+    """Store a list of JPEG images."""
+
+    def underlying_encoder(self) -> Encoding:
+        return JPEG()
+
+
+class PNGList(List):
+    """Store a list of PNG images."""
+
+    def underlying_encoder(self) -> Encoding:
+        return PNG()
+
+
 class JPEGArray(Encoding):
     """encode a list of images as a byte sequence.
 
@@ -605,6 +675,9 @@ _encodings = {
     'jpeg_array': JPEGArray,
     'jpegarray': JPEGArray,
     'png': PNG,
+    'list[pil]': PILList,
+    'list[jpeg]': JPEGList,
+    'list[png]': PNGList,
     'pkl': Pickle,
     'json': JSON,
 }
