@@ -5,7 +5,6 @@ import json
 import os
 import tempfile
 from decimal import Decimal
-import os
 from typing import Any, Union
 
 import numpy as np
@@ -586,7 +585,11 @@ class TestMDSEncodings:
         ints = {'int8', 'int16', 'int32', 'int64', 'str_int'}
         floats = {'float16', 'float32', 'float64', 'str_float', 'str_decimal'}
         scalars = uints | ints | floats
-        lists = {'list[pil]', 'list[jpeg]', 'list[png]',}
+        lists = {
+            'list[pil]',
+            'list[jpeg]',
+            'list[png]',
+        }
         expected_encodings = {
             'int', 'bytes', 'json', 'ndarray', 'png', 'jpeg', 'jpeg_array', 'jpegarray', 'str',
             'pil', 'pkl'
@@ -801,7 +804,10 @@ class TestImageListEncoding:
         """Test encoding and decoding a sequence of images using JPEGArray."""
 
         list_encoder = {
-            'JPEG': mdsEnc.JPEGList(), 'PNG': mdsEnc.PNGList(), 'PIL': mdsEnc.PILList()}[format]
+            'JPEG': mdsEnc.JPEGList(),
+            'PNG': mdsEnc.PNGList(),
+            'PIL': mdsEnc.PILList()
+        }[format]
 
         # Generate multiple images
         images = []

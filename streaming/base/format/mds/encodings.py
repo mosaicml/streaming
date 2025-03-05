@@ -544,7 +544,7 @@ class List(Encoding):
             Encoding: The encoding of the list elements.
         """
         raise NotImplementedError
-    
+
     def encode(self, obj: list) -> bytes:
         self._validate(obj, list)
         underlying_encoder = self.underlying_encoder()
@@ -560,22 +560,22 @@ class List(Encoding):
             element_size.append(len(encoded_element))
 
         element_size_bytes = np.array(element_size, np.uint32).tobytes()
-        bytes_iterable = chain(
-            [placeholder], [num_elements_bytes], [element_size_bytes], encoded_elements)
+        bytes_iterable = chain([placeholder], [num_elements_bytes], [element_size_bytes],
+                               encoded_elements)
         return b''.join(bytes_iterable)
-    
+
     def decode(self, data: bytes) -> list:
         index = 4  # the first 4 bytes are a placeholder
-        num_elements = np.frombuffer(data[index:index+4], np.uint32)[0]
+        num_elements = np.frombuffer(data[index:index + 4], np.uint32)[0]
 
         index += 4
-        element_sizes = np.frombuffer(data[index:index+4*num_elements], np.uint32)
+        element_sizes = np.frombuffer(data[index:index + 4 * num_elements], np.uint32)
 
-        index += 4*num_elements
+        index += 4 * num_elements
         underlying_encoder = self.underlying_encoder()
         elements = []
         for size in element_sizes:
-            element = underlying_encoder.decode(data[index:index+size])
+            element = underlying_encoder.decode(data[index:index + size])
             elements.append(element)
             index += size
 
@@ -587,14 +587,14 @@ class PILList(List):
 
     def underlying_encoder(self) -> Encoding:
         return PIL()
-    
+
 
 class JPEGList(List):
     """Store a list of JPEG images."""
 
     def underlying_encoder(self) -> Encoding:
         return JPEG()
-    
+
 
 class PNGList(List):
     """Store a list of PNG images."""
