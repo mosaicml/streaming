@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import json
+import os
 import tempfile
 from decimal import Decimal
 import os
@@ -225,6 +226,100 @@ class TestMDSEncodings:
         with pytest.raises(AttributeError):
             jpeg_enc = mdsEnc.JPEG()
             _ = jpeg_enc.encode(data)
+
+    @pytest.mark.parametrize('mode', ['L', 'RGB'])
+    @pytest.mark.parametrize('num_images', [1, 3, 5])
+    def test_jpeg_array_encode_decode(self, num_images: int, mode: str):
+        """Test encoding and decoding a sequence of images using JPEGArray."""
+        jpeg_array_enc = mdsEnc.JPEGArray()
+
+        # Generate multiple images
+        images = []
+        bytearrays = []
+        temp_files = []
+
+        for _ in range(num_images):
+            size = {'RGB': (32, 32, 3), 'L': (32, 32)}[mode]
+            np_data = np.random.randint(0, 255, size=size, dtype=np.uint8)
+            img = Image.fromarray(np_data).convert(mode)  # pyright: ignore
+
+            with tempfile.NamedTemporaryFile('wb', delete=False) as f:
+                img.save(f, format='JPEG')
+                temp_filename = f.name
+                f.flush()
+
+            with open(temp_filename, 'rb') as f:
+                bytearrays.append(bytearray(f.read()))
+
+            images.append(img)
+            temp_files.append(temp_filename)
+
+        # Encode
+        encoded_data = jpeg_array_enc.encode(bytearrays)
+        assert isinstance(encoded_data, bytes)
+
+        # Decode
+        decoded_images = jpeg_array_enc.decode(encoded_data)
+        assert len(decoded_images) == num_images
+
+        # Validate decoded images
+        for orig, dec in zip(images, decoded_images):
+            assert isinstance(dec, Image.Image)
+            assert dec.mode == orig.mode
+            assert dec.size == orig.size
+
+        for temp_file in temp_files:
+            os.remove(temp_file)
+
+    @pytest.mark.parametrize('invalid_data', [b'invalid', 123, None, Image.new('RGB', (32, 32))])
+    def test_jpeg_array_encode_invalid_data(self, invalid_data: Any):
+        """Test that invalid inputs raise errors during encoding."""
+        jpeg_array_enc = mdsEnc.JPEGArray()
+        with pytest.raises(TypeError):
+            jpeg_array_enc.encode(invalid_data)
+
+    @pytest.mark.parametrize('corrupt_data', [b'\x00\x00\x00\x05', b'\x01\x02\x03'])
+    def test_jpeg_array_decode_invalid_data(self, corrupt_data: bytes):
+        """Test that corrupted or invalid encoded data raises errors during decoding."""
+        jpeg_array_enc = mdsEnc.JPEGArray()
+        with pytest.raises(Exception):
+            jpeg_array_enc.decode(corrupt_data)
+
+    @pytest.mark.parametrize('mode', ['L', 'RGB'])
+    def test_jpeg_array_encode_decode_single_image(self, mode: str):
+        """Test encoding and decoding a single image."""
+        jpeg_array_enc = mdsEnc.JPEGArray()
+
+        size = {'RGB': (64, 64, 3), 'L': (64, 64)}[mode]
+        np_data = np.random.randint(0, 255, size=size, dtype=np.uint8)  # pyright: ignore
+        img = Image.fromarray(np_data).convert(mode)  # pyright: ignore
+
+        # Convert image to JPEG bytes
+        temp_filename = None
+        try:
+            with tempfile.NamedTemporaryFile('wb', delete=False) as f:
+                img.save(f, format='JPEG')
+                temp_filename = f.name
+                f.flush()
+
+            with open(temp_filename, 'rb') as f:
+                bytearrays = [bytearray(f.read())]
+
+            # Encode and decode
+            encoded_data = jpeg_array_enc.encode(bytearrays)
+            decoded_images = jpeg_array_enc.decode(encoded_data)
+
+            assert len(decoded_images) == 1
+            dec_img = decoded_images[0]
+
+            assert isinstance(dec_img, Image.Image)
+            assert dec_img.mode == img.mode
+            assert dec_img.size == img.size
+
+        finally:
+            # Ensure temp file is always deleted
+            if temp_filename and os.path.exists(temp_filename):
+                os.remove(temp_filename)
 
     @pytest.mark.parametrize('mode', ['I', 'L', 'RGB'])
     def test_png_encode_decode(self, mode: str):
@@ -493,7 +588,8 @@ class TestMDSEncodings:
         scalars = uints | ints | floats
         lists = {'list[pil]', 'list[jpeg]', 'list[png]',}
         expected_encodings = {
-            'int', 'bytes', 'json', 'ndarray', 'png', 'jpeg', 'str', 'pil', 'pkl'
+            'int', 'bytes', 'json', 'ndarray', 'png', 'jpeg', 'jpeg_array', 'jpegarray', 'str',
+            'pil', 'pkl'
         } | scalars | lists
         enc = mdsEnc.get_mds_encodings()
         assert len(enc) == len(expected_encodings)
