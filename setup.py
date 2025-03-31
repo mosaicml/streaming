@@ -126,7 +126,7 @@ extra_deps['alipan'] = [
 ]
 
 extra_deps['hf'] = [
-    'huggingface_hub>=0.23.4,<0.28',
+    'huggingface_hub>=0.23.4,<0.30',
 ]
 
 extra_deps['testing'] = [
