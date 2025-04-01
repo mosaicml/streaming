@@ -462,7 +462,8 @@ class Stream:
 
         # Load the index.
         try:
-            obj = json.load(open(filename))
+            with open(filename) as f:
+                obj = json.load(f)
         except json.decoder.JSONDecodeError as error:
             error.args = (f'Index file at {filename} is empty or corrupted. ' + error.args[0],)
             raise error
