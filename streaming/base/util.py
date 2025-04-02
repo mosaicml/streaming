@@ -104,9 +104,9 @@ def bytes_to_int(bytes_str: Union[int, str]) -> int:
             try:
                 return int(float(bytes_str[0:-len(suffix)]) * units[suffix])
             except ValueError:
+                supported_suffix = ['b'] + list(units.keys())
                 raise ValueError(''.join([
-                    f'Unsupported value/suffix {bytes_str}. Supported suffix are ',
-                    f'{["b"] + list(units.keys())}.'
+                    f'Unsupported value/suffix {bytes_str}. Supported suffix are {supported_suffix}.'
                 ]))
     else:
         # Convert bytes to an integer
@@ -116,9 +116,9 @@ def bytes_to_int(bytes_str: Union[int, str]) -> int:
         elif bytes_str.isdigit():
             return int(bytes_str)
         else:
+            supported_suffix = ['b'] + list(units.keys())
             raise ValueError(''.join([
-                f'Unsupported value/suffix {bytes_str}. Supported suffix are ',
-                f'{["b"] + list(units.keys())}.'
+                f'Unsupported value/suffix {bytes_str}. Supported suffix are {supported_suffix}.',
             ]))
 
 
