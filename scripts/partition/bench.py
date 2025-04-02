@@ -88,7 +88,10 @@ def main(args: Namespace) -> None:
     # Starts true, becomes false when partitioning starts to take too long.
     do_orig = True
 
-    print(f'{"power".rjust(5)} {"samples".rjust(14)} {"orig".rjust(10)}')
+    power_rjust = 'power'.rjust(5)
+    samples_rjust = 'samples'.rjust(14)
+    orig_rjust = 'orig'.rjust(10)
+    print(f'{power_rjust} {samples_rjust} {orig_rjust}')
     for mul_power in range(args.min_power * args.power_interval,
                            args.max_power * args.power_interval + 1):
         power = mul_power / args.power_interval

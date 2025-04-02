@@ -33,8 +33,9 @@ class LocalDataset(Array, Dataset):
 
         filename = os.path.join(local, split, get_index_basename())  # pyright: ignore
         obj = json.load(open(filename))
-        if obj['version'] != 2:
-            raise ValueError(f'Unsupported streaming data version: {obj["version"]}. ' +
+        obj_version = obj['version']
+        if obj_version != 2:
+            raise ValueError(f'Unsupported streaming data version: {obj_version}. ' +
                              f'Expected version 2.')
 
         self.shards = []

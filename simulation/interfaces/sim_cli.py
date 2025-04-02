@@ -98,16 +98,16 @@ if __name__ == '__main__':
     print(f'Minimum cache limit needed: {humanize.naturalsize(min_cache_limit)}')
     if cache_limit is not None and cache_limit < min_cache_limit:
         # Cache limit is too low, and will cause shard redownloads / throughput drops.
-        print('⚠️ The provided cache limit is lower than the minimum cache limit needed to \
-            prevent shard re-downloads. This can cause throughput issues.')
+        print('⚠️ The provided cache limit is lower than the minimum cache limit needed to' +\
+            'prevent shard re-downloads. This can cause throughput issues.')
     if warmup_step == total_batches:
         # display error if the warmup phase is the whole run, so we never hit peak throughput.
-        print('🚨 This configuration is severely bottlenecked by downloading. The run will not be \
-              performant.')
+        print('🚨 This configuration is severely bottlenecked by downloading. The run will not be' +\
+              'performant.')
     elif post_warmup_throughput_drops:
         # display warning if post-warmup throughput drops are more than 10% of the run.
-        print('⚠️ This configuration experiences some downloading-related slowdowns even after \
-              warmup.')
+        print('⚠️ This configuration experiences some downloading-related slowdowns even after' +\
+              'warmup.')
     print('{0} steps, or {1:.1f}% of all steps, waited for shard downloads.'\
           .format(all_throughput_drops, 100 * all_throughput_drops / (total_batches)))
     if warmup_step != total_batches:
