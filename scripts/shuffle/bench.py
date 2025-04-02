@@ -157,7 +157,9 @@ def main(args: Namespace) -> None:
 
     text = ' '.join((s.rjust(10) for s in names))
 
-    print(f'{"power".rjust(5)} {"samples".rjust(14)} ' + text)
+    power_rjust = 'power'.rjust(5)
+    samples_rjust = 'samples'.rjust(14)
+    print(f'{power_rjust} {samples_rjust} ' + text)
     for mul_power in range(args.min_power * args.power_interval,
                            args.max_power * args.power_interval + 1):
         power = mul_power / args.power_interval

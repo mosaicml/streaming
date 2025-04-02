@@ -74,7 +74,8 @@ class JSONReader(SplitReader):
         # Version check.
         args_version = args['version']
         if args_version != 2:
-            raise ValueError(f'Unsupported streaming data version: {args_version}. Expected version 2.')
+            raise ValueError(
+                f'Unsupported streaming data version: {args_version}. Expected version 2.')
         del args['version']
         # Check format.
         args_format = args['format']

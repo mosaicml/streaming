@@ -71,7 +71,8 @@ class MDSReader(JointReader):
         args = deepcopy(obj)
         args_version = args['version']
         if args_version != 2:
-            raise ValueError(f'Unsupported streaming data version: {args_version}. Expected version 2.')
+            raise ValueError(
+                f'Unsupported streaming data version: {args_version}. Expected version 2.')
         del args['version']
         args_format = args['format']
         if args_format != 'mds':

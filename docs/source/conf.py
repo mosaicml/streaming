@@ -304,7 +304,7 @@ def _auto_rst_for_module(module: types.ModuleType, exclude_members: List[Any]) -
 
     # add title and module docstring
     lines.append(f'{name}')
-    lines.append(f'{"=" * len(name)}\n')
+    lines.append('=' * len(name) + '\n')
     lines.append(f'.. automodule:: {name}\n')
 
     # set prefix so that we can use short names in the autosummaries
