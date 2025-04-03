@@ -8,7 +8,8 @@ import pickle
 from abc import ABC, abstractmethod
 from decimal import Decimal
 from io import BytesIO
-from typing import Any, Optional
+from itertools import chain
+from typing import Any, Iterator, Optional, Sequence
 
 import numpy as np
 from numpy import typing as npt
@@ -468,14 +469,19 @@ class JPEG(Encoding):
 
     def encode(self, obj: Image.Image) -> bytes:
         self._validate(obj, Image.Image)
-        if isinstance(obj, JpegImageFile) and hasattr(obj, 'filename'):
-            # read the source file to prevent lossy re-encoding
-            with open(obj.filename, 'rb') as f:
-                return f.read()
-        else:
-            out = BytesIO()
-            obj.save(out, format='JPEG')
-            return out.getvalue()
+
+        if isinstance(obj, JpegImageFile) and hasattr(obj, 'filename') and obj.filename:
+            try:
+                with open(obj.filename, 'rb') as f:
+                    return f.read()
+            except FileNotFoundError:
+                # If filename exists but file is missing, fallback to in-memory encoding
+                pass
+
+        # Default to in-memory encoding to prevent errors
+        out = BytesIO()
+        obj.save(out, format='JPEG')
+        return out.getvalue()
 
     def decode(self, data: bytes) -> Image.Image:
         inp = BytesIO(data)
@@ -527,6 +533,123 @@ class JSON(Encoding):
             raise
 
 
+class List(Encoding):
+    """Store a list of the same objects."""
+
+    @abstractmethod
+    def underlying_encoder(self) -> Encoding:
+        """Get the encoding of the list elements.
+
+        Returns:
+            Encoding: The encoding of the list elements.
+        """
+        raise NotImplementedError
+
+    def encode(self, obj: list) -> bytes:
+        self._validate(obj, list)
+        underlying_encoder = self.underlying_encoder()
+
+        placeholder = np.uint32(0x0).tobytes()  # a placeholder uint for future features
+        num_elements_bytes = np.uint32(len(obj)).tobytes()
+
+        element_size = []
+        encoded_elements = []
+        for element in obj:
+            encoded_element = underlying_encoder.encode(element)
+            encoded_elements.append(encoded_element)
+            element_size.append(len(encoded_element))
+
+        element_size_bytes = np.array(element_size, np.uint32).tobytes()
+        bytes_iterable = chain([placeholder], [num_elements_bytes], [element_size_bytes],
+                               encoded_elements)
+        return b''.join(bytes_iterable)
+
+    def decode(self, data: bytes) -> list:
+        index = 4  # the first 4 bytes are a placeholder
+        num_elements = np.frombuffer(data[index:index + 4], np.uint32)[0]
+
+        index += 4
+        element_sizes = np.frombuffer(data[index:index + 4 * num_elements], np.uint32)
+
+        index += 4 * num_elements
+        underlying_encoder = self.underlying_encoder()
+        elements = []
+        for size in element_sizes:
+            element = underlying_encoder.decode(data[index:index + size])
+            elements.append(element)
+            index += size
+
+        return elements
+
+
+class PILList(List):
+    """Store a list of PIL images."""
+
+    def underlying_encoder(self) -> Encoding:
+        return PIL()
+
+
+class JPEGList(List):
+    """Store a list of JPEG images."""
+
+    def underlying_encoder(self) -> Encoding:
+        return JPEG()
+
+
+class PNGList(List):
+    """Store a list of PNG images."""
+
+    def underlying_encoder(self) -> Encoding:
+        return PNG()
+
+
+class JPEGArray(Encoding):
+    """encode a list of images as a byte sequence.
+
+    Format:
+        number of images: as the top 4 bytes as a np.uint32
+        sizes of image bytes: following 4 * n_images bytes as np.uint32
+        images: as JPEG bytes concatenated
+    """
+
+    def encode(self, obj: Sequence[bytearray]) -> bytes:
+        image_byte_sizes: list[int] = [len(curr) for curr in obj]
+        n_images_as_bytes: bytes = np.uint32(len(obj)).tobytes()
+        image_byte_sizes_array: npt.NDArray = np.uint32(image_byte_sizes)  # pyright: ignore
+        image_byte_sizes_as_bytes: bytes = image_byte_sizes_array.tobytes()
+        bytes_iterables: Iterator[bytes] = chain([n_images_as_bytes], [image_byte_sizes_as_bytes],
+                                                 obj)
+        return b''.join(bytes_iterables)
+
+    def decode(self, data: bytes) -> list[Image.Image]:
+        # top 4 bytes are np.uint32 size of how many images there are
+        if len(data) < 4:
+            raise ValueError('Input data is too short to contain valid jpeg arrays')
+
+        n_images: int = np.frombuffer(data[:4], dtype=np.uint32)[0]
+
+        if n_images <= 0:
+            raise ValueError('Negative number of images decoded')
+
+        image_bytes_offset = 4 + 4 * n_images
+
+        if len(data) < image_bytes_offset:
+            raise ValueError('Data is too short w.r.t the number of images decoded')
+
+        n_bytes_per_image: Sequence[int] = np.frombuffer(data[4:image_bytes_offset],
+                                                         dtype=np.uint32).tolist()
+        offsets = [image_bytes_offset]
+        for n_bytes in n_bytes_per_image:
+            offsets.append(offsets[-1] + n_bytes)
+
+        result: list[Image.Image] = []
+        for lo, hi in zip(offsets, offsets[1:]):
+            bytes_for_img: bytes = data[lo:hi]
+            decoded = JPEG().decode(bytes_for_img)
+            result.append(decoded)
+        return result
+
+
 # Encodings (name -> class).
 _encodings = {
     'bytes': Bytes,
@@ -549,7 +672,12 @@ _encodings = {
     'str_decimal': StrDecimal,
     'pil': PIL,
     'jpeg': JPEG,
+    'jpeg_array': JPEGArray,
+    'jpegarray': JPEGArray,
     'png': PNG,
+    'list[pil]': PILList,
+    'list[jpeg]': JPEGList,
+    'list[png]': PNGList,
     'pkl': Pickle,
     'json': JSON,
 }

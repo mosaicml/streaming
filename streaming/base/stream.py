@@ -454,22 +454,24 @@ class Stream:
                         raise RuntimeError(f'No `remote` provided, but local file {filename} ' +
                                            'does not exist either')
             else:
+                index_file = os.path.join(self.remote or '', self.split or '', basename)
                 wait_for_file_to_exist(
-                    filename, TICK, self.download_timeout,
-                    f'Index file {os.path.join(self.remote or "", self.split or "", basename)} ' +
+                    filename, TICK, self.download_timeout, f'Index file {index_file} ' +
                     f'-> {filename} took too long to download or failed to download. Either increase the '
                     + f'`download_timeout` value or check the local rank 0 traceback.')
 
         # Load the index.
         try:
-            obj = json.load(open(filename))
+            with open(filename) as f:
+                obj = json.load(f)
         except json.decoder.JSONDecodeError as error:
             error.args = (f'Index file at {filename} is empty or corrupted. ' + error.args[0],)
             raise error
 
         # Version check.
-        if obj['version'] != 2:
-            raise ValueError(f'Unsupported streaming data version: {obj["version"]}. ' +
+        obj_version = obj['version']
+        if obj_version != 2:
+            raise ValueError(f'Unsupported streaming data version: {obj_version}. ' +
                              f'Expected version 2.')
 
         # Initialize shard readers according to the loaded info.

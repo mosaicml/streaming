@@ -36,9 +36,9 @@ while True:
 
 classifiers = [
     'Programming Language :: Python :: 3',
-    'Programming Language :: Python :: 3.9',
     'Programming Language :: Python :: 3.10',
     'Programming Language :: Python :: 3.11',
+    'Programming Language :: Python :: 3.12',
 ]
 
 install_requires = [
@@ -70,14 +70,14 @@ extra_deps['dev'] = [
     'docformatter>=1.4',
     'jupyter==1.1.1',
     'pre-commit>=2.18.1,<4',
-    'pytest==8.3.4',
+    'pytest==8.3.5',
     'pytest_codeblocks==0.17.0',
     'pytest-cov>=4,<7',
     'toml==0.10.2',
-    'yamllint==1.35.1',
+    'yamllint==1.37.0',
     'moto>=4.0,<6',
-    'fastapi==0.115.6',
-    'pydantic==2.10.5',
+    'fastapi==0.115.12',
+    'pydantic==2.10.6',
     'uvicorn==0.34.0',
     'pytest-split==0.10.0',
 ]
@@ -118,7 +118,7 @@ extra_deps['spark'] = [
 ]
 
 extra_deps['databricks'] = [
-    'databricks-sdk==0.29.0',
+    'databricks-sdk==0.49.0',
 ]
 
 extra_deps['alipan'] = [
@@ -126,7 +126,7 @@ extra_deps['alipan'] = [
 ]
 
 extra_deps['hf'] = [
-    'huggingface_hub>=0.23.4,<0.28',
+    'huggingface_hub>=0.23.4,<0.30',
 ]
 
 extra_deps['testing'] = [
@@ -161,5 +161,5 @@ setup(
     classifiers=classifiers,
     install_requires=install_requires,
     extras_require=extra_deps,
-    python_requires='>=3.9',
+    python_requires='>=3.10',
 )
