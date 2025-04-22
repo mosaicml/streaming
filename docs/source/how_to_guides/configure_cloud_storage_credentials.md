@@ -232,7 +232,7 @@ az group create --name my-resource-group --location westus2
 az storage account create -n my-storage-account-name -g my-resource-group
 ```
 
-Users must set their Azure `account name` and Azure `account access key` in the run environment.
+For key based authentication, users must set their Azure `account name` and Azure `account access key` in the run environment. Otherwise, the authentication attempts to use identity-based methods via `DefaultAzureCredential`.
 
 The `account access key` can be found in the Azure Portal under the `"Access Keys"` section or by running the following Azure CLI command:
 
