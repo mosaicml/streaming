@@ -725,10 +725,11 @@ class AzureUploader(CloudUploader):
 
         from azure.storage.blob import BlobServiceClient
 
+        # Extract the account name from the remote URL
         if isinstance(out, str):
             self.AZURE_ACCOUNT_NAME = out.split('://')[1].split('.')[0]
         else:
-            self.AZURE_ACCOUNT_NAME = out[0].split('://')[1].split('.')[0]
+            self.AZURE_ACCOUNT_NAME = out[1].split('://')[1].split('.')[0]
 
         if 'AZURE_ACCOUNT_NAME' in os.environ:
             self.AZURE_ACCOUNT_NAME = os.environ['AZURE_ACCOUNT_NAME']
@@ -829,10 +830,11 @@ class AzureDataLakeUploader(CloudUploader):
 
         from azure.storage.filedatalake import DataLakeServiceClient
 
+        # Extract the account name from the remote URL
         if isinstance(out, str):
             self.AZURE_ACCOUNT_NAME = out.split('://')[1].split('.')[0]
         else:
-            self.AZURE_ACCOUNT_NAME = out[0].split('://')[1].split('.')[0]
+            self.AZURE_ACCOUNT_NAME = out[1].split('://')[1].split('.')[0]
 
         if 'AZURE_ACCOUNT_NAME' in os.environ:
             self.AZURE_ACCOUNT_NAME = os.environ['AZURE_ACCOUNT_NAME']

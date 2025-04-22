@@ -69,7 +69,7 @@ class CloudDownloader(abc.ABC):
             prefix = 'dbfs-uc'
 
         if prefix not in DOWNLOADER_MAPPINGS:
-            prefix = 'azure'  # always choose this
+            raise ValueError(f'Unsupported remote path: {remote_dir}')
 
         return DOWNLOADER_MAPPINGS[prefix]()
 
@@ -574,6 +574,7 @@ class AzureDownloader(CloudDownloader):
         from azure.storage.blob import BlobServiceClient
 
         if self.AZURE_ACCOUNT_NAME is None:
+            # Extract the account name from the remote URL
             self.AZURE_ACCOUNT_NAME = remote.split('://')[1].split('.')[0]
 
         self._azure_client = BlobServiceClient(
@@ -643,6 +644,7 @@ class AzureDataLakeDownloader(CloudDownloader):
         from azure.storage.filedatalake import DataLakeServiceClient
 
         if self.AZURE_ACCOUNT_NAME is None:
+            # Extract the account name from the remote URL
             self.AZURE_ACCOUNT_NAME = remote.split('://')[1].split('.')[0]
 
         self._azure_dl_client = DataLakeServiceClient(
