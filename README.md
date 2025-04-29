@@ -49,7 +49,7 @@
 </p>
 <br />
 
-# 👋 Welcome
+# 👋 elcome
 
 We built StreamingDataset to make training on large datasets from cloud storage as fast, cheap, and scalable as possible.
 
