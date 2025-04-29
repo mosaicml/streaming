@@ -7,8 +7,8 @@ from typing import Any, Iterator, Optional
 
 from torch import Tensor
 from torch.utils.data import DataLoader
-from transformers.tokenization_utils_base import BatchEncoding
 from transformers.feature_extraction_utils import BatchFeature
+from transformers.tokenization_utils_base import BatchEncoding
 
 from streaming.base.dataset import StreamingDataset
 from streaming.base.world import World
