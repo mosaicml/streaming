@@ -1,3 +1,3 @@
 # Require admin approval to modify all files in the root of the repository
 # This includes setup.py, the README, and the CODEOWNERS file itself!
-/* @karan6181 @bandish-shah @snarayan21 @XiaohanZhangCMU
+/* @mosaicml/composer-team-admins
