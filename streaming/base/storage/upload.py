@@ -47,8 +47,6 @@ UPLOADERS = {
     '': 'LocalUploader',
 }
 
-from azure.identity import AzureCliCredential, ChainedTokenCredential, DefaultAzureCredential
-
 
 class GCSAuthentication(Enum):
     HMAC = 1
@@ -738,6 +736,9 @@ class AzureUploader(CloudUploader):
             self.credential = os.environ['AZURE_ACCOUNT_ACCESS_KEY']
         else:
             try:
+                from azure.identity import (AzureCliCredential, ChainedTokenCredential,
+                                            DefaultAzureCredential)
+
                 self.credential = ChainedTokenCredential(AzureCliCredential(),
                                                          DefaultAzureCredential())
             except Exception as e:
@@ -746,7 +747,7 @@ class AzureUploader(CloudUploader):
         # Create a session and use it to make our client. Unlike Resources and Sessions,
         # clients are generally thread-safe.
         self.azure_service = BlobServiceClient(
-            account_url=f"https://{self.AZURE_ACCOUNT_NAME}.blob.core.windows.net",
+            account_url=f'https://{self.AZURE_ACCOUNT_NAME}.blob.core.windows.net',
             credential=self.credential)
         self.check_bucket_exists(self.remote)  # pyright: ignore
 
@@ -843,6 +844,9 @@ class AzureDataLakeUploader(CloudUploader):
             self.credential = os.environ['AZURE_ACCOUNT_ACCESS_KEY']
         else:
             try:
+                from azure.identity import (AzureCliCredential, ChainedTokenCredential,
+                                            DefaultAzureCredential)
+
                 self.credential = ChainedTokenCredential(AzureCliCredential(),
                                                          DefaultAzureCredential())
             except Exception as e:
@@ -851,7 +855,7 @@ class AzureDataLakeUploader(CloudUploader):
         # Create a session and use it to make our client. Unlike Resources and Sessions,
         # clients are generally thread-safe.
         self.azure_service = DataLakeServiceClient(
-            account_url=f"https://{self.AZURE_ACCOUNT_NAME}.dfs.core.windows.net",
+            account_url=f'https://{self.AZURE_ACCOUNT_NAME}.dfs.core.windows.net',
             credential=self.credential)
         self.check_container_exists(self.remote)  # pyright: ignore
 

@@ -40,8 +40,6 @@ https://cloud.google.com/docs/authentication/external/set-up-adc to set up Appli
 Credentials. See also https://docs.mosaicml.com/projects/mcli/en/latest/resources/secrets/gcp.html.
 """
 
-from azure.identity import AzureCliCredential, ChainedTokenCredential, DefaultAzureCredential
-
 
 class CloudDownloader(abc.ABC):
     """Download files from remote storage to a local filesystem."""
@@ -534,6 +532,9 @@ class AzureDownloader(CloudDownloader):
             self.credential = os.environ['AZURE_ACCOUNT_ACCESS_KEY']
         else:
             try:
+                from azure.identity import (AzureCliCredential, ChainedTokenCredential,
+                                            DefaultAzureCredential)
+
                 self.credential = ChainedTokenCredential(AzureCliCredential(),
                                                          DefaultAzureCredential())
             except Exception as e:
@@ -578,7 +579,7 @@ class AzureDownloader(CloudDownloader):
             self.AZURE_ACCOUNT_NAME = remote.split('://')[1].split('.')[0]
 
         self._azure_client = BlobServiceClient(
-            account_url=f"https://{self.AZURE_ACCOUNT_NAME}.blob.core.windows.net",
+            account_url=f'https://{self.AZURE_ACCOUNT_NAME}.blob.core.windows.net',
             credential=self.credential)
 
 
@@ -599,6 +600,9 @@ class AzureDataLakeDownloader(CloudDownloader):
             self.credential = os.environ['AZURE_ACCOUNT_ACCESS_KEY']
         else:
             try:
+                from azure.identity import (AzureCliCredential, ChainedTokenCredential,
+                                            DefaultAzureCredential)
+
                 self.credential = ChainedTokenCredential(AzureCliCredential(),
                                                          DefaultAzureCredential())
             except Exception as e:
@@ -648,7 +652,7 @@ class AzureDataLakeDownloader(CloudDownloader):
             self.AZURE_ACCOUNT_NAME = remote.split('://')[1].split('.')[0]
 
         self._azure_dl_client = DataLakeServiceClient(
-            account_url=f"https://{self.AZURE_ACCOUNT_NAME}.dfs.core.windows.net",
+            account_url=f'https://{self.AZURE_ACCOUNT_NAME}.dfs.core.windows.net',
             credential=self.credential)
 
 
