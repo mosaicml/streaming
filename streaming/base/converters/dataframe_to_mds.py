@@ -141,7 +141,8 @@ def infer_dataframe_schema(dataframe: DataFrame,
                     if isinstance(actual_spark_dtype, BinaryType):
                         continue
                     else:
-                        raise ValueError(f'Non-binary col {col_name} cannot encode as {user_dtype}.')
+                        raise ValueError(
+                            f'Non-binary col {col_name} cannot encode as {user_dtype}.')
                 raise ValueError(f'{user_dtype} is not supported by dataframe_to_mds')
 
             mapped_mds_dtype = map_spark_dtype(actual_spark_dtype)
