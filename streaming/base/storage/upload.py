@@ -665,7 +665,7 @@ class HFUploader(CloudUploader):
 
         @retry(num_attempts=self.retry)
         def _upload_file():
-            local_filename = filename
+            local_filename = os.path.join(self.local, filename)
             local_filename = local_filename.replace('\\', '/')
             remote_filename = os.path.join('datasets', self.dataset_id, filename)
             remote_filename = remote_filename.replace('\\', '/')
