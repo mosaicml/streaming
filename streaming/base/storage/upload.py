@@ -723,12 +723,32 @@ class AzureUploader(CloudUploader):
 
         from azure.storage.blob import BlobServiceClient
 
+        # Extract the account name from the remote URL
+        if isinstance(out, str):
+            self.AZURE_ACCOUNT_NAME = out.split('://')[1].split('.')[0]
+        else:
+            self.AZURE_ACCOUNT_NAME = out[1].split('://')[1].split('.')[0]
+
+        if 'AZURE_ACCOUNT_NAME' in os.environ:
+            self.AZURE_ACCOUNT_NAME = os.environ['AZURE_ACCOUNT_NAME']
+
+        if 'AZURE_ACCOUNT_ACCESS_KEY' in os.environ:
+            self.credential = os.environ['AZURE_ACCOUNT_ACCESS_KEY']
+        else:
+            try:
+                from azure.identity import (AzureCliCredential, ChainedTokenCredential,
+                                            DefaultAzureCredential)
+
+                self.credential = ChainedTokenCredential(AzureCliCredential(),
+                                                         DefaultAzureCredential())
+            except Exception as e:
+                raise e
+
         # Create a session and use it to make our client. Unlike Resources and Sessions,
         # clients are generally thread-safe.
         self.azure_service = BlobServiceClient(
-            account_url=f"https://{os.environ['AZURE_ACCOUNT_NAME']}.blob.core.windows.net",
-            credential=os.environ['AZURE_ACCOUNT_ACCESS_KEY'],
-        )
+            account_url=f'https://{self.AZURE_ACCOUNT_NAME}.blob.core.windows.net',
+            credential=self.credential)
         self.check_bucket_exists(self.remote)  # pyright: ignore
 
     def upload_file(self, filename: str):
@@ -811,11 +831,32 @@ class AzureDataLakeUploader(CloudUploader):
 
         from azure.storage.filedatalake import DataLakeServiceClient
 
+        # Extract the account name from the remote URL
+        if isinstance(out, str):
+            self.AZURE_ACCOUNT_NAME = out.split('://')[1].split('.')[0]
+        else:
+            self.AZURE_ACCOUNT_NAME = out[1].split('://')[1].split('.')[0]
+
+        if 'AZURE_ACCOUNT_NAME' in os.environ:
+            self.AZURE_ACCOUNT_NAME = os.environ['AZURE_ACCOUNT_NAME']
+
+        if 'AZURE_ACCOUNT_ACCESS_KEY' in os.environ:
+            self.credential = os.environ['AZURE_ACCOUNT_ACCESS_KEY']
+        else:
+            try:
+                from azure.identity import (AzureCliCredential, ChainedTokenCredential,
+                                            DefaultAzureCredential)
+
+                self.credential = ChainedTokenCredential(AzureCliCredential(),
+                                                         DefaultAzureCredential())
+            except Exception as e:
+                raise e
+
         # Create a session and use it to make our client. Unlike Resources and Sessions,
         # clients are generally thread-safe.
         self.azure_service = DataLakeServiceClient(
-            account_url=f"https://{os.environ['AZURE_ACCOUNT_NAME']}.dfs.core.windows.net",
-            credential=os.environ['AZURE_ACCOUNT_ACCESS_KEY'])
+            account_url=f'https://{self.AZURE_ACCOUNT_NAME}.dfs.core.windows.net',
+            credential=self.credential)
         self.check_container_exists(self.remote)  # pyright: ignore
 
     def upload_file(self, filename: str):
@@ -1017,7 +1058,7 @@ class DBFSUploader(DatabricksUploader):
         Raises:
             error: Folder does not exist.
         """
-        from databricks.sdk.core import DatabricksError
+        from databricks.sdk.errors.base import DatabricksError
         try:
             if not self.client.dbfs.exists(self.dbfs_path):
                 raise FileNotFoundError(f'Databricks File System path {self.dbfs_path} not found')

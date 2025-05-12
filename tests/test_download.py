@@ -185,7 +185,7 @@ class TestDatabricksUnityCatalog:
     @patch('databricks.sdk.WorkspaceClient', autospec=True)
     def test_databricks_error_file_not_found(self, workspace_client_mock: Mock,
                                              remote_local_file: Any):
-        from databricks.sdk.core import DatabricksError
+        from databricks.sdk.errors.base import DatabricksError
         workspace_client_mock_instance = workspace_client_mock.return_value
         workspace_client_mock_instance.files = Mock()
         workspace_client_mock_instance.files.download = Mock()
@@ -204,7 +204,7 @@ class TestDatabricksUnityCatalog:
 
     @patch('databricks.sdk.WorkspaceClient', autospec=True)
     def test_databricks_error(self, workspace_client_mock: Mock, remote_local_file: Any):
-        from databricks.sdk.core import DatabricksError
+        from databricks.sdk.errors.base import DatabricksError
         workspace_client_mock_instance = workspace_client_mock.return_value
         workspace_client_mock_instance.files = Mock()
         workspace_client_mock_instance.files.download = Mock()
