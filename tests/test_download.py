@@ -135,7 +135,6 @@ class TestGCSClient:
     def test_download_service_account(self, mock_isinstance: Mock, mock_client: Mock,
                                       mock_default: Mock, out: str):
 
-        # Because of how mock works on the types... have to patch isinstance
         def isinstance_impl(obj: Any, cls: Any):
             return obj.__class__ == cls.__class__
 
@@ -145,9 +144,19 @@ class TestGCSClient:
             credentials_mock = Mock()
             mock_default.return_value = credentials_mock, None
             downloader = GCSDownloader()
-            downloader.download(out, tmp)
-            mock_client.assert_called_once_with(credentials=credentials_mock)
-            assert os.path.isfile(tmp)
+            downloader._create_gcs_client()
+            if downloader._gcs_client is not None:
+                downloader._gcs_client._extra_headers = {}
+
+            with patch('google.cloud.storage.Blob') as mock_blob_cls:
+                mock_blob_instance = Mock()
+                mock_blob_instance.download_to_filename.side_effect = lambda path: open(
+                    path, 'w').write('mock data')
+                mock_blob_cls.return_value = mock_blob_instance
+
+                downloader.download(out, tmp)
+                mock_client.assert_called_once_with(credentials=credentials_mock)
+                assert os.path.isfile(tmp)
 
     @pytest.mark.usefixtures('gcs_hmac_client', 'gcs_test', 'remote_local_file')
     def test_filenotfound_exception(self, remote_local_file: Any):
