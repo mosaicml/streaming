@@ -77,7 +77,7 @@ extra_deps['dev'] = [
     'yamllint==1.37.0',
     'moto>=4.0,<6',
     'fastapi==0.115.12',
-    'pydantic==2.10.6',
+    'pydantic==2.11.4',
     'uvicorn==0.34.0',
     'pytest-split==0.10.0',
 ]
@@ -126,7 +126,7 @@ extra_deps['alipan'] = [
 ]
 
 extra_deps['hf'] = [
-    'huggingface_hub>=0.23.4,<0.30',
+    'huggingface_hub>=0.23.4,<0.32',
 ]
 
 extra_deps['testing'] = [

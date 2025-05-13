@@ -526,6 +526,20 @@ class AzureDownloader(CloudDownloader):
 
         self._azure_client: Optional[BlobServiceClient] = None
 
+        self.AZURE_ACCOUNT_NAME = os.environ.get('AZURE_ACCOUNT_NAME', None)
+
+        if 'AZURE_ACCOUNT_ACCESS_KEY' in os.environ:
+            self.credential = os.environ['AZURE_ACCOUNT_ACCESS_KEY']
+        else:
+            try:
+                from azure.identity import (AzureCliCredential, ChainedTokenCredential,
+                                            DefaultAzureCredential)
+
+                self.credential = ChainedTokenCredential(AzureCliCredential(),
+                                                         DefaultAzureCredential())
+            except Exception as e:
+                raise e
+
     @staticmethod
     def _client_identifier() -> str:
         """Return the client identifier for the downloader.
@@ -542,7 +556,7 @@ class AzureDownloader(CloudDownloader):
     def _download_file_impl(self, remote: str, local: str, timeout: float) -> None:
         """Implementation of the download function for a file."""
         if self._azure_client is None:
-            self._create_azure_client()
+            self._create_azure_client(remote)
         assert self._azure_client is not None
 
         obj = urllib.parse.urlparse(remote)
@@ -556,13 +570,17 @@ class AzureDownloader(CloudDownloader):
             blob_data.readinto(my_blob)
         os.rename(local_tmp, local)
 
-    def _create_azure_client(self) -> None:
+    def _create_azure_client(self, remote: str) -> None:
         """Create an Azure client."""
         from azure.storage.blob import BlobServiceClient
 
+        if self.AZURE_ACCOUNT_NAME is None:
+            # Extract the account name from the remote URL
+            self.AZURE_ACCOUNT_NAME = remote.split('://')[1].split('.')[0]
+
         self._azure_client = BlobServiceClient(
-            account_url=f"https://{os.environ['AZURE_ACCOUNT_NAME']}.blob.core.windows.net",
-            credential=os.environ['AZURE_ACCOUNT_ACCESS_KEY'])
+            account_url=f'https://{self.AZURE_ACCOUNT_NAME}.blob.core.windows.net',
+            credential=self.credential)
 
 
 class AzureDataLakeDownloader(CloudDownloader):
@@ -575,6 +593,20 @@ class AzureDataLakeDownloader(CloudDownloader):
         from azure.storage.filedatalake import DataLakeServiceClient
 
         self._azure_dl_client: Optional[DataLakeServiceClient] = None
+
+        self.AZURE_ACCOUNT_NAME = os.environ.get('AZURE_ACCOUNT_NAME', None)
+
+        if 'AZURE_ACCOUNT_ACCESS_KEY' in os.environ:
+            self.credential = os.environ['AZURE_ACCOUNT_ACCESS_KEY']
+        else:
+            try:
+                from azure.identity import (AzureCliCredential, ChainedTokenCredential,
+                                            DefaultAzureCredential)
+
+                self.credential = ChainedTokenCredential(AzureCliCredential(),
+                                                         DefaultAzureCredential())
+            except Exception as e:
+                raise e
 
     @staticmethod
     def _client_identifier() -> str:
@@ -594,7 +626,7 @@ class AzureDataLakeDownloader(CloudDownloader):
         from azure.core.exceptions import ResourceNotFoundError
 
         if self._azure_dl_client is None:
-            self._create_azure_dl_client()
+            self._create_azure_dl_client(remote)
         assert self._azure_dl_client is not None
 
         obj = urllib.parse.urlparse(remote)
@@ -611,14 +643,17 @@ class AzureDataLakeDownloader(CloudDownloader):
         except Exception as e:
             raise e
 
-    def _create_azure_dl_client(self) -> None:
+    def _create_azure_dl_client(self, remote: str) -> None:
         """Create an Azure Data Lake client."""
         from azure.storage.filedatalake import DataLakeServiceClient
 
+        if self.AZURE_ACCOUNT_NAME is None:
+            # Extract the account name from the remote URL
+            self.AZURE_ACCOUNT_NAME = remote.split('://')[1].split('.')[0]
+
         self._azure_dl_client = DataLakeServiceClient(
-            account_url=f"https://{os.environ['AZURE_ACCOUNT_NAME']}.dfs.core.windows.net",
-            credential=os.environ['AZURE_ACCOUNT_ACCESS_KEY'],
-        )
+            account_url=f'https://{self.AZURE_ACCOUNT_NAME}.dfs.core.windows.net',
+            credential=self.credential)
 
 
 class DatabricksUnityCatalogDownloader(CloudDownloader):
@@ -660,7 +695,7 @@ class DatabricksUnityCatalogDownloader(CloudDownloader):
 
     def _download_file_impl(self, remote: str, local: str, timeout: float) -> None:
         """Implementation of the download function for a file."""
-        from databricks.sdk.core import DatabricksError
+        from databricks.sdk.errors.base import DatabricksError
 
         if self._db_uc_client is None:
             self._create_db_uc_client()
@@ -727,7 +762,7 @@ class DBFSDownloader(CloudDownloader):
 
     def _download_file_impl(self, remote: str, local: str, timeout: float) -> None:
         """Implementation of the download function for a file."""
-        from databricks.sdk.core import DatabricksError
+        from databricks.sdk.errors.base import DatabricksError
 
         if self._dbfs_client is None:
             self._create_dbfs_client()
