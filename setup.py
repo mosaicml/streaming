@@ -44,7 +44,7 @@ classifiers = [
 install_requires = [
     'boto3>=1.21.45,<2',
     'Brotli>=1.0.9',
-    'google-cloud-storage>=2.9.0,<2.11.0',
+    'google-cloud-storage>=2.9.0,<3.2.0',
     'matplotlib>=3.5.2,<4',
     'numpy>=1.21.5,<2.2.0',
     'paramiko>=2.11.0,<4',
@@ -74,11 +74,11 @@ extra_deps['dev'] = [
     'pytest_codeblocks==0.17.0',
     'pytest-cov>=4,<7',
     'toml==0.10.2',
-    'yamllint==1.37.0',
+    'yamllint==1.37.1',
     'moto>=4.0,<6',
     'fastapi==0.115.12',
-    'pydantic==2.10.6',
-    'uvicorn==0.34.0',
+    'pydantic==2.11.4',
+    'uvicorn==0.34.2',
     'pytest-split==0.10.0',
 ]
 
@@ -118,7 +118,7 @@ extra_deps['spark'] = [
 ]
 
 extra_deps['databricks'] = [
-    'databricks-sdk==0.49.0',
+    'databricks-sdk==0.53.0',
 ]
 
 extra_deps['alipan'] = [
@@ -126,7 +126,7 @@ extra_deps['alipan'] = [
 ]
 
 extra_deps['hf'] = [
-    'huggingface_hub>=0.23.4,<0.30',
+    'huggingface_hub>=0.23.4,<0.32',
 ]
 
 extra_deps['testing'] = [
