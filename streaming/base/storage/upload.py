@@ -1248,7 +1248,14 @@ class LocalUploader(CloudUploader):
                 local_filename = os.path.join(self.local, filename)
                 remote_filename = os.path.join(self.remote, filename)  # pyright: ignore
                 logger.debug(f'Copying to {remote_filename}')
+                local_file_size = os.stat(local_filename).st_size
                 shutil.copy(local_filename, remote_filename)
+                remote_file_size = os.stat(remote_filename).st_size
+                # LocalUploader can be used by fuse-mount system.
+                # which may not be as reliable, thus do the checking.
+                if local_file_size != remote_file_size:
+                    raise RuntimeError(f'Uploading failed! {local_file_size}!= {remote_file_size}')
+
                 self.clear_local(local=local_filename)
 
         _upload_file()
