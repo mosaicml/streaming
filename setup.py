@@ -114,7 +114,7 @@ extra_deps['simulator'] = [
 ]
 
 extra_deps['spark'] = [
-    'pyspark>=3,<4',
+    'pyspark>=3,<5',
 ]
 
 extra_deps['databricks'] = [
