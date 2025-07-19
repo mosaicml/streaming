@@ -65,7 +65,7 @@ install_requires = [
 extra_deps = {}
 
 extra_deps['dev'] = [
-    'datasets>=2.4.0,<4',
+    'datasets>=2.4.0,<5',
     'pyarrow>14.0.0',
     'docformatter>=1.4',
     'jupyter==1.1.1',
