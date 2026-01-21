@@ -1120,7 +1120,7 @@ class StreamingDataset(Array, IterableDataset):
         """
         # Lock the cache. FileLocks contain threading Locks, which are not pickleable, which is
         # incompatible with spawn, so must be created lazily.
-        if not hasattr(self, CACHE_FILELOCK):
+        if not hasattr(self, '_cache_filelock'):
             self._cache_filelock = FileLock(self._cache_filelock_path)
 
         with self._cache_filelock:
@@ -1133,7 +1133,7 @@ class StreamingDataset(Array, IterableDataset):
         """
         # Lock the cache. FileLocks contain threading Locks, which are not pickleable, which is
         # incompatible with spawn, so must be created lazily.
-        if not hasattr(self, CACHE_FILELOCK):
+        if not hasattr(self, '_cache_filelock'):
             self._cache_filelock = FileLock(self._cache_filelock_path)
 
         with self._cache_filelock:
@@ -1154,7 +1154,7 @@ class StreamingDataset(Array, IterableDataset):
         """
         # Lock the cache. FileLocks contain threading Locks, which are not pickleable, which is
         # incompatible with spawn, so must be created lazily.
-        if not hasattr(self, CACHE_FILELOCK):
+        if not hasattr(self, '_cache_filelock'):
             self._cache_filelock = FileLock(self._cache_filelock_path)
         lock = self._cache_filelock
         lock.acquire()

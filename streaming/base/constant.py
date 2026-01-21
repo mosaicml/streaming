@@ -27,7 +27,7 @@ SHM_TO_CLEAN = [
 
 # filelock names
 BARRIER_FILELOCK = 'barrier_filelock'
-CACHE_FILELOCK = '_cache_filelock'
+CACHE_FILELOCK = 'cache_filelock'
 
 # Time to wait, in seconds.
 TICK = 0.007
