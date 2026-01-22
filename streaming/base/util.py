@@ -23,7 +23,6 @@ import torch.distributed as dist
 from streaming.base.constant import SHM_TO_CLEAN
 from streaming.base.distributed import get_local_rank, maybe_init_dist
 from streaming.base.format.index import get_index_basename
-from streaming.base.shared.prefix import _get_path
 
 logger = logging.getLogger(__name__)
 
@@ -172,6 +171,8 @@ def clean_stale_shared_memory() -> None:
     In case of a distributed run, clean up happens on local rank 0 while other local ranks wait for
     the local rank 0 to finish.
     """
+    from streaming.base.shared.prefix import _get_path
+
     # Initialize torch.distributed ourselves, if necessary.
     destroy_dist = maybe_init_dist()
 
