@@ -282,6 +282,7 @@ def worker_process(rank: int, world_size: int, dataset_path: str):
         return False
 
 
+@pytest.mark.timeout(60)
 def test_forced_race():
     """Test with forced race condition."""
 
