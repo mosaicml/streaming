@@ -2,11 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import shutil
+import sys
 import tempfile
 from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
+
+#import multiprocessing as mp
+#from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
 
 from streaming.base import StreamingDataset
 from streaming.base.constant import LOCALS
@@ -190,3 +195,150 @@ def test_shared_memory_permission_error(mock_shared_memory_class: MagicMock):
     with patch('os.path.exists', return_value=False):
         next_prefix = _check_and_find(['local'], [None], LOCALS)
         assert next_prefix == 1
+
+
+
+
+# Global counter to track attach attempts (per process)
+attach_attempts = 0
+
+
+def patched_shared_memory_init(original_init):
+    """Wrapper that fails first 3 attach attempts for non-local leaders."""
+    def wrapper(self, name, create=False, size=-1):
+        global attach_attempts
+
+        # Only interfere with attach (create=False) for specific shared memory names
+        if not create and name and 'locals' in name:
+            attach_attempts += 1
+            # Fail first 3 attempts to simulate OS propagation delay
+            if attach_attempts <= 3:
+                print(f"    [Mock] Attach attempt {attach_attempts} - simulating FileNotFoundError")
+                raise FileNotFoundError(f"[Mock] Simulating OS propagation delay for {name}")
+            else:
+                print(f"    [Mock] Attach attempt {attach_attempts} - allowing success")
+
+        # Call original init
+        return original_init(self, name, create, size)
+
+    return wrapper
+
+
+def worker_process(rank: int, world_size: int, dataset_path: str):
+    """Worker that creates StreamingDataset with forced race condition."""
+    global attach_attempts
+    attach_attempts = 0  # Reset counter for this process
+
+    try:
+        import torch.distributed as dist
+
+        # Patch SharedMemory BEFORE importing streaming
+        # This simulates slow OS propagation
+        with patch.object(
+            BuiltinSharedMemory,
+            '__init__',
+            patched_shared_memory_init(BuiltinSharedMemory.__init__)
+        ):
+            from streaming import StreamingDataset
+
+            # Initialize distributed
+            os.environ['RANK'] = str(rank)
+            os.environ['WORLD_SIZE'] = str(world_size)
+            os.environ['LOCAL_RANK'] = str(rank)
+            os.environ['LOCAL_WORLD_SIZE'] = str(world_size)
+
+            dist.init_process_group(
+                backend='gloo',
+                init_method=os.environ['MASTER_ADDR'],
+                rank=rank,
+                world_size=world_size
+            )
+
+            print(f"[Rank {rank}] Creating StreamingDataset...")
+
+            # On MAIN branch (no retry): Will fail immediately on first FileNotFoundError
+            # On FIX branch (with retry): Will retry and succeed after 3 attempts
+            dataset = StreamingDataset(
+                local=dataset_path,
+                remote=None,
+                shuffle=False,
+                batch_size=4
+            )
+
+            print(f"[Rank {rank}] ✅ Success! Dataset created with {len(dataset)} samples")
+            dist.destroy_process_group()
+            return True
+
+    except (FileNotFoundError, RuntimeError) as e:
+        if "shared memory prefix" in str(e) or "FileNotFoundError" in str(e):
+            print(f"[Rank {rank}] ❌ FAILED - Issue #824 (no retry): {e}")
+        else:
+            print(f"[Rank {rank}] ❌ Unexpected error: {e}")
+        return False
+    except Exception as e:
+        print(f"[Rank {rank}] ❌ Unexpected error: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def test_forced_race():
+    """Test with forced race condition."""
+
+    # Create test dataset
+    temp_dir = tempfile.mkdtemp(prefix='forced_race_')
+    dataset_path = os.path.join(temp_dir, 'dataset')
+
+    try:
+        # Create MDS dataset
+        from streaming import MDSWriter
+        os.makedirs(dataset_path, exist_ok=True)
+
+        with MDSWriter(out=dataset_path, columns={'id': 'int', 'value': 'str'}) as writer:
+            for i in range(100):
+                writer.write({'id': i, 'value': f'sample_{i}'})
+
+        print(f"Created test dataset at {dataset_path}\n")
+
+        # Clean stale shared memory
+        from streaming.base.util import clean_stale_shared_memory
+        clean_stale_shared_memory()
+
+        # Setup master address
+        import socket
+        sock = socket.socket()
+        sock.bind(('', 0))
+        port = sock.getsockname()[1]
+        sock.close()
+        os.environ['MASTER_ADDR'] = f'tcp://127.0.0.1:{port}'
+
+        # Launch processes
+        ctx = mp.get_context('spawn')
+        processes = []
+
+        for rank in range(2):
+            p = ctx.Process(
+                target=worker_process,
+                args=(rank, 2, dataset_path)
+            )
+            p.start()
+            processes.append(p)
+
+        # Wait for completion
+        success = True
+        for p in processes:
+            p.join()
+            if p.exitcode != 0:
+                success = False
+
+        assert success, "Test FAILED - No retry logic to handle the forced race condition"
+
+    finally:
+        if os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
+        try:
+            from streaming.base.util import clean_stale_shared_memory
+            clean_stale_shared_memory()
+        except:
+            pass
+
