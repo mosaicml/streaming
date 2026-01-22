@@ -230,9 +230,18 @@ def get_shm_prefix(streams_local: list[str],
 
     # Non-local leaders go next, searching for match.
     if not world.is_local_leader:
-        name = _get_path(prefix_int, LOCALS)
+        # Import retry locally to avoid circular import
+        from streaming.base.util import retry
+
+        # Retry attaching to shared memory to handle OS-level propagation delays (issue #824)
+        @retry(FileNotFoundError, num_attempts=100, initial_backoff=TICK, max_jitter=0.0)
+        def _attach_to_shm() -> SharedMemory:
+            """Attach to shared memory created by local leader."""
+            name = _get_path(prefix_int, LOCALS)
+            return SharedMemory(name, False)
+
         try:
-            shm = SharedMemory(name, False)
+            shm = _attach_to_shm()
         except FileNotFoundError:
             raise RuntimeError(f'Internal error: shared memory prefix={prefix_int} was not ' +
                                f'registered by local leader. This may be because you specified ' +
