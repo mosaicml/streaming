@@ -6,6 +6,7 @@ import os
 import shutil
 import tempfile
 from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
+from typing import Any, Callable
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -199,10 +200,10 @@ def test_shared_memory_permission_error(mock_shared_memory_class: MagicMock):
 attach_attempts = 0
 
 
-def patched_shared_memory_init(original_init):
+def patched_shared_memory_init(original_init: Callable):
     """Wrapper that fails first 3 attach attempts for non-local leaders."""
 
-    def wrapper(self, name, create=False, size=-1):
+    def wrapper(self: Any, name: str, create: bool = False, size: int = -1):
         global attach_attempts
 
         # Only interfere with attach (create=False) for specific shared memory names
