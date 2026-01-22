@@ -10,8 +10,8 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-#import multiprocessing as mp
-#from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
+import multiprocessing as mp
+from multiprocessing.shared_memory import SharedMemory as BuiltinSharedMemory
 
 from streaming.base import StreamingDataset
 from streaming.base.constant import LOCALS
