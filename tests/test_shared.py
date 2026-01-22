@@ -282,7 +282,6 @@ def worker_process(rank: int, world_size: int, dataset_path: str):
         return False
 
 
-@pytest.mark.timeout(60)
 def test_forced_race():
     """Test with forced race condition."""
 
@@ -325,11 +324,21 @@ def test_forced_race():
             p.start()
             processes.append(p)
 
-        # Wait for completion
+        # Wait for completion with timeout
         success = True
+        timeout_seconds = 60
         for p in processes:
-            p.join()
-            if p.exitcode != 0:
+            p.join(timeout=timeout_seconds)
+            if p.is_alive():
+                # Process hung, terminate it
+                p.terminate()
+                p.join(timeout=5)
+                if p.is_alive():
+                    p.kill()
+                    p.join()
+                success = False
+                print(f"Process {p.pid} timed out after {timeout_seconds} seconds")
+            elif p.exitcode != 0:
                 success = False
 
         assert success, "Test FAILED - No retry logic to handle the forced race condition"
