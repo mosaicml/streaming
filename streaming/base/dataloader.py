@@ -11,6 +11,7 @@ from transformers.feature_extraction_utils import BatchFeature
 from transformers.tokenization_utils_base import BatchEncoding
 
 from streaming.base.dataset import StreamingDataset
+from streaming.base.megatron_dataset import MegatronStreamingDataset, DPWorld
 from streaming.base.world import World
 
 
@@ -99,3 +100,26 @@ class StreamingDataLoader(DataLoader):
         """Terminate the workers during cleanup."""
         if self._iterator is not None:
             self._iterator._shutdown_workers()  # type: ignore [reportGeneralTypeIssues]
+
+
+class MegatronStreamingDataLoader(StreamingDataLoader):
+    """A streaming data loader that allows for resumable iteration with MegatronStreamingDataset.
+
+        Args:
+        *args: List arguments.
+        **kwargs: Keyword arguments.
+
+    """
+
+    def __init__(self, *args, **kwargs) -> None:  # pyright: ignore
+        dataset = kwargs.get('dataset', None)
+        dataset = dataset or args[0]
+        if not isinstance(dataset, MegatronStreamingDataset):
+            raise ValueError('MegatronStreamingDataLoader requires a MegatronStreamingDataset.')
+        super().__init__(*args, **kwargs)
+
+    def state_dict(self):
+        world = DPWorld.detect()
+        num_samples = self.num_samples_yielded * world.num_ranks
+
+        return self.dataset.state_dict(num_samples, False)

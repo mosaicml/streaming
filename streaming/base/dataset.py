@@ -28,7 +28,7 @@ from streaming.base.batching import generate_work
 from streaming.base.constant import (BARRIER, BARRIER_FILELOCK, CACHE_FILELOCK, CACHE_USAGE,
                                      DEFAULT_TIMEOUT, EPOCH_DATA, EPOCH_SHAPE, NEXT_EPOCH, RESUME,
                                      SHARD_ACCESS_TIMES, SHARD_STATES, TICK)
-from streaming.base.distributed import maybe_init_dist
+from streaming.base.distributed import maybe_init_dist, barrier
 from streaming.base.format import get_index_basename
 from streaming.base.registry_utils import construct_from_registry
 from streaming.base.sampling import get_sampling
@@ -366,12 +366,8 @@ class StreamingDataset(Array, IterableDataset):
         #   * `parallel_` is who we think we are for iterating purposes, where groups of process
         #     must act the same if `replication` is specified.
         #     This can enable tensor or sequence parallelism.
-        world = World.detect()
-        self._unique_rank_world = world
-        if replication is not None:
-            self._parallel_rank_world = world.replicate(replication)
-        else:
-            self._parallel_rank_world = world.copy()
+        self._unique_rank_world = self._create_unique_rank_world()
+        self._parallel_rank_world = self._create_parallel_rank_world()
         self._unique_worker_world: World
         self._parallel_worker_world: World
 
@@ -538,6 +534,7 @@ class StreamingDataset(Array, IterableDataset):
         streams_remote = [
             os.path.join(x.remote, x.split) if x.remote is not None else None for x in streams
         ]
+        
         self._shm_prefix_int, self._locals_shm = get_shm_prefix(streams_local, streams_remote,
                                                                 self._unique_rank_world)
         self._filelock_root = gettempdir()
@@ -597,8 +594,7 @@ class StreamingDataset(Array, IterableDataset):
                 self._shard_states[shard_id] = _ShardState.LOCAL if size else _ShardState.REMOTE
                 self._shard_access_times[shard_id] = time_ns()
 
-        if dist.is_available() and dist.is_initialized():
-            dist.barrier()
+        barrier()
 
         if destroy_dist:
             dist.destroy_process_group()
@@ -677,6 +673,15 @@ class StreamingDataset(Array, IterableDataset):
             int: Dataset length.
         """
         return self.length
+    
+    def _create_unique_rank_world(self) -> World:
+        return World.detect()
+    
+    def _create_parallel_rank_world(self) -> World:
+        if self.replication is not None:
+            return self._unique_rank_world.replicate(self.replication)
+        else:
+            return self._unique_rank_world.copy()
 
     def _set_shuffle_block_size(self, world: World):
         """Set the shuffle block size value."""
@@ -1499,6 +1504,7 @@ class StreamingDataset(Array, IterableDataset):
 
         # Get this worker's partition of samples to process.
         sample_ids = self._get_work(epoch, sample_in_epoch)
+
         if not len(sample_ids):  # Resumed at end of epoch, out of samples.
             return
 
