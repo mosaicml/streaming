@@ -502,17 +502,9 @@ class HFDownloader(CloudDownloader):
 
     def _download_file_impl(self, remote: str, local: str, timeout: float) -> None:
         """Implementation of the download function for a file."""
-        from huggingface_hub import hf_hub_download
+        from huggingface_hub import hffs
 
-        _, _, _, repo_org, repo_name, path = remote.split('/', 5)
-        local_dirname = os.path.dirname(local)
-        hf_hub_download(repo_id=f'{repo_org}/{repo_name}',
-                        filename=path,
-                        repo_type='dataset',
-                        local_dir=local_dirname)
-
-        downloaded_name = os.path.join(local_dirname, path)
-        os.rename(downloaded_name, local)
+        hffs.download(remote, local)
 
 
 class AzureDownloader(CloudDownloader):
