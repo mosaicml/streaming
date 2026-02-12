@@ -10,7 +10,7 @@ __all__ = ['MegatronStreamingDataset']
 class PerNodeWorld(World):
     @classmethod
     def detect(cls):
-        from megatron.training import get_dataset_builder_ranks_by_node, get_parallel_rank_info
+        from streaming.base.megatron_dataset_utils import get_dataset_builder_ranks_by_node, get_parallel_rank_info
         # global _DATASET_BUILDER_RANKS_BY_NODE
         all_ranks_per_node = get_dataset_builder_ranks_by_node()
         parallel_rank_info = get_parallel_rank_info()

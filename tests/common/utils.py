@@ -12,7 +12,7 @@ import pytest
 
 from streaming import MDSWriter
 
-from .datasets import NumberAndSayDataset, SequenceDataset
+from .datasets import NumberAndSayDataset, SequenceDataset, SequenceDatasetInt
 
 
 @pytest.fixture(scope='function')
@@ -45,6 +45,7 @@ def convert_to_mds(**kwargs: Any):
     dataset_mapping = {
         'sequencedataset': SequenceDataset,
         'numberandsaydataset': NumberAndSayDataset,
+        'sequencedatasetint': SequenceDatasetInt
     }
     dataset_name = kwargs['dataset_name'].lower()
     out_root = kwargs['out_root']

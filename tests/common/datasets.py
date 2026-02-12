@@ -61,6 +61,29 @@ class SequenceDataset:
         sample[self.column_names[1]] = np.int64(sample[self.column_names[1]]).tobytes()
         return sample
 
+class SequenceDatasetInt(SequenceDataset):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.column_encodings = ['int', 'int']
+        self.column_names = ['idx', 'sample']
+        self.column_sizes = [8, 8]
+
+    def __next__(self) -> dict[str, Any]:
+        if self._index >= self.size:
+            raise StopIteration
+        id = self._index
+        data = (3 * self._index) + self.offset
+        self._index += 1
+        return {
+            self.column_names[0]: id,
+            self.column_names[1]: data,
+        }
+
+    def get_sample_in_bytes(self, index: int) -> dict[str, Any]:
+        sample = self.__getitem__(index)
+        sample[self.column_names[0]] = sample[self.column_names[0]].tobytes()
+        sample[self.column_names[1]] = np.int64(sample[self.column_names[1]]).tobytes()
+        return sample
 
 class NumberAndSayDataset:
     """Generate a synthetic number-saying dataset, i.e. converting a numbers from digits to words,

@@ -63,7 +63,7 @@ def get_local_world_size() -> int:
 def barrier() -> None:
     """Synchronizes all processes."""
     try:
-        from megatron.training import get_dataset_building_group
+        from streaming.base.megatron_dataset_utils import get_dataset_building_group
         dataset_building_group = get_dataset_building_group()
     except ImportError:
         print(f'import error for megatron get_dataset_building_group\n', flush=True)

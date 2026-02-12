@@ -216,7 +216,6 @@ def get_shm_prefix(streams_local: list[str],
         for shm_name in SHM_TO_CLEAN
     ])
 
-    print(f'barrier\n', flush=True)
     barrier()
 
     # First, the local leader registers the first available shm prefix, recording its locals.
