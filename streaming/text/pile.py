@@ -9,7 +9,7 @@ high-quality datasets combined together.
 
 from typing import Any, Optional
 
-from transformers.models.auto.tokenization_auto import AutoTokenizer
+from transformers import AutoTokenizer
 
 from streaming.base import StreamingDataset
 
