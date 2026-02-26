@@ -9,7 +9,7 @@ the `Common Crawl <https://commoncrawl.org>`_ dataset.
 
 from typing import Any, Optional
 
-from transformers.models.auto.tokenization_auto import AutoTokenizer
+from transformers import AutoTokenizer
 
 from streaming.base import StreamingDataset
 

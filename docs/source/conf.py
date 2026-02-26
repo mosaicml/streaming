@@ -214,7 +214,7 @@ intersphinx_mapping = {
     'torch': ('https://pytorch.org/docs/stable/', None),
     'torchmetrics': ('https://torchmetrics.readthedocs.io/en/latest/', None),
     'torchvision': ('https://pytorch.org/vision/stable/', None),
-    'transformers': ('https://huggingface.co/docs/transformers/master/en/', None),
+    'transformers': ('https://huggingface.co/docs/transformers/main/en/', None),
 }
 
 nitpicky = False  # warn on broken links
@@ -423,7 +423,7 @@ def _generate_rst_files_for_modules() -> None:
         # avoid duplicate entries in docs. We add torch's _LRScheduler to
         # types, so we get a ``WARNING: duplicate object description`` if we
         # don't exclude it
-        exclude_members = [torch.optim.lr_scheduler._LRScheduler]
+        exclude_members = [torch.optim.lr_scheduler.LRScheduler]
         if module is not streaming:
             exclude_members += streaming_imported_types
 
