@@ -327,12 +327,16 @@ def _merge_index_from_list(index_file_urls: Sequence[Union[str, tuple[str, str]]
             if not os.path.exists(dest):
                 raise FileNotFoundError(f'Index file {dest} does not exist or not accessible.')
 
-            partitions.append(dest)
+            partitions.append((dest, _get_partition_dirname(url, out)))
 
         # merge shards from all index files
         shards = []
-        for partition_index in partitions:
+        for partition_index, partition_dirname in partitions:
             p = Path(partition_index)
+            if partition_dirname is None:
+                # The partition does not reside under ``out``, so its path relative to ``out``
+                # cannot be determined. Fall back to the partition's parent directory name.
+                partition_dirname = os.path.basename(p.parent)
             obj = json.load(open(partition_index))
             for i in range(len(obj['shards'])):
                 shard = obj['shards'][i]
@@ -340,7 +344,7 @@ def _merge_index_from_list(index_file_urls: Sequence[Union[str, tuple[str, str]]
                     if shard.get(key):
                         basename = shard[key]['basename']
                         obj['shards'][i][key]['basename'] = os.path.join(
-                            os.path.basename(p.parent), basename)
+                            partition_dirname, basename)
             shards += obj['shards']
 
         # Save merged index locally
@@ -361,6 +365,46 @@ def _merge_index_from_list(index_file_urls: Sequence[Union[str, tuple[str, str]]
         # Clean up
         if not keep_local:
             shutil.rmtree(cu.local, ignore_errors=True)
+
+
+def _get_partition_dirname(index_file_url: Union[str, tuple[str, str]],
+                           out: Union[str, tuple[str, str]]) -> Optional[str]:
+    """Get the directory of a partition index file relative to the merge root ``out``.
+
+    Args:
+        index_file_url (Union[str, Tuple[str,str]]): a partition index file url, either a single
+            path string or a (local, remote) tuple.
+        out (Union[str, Tuple[str,str]]): the merge root, either a single path string or a
+            (local, remote) tuple.
+
+    Returns:
+        Optional[str]: the partition directory relative to ``out``, e.g. ``group1/subdir2`` for
+            an index file at ``<out>/group1/subdir2/index.json``. ``None`` if the partition does
+            not reside under ``out``.
+    """
+    urls = index_file_url if isinstance(index_file_url, tuple) else (index_file_url,)
+    roots = out if isinstance(out, tuple) else (out,)
+    for url in urls:
+        url_obj = urllib.parse.urlparse(url)
+        for root in roots:
+            root_obj = urllib.parse.urlparse(root)
+            # Only compare urls that live in the same place, e.g. the same bucket or the local
+            # filesystem.
+            if (url_obj.scheme, url_obj.netloc) != (root_obj.scheme, root_obj.netloc):
+                continue
+            root_path = root_obj.path
+            if root_obj.scheme and not root_path:
+                root_path = '/'
+            try:
+                rel = os.path.relpath(os.path.dirname(url_obj.path), root_path)
+            except ValueError:
+                continue
+            if rel == os.curdir:
+                # The partition index sits directly at the root, so do not prefix basenames.
+                return ''
+            if rel != os.pardir and not rel.startswith(os.pardir + os.sep):
+                return rel
+    return None
 
 
 def _not_merged_index(index_file_path: str, out: str):
