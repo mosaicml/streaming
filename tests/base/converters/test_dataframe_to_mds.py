@@ -104,6 +104,20 @@ class TestDataFrameToMDS:
         df = spark.createDataFrame(data=data, schema=schema).repartition(3)
         yield df
 
+    @pytest.fixture
+    def non_nullable_array_dataframe(self):
+        spark = SparkSession.builder.getOrCreate()  # pyright: ignore
+
+        data = [([1.0, 2.0, 3.0],), ([4.0, 5.0, 6.0],), ([7.0, 8.0, 9.0],)]
+
+        # Spark marks array columns built from non-null inputs (e.g. ``array`` or ``concat`` of
+        # non-nullable columns) with ``containsNull=False``.
+        schema = StructType(
+            [StructField('vals', ArrayType(DoubleType(), containsNull=False), True)])
+
+        df = spark.createDataFrame(data=data, schema=schema).repartition(3)
+        yield df
+
     @pytest.mark.parametrize('keep_local', [True, False])
     @pytest.mark.parametrize('merge_index', [True, False])
     def test_end_to_end_conversion_local_nocolumns(self, dataframe: Any, keep_local: bool,
@@ -318,6 +332,26 @@ class TestDataFrameToMDS:
         else:
             assert not os.path.exists(os.path.join(
                 out, 'index.json')), 'merged index is created when merge_index=False'
+
+    def test_non_nullable_array_type_mapping(self, non_nullable_array_dataframe: Any):
+        assert infer_dataframe_schema(non_nullable_array_dataframe) == {'vals': 'ndarray:float64'}
+
+    @pytest.mark.parametrize('use_columns', [True, False])
+    def test_non_nullable_array_end_to_end_conversion_local(self,
+                                                            non_nullable_array_dataframe: Any,
+                                                            use_columns: bool,
+                                                            local_remote_dir: tuple[str, str]):
+        out, _ = local_remote_dir
+        mds_kwargs: dict[str, Any] = {'out': out, 'keep_local': True}
+
+        if use_columns:
+            mds_kwargs['columns'] = {'vals': 'ndarray:float64'}
+
+        _ = dataframe_to_mds(non_nullable_array_dataframe, merge_index=True, mds_kwargs=mds_kwargs)
+
+        assert os.path.exists(os.path.join(out, 'index.json')), 'No merged index.json found'
+        mgi = json.load(open(os.path.join(out, 'index.json'), 'r'))
+        assert sum([a['samples'] for a in mgi['shards']]) == 3
 
     def test_array_udf_correct_columns(self,
                                        array_dataframe: Any,

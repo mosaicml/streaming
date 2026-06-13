@@ -108,6 +108,10 @@ def infer_dataframe_schema(dataframe: DataFrame,
         """
         if issubclass(type(spark_data_type), DecimalType):
             mds_type = SPARK_TO_MDS.get(DecimalType(), None)
+        elif isinstance(spark_data_type, ArrayType):
+            # Look up arrays by element type only, since ArrayType equality includes
+            # ``containsNull`` but the MDS encoding does not depend on it.
+            mds_type = SPARK_TO_MDS.get(ArrayType(spark_data_type.elementType), None)
         else:
             mds_type = SPARK_TO_MDS.get(spark_data_type, None)
 
