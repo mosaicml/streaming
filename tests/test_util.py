@@ -199,6 +199,64 @@ def test_format_remote_index_files(scheme: str):
         assert obj.scheme == scheme
 
 
+@pytest.mark.parametrize(('index_file_url', 'out', 'expected'), [
+    ('/foo/group1/subdir2/index.json', '/foo', os.path.join('group1', 'subdir2')),
+    ('/foo/subdir1/index.json', '/foo', 'subdir1'),
+    ('/foo/index.json', '/foo', ''),
+    ('/elsewhere/subdir1/index.json', '/foo', None),
+    ('s3://bucket/foo/group1/subdir2/index.json', 's3://bucket/foo',
+     os.path.join('group1', 'subdir2')),
+    ('s3://bucket/foo/subdir1/index.json', 's3://bucket', os.path.join('foo', 'subdir1')),
+    ('s3://bucket/foo/subdir1/index.json', 'gs://bucket/foo', None),
+    ('s3://other/foo/subdir1/index.json', 's3://bucket/foo', None),
+    (('/foo/subdir1/index.json', 's3://bucket/foo/subdir1/index.json'),
+     ('/foo', 's3://bucket/foo'), 'subdir1'),
+    (('/elsewhere/subdir1/index.json', 's3://bucket/foo/group1/subdir1/index.json'),
+     's3://bucket/foo', os.path.join('group1', 'subdir1')),
+])
+def test_get_partition_dirname(index_file_url: Union[str, tuple[str, str]],
+                               out: Union[str, tuple[str, str]], expected: Optional[str]):
+    """Validate partition directories are resolved relative to the merge root."""
+    from streaming.base.util import _get_partition_dirname
+
+    assert _get_partition_dirname(index_file_url, out) == expected
+
+
+@pytest.mark.parametrize('keep_local', [True, False])
+def test_merge_index_from_root_local_nested(local_remote_dir: tuple[str, str], keep_local: bool):
+    """Validate the merged index keeps full relative paths for nested partitions."""
+    from streaming import MDSWriter, StreamingDataset
+
+    out, _ = local_remote_dir
+    n_samples = 0
+    for group in ('group1', 'group2'):
+        for subdir in ('subdir1', 'subdir2'):
+            with MDSWriter(out=os.path.join(out, group, subdir),
+                           columns={'id': 'int'},
+                           keep_local=True) as writer:
+                for _ in range(3):
+                    writer.write({'id': n_samples})
+                    n_samples += 1
+
+    merge_index(out, keep_local=keep_local)
+    integrity_check(out, keep_local=keep_local, expected_n_shard_files=4)
+
+    if not keep_local:
+        return
+
+    merged_index = json.load(open(os.path.join(out, 'index.json')))
+    basenames = sorted(shard['raw_data']['basename'] for shard in merged_index['shards'])
+    assert basenames == [
+        os.path.join('group1', 'subdir1', 'shard.00000.mds'),
+        os.path.join('group1', 'subdir2', 'shard.00000.mds'),
+        os.path.join('group2', 'subdir1', 'shard.00000.mds'),
+        os.path.join('group2', 'subdir2', 'shard.00000.mds'),
+    ]
+
+    dataset = StreamingDataset(local=out, batch_size=1)
+    assert sorted(sample['id'] for sample in dataset) == list(range(n_samples))
+
+
 @pytest.mark.parametrize('index_file_urls_pattern', [1, 2, 3])
 @pytest.mark.parametrize('keep_local', [True, False])
 @pytest.mark.parametrize('scheme', ['gs://', 's3://', 'oci://'])
