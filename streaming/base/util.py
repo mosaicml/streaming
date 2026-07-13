@@ -21,7 +21,7 @@ from typing import Any, Callable, Optional, Sequence, TypeVar, Union, cast, over
 import torch.distributed as dist
 
 from streaming.base.constant import SHM_TO_CLEAN
-from streaming.base.distributed import get_local_rank, maybe_init_dist
+from streaming.base.distributed import get_local_rank, maybe_init_dist, barrier
 from streaming.base.format.index import get_index_basename
 
 logger = logging.getLogger(__name__)
@@ -198,8 +198,7 @@ def clean_stale_shared_memory() -> None:
                 break
 
     # Sync all ranks
-    if dist.is_available() and dist.is_initialized():
-        dist.barrier()
+    barrier()
 
     # Delete the process group if Streaming initialized it.
     if destroy_dist:

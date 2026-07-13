@@ -8,12 +8,14 @@ import streaming.text as text
 import streaming.vision as vision
 from streaming._version import __version__  # noqa: F401
 from streaming.base import (CSVWriter, JSONWriter, LocalDataset, MDSWriter, Stream,
-                            StreamingDataLoader, StreamingDataset, TSVWriter, XSVWriter)
+                            StreamingDataLoader, MegatronStreamingDataLoader, StreamingDataset, MegatronStreamingDataset, TSVWriter, XSVWriter)
 
 __all__ = [
     'StreamingDataLoader',
+    'MegatronStreamingDataLoader',
     'Stream',
     'StreamingDataset',
+    'MegatronStreamingDataset',
     'CSVWriter',
     'JSONWriter',
     'MDSWriter',

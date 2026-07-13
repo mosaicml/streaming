@@ -14,6 +14,10 @@ import torch
 from torch import Tensor
 from torch import distributed as dist
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 __all__ = [
     'all_gather', 'barrier', 'broadcast', 'get_rank', 'get_local_rank', 'get_local_world_size',
     'get_world_size'
@@ -58,8 +62,22 @@ def get_local_world_size() -> int:
 
 def barrier() -> None:
     """Synchronizes all processes."""
-    if dist.is_available() and dist.is_initialized():
-        dist.barrier()
+    try:
+        from streaming.base.megatron_dataset_utils import get_dataset_building_group
+        dataset_building_group = get_dataset_building_group()
+    except ImportError:
+        print(f'import error for megatron get_dataset_building_group\n', flush=True)
+        dataset_building_group = None
+    
+    if dataset_building_group is None:
+        logger.warning('dataset_building_group is None, cannot barrier on megatron dataset builder ranks. This would lead to deadlocks if all ranks are not building and iterating datasets at the same time.')
+        if dist.is_available() and dist.is_initialized():
+            print(f'barrier on megatron all ranks\n', flush=True)
+            dist.barrier()    
+    else:
+        print(f'barrier on megatron dataset builder ranks\n', flush=True)
+        dist.barrier(group=dataset_building_group)
+
 
 
 def broadcast(tensor: Tensor, src: int) -> None:

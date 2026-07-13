@@ -14,12 +14,12 @@ from time import sleep
 from typing import Iterator, Union
 
 import numpy as np
-from torch import distributed as dist
 
 from streaming.base.constant import BARRIER_FILELOCK, CACHE_FILELOCK, LOCALS, SHM_TO_CLEAN, TICK
 from streaming.base.shared import SharedMemory
 from streaming.base.util import retry as retry_decorator
 from streaming.base.world import World
+from streaming.base.distributed import barrier
 
 
 def _each_prefix_int() -> Iterator[int]:
@@ -216,8 +216,7 @@ def get_shm_prefix(streams_local: list[str],
         for shm_name in SHM_TO_CLEAN
     ])
 
-    if dist.is_available() and dist.is_initialized():
-        dist.barrier()
+    barrier()
 
     # First, the local leader registers the first available shm prefix, recording its locals.
     if world.is_local_leader:
@@ -226,8 +225,7 @@ def get_shm_prefix(streams_local: list[str],
         shm = SharedMemory(name, True, len(data))
         shm.buf[:len(data)] = data
 
-    if dist.is_available() and dist.is_initialized():
-        dist.barrier()
+    barrier()
 
     # Non-local leaders go next, searching for match.
     if not world.is_local_leader:
