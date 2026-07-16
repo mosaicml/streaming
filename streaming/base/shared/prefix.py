@@ -22,6 +22,15 @@ from streaming.base.util import retry as retry_decorator
 from streaming.base.world import World
 
 
+class _SharedMemoryNotReady(Exception):
+    """Follower attached before leader shm content was fully visible.
+
+    Dist barriers do not wait for OS SharedMemory propagation. Attach may
+    succeed while the packed locals buffer is still empty or inconsistent;
+    callers should retry with backoff instead of failing the job.
+    """
+
+
 def _each_prefix_int() -> Iterator[int]:
     """Get each possible prefix int to check in order.
 
@@ -230,28 +239,52 @@ def get_shm_prefix(streams_local: list[str],
         dist.barrier()
 
     # Non-local leaders go next, searching for match.
+    # Retry both name visibility (FileNotFoundError) and content readiness
+    # (_SharedMemoryNotReady): barrier sync does not imply OS shm propagation
+    # (see https://github.com/mosaicml/streaming/issues/901).
     if not world.is_local_leader:
+        name = _get_path(prefix_int, LOCALS)
 
-        @retry_decorator(exc_class=FileNotFoundError,
+        @retry_decorator(exc_class=(FileNotFoundError, _SharedMemoryNotReady),
                          num_attempts=100,
                          initial_backoff=TICK,
-                         max_jitter=0.0)
-        def _attach_to_shm() -> SharedMemory:
-            """Attach to shared memory created by local leader."""
-            name = _get_path(prefix_int, LOCALS)
-            return SharedMemory(name, False)
+                         max_jitter=TICK)
+        def _attach_and_validate_locals() -> SharedMemory:
+            """Attach to leader shm and wait until packed locals are consistent."""
+            follower_shm = SharedMemory(name, False)
+            try:
+                their_locals, their_prefix_int = _unpack_locals(bytes(follower_shm.buf))
+            except (ValueError, UnicodeDecodeError, IndexError, OverflowError) as err:
+                raise _SharedMemoryNotReady(
+                    f'Shared memory prefix={prefix_int} attached but locals are not readable yet'
+                ) from err
+            if streams_local != their_locals or prefix_int != their_prefix_int:
+                # Treat mismatch as not-ready during the race window; after retries
+                # exhaust we re-read once below to emit a clear permanent error.
+                raise _SharedMemoryNotReady(
+                    f'Shared memory prefix={prefix_int} content not yet consistent with leader')
+            return follower_shm
 
         try:
-            shm = _attach_to_shm()
-        except FileNotFoundError:
-            raise RuntimeError(f'Internal error: shared memory prefix={prefix_int} was not ' +
-                               f'registered by local leader. This may be because you specified ' +
-                               f'different ``local`` parameters from different ranks.')
-
-        their_locals, their_prefix_int = _unpack_locals(bytes(shm.buf))
-        if streams_local != their_locals or prefix_int != their_prefix_int:
-            raise RuntimeError(f'Internal error: shared memory registered does not match ' +
-                               f'local leader as streams_local or prefix_int not match. ' +
-                               f'local leader: {their_locals} and {their_prefix_int}. ' +
-                               f'expected: {streams_local} and {prefix_int}.')
+            shm = _attach_and_validate_locals()
+        except (FileNotFoundError, _SharedMemoryNotReady):
+            # Final probe: distinguish "never created" vs permanent locals mismatch.
+            try:
+                shm = SharedMemory(name, False)
+            except FileNotFoundError as err:
+                raise RuntimeError(
+                    f'Internal error: shared memory prefix={prefix_int} was not ' +
+                    f'registered by local leader. This may be because you specified ' +
+                    f'different ``local`` parameters from different ranks.') from err
+            try:
+                their_locals, their_prefix_int = _unpack_locals(bytes(shm.buf))
+            except (ValueError, UnicodeDecodeError, IndexError, OverflowError) as err:
+                raise RuntimeError(
+                    f'Internal error: shared memory prefix={prefix_int} was registered but ' +
+                    f'locals never became readable.') from err
+            if streams_local != their_locals or prefix_int != their_prefix_int:
+                raise RuntimeError(f'Internal error: shared memory registered does not match ' +
+                                   f'local leader as streams_local or prefix_int not match. ' +
+                                   f'local leader: {their_locals} and {their_prefix_int}. ' +
+                                   f'expected: {streams_local} and {prefix_int}.')
     return prefix_int, shm  # pyright: ignore
