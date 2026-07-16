@@ -16,7 +16,8 @@ from streaming.base import StreamingDataset
 from streaming.base.constant import LOCALS
 from streaming.base.shared import SharedArray, get_shm_prefix
 from streaming.base.shared.memory import SharedMemory
-from streaming.base.shared.prefix import _check_and_find
+from streaming.base.shared.prefix import (_SharedMemoryNotReady, _check_and_find, _get_path,
+                                          _pack_locals, _unpack_locals)
 from streaming.base.util import clean_stale_shared_memory
 from streaming.base.world import World
 from tests.common.utils import convert_to_mds
@@ -194,6 +195,45 @@ def test_shared_memory_permission_error(mock_shared_memory_class: MagicMock):
     with patch('os.path.exists', return_value=False):
         next_prefix = _check_and_find(['local'], [None], LOCALS)
         assert next_prefix == 1
+
+
+def test_unpack_locals_roundtrip():
+    packed = _pack_locals(['/tmp/a', '/tmp/b'], 7)
+    assert _unpack_locals(packed) == (['/tmp/a', '/tmp/b'], 7)
+
+
+def test_get_shm_prefix_follower_retries_until_locals_readable(local_remote_dir: tuple[str, str]):
+    """Non-leaders must retry when shm attaches before packed locals are consistent (#901)."""
+    local, _ = local_remote_dir
+    clean_stale_shared_memory()
+
+    prefix_int = 0
+    name = _get_path(prefix_int, LOCALS)
+    packed = _pack_locals([local], prefix_int)
+    leader_shm = SharedMemory(name, True, len(packed))
+    leader_shm.buf[:len(packed)] = packed
+
+    real_unpack = _unpack_locals
+    attempts = {'n': 0}
+
+    def flaky_unpack(data: bytes) -> tuple[list[str], int]:
+        attempts['n'] += 1
+        # Simulate OS visibility of the name before the packed payload is consistent.
+        if attempts['n'] <= 2:
+            raise ValueError('simulated incomplete shm payload')
+        return real_unpack(data)
+
+    follower_world = MagicMock()
+    follower_world.is_local_leader = False
+
+    with patch('streaming.base.shared.prefix._check_and_find_retrying', return_value=prefix_int), \
+            patch('streaming.base.shared.prefix._unpack_locals', side_effect=flaky_unpack):
+        got_prefix, follower_shm = get_shm_prefix([local], [None], follower_world)
+
+    assert got_prefix == prefix_int
+    assert attempts['n'] >= 3
+    assert _unpack_locals(bytes(follower_shm.buf)) == ([local], prefix_int)
+    assert issubclass(_SharedMemoryNotReady, Exception)
 
 
 # Global counter to track attach attempts (per process)
