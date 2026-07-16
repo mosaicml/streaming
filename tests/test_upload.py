@@ -49,6 +49,9 @@ class TestCloudUploader:
             [None, 'gs://bucket/dir/file', GCSUploader],
             ['/tmp/dir/filepath', LocalUploader],
             ['./relative/dir/filepath', LocalUploader],
+            # Windows absolute paths parse as scheme='d' / 'c' — must stay local (#960).
+            ['D:/datasets/train', LocalUploader],
+            ['C:/Users/data/out', LocalUploader],
         ],
     )
     @pytest.mark.usefixtures('gcs_hmac_credentials')
@@ -69,6 +72,20 @@ class TestCloudUploader:
             out_root = (mapping[0], mapping[1])
             cw = CloudUploader.get(out_root)
         assert isinstance(cw, mapping[-1])
+
+    def test_windows_drive_letter_not_cloud_scheme(self, tmp_path: Any):
+        """MDSWriter-style absolute Windows paths must not raise Invalid Cloud provider (#960)."""
+        from streaming.base.storage.upload import _provider_prefix
+        assert _provider_prefix('D:/test') == ''
+        assert _provider_prefix('C:\\train\\out') == ''
+        assert _provider_prefix('s3://bucket/key') == 's3'
+        assert _provider_prefix('/unix/abs') == ''
+        # Instantiation uses a real temp dir so LocalUploader can mkdir.
+        win_style = str(tmp_path / 'win_out')
+        # Simulate urlparse drive-letter behavior without requiring Windows.
+        with patch('streaming.base.storage.upload._provider_prefix', return_value=''):
+            cw = CloudUploader.get(out=win_style)
+        assert isinstance(cw, LocalUploader)
 
     @pytest.mark.parametrize('out', [(), ('s3://bucket/dir',), ('./dir1', './dir2', './dir3')])
     def test_invalid_out_parameter_length(self, out: Any):
