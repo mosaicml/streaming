@@ -48,6 +48,26 @@ UPLOADERS = {
 }
 
 
+def _provider_prefix(uri: str) -> str:
+    """Return the cloud provider scheme for ``uri``, or ``''`` for local paths.
+
+    ``urllib.parse.urlparse`` treats Windows drive letters as URL schemes
+    (``D:/path`` → ``scheme='d'``). Those are local filesystem paths, not cloud
+    providers, so map single alphabetic schemes to the local uploader.
+    """
+    obj = urllib.parse.urlparse(uri)
+    scheme = obj.scheme
+    if len(scheme) == 1 and scheme.isalpha():
+        return ''
+    if scheme == 'dbfs':
+        path = pathlib.Path(uri)
+        if len(path.parts) >= 2:
+            prefix = os.path.join(path.parts[0], path.parts[1])
+            if prefix == 'dbfs:/Volumes':
+                return prefix
+    return scheme
+
+
 class GCSAuthentication(Enum):
     HMAC = 1
     SERVICE_ACCOUNT = 2
@@ -86,13 +106,7 @@ class CloudUploader:
             CloudUploader: An instance of sub-class.
         """
         cls._validate(cls, out)
-        obj = urllib.parse.urlparse(out) if isinstance(out, str) else urllib.parse.urlparse(out[1])
-        provider_prefix = obj.scheme
-        if obj.scheme == 'dbfs':
-            path = pathlib.Path(out) if isinstance(out, str) else pathlib.Path(out[1])
-            prefix = os.path.join(path.parts[0], path.parts[1])
-            if prefix == 'dbfs:/Volumes':
-                provider_prefix = prefix
+        provider_prefix = _provider_prefix(out if isinstance(out, str) else out[1])
         return getattr(sys.modules[__name__],
                        UPLOADERS[provider_prefix])(out, keep_local, progress_bar, retry, exist_ok)
 
@@ -114,15 +128,15 @@ class CloudUploader:
             ValueError: Invalid Cloud provider prefix.
         """
         if isinstance(out, str):
-            obj = urllib.parse.urlparse(out)
+            provider_prefix = _provider_prefix(out)
         else:
             if len(out) != 2:
                 raise ValueError(f'Invalid `out` argument. It is either a string of ' +
                                  f'local/remote directory or a list of two strings with ' +
                                  f'[local, remote].')
-            obj = urllib.parse.urlparse(out[1])
-        if obj.scheme not in UPLOADERS:
-            raise ValueError(f'Invalid Cloud provider prefix: {obj.scheme}.')
+            provider_prefix = _provider_prefix(out[1])
+        if provider_prefix not in UPLOADERS:
+            raise ValueError(f'Invalid Cloud provider prefix: {provider_prefix}.')
 
     def __init__(self,
                  out: Union[str, tuple[str, str]],
@@ -158,8 +172,8 @@ class CloudUploader:
         self.retry = retry
 
         if isinstance(out, str):
-            # It is a remote directory
-            if urllib.parse.urlparse(out).scheme != '':
+            # It is a remote directory (cloud scheme). Windows drive letters are local.
+            if _provider_prefix(out) != '':
                 self.local = mkdtemp()
                 self.remote = out
             # It is a local directory
