@@ -3,13 +3,13 @@
 
 import operator
 import os
-from shutil import rmtree
+from shutil import copytree, rmtree
 from typing import Any
 
 import pytest
 from torch.utils.data import DataLoader
 
-from streaming import MDSWriter, StreamingDataset
+from streaming import MDSWriter, Stream, StreamingDataset
 from tests.common.utils import convert_to_mds
 
 
@@ -289,3 +289,33 @@ def test_cache_filelock_reuse(local_remote_dir: tuple[str, str]):
             'Expected _cache_filelock to be reused in evict_shard'
 
     rmtree(local, ignore_errors=False)
+
+
+def test_evict_coldest_skips_local_only_stream(tmp_path: Any):
+    """Do not evict shards whose stream has no remote copy."""
+    remote = tmp_path / 'remote'
+    local_remote = tmp_path / 'local_remote'
+    canonical = tmp_path / 'canonical'
+    local_only = tmp_path / 'local_only'
+    columns = {'data': 'bytes'}
+
+    for dest in (remote, canonical):
+        with MDSWriter(out=str(dest), columns=columns, size_limit=500) as out:
+            for _ in range(200):
+                out.write({'data': b'\0' * 100})
+
+    copytree(canonical, local_only)
+    before = set(os.listdir(local_only))
+
+    dataset = StreamingDataset(streams=[
+        Stream(local=str(local_only), remote=None),
+        Stream(local=str(local_remote), remote=str(remote)),
+    ],
+                               batch_size=1,
+                               cache_limit=10_000_000)
+
+    for shard_id in range(dataset.num_shards):
+        dataset.prepare_shard(shard_id)
+
+    dataset.evict_coldest_shard()
+    assert set(os.listdir(local_only)) == before
