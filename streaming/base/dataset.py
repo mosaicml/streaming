@@ -1095,6 +1095,10 @@ class StreamingDataset(Array, IterableDataset):
         Assumes you hold ``__cache_filelock``, preventing anyone else from modifying the cache. We
         expect that shard deletions are very fast.
 
+        Shards belonging to a stream with ``remote=None`` are skipped. For those streams, ``local``
+        is the only copy of the data, so evicting them would be permanent data loss rather than
+        cache reclamation.
+
         This method is called internally by ``prepare_shard`` to clear space for more downloads.
         """
         states = self._shard_states.numpy()
@@ -1104,9 +1108,21 @@ class StreamingDataset(Array, IterableDataset):
         if local_shard_ids.size == 0:
             raise ValueError('Attempted shard eviction, but there are no shards present locally ' +
                              'to evict. Your cache limit may be too low.')
-        local_shard_times = access_times[local_shard_ids]
+        # Keep only shards that can be re-downloaded from a remote.
+        stream_ids = self.stream_per_shard[local_shard_ids]
+        has_remote = np.array(
+            [self.streams[int(stream_id)].remote is not None for stream_id in stream_ids],
+            dtype=bool,
+        )
+        evictable_shard_ids = local_shard_ids[has_remote]
+        if evictable_shard_ids.size == 0:
+            raise ValueError('Attempted shard eviction, but every local shard belongs to a ' +
+                             'stream with `remote=None` and cannot be re-downloaded. Raise ' +
+                             '`cache_limit` or avoid mixing local-only streams with a tight ' +
+                             'cache limit.')
+        local_shard_times = access_times[evictable_shard_ids]
         # Find local shard with oldest last access time
-        coldest_shard_id = local_shard_ids[np.argmin(local_shard_times)]
+        coldest_shard_id = evictable_shard_ids[np.argmin(local_shard_times)]
         # Evict that shard.
         self._evict_shard(coldest_shard_id)
 
