@@ -4,6 +4,7 @@
 import json
 import os
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -186,6 +187,21 @@ class TestDataFrameToMDS:
         # 'strr' is not a valid mds dtype
         with pytest.raises(ValueError, match=f'.* is not supported by dataframe_to_mds.*'):
             _ = dataframe_to_mds(dataframe, merge_index=False, mds_kwargs=mds_kwargs)
+
+    def test_end_to_end_conversion_local_exist_ok(self, dataframe: Any, tmp_path: Path):
+        (tmp_path / 'existing').touch()
+        mds_kwargs = {
+            'out': str(tmp_path),
+            'columns': {
+                'id': 'str',
+                'dept': 'str'
+            },
+            'exist_ok': True,
+        }
+
+        _ = dataframe_to_mds(dataframe.select(col('id'), col('dept')),
+                             merge_index=False,
+                             mds_kwargs=mds_kwargs)
 
     @pytest.mark.parametrize('keep_local', [True, False])
     @pytest.mark.parametrize('merge_index', [True, False])
