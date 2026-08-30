@@ -281,7 +281,8 @@ def dataframe_to_mds(dataframe: DataFrame,
 
     out = mds_kwargs['out']
     keep_local = False if 'keep_local' not in mds_kwargs else mds_kwargs['keep_local']
-    cu = CloudUploader.get(out, keep_local=keep_local)
+    exist_ok = False if 'exist_ok' not in mds_kwargs else mds_kwargs['exist_ok']
+    cu = CloudUploader.get(out, keep_local=keep_local, exist_ok=exist_ok)
 
     # Fix output format as mds_path: Tuple(local, remote)
     if cu.remote is None:
