@@ -30,10 +30,10 @@ def get_batches_epochs(dataset: SimulationDataset, max_duration: Time) -> tuple[
         batches_per_epoch = dataset_batches
         total_batches = epochs * batches_per_epoch
     elif max_duration.unit == TimeUnit.BATCH:
-        full_epochs = max_duration.value // dataset_batches
+        epochs = max_duration.value // dataset_batches
         # check if there is a partial epoch we should fulfill
         if max_duration.value % dataset_batches != 0:
-            full_epochs += 1
+            epochs += 1
         # make sure we don't simulate past the duration set.
         if max_duration.value < dataset_batches:
             batches_per_epoch = max_duration.value
