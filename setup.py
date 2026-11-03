@@ -43,7 +43,7 @@ classifiers = [
 
 install_requires = [
     'boto3>=1.21.45,<2',
-    'Brotli>=1.0.9',
+    'Brotli>=1.2.1',
     'google-cloud-storage>=2.9.0,<3.3.0',
     'matplotlib>=3.5.2,<4',
     'numpy>=1.21.5,<2.5.0',
